@@ -332,6 +332,86 @@ public class AliBlobStoreTest {
     }
   }
 
+  @Test
+  void testDoDownloadByteArray_exactContentLength() {
+    String content = "downloadedData";
+    doReturn(buildByteArrayGetObjectResult(content, content.length()))
+        .when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(content.length(), byteArray.getBytes().length);
+    assertEquals(content, new String(byteArray.getBytes(), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void testDoDownloadByteArray_contentLengthLargerThanStream_trimsToActualBytes() {
+    String content = "downloadedData";
+    // Reported length intentionally larger than the actual stream; result must be trimmed.
+    doReturn(buildByteArrayGetObjectResult(content, 100L))
+        .when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(content.length(), byteArray.getBytes().length);
+    assertEquals(content, new String(byteArray.getBytes(), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void testDoDownloadByteArray_zeroContentLength_drainsEntireStream() {
+    String content = "downloadedData";
+    // A zero content length (e.g. a missing Content-Length header) must fall back to draining the
+    // full stream rather than returning an empty array.
+    doReturn(buildByteArrayGetObjectResult(content, 0L))
+        .when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(content, new String(byteArray.getBytes(), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void testDoDownloadByteArray_nullContentLength_drainsEntireStream() {
+    String content = "downloadedData";
+    // A null content length (e.g. the SDK omits it) must fall back to draining the full stream.
+    GetObjectResult result = buildByteArrayGetObjectResult(content, 0L);
+    doReturn(null).when(result).contentLength();
+    doReturn(result).when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(content, new String(byteArray.getBytes(), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void testDoDownloadByteArray_emptyObject() {
+    doReturn(buildByteArrayGetObjectResult("", 0L))
+        .when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(0, byteArray.getBytes().length);
+  }
+
+  @Test
+  void testDoDownloadByteArray_contentLengthSmallerThanStream_throws() {
+    String content = "muchLongerThanReported";
+    // Reported length (5) under-reports the actual 22-byte stream: the read must NOT silently
+    // truncate the payload, it must fail loudly instead.
+    doReturn(buildByteArrayGetObjectResult(content, 5L))
+        .when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    assertThrows(
+        RuntimeException.class,
+        () -> ali.doDownload(getTestDownloadRequestNoRange(), byteArray));
+  }
+
   void verifyDownloadTestResults(DownloadResponse response, Instant now) {
 
     // Verify the parameters passed into the OSS SDK
@@ -1208,6 +1288,26 @@ public class AliBlobStoreTest {
         .build();
   }
 
+  private DownloadRequest getTestDownloadRequestNoRange() {
+    return new DownloadRequest.Builder()
+        .withKey("object-1")
+        .withVersionId("version-1")
+        .build();
+  }
+
+  // Builds a minimal GetObjectResult for the byte-array read path with a caller-controlled
+  // reported content length, so tests can exercise exact/over-reported/zero-length behavior.
+  private GetObjectResult buildByteArrayGetObjectResult(String content, long reportedLength) {
+    InputStream inputStream =
+        new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+    GetObjectResult result = mock(GetObjectResult.class);
+    doReturn("version-1").when(result).versionId();
+    doReturn("etag1").when(result).eTag();
+    doReturn(reportedLength).when(result).contentLength();
+    doReturn(inputStream).when(result).body();
+    return result;
+  }
+
   private GetObjectResult buildTestGetObjectResult(
       Instant now) {
     Map<String, String> metadataMap = Map.of("key1", "value1", "key2", "value2");
@@ -1790,6 +1890,47 @@ public class AliBlobStoreTest {
     ResourceNotFoundException ex = assertThrows(
         ResourceNotFoundException.class,
         () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+
+    ArchiveInfo info = ex.getArchiveInfo();
+    assertNotNull(info, "ArchiveInfo should be populated when a delete marker is detected");
+    assertTrue(info.isArchived());
+    assertEquals(priorVersionId, info.getVersionId());
+  }
+
+  @Test
+  void testDoDownloadByteArray_checkArchived_deletedOnVersionedBucket_throwsWithArchiveInfo() {
+    // The ByteArray download path must preserve the same archived-object contract as the
+    // OutputStream path: a 404 + x-oss-delete-marker GET resolves the prior version and throws
+    // ResourceNotFoundException with ArchiveInfo populated. This guards the shared download()
+    // helper so the byte[] overload cannot silently diverge from the streaming overload.
+    String key = "deleted-key";
+    String priorVersionId = "v-prior-1";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    when(service.headers()).thenReturn(Map.of("x-oss-delete-marker", "true"));
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(GetObjectRequest.class), any(OperationOptions.class)))
+        .thenThrow(op);
+
+    ObjectVersion priorVersion = mock(ObjectVersion.class);
+    when(priorVersion.versionId()).thenReturn(priorVersionId);
+    when(priorVersion.key()).thenReturn(key);
+    ListObjectVersionsResult listResult = mock(ListObjectVersionsResult.class);
+    when(listResult.versions()).thenReturn(List.of(priorVersion));
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(listResult).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    ResourceNotFoundException ex = assertThrows(
+        ResourceNotFoundException.class,
+        () -> ali.doDownload(request, new ByteArray()));
 
     ArchiveInfo info = ex.getArchiveInfo();
     assertNotNull(info, "ArchiveInfo should be populated when a delete marker is detected");
