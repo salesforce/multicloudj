@@ -26,7 +26,7 @@ import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClientBuil
 import com.salesforce.multicloudj.blob.ali.AliSdkService;
 import com.salesforce.multicloudj.blob.ali.AliTransformer;
 import com.salesforce.multicloudj.blob.ali.AliTransformerSupplier;
-import com.salesforce.multicloudj.blob.ali.OssCredentialsProvider;
+import com.salesforce.multicloudj.blob.ali.OssClientFactory;
 import com.salesforce.multicloudj.blob.async.driver.AbstractAsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
@@ -72,7 +72,6 @@ import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -953,106 +952,38 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
 
     @Override
     public AsyncBlobStore build() {
-      CredentialsProvider creds =
-          OssCredentialsProvider.getCredentialsProvider(
-              getCredentialsOverrider(), getRegion());
-
-      Retryer retryer =
-          getRetryConfig() != null ? AliTransformer.toAliRetryer(getRetryConfig()) : null;
+      CredentialsProvider creds = OssClientFactory.resolveCredentials(this);
+      Retryer retryer = OssClientFactory.resolveRetryer(this);
 
       OSSAsyncClient async = this.asyncClient;
       if (async == null && creds != null) {
-        var asyncBuilder = OSSAsyncClient.newBuilder()
-            .region(getRegion())
-            .credentialsProvider(creds);
-        if (getEndpoint() != null) {
-          asyncBuilder.endpoint(getEndpoint().toString());
-        }
-        if (getProxyEndpoint() != null) {
-          asyncBuilder.proxyHost(
-              getProxyEndpoint().getHost()
-                  + ":" + getProxyEndpoint().getPort());
-        }
-        if (retryer != null) {
-          asyncBuilder.retryer(retryer);
-        }
-        // socketTimeout and RetryConfig.attemptTimeout both map to the Ali SDK's
-        // single readWriteTimeout setting. When both are set, attemptTimeout (the
-        // more specific per-attempt deadline) takes precedence over the
-        // transport-level socketTimeout.
-        Duration asyncReadWriteTimeout =
-            getRetryConfig() != null && getRetryConfig().getAttemptTimeout() != null
-                ? Duration.ofMillis(getRetryConfig().getAttemptTimeout())
-                : getSocketTimeout();
-        // Connection-pool size and idle-connection timeout are only settable via
-        // HttpClientOptions, not on the async client builder. When the caller sets either, build
-        // an explicit async transport client from those options (carrying proxyHost +
-        // readWriteTimeout forward so nothing the builder would otherwise set is lost). When
-        // neither is set, leave the SDK to construct its own default client and set
-        // readWriteTimeout directly, preserving the prior behavior.
-        if (getMaxConnections() != null || getIdleConnectionTimeout() != null) {
-          String proxyHost = getProxyEndpoint() != null
-              ? getProxyEndpoint().getHost() + ":" + getProxyEndpoint().getPort()
-              : null;
-          asyncBuilder.httpClient(
-              Apache5AsyncHttpClientBuilder.create()
-                  .options(AliTransformer.toHttpClientOptions(
-                      proxyHost,
-                      asyncReadWriteTimeout,
-                      getMaxConnections(),
-                      getIdleConnectionTimeout()))
-                  .build());
-        } else if (asyncReadWriteTimeout != null) {
-          asyncBuilder.readWriteTimeout(asyncReadWriteTimeout);
-        }
+        var asyncBuilder = OSSAsyncClient.newBuilder();
+        OssClientFactory.configure(
+            asyncBuilder,
+            this,
+            creds,
+            retryer,
+            (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) ->
+                Apache5AsyncHttpClientBuilder.create()
+                    .options(AliTransformer.toHttpClientOptions(
+                        proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout))
+                    .build());
         async = asyncBuilder.build();
       }
 
       OSSClient sync = this.syncClient;
       if (sync == null && creds != null) {
-        var syncBuilder = OSSClient.newBuilder()
-            .region(getRegion())
-            .credentialsProvider(creds);
-        if (getEndpoint() != null) {
-          syncBuilder.endpoint(getEndpoint().toString());
-        }
-        if (getProxyEndpoint() != null) {
-          syncBuilder.proxyHost(
-              getProxyEndpoint().getHost()
-                  + ":" + getProxyEndpoint().getPort());
-        }
-        if (retryer != null) {
-          syncBuilder.retryer(retryer);
-        }
-        // socketTimeout and RetryConfig.attemptTimeout both map to the Ali SDK's
-        // single readWriteTimeout setting. When both are set, attemptTimeout (the
-        // more specific per-attempt deadline) takes precedence over the
-        // transport-level socketTimeout.
-        Duration syncReadWriteTimeout =
-            getRetryConfig() != null && getRetryConfig().getAttemptTimeout() != null
-                ? Duration.ofMillis(getRetryConfig().getAttemptTimeout())
-                : getSocketTimeout();
-        // Connection-pool size and idle-connection timeout are only settable via
-        // HttpClientOptions, not on the sync client builder. When the caller sets either, build
-        // an explicit sync transport client from those options (carrying proxyHost +
-        // readWriteTimeout forward so nothing the builder would otherwise set is lost). When
-        // neither is set, leave the SDK to construct its own default client and set
-        // readWriteTimeout directly, preserving the prior behavior.
-        if (getMaxConnections() != null || getIdleConnectionTimeout() != null) {
-          String proxyHost = getProxyEndpoint() != null
-              ? getProxyEndpoint().getHost() + ":" + getProxyEndpoint().getPort()
-              : null;
-          syncBuilder.httpClient(
-              Apache5HttpClientBuilder.create()
-                  .options(AliTransformer.toHttpClientOptions(
-                      proxyHost,
-                      syncReadWriteTimeout,
-                      getMaxConnections(),
-                      getIdleConnectionTimeout()))
-                  .build());
-        } else if (syncReadWriteTimeout != null) {
-          syncBuilder.readWriteTimeout(syncReadWriteTimeout);
-        }
+        var syncBuilder = OSSClient.newBuilder();
+        OssClientFactory.configure(
+            syncBuilder,
+            this,
+            creds,
+            retryer,
+            (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) ->
+                Apache5HttpClientBuilder.create()
+                    .options(AliTransformer.toHttpClientOptions(
+                        proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout))
+                    .build());
         sync = syncBuilder.build();
       }
 
