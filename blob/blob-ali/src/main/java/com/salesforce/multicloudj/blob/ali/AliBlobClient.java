@@ -106,7 +106,7 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> implements 
 
   private static OSSClient buildOSSClient(Builder builder) {
     CredentialsProvider creds =
-        OSSCredentialsProvider.getCredentialsProvider(
+        OssCredentialsProvider.getCredentialsProvider(
             builder.getCredentialsOverrider(), builder.getRegion());
     if (creds == null) {
       return null;
