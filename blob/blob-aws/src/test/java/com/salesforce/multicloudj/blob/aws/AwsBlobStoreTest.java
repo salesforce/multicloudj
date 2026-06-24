@@ -2371,8 +2371,21 @@ public class AwsBlobStoreTest {
   }
 
   @Test
+  void testGetBucketVersioning_nonexistentBucketThrowsResourceNotFound() {
+    S3Exception noSuchBucket =
+        (S3Exception)
+            S3Exception.builder().message("NoSuchBucket").statusCode(404).build();
+    when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
+        .thenThrow(noSuchBucket);
+
+    assertThrows(ResourceNotFoundException.class, () -> aws.getBucketVersioning());
+  }
+
+  @Test
   void testGetBucketVersioning_serviceExceptionPropagates() {
-    AwsServiceException exception = AwsServiceException.builder().message("boom").build();
+    AwsServiceException exception =
+        (AwsServiceException)
+            AwsServiceException.builder().message("boom").statusCode(500).build();
     when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
         .thenThrow(exception);
 
@@ -2422,5 +2435,20 @@ public class AwsBlobStoreTest {
                 BucketVersioningConfiguration.of(BucketVersioningStatus.UNVERSIONED)));
 
     verify(mockS3Client, times(0)).putBucketVersioning(any(PutBucketVersioningRequest.class));
+  }
+
+  @Test
+  void testSetBucketVersioning_nonexistentBucketThrowsResourceNotFound() {
+    S3Exception noSuchBucket =
+        (S3Exception)
+            S3Exception.builder().message("NoSuchBucket").statusCode(404).build();
+    when(mockS3Client.putBucketVersioning(any(PutBucketVersioningRequest.class)))
+        .thenThrow(noSuchBucket);
+
+    assertThrows(
+        ResourceNotFoundException.class,
+        () ->
+            aws.setBucketVersioning(
+                BucketVersioningConfiguration.of(BucketVersioningStatus.ENABLED)));
   }
 }

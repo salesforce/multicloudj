@@ -2791,7 +2791,8 @@ public abstract class AbstractBlobStoreIT {
     AbstractBlobStore blobStore = harness.createBlobStore(false, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
-    Assertions.assertThrows(Exception.class, bucketClient::getBucketVersioning);
+    // All providers must throw ResourceNotFoundException for a bucket that does not exist.
+    Assertions.assertThrows(ResourceNotFoundException.class, bucketClient::getBucketVersioning);
   }
 
   @Test

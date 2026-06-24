@@ -1033,7 +1033,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   protected BucketVersioningConfiguration doGetBucketVersioning() {
     Bucket bucketObj = storage.get(bucket);
     if (bucketObj == null) {
-      throw new SubstrateSdkException("Bucket does not exist: " + bucket);
+      throw new ResourceNotFoundException("Bucket does not exist: " + bucket);
     }
     return transformer.toBucketVersioningConfiguration(bucketObj.versioningEnabled());
   }
@@ -1042,7 +1042,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   protected void doSetBucketVersioning(BucketVersioningConfiguration configuration) {
     Bucket bucketObj = storage.get(bucket);
     if (bucketObj == null) {
-      throw new SubstrateSdkException("Bucket does not exist: " + bucket);
+      throw new ResourceNotFoundException("Bucket does not exist: " + bucket);
     }
     boolean versioningEnabled = transformer.toVersioningEnabled(configuration.getStatus());
     storage.update(bucketObj.toBuilder().setVersioningEnabled(versioningEnabled).build());

@@ -4652,7 +4652,7 @@ class GcpBlobStoreTest {
   void testDoGetBucketVersioning_missingBucketThrows() {
     when(mockStorage.get(TEST_BUCKET)).thenReturn(null);
 
-    assertThrows(SubstrateSdkException.class, () -> gcpBlobStore.getBucketVersioning());
+    assertThrows(ResourceNotFoundException.class, () -> gcpBlobStore.getBucketVersioning());
   }
 
   @Test
@@ -4696,7 +4696,7 @@ class GcpBlobStoreTest {
     when(mockStorage.get(TEST_BUCKET)).thenReturn(null);
 
     assertThrows(
-        SubstrateSdkException.class,
+        ResourceNotFoundException.class,
         () ->
             gcpBlobStore.setBucketVersioning(
                 BucketVersioningConfiguration.of(BucketVersioningStatus.ENABLED)));

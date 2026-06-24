@@ -583,8 +583,15 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
 
   @Override
   protected BucketVersioningConfiguration doGetBucketVersioning() {
-    return transformer.toBucketVersioningConfiguration(
-        s3Client.getBucketVersioning(transformer.toGetBucketVersioningRequest()));
+    try {
+      return transformer.toBucketVersioningConfiguration(
+          s3Client.getBucketVersioning(transformer.toGetBucketVersioningRequest()));
+    } catch (S3Exception e) {
+      if (e.statusCode() == 404) {
+        throw new ResourceNotFoundException("Bucket does not exist: " + bucket, e);
+      }
+      throw e;
+    }
   }
 
   @Override
@@ -596,8 +603,15 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
       throw new InvalidArgumentException(
           "S3 cannot return a bucket to an unversioned state; use SUSPENDED to pause versioning");
     }
-    s3Client.putBucketVersioning(
-        transformer.toPutBucketVersioningRequest(configuration.getStatus()));
+    try {
+      s3Client.putBucketVersioning(
+          transformer.toPutBucketVersioningRequest(configuration.getStatus()));
+    } catch (S3Exception e) {
+      if (e.statusCode() == 404) {
+        throw new ResourceNotFoundException("Bucket does not exist: " + bucket, e);
+      }
+      throw e;
+    }
   }
 
   /** Gets object lock configuration for a blob. */
