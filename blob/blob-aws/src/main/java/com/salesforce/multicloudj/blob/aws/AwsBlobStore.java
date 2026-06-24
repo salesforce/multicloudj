@@ -5,6 +5,8 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -577,6 +579,25 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
       }
       throw e;
     }
+  }
+
+  @Override
+  protected BucketVersioningConfiguration doGetBucketVersioning() {
+    return transformer.toBucketVersioningConfiguration(
+        s3Client.getBucketVersioning(transformer.toGetBucketVersioningRequest()));
+  }
+
+  @Override
+  protected void doSetBucketVersioning(BucketVersioningConfiguration configuration) {
+    // S3 has no API to return a bucket to an unversioned state; once versioning has been
+    // configured it can only be ENABLED or SUSPENDED. Reject UNVERSIONED rather than silently
+    // misrepresenting it as a suspend.
+    if (configuration.getStatus() == BucketVersioningStatus.UNVERSIONED) {
+      throw new InvalidArgumentException(
+          "S3 cannot return a bucket to an unversioned state; use SUSPENDED to pause versioning");
+    }
+    s3Client.putBucketVersioning(
+        transformer.toPutBucketVersioningRequest(configuration.getStatus()));
   }
 
   /** Gets object lock configuration for a blob. */

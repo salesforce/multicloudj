@@ -49,6 +49,7 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreBuilder;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
@@ -1026,6 +1027,25 @@ public class GcpBlobStore extends AbstractBlobStore {
       }
       throw new SubstrateSdkException("Failed to check bucket existence", e);
     }
+  }
+
+  @Override
+  protected BucketVersioningConfiguration doGetBucketVersioning() {
+    Bucket bucketObj = storage.get(bucket);
+    if (bucketObj == null) {
+      throw new SubstrateSdkException("Bucket does not exist: " + bucket);
+    }
+    return transformer.toBucketVersioningConfiguration(bucketObj.versioningEnabled());
+  }
+
+  @Override
+  protected void doSetBucketVersioning(BucketVersioningConfiguration configuration) {
+    Bucket bucketObj = storage.get(bucket);
+    if (bucketObj == null) {
+      throw new SubstrateSdkException("Bucket does not exist: " + bucket);
+    }
+    boolean versioningEnabled = transformer.toVersioningEnabled(configuration.getStatus());
+    storage.update(bucketObj.toBuilder().setVersioningEnabled(versioningEnabled).build());
   }
 
   /**

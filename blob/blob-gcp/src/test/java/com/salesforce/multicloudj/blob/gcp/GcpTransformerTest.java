@@ -16,6 +16,8 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Storage;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -2270,5 +2272,42 @@ class GcpTransformerTest {
     BlobInfo blobInfo = transformer.toPresignBlobInfo(request);
 
     assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", blobInfo.getMd5());
+  }
+
+  @Test
+  public void testToBucketVersioningConfiguration_enabled() {
+    BucketVersioningConfiguration config = transformer.toBucketVersioningConfiguration(true);
+    assertEquals(BucketVersioningStatus.ENABLED, config.getStatus());
+    assertTrue(config.isEnabled());
+  }
+
+  @Test
+  public void testToBucketVersioningConfiguration_falseMapsToUnversioned() {
+    BucketVersioningConfiguration config = transformer.toBucketVersioningConfiguration(false);
+    assertEquals(BucketVersioningStatus.UNVERSIONED, config.getStatus());
+    assertFalse(config.isEnabled());
+  }
+
+  @Test
+  public void testToBucketVersioningConfiguration_nullMapsToUnversioned() {
+    // GCS reports no versioning flag for a bucket that has never had versioning configured.
+    BucketVersioningConfiguration config = transformer.toBucketVersioningConfiguration(null);
+    assertEquals(BucketVersioningStatus.UNVERSIONED, config.getStatus());
+  }
+
+  @Test
+  public void testToVersioningEnabled_enabledMapsToTrue() {
+    assertTrue(transformer.toVersioningEnabled(BucketVersioningStatus.ENABLED));
+  }
+
+  @Test
+  public void testToVersioningEnabled_suspendedMapsToFalse() {
+    // GCS has no distinct suspended state, so SUSPENDED turns versioning off.
+    assertFalse(transformer.toVersioningEnabled(BucketVersioningStatus.SUSPENDED));
+  }
+
+  @Test
+  public void testToVersioningEnabled_unversionedMapsToFalse() {
+    assertFalse(transformer.toVersioningEnabled(BucketVersioningStatus.UNVERSIONED));
   }
 }

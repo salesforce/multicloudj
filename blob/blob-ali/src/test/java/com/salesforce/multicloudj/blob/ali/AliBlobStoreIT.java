@@ -187,6 +187,13 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
     }
 
     @Override
+    public boolean isBucketVersioningSupported() {
+      // The synchronous AliBlobStore does not implement bucket-level versioning configuration, so
+      // the bucket versioning conformance tests are skipped via this capability flag.
+      return false;
+    }
+
+    @Override
     public String computeChecksum(byte[] content) {
       CRC64 crc64 = new CRC64();
       crc64.update(content, content.length);

@@ -10,6 +10,8 @@ import com.google.cloud.storage.StorageClass;
 import com.google.common.collect.ImmutableMap;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -622,5 +624,37 @@ public class GcpTransformer {
     return blobList.stream()
         .map(blob -> new BlobIdentifier(blob.getKey(), null))
         .collect(Collectors.toList());
+  }
+
+  /**
+   * Converts the GCS {@code versioningEnabled} flag to a {@link BucketVersioningConfiguration}.
+   *
+   * <p>GCS models versioning as a single boolean with no distinct suspended state, so a {@code
+   * true} flag maps to {@link BucketVersioningStatus#ENABLED} and any other value (including {@code
+   * null}, meaning never configured) maps to {@link BucketVersioningStatus#UNVERSIONED}.
+   *
+   * @param versioningEnabled the bucket's {@code versioningEnabled} flag
+   * @return the corresponding versioning configuration
+   */
+  public BucketVersioningConfiguration toBucketVersioningConfiguration(Boolean versioningEnabled) {
+    BucketVersioningStatus status =
+        Boolean.TRUE.equals(versioningEnabled)
+            ? BucketVersioningStatus.ENABLED
+            : BucketVersioningStatus.UNVERSIONED;
+    return BucketVersioningConfiguration.of(status);
+  }
+
+  /**
+   * Maps a desired {@link BucketVersioningStatus} to the GCS {@code versioningEnabled} flag.
+   *
+   * <p>GCS has only an on/off boolean, so {@link BucketVersioningStatus#ENABLED} maps to {@code
+   * true} while both {@link BucketVersioningStatus#SUSPENDED} and {@link
+   * BucketVersioningStatus#UNVERSIONED} map to {@code false}.
+   *
+   * @param status the desired versioning status
+   * @return the {@code versioningEnabled} flag to apply to the bucket
+   */
+  public boolean toVersioningEnabled(BucketVersioningStatus status) {
+    return status == BucketVersioningStatus.ENABLED;
   }
 }

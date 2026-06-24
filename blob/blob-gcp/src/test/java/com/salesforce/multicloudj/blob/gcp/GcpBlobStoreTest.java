@@ -62,6 +62,8 @@ import com.google.cloud.storage.transfermanager.UploadResult;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
@@ -4616,5 +4618,88 @@ class GcpBlobStoreTest {
             .withKey(key).build());
 
     assertThrows(NoSuchElementException.class, versions::next);
+  }
+
+  @Test
+  void testDoGetBucketVersioning_delegatesToTransformer() {
+    Bucket mockBucket = mock(Bucket.class);
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
+    when(mockBucket.versioningEnabled()).thenReturn(true);
+    when(mockTransformer.toBucketVersioningConfiguration(true))
+        .thenReturn(BucketVersioningConfiguration.of(BucketVersioningStatus.ENABLED));
+
+    BucketVersioningConfiguration result = gcpBlobStore.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.ENABLED, result.getStatus());
+    verify(mockBucket).versioningEnabled();
+    verify(mockTransformer).toBucketVersioningConfiguration(true);
+  }
+
+  @Test
+  void testDoGetBucketVersioning_unversionedWhenFlagAbsent() {
+    Bucket mockBucket = mock(Bucket.class);
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
+    when(mockBucket.versioningEnabled()).thenReturn(null);
+    when(mockTransformer.toBucketVersioningConfiguration(null))
+        .thenReturn(BucketVersioningConfiguration.of(BucketVersioningStatus.UNVERSIONED));
+
+    BucketVersioningConfiguration result = gcpBlobStore.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.UNVERSIONED, result.getStatus());
+  }
+
+  @Test
+  void testDoGetBucketVersioning_missingBucketThrows() {
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(null);
+
+    assertThrows(SubstrateSdkException.class, () -> gcpBlobStore.getBucketVersioning());
+  }
+
+  @Test
+  void testDoSetBucketVersioning_enabledUpdatesBucket() {
+    Bucket mockBucket = mock(Bucket.class);
+    Bucket.Builder mockBucketBuilder = mock(Bucket.Builder.class);
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
+    when(mockTransformer.toVersioningEnabled(BucketVersioningStatus.ENABLED)).thenReturn(true);
+    when(mockBucket.toBuilder()).thenReturn(mockBucketBuilder);
+    when(mockBucketBuilder.setVersioningEnabled(true)).thenReturn(mockBucketBuilder);
+    Bucket built = mock(Bucket.class);
+    when(mockBucketBuilder.build()).thenReturn(built);
+
+    gcpBlobStore.setBucketVersioning(
+        BucketVersioningConfiguration.of(BucketVersioningStatus.ENABLED));
+
+    verify(mockBucketBuilder).setVersioningEnabled(true);
+    verify(mockStorage).update(built);
+  }
+
+  @Test
+  void testDoSetBucketVersioning_suspendedDisablesVersioning() {
+    Bucket mockBucket = mock(Bucket.class);
+    Bucket.Builder mockBucketBuilder = mock(Bucket.Builder.class);
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
+    when(mockTransformer.toVersioningEnabled(BucketVersioningStatus.SUSPENDED)).thenReturn(false);
+    when(mockBucket.toBuilder()).thenReturn(mockBucketBuilder);
+    when(mockBucketBuilder.setVersioningEnabled(false)).thenReturn(mockBucketBuilder);
+    Bucket built = mock(Bucket.class);
+    when(mockBucketBuilder.build()).thenReturn(built);
+
+    gcpBlobStore.setBucketVersioning(
+        BucketVersioningConfiguration.of(BucketVersioningStatus.SUSPENDED));
+
+    verify(mockBucketBuilder).setVersioningEnabled(false);
+    verify(mockStorage).update(built);
+  }
+
+  @Test
+  void testDoSetBucketVersioning_missingBucketThrows() {
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(null);
+
+    assertThrows(
+        SubstrateSdkException.class,
+        () ->
+            gcpBlobStore.setBucketVersioning(
+                BucketVersioningConfiguration.of(BucketVersioningStatus.ENABLED)));
+    verify(mockStorage, never()).update(any(com.google.cloud.storage.BucketInfo.class));
   }
 }

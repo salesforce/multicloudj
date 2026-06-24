@@ -22,6 +22,8 @@ import static org.mockito.Mockito.when;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -109,6 +111,8 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketVersioningRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketVersioningResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -135,6 +139,8 @@ import software.amazon.awssdk.services.s3.model.ObjectLockRetention;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
 import software.amazon.awssdk.services.s3.model.ObjectVersion;
 import software.amazon.awssdk.services.s3.model.Part;
+import software.amazon.awssdk.services.s3.model.PutBucketVersioningRequest;
+import software.amazon.awssdk.services.s3.model.PutBucketVersioningResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectLegalHoldRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectLegalHoldResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -2317,5 +2323,104 @@ public class AwsBlobStoreTest {
             .withKey(key).build());
 
     assertThrows(NoSuchElementException.class, versions::next);
+  }
+
+  @Test
+  void testGetBucketVersioning_enabled() {
+    when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
+        .thenReturn(
+            GetBucketVersioningResponse.builder()
+                .status(software.amazon.awssdk.services.s3.model.BucketVersioningStatus.ENABLED)
+                .build());
+
+    BucketVersioningConfiguration result = aws.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.ENABLED, result.getStatus());
+    assertTrue(result.isEnabled());
+
+    ArgumentCaptor<GetBucketVersioningRequest> captor =
+        ArgumentCaptor.forClass(GetBucketVersioningRequest.class);
+    verify(mockS3Client, times(1)).getBucketVersioning(captor.capture());
+    assertEquals("bucket-1", captor.getValue().bucket());
+  }
+
+  @Test
+  void testGetBucketVersioning_suspended() {
+    when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
+        .thenReturn(
+            GetBucketVersioningResponse.builder()
+                .status(software.amazon.awssdk.services.s3.model.BucketVersioningStatus.SUSPENDED)
+                .build());
+
+    BucketVersioningConfiguration result = aws.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.SUSPENDED, result.getStatus());
+    assertFalse(result.isEnabled());
+  }
+
+  @Test
+  void testGetBucketVersioning_neverConfiguredMapsToUnversioned() {
+    // S3 returns a response with no status element for a bucket that has never had versioning
+    // configured; the SDK surfaces this as a null status.
+    when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
+        .thenReturn(GetBucketVersioningResponse.builder().build());
+
+    BucketVersioningConfiguration result = aws.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.UNVERSIONED, result.getStatus());
+  }
+
+  @Test
+  void testGetBucketVersioning_serviceExceptionPropagates() {
+    AwsServiceException exception = AwsServiceException.builder().message("boom").build();
+    when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
+        .thenThrow(exception);
+
+    assertThrows(AwsServiceException.class, () -> aws.getBucketVersioning());
+  }
+
+  @Test
+  void testSetBucketVersioning_enabled() {
+    when(mockS3Client.putBucketVersioning(any(PutBucketVersioningRequest.class)))
+        .thenReturn(PutBucketVersioningResponse.builder().build());
+
+    aws.setBucketVersioning(BucketVersioningConfiguration.of(BucketVersioningStatus.ENABLED));
+
+    ArgumentCaptor<PutBucketVersioningRequest> captor =
+        ArgumentCaptor.forClass(PutBucketVersioningRequest.class);
+    verify(mockS3Client, times(1)).putBucketVersioning(captor.capture());
+    PutBucketVersioningRequest request = captor.getValue();
+    assertEquals("bucket-1", request.bucket());
+    assertEquals(
+        software.amazon.awssdk.services.s3.model.BucketVersioningStatus.ENABLED,
+        request.versioningConfiguration().status());
+  }
+
+  @Test
+  void testSetBucketVersioning_suspended() {
+    when(mockS3Client.putBucketVersioning(any(PutBucketVersioningRequest.class)))
+        .thenReturn(PutBucketVersioningResponse.builder().build());
+
+    aws.setBucketVersioning(BucketVersioningConfiguration.of(BucketVersioningStatus.SUSPENDED));
+
+    ArgumentCaptor<PutBucketVersioningRequest> captor =
+        ArgumentCaptor.forClass(PutBucketVersioningRequest.class);
+    verify(mockS3Client, times(1)).putBucketVersioning(captor.capture());
+    assertEquals(
+        software.amazon.awssdk.services.s3.model.BucketVersioningStatus.SUSPENDED,
+        captor.getValue().versioningConfiguration().status());
+  }
+
+  @Test
+  void testSetBucketVersioning_unversionedIsRejected() {
+    // S3 has no API to return a bucket to an unversioned state, so UNVERSIONED is rejected before
+    // any service call is made.
+    assertThrows(
+        InvalidArgumentException.class,
+        () ->
+            aws.setBucketVersioning(
+                BucketVersioningConfiguration.of(BucketVersioningStatus.UNVERSIONED)));
+
+    verify(mockS3Client, times(0)).putBucketVersioning(any(PutBucketVersioningRequest.class));
   }
 }

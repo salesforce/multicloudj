@@ -4,6 +4,8 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
@@ -101,6 +103,14 @@ public abstract class AbstractBlobStoreIT {
      * tests are skipped.
      */
     default boolean isDirectoryUploadSupported() {
+      return true;
+    }
+
+    /**
+     * Whether this provider supports bucket-level versioning configuration. When false, the
+     * bucket versioning conformance tests are skipped.
+     */
+    default boolean isBucketVersioningSupported() {
       return true;
     }
 
@@ -2742,6 +2752,65 @@ public abstract class AbstractBlobStoreIT {
     Assertions.assertThrows(
         Exception.class,
         () -> bucketClient.getObjectLock("conformance-tests/objectlock/nonexistent", null));
+  }
+
+  // ------------------------------------------------------------------------------------
+  // Conformance tests for getBucketVersioning() / setBucketVersioning(config)
+  //
+  // These verify that every provider that supports bucket-level versioning reports the same
+  // status for an enabled bucket and surfaces an error for a bucket that does not exist. The
+  // SUSPENDED / UNVERSIONED mapping differs by substrate and is covered by provider unit tests;
+  // here we only exercise the ENABLED round trip, which is non-destructive against the shared
+  // versioned conformance bucket (re-enabling an already-versioned bucket is a no-op).
+  // ------------------------------------------------------------------------------------
+
+  @Test
+  public void testGetBucketVersioning_enabledBucket() {
+    Assumptions.assumeTrue(harness.isBucketVersioningSupported());
+
+    // The versioned conformance bucket is provisioned with versioning enabled.
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    BucketVersioningConfiguration configuration = bucketClient.getBucketVersioning();
+
+    Assertions.assertNotNull(
+        configuration, "getBucketVersioning should return a non-null configuration");
+    Assertions.assertEquals(
+        BucketVersioningStatus.ENABLED,
+        configuration.getStatus(),
+        "Versioned conformance bucket should report ENABLED");
+    Assertions.assertTrue(
+        configuration.isEnabled(), "Versioned conformance bucket should report isEnabled()=true");
+  }
+
+  @Test
+  public void testGetBucketVersioning_nonexistentBucket_throws() {
+    Assumptions.assumeTrue(harness.isBucketVersioningSupported());
+
+    AbstractBlobStore blobStore = harness.createBlobStore(false, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    Assertions.assertThrows(Exception.class, bucketClient::getBucketVersioning);
+  }
+
+  @Test
+  public void testSetBucketVersioning_enabled() {
+    Assumptions.assumeTrue(harness.isBucketVersioningSupported());
+
+    // Setting ENABLED against the already-versioned conformance bucket is idempotent.
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    bucketClient.setBucketVersioning(
+        BucketVersioningConfiguration.of(BucketVersioningStatus.ENABLED));
+
+    BucketVersioningConfiguration configuration = bucketClient.getBucketVersioning();
+    Assertions.assertEquals(
+        BucketVersioningStatus.ENABLED,
+        configuration.getStatus(),
+        "Bucket should report ENABLED after enabling versioning");
+    Assertions.assertTrue(configuration.isEnabled());
   }
 
   // ------------------------------------------------------------------------------------

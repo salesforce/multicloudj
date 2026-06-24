@@ -45,6 +45,10 @@ public class BlobStoreValidator {
       "ObjectRetentionConfig cannot be null";
   static final String NULL_RETAIN_UNTIL_DATE_MSG =
       "ObjectRetentionConfig.retainUntilDate cannot be null";
+  static final String NULL_VERSIONING_CONFIG_MSG =
+      "BucketVersioningConfiguration cannot be null";
+  static final String NULL_VERSIONING_STATUS_MSG =
+      "BucketVersioningConfiguration.status cannot be null";
 
   /**
    * Inspects the input string and throws an IllegalArgumentException if the input is `null`, empty,
@@ -392,5 +396,20 @@ public class BlobStoreValidator {
     }
     // mode == null is the documented sentinel for "preserve current mode" — do NOT reject.
     // bypassGovernanceRetention == null is the documented default for "no bypass" — do NOT reject.
+  }
+
+  /**
+   * Validates a {@link BucketVersioningConfiguration} supplied to {@code setBucketVersioning}.
+   *
+   * @param configuration the configuration to validate
+   * @throws IllegalArgumentException if {@code configuration} or its status is null
+   */
+  public void validate(BucketVersioningConfiguration configuration) {
+    if (configuration == null) {
+      throw new IllegalArgumentException(NULL_VERSIONING_CONFIG_MSG);
+    }
+    if (configuration.getStatus() == null) {
+      throw new IllegalArgumentException(NULL_VERSIONING_STATUS_MSG);
+    }
   }
 }

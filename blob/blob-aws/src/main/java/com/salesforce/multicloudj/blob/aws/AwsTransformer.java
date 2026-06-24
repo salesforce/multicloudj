@@ -4,6 +4,8 @@ import com.salesforce.multicloudj.blob.aws.async.S3LoggingTransferListener;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -72,6 +74,8 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketVersioningRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketVersioningResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -90,6 +94,7 @@ import software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus;
 import software.amazon.awssdk.services.s3.model.ObjectLockMode;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetention;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
+import software.amazon.awssdk.services.s3.model.PutBucketVersioningRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectLegalHoldRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
@@ -101,6 +106,7 @@ import software.amazon.awssdk.services.s3.model.StorageClass;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.Tagging;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
+import software.amazon.awssdk.services.s3.model.VersioningConfiguration;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
@@ -1110,6 +1116,57 @@ public class AwsTransformer {
             legalHoldResponse != null
                 && legalHoldResponse.legalHold() != null
                 && legalHoldResponse.legalHold().status() == ObjectLockLegalHoldStatus.ON)
+        .build();
+  }
+
+  /** Creates a {@link GetBucketVersioningRequest} for the bound bucket. */
+  public GetBucketVersioningRequest toGetBucketVersioningRequest() {
+    return GetBucketVersioningRequest.builder().bucket(getBucket()).build();
+  }
+
+  /**
+   * Converts a {@link GetBucketVersioningResponse} to a {@link BucketVersioningConfiguration}.
+   *
+   * <p>S3 returns no status element for a bucket that has never had versioning configured; the SDK
+   * surfaces this as a {@code null} status, which maps to {@link
+   * BucketVersioningStatus#UNVERSIONED}.
+   */
+  public BucketVersioningConfiguration toBucketVersioningConfiguration(
+      GetBucketVersioningResponse response) {
+    BucketVersioningStatus status = BucketVersioningStatus.UNVERSIONED;
+    if (response != null && response.status() != null) {
+      switch (response.status()) {
+        case ENABLED:
+          status = BucketVersioningStatus.ENABLED;
+          break;
+        case SUSPENDED:
+          status = BucketVersioningStatus.SUSPENDED;
+          break;
+        default:
+          status = BucketVersioningStatus.UNVERSIONED;
+          break;
+      }
+    }
+    return BucketVersioningConfiguration.of(status);
+  }
+
+  /**
+   * Creates a {@link PutBucketVersioningRequest} for the bound bucket from the supplied driver
+   * status.
+   *
+   * <p>S3 only accepts {@code Enabled} and {@code Suspended} for the versioning configuration; it
+   * has no representation for returning a bucket to an unversioned state. {@link
+   * BucketVersioningStatus#UNVERSIONED} is therefore rejected by the caller before reaching this
+   * method.
+   */
+  public PutBucketVersioningRequest toPutBucketVersioningRequest(BucketVersioningStatus status) {
+    software.amazon.awssdk.services.s3.model.BucketVersioningStatus awsStatus =
+        status == BucketVersioningStatus.ENABLED
+            ? software.amazon.awssdk.services.s3.model.BucketVersioningStatus.ENABLED
+            : software.amazon.awssdk.services.s3.model.BucketVersioningStatus.SUSPENDED;
+    return PutBucketVersioningRequest.builder()
+        .bucket(getBucket())
+        .versioningConfiguration(VersioningConfiguration.builder().status(awsStatus).build())
         .build();
   }
 }

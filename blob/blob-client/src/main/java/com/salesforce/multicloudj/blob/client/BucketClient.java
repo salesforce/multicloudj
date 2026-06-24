@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobSpanNames;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -713,6 +714,52 @@ public class BucketClient implements AutoCloseable {
               }
             });
     return Boolean.TRUE.equals(result);
+  }
+
+  /**
+   * Retrieves the bucket's versioning configuration.
+   *
+   * @return the bucket's versioning configuration
+   * @throws SubstrateSdkException Thrown if the operation fails
+   * @throws UnsupportedOperationException Thrown when the configured provider does not support
+   *     bucket versioning configuration
+   */
+  public BucketVersioningConfiguration getBucketVersioning() {
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.GET_BUCKET_VERSIONING,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            return blobStore.getBucketVersioning();
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
+  }
+
+  /**
+   * Updates the bucket's versioning configuration.
+   *
+   * @param configuration the desired versioning configuration
+   * @throws SubstrateSdkException Thrown if the operation fails
+   * @throws IllegalArgumentException if {@code configuration} or its status is null
+   * @throws UnsupportedOperationException Thrown when the configured provider does not support
+   *     bucket versioning configuration
+   */
+  public void setBucketVersioning(BucketVersioningConfiguration configuration) {
+    multiCloudJLogger.traceVoidOperation(
+        BlobSpanNames.SET_BUCKET_VERSIONING,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            blobStore.setBucketVersioning(configuration);
+          } catch (Throwable t) {
+            propagate(t);
+          }
+        });
   }
 
   /**

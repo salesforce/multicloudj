@@ -252,6 +252,19 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   /** {@inheritDoc} */
   @Override
+  public BucketVersioningConfiguration getBucketVersioning() {
+    return doGetBucketVersioning();
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public void setBucketVersioning(BucketVersioningConfiguration configuration) {
+    validator.validate(configuration);
+    doSetBucketVersioning(configuration);
+  }
+
+  /** {@inheritDoc} */
+  @Override
   public DirectoryDownloadResponse downloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
     validator.validate(directoryDownloadRequest);
@@ -369,6 +382,31 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   protected abstract boolean doDoesObjectExist(String key, String versionId);
 
   protected abstract boolean doDoesBucketExist();
+
+  /**
+   * Provider hook for {@link #getBucketVersioning()}.
+   *
+   * <p>Default implementation throws {@link UnsupportedOperationException}; providers opt in by
+   * overriding this method.
+   */
+  protected BucketVersioningConfiguration doGetBucketVersioning() {
+    throw new UnsupportedOperationException(
+        "Bucket versioning configuration is not supported by this substrate implementation");
+  }
+
+  /**
+   * Provider hook for {@link #setBucketVersioning(BucketVersioningConfiguration)}.
+   *
+   * <p>Stateless validation (non-null configuration and status) has already been performed by the
+   * template before this hook is invoked.
+   *
+   * <p>Default implementation throws {@link UnsupportedOperationException}; providers opt in by
+   * overriding this method.
+   */
+  protected void doSetBucketVersioning(BucketVersioningConfiguration configuration) {
+    throw new UnsupportedOperationException(
+        "Bucket versioning configuration is not supported by this substrate implementation");
+  }
 
   /**
    * Provider hook for {@link #updateObjectRetention(String, String, ObjectRetentionConfig)}.
