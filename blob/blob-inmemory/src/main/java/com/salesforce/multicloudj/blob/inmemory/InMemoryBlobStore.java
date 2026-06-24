@@ -909,15 +909,6 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   @Override
-  protected void doSetBucketVersioning(BucketVersioningConfiguration configuration) {
-    BucketMetadata metadata = BUCKETS.get(bucket);
-    if (metadata == null) {
-      throw new ResourceNotFoundException("Bucket does not exist: " + bucket);
-    }
-    metadata.setVersioningStatus(configuration.getStatus());
-  }
-
-  @Override
   public void close() {
     // Nothing to close for in-memory implementation
   }
@@ -1207,7 +1198,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   @Getter
   static class BucketMetadata {
     private final Instant creationDate;
-    private BucketVersioningStatus versioningStatus;
+    private final BucketVersioningStatus versioningStatus;
 
     public BucketMetadata(Instant creationDate) {
       this(creationDate, BucketVersioningStatus.UNVERSIONED);
@@ -1215,10 +1206,6 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
     public BucketMetadata(Instant creationDate, BucketVersioningStatus versioningStatus) {
       this.creationDate = creationDate;
-      this.versioningStatus = versioningStatus;
-    }
-
-    public void setVersioningStatus(BucketVersioningStatus versioningStatus) {
       this.versioningStatus = versioningStatus;
     }
   }

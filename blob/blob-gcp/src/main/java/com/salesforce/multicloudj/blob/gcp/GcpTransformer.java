@@ -644,17 +644,4 @@ public class GcpTransformer {
     return BucketVersioningConfiguration.of(status);
   }
 
-  /**
-   * Maps a desired {@link BucketVersioningStatus} to the GCS {@code versioningEnabled} flag.
-   *
-   * <p>GCS has only an on/off boolean, so {@link BucketVersioningStatus#ENABLED} maps to {@code
-   * true} while both {@link BucketVersioningStatus#SUSPENDED} and {@link
-   * BucketVersioningStatus#UNVERSIONED} map to {@code false}.
-   *
-   * @param status the desired versioning status
-   * @return the {@code versioningEnabled} flag to apply to the bucket
-   */
-  public boolean toVersioningEnabled(BucketVersioningStatus status) {
-    return status == BucketVersioningStatus.ENABLED;
-  }
 }

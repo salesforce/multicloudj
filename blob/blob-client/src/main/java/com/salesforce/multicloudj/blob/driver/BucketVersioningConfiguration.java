@@ -6,9 +6,8 @@ import lombok.Getter;
 /**
  * Bucket-level versioning configuration.
  *
- * <p>Used both as the result of {@link BlobStore#getBucketVersioning()} (describing the bucket's
- * current versioning state) and as the desired target passed to {@link
- * BlobStore#setBucketVersioning(BucketVersioningConfiguration)}.
+ * <p>Returned by {@link BlobStore#getBucketVersioning()} to describe the bucket's current
+ * versioning state.
  */
 @Builder
 @Getter

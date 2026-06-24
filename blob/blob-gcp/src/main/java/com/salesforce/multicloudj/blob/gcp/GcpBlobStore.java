@@ -1038,16 +1038,6 @@ public class GcpBlobStore extends AbstractBlobStore {
     return transformer.toBucketVersioningConfiguration(bucketObj.versioningEnabled());
   }
 
-  @Override
-  protected void doSetBucketVersioning(BucketVersioningConfiguration configuration) {
-    Bucket bucketObj = storage.get(bucket);
-    if (bucketObj == null) {
-      throw new ResourceNotFoundException("Bucket does not exist: " + bucket);
-    }
-    boolean versioningEnabled = transformer.toVersioningEnabled(configuration.getStatus());
-    storage.update(bucketObj.toBuilder().setVersioningEnabled(versioningEnabled).build());
-  }
-
   /**
    * Maximum number of objects that can be deleted in a single batch operation. GCP supports up to
    * 1000 objects per batch delete.

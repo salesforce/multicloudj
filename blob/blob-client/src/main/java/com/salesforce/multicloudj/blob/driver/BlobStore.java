@@ -299,34 +299,6 @@ public interface BlobStore extends SdkService, Provider {
   BucketVersioningConfiguration getBucketVersioning();
 
   /**
-   * Updates the bucket's versioning configuration.
-   *
-   * <p>The supplied {@link BucketVersioningStatus} is mapped onto the substrate's native
-   * representation. Because not all substrates can represent every state, the mapping is
-   * best-effort for the caller's intent:
-   *
-   * <ul>
-   *   <li>{@link BucketVersioningStatus#ENABLED} turns versioning on.
-   *   <li>{@link BucketVersioningStatus#SUSPENDED} pauses versioning where the substrate supports a
-   *       distinct suspended state; otherwise it turns versioning off.
-   *   <li>{@link BucketVersioningStatus#UNVERSIONED} turns versioning off where the substrate
-   *       supports it. Substrates that cannot transition a bucket back to an unversioned state
-   *       reject this value with {@link
-   *       com.salesforce.multicloudj.common.exceptions.InvalidArgumentException}.
-   * </ul>
-   *
-   * @param configuration the desired versioning configuration
-   * @throws IllegalArgumentException if {@code configuration} or its status is null
-   * @throws com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException if the bucket
-   *     does not exist
-   * @throws com.salesforce.multicloudj.common.exceptions.InvalidArgumentException if the requested
-   *     status transition is invalid for the substrate
-   * @throws UnsupportedOperationException if the provider does not support bucket versioning
-   *     configuration
-   */
-  void setBucketVersioning(BucketVersioningConfiguration configuration);
-
-  /**
    * Downloads a directory from the blob store
    *
    * @param directoryDownloadRequest the directory download request

@@ -258,13 +258,6 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   /** {@inheritDoc} */
   @Override
-  public void setBucketVersioning(BucketVersioningConfiguration configuration) {
-    validator.validate(configuration);
-    doSetBucketVersioning(configuration);
-  }
-
-  /** {@inheritDoc} */
-  @Override
   public DirectoryDownloadResponse downloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
     validator.validate(directoryDownloadRequest);
@@ -399,26 +392,6 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
    * convention established by {@code validateBucketExists()} across existing providers.
    */
   protected BucketVersioningConfiguration doGetBucketVersioning() {
-    throw new UnsupportedOperationException(
-        "Bucket versioning configuration is not supported by this substrate implementation");
-  }
-
-  /**
-   * Provider hook for {@link #setBucketVersioning(BucketVersioningConfiguration)}.
-   *
-   * <p>Stateless validation (non-null configuration and status) has already been performed by the
-   * template before this hook is invoked.
-   *
-   * <p>Default implementation throws {@link UnsupportedOperationException}; providers opt in by
-   * overriding this method. See {@link #doGetBucketVersioning()} for the design rationale.
-   *
-   * <p><strong>Error contract:</strong> When the bucket does not exist, implementations must throw
-   * {@link com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException}. When the
-   * requested status transition is invalid for the substrate (e.g. S3 cannot return a bucket to an
-   * unversioned state), implementations should throw {@link
-   * com.salesforce.multicloudj.common.exceptions.InvalidArgumentException}.
-   */
-  protected void doSetBucketVersioning(BucketVersioningConfiguration configuration) {
     throw new UnsupportedOperationException(
         "Bucket versioning configuration is not supported by this substrate implementation");
   }

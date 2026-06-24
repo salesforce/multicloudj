@@ -740,29 +740,6 @@ public class BucketClient implements AutoCloseable {
   }
 
   /**
-   * Updates the bucket's versioning configuration.
-   *
-   * @param configuration the desired versioning configuration
-   * @throws SubstrateSdkException Thrown if the operation fails
-   * @throws IllegalArgumentException if {@code configuration} or its status is null
-   * @throws UnsupportedOperationException Thrown when the configured provider does not support
-   *     bucket versioning configuration
-   */
-  public void setBucketVersioning(BucketVersioningConfiguration configuration) {
-    multiCloudJLogger.traceVoidOperation(
-        BlobSpanNames.SET_BUCKET_VERSIONING,
-        bucketAttrs(),
-        null,
-        ctx -> {
-          try {
-            blobStore.setBucketVersioning(configuration);
-          } catch (Throwable t) {
-            propagate(t);
-          }
-        });
-  }
-
-  /**
    * Gets object lock configuration for a blob.
    *
    * @param key Object key

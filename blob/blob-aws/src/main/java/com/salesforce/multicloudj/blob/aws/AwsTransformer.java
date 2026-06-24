@@ -94,7 +94,6 @@ import software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus;
 import software.amazon.awssdk.services.s3.model.ObjectLockMode;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetention;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
-import software.amazon.awssdk.services.s3.model.PutBucketVersioningRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectLegalHoldRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
@@ -106,7 +105,6 @@ import software.amazon.awssdk.services.s3.model.StorageClass;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.Tagging;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
-import software.amazon.awssdk.services.s3.model.VersioningConfiguration;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
@@ -1150,23 +1148,4 @@ public class AwsTransformer {
     return BucketVersioningConfiguration.of(status);
   }
 
-  /**
-   * Creates a {@link PutBucketVersioningRequest} for the bound bucket from the supplied driver
-   * status.
-   *
-   * <p>S3 only accepts {@code Enabled} and {@code Suspended} for the versioning configuration; it
-   * has no representation for returning a bucket to an unversioned state. {@link
-   * BucketVersioningStatus#UNVERSIONED} is therefore rejected by the caller before reaching this
-   * method.
-   */
-  public PutBucketVersioningRequest toPutBucketVersioningRequest(BucketVersioningStatus status) {
-    software.amazon.awssdk.services.s3.model.BucketVersioningStatus awsStatus =
-        status == BucketVersioningStatus.ENABLED
-            ? software.amazon.awssdk.services.s3.model.BucketVersioningStatus.ENABLED
-            : software.amazon.awssdk.services.s3.model.BucketVersioningStatus.SUSPENDED;
-    return PutBucketVersioningRequest.builder()
-        .bucket(getBucket())
-        .versioningConfiguration(VersioningConfiguration.builder().status(awsStatus).build())
-        .build();
-  }
 }

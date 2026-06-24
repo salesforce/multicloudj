@@ -2755,13 +2755,11 @@ public abstract class AbstractBlobStoreIT {
   }
 
   // ------------------------------------------------------------------------------------
-  // Conformance tests for getBucketVersioning() / setBucketVersioning(config)
+  // Conformance tests for getBucketVersioning()
   //
   // These verify that every provider that supports bucket-level versioning reports the same
   // status for an enabled bucket and surfaces an error for a bucket that does not exist. The
-  // SUSPENDED / UNVERSIONED mapping differs by substrate and is covered by provider unit tests;
-  // here we only exercise the ENABLED round trip, which is non-destructive against the shared
-  // versioned conformance bucket (re-enabling an already-versioned bucket is a no-op).
+  // SUSPENDED / UNVERSIONED mapping differs by substrate and is covered by provider unit tests.
   // ------------------------------------------------------------------------------------
 
   @Test
@@ -2793,25 +2791,6 @@ public abstract class AbstractBlobStoreIT {
 
     // All providers must throw ResourceNotFoundException for a bucket that does not exist.
     Assertions.assertThrows(ResourceNotFoundException.class, bucketClient::getBucketVersioning);
-  }
-
-  @Test
-  public void testSetBucketVersioning_enabled() {
-    Assumptions.assumeTrue(harness.isBucketVersioningSupported());
-
-    // Setting ENABLED against the already-versioned conformance bucket is idempotent.
-    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
-    BucketClient bucketClient = new BucketClient(blobStore);
-
-    bucketClient.setBucketVersioning(
-        BucketVersioningConfiguration.of(BucketVersioningStatus.ENABLED));
-
-    BucketVersioningConfiguration configuration = bucketClient.getBucketVersioning();
-    Assertions.assertEquals(
-        BucketVersioningStatus.ENABLED,
-        configuration.getStatus(),
-        "Bucket should report ENABLED after enabling versioning");
-    Assertions.assertTrue(configuration.isEnabled());
   }
 
   // ------------------------------------------------------------------------------------

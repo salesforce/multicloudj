@@ -76,7 +76,6 @@ import software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus;
 import software.amazon.awssdk.services.s3.model.ObjectLockMode;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetention;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
-import software.amazon.awssdk.services.s3.model.PutBucketVersioningRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
@@ -86,7 +85,6 @@ import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.Tagging;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.model.UploadPartResponse;
-import software.amazon.awssdk.services.s3.model.VersioningConfiguration;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
@@ -1944,38 +1942,4 @@ public class AwsTransformerTest {
     assertEquals(BucketVersioningStatus.UNVERSIONED, actual.getStatus());
   }
 
-  @Test
-  void testToPutBucketVersioningRequest_enabled() {
-    PutBucketVersioningRequest request =
-        transformer.toPutBucketVersioningRequest(BucketVersioningStatus.ENABLED);
-
-    assertEquals(BUCKET, request.bucket());
-    VersioningConfiguration configuration = request.versioningConfiguration();
-    assertEquals(
-        software.amazon.awssdk.services.s3.model.BucketVersioningStatus.ENABLED,
-        configuration.status());
-  }
-
-  @Test
-  void testToPutBucketVersioningRequest_suspended() {
-    PutBucketVersioningRequest request =
-        transformer.toPutBucketVersioningRequest(BucketVersioningStatus.SUSPENDED);
-
-    assertEquals(BUCKET, request.bucket());
-    VersioningConfiguration configuration = request.versioningConfiguration();
-    assertEquals(
-        software.amazon.awssdk.services.s3.model.BucketVersioningStatus.SUSPENDED,
-        configuration.status());
-  }
-
-  @Test
-  void testToPutBucketVersioningRequest_unversionedFallsBackToSuspended() {
-    PutBucketVersioningRequest request =
-        transformer.toPutBucketVersioningRequest(BucketVersioningStatus.UNVERSIONED);
-
-    VersioningConfiguration configuration = request.versioningConfiguration();
-    assertEquals(
-        software.amazon.awssdk.services.s3.model.BucketVersioningStatus.SUSPENDED,
-        configuration.status());
-  }
 }

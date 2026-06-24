@@ -2295,19 +2295,4 @@ class GcpTransformerTest {
     assertEquals(BucketVersioningStatus.UNVERSIONED, config.getStatus());
   }
 
-  @Test
-  public void testToVersioningEnabled_enabledMapsToTrue() {
-    assertTrue(transformer.toVersioningEnabled(BucketVersioningStatus.ENABLED));
-  }
-
-  @Test
-  public void testToVersioningEnabled_suspendedMapsToFalse() {
-    // GCS has no distinct suspended state, so SUSPENDED turns versioning off.
-    assertFalse(transformer.toVersioningEnabled(BucketVersioningStatus.SUSPENDED));
-  }
-
-  @Test
-  public void testToVersioningEnabled_unversionedMapsToFalse() {
-    assertFalse(transformer.toVersioningEnabled(BucketVersioningStatus.UNVERSIONED));
-  }
 }
