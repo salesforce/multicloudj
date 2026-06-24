@@ -332,6 +332,72 @@ public class AliBlobStoreTest {
     }
   }
 
+  @Test
+  void testDoDownloadByteArray_exactContentLength() {
+    String content = "downloadedData";
+    doReturn(buildByteArrayGetObjectResult(content, content.length()))
+        .when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(content.length(), byteArray.getBytes().length);
+    assertEquals(content, new String(byteArray.getBytes(), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void testDoDownloadByteArray_contentLengthLargerThanStream_trimsToActualBytes() {
+    String content = "downloadedData";
+    // Reported length intentionally larger than the actual stream; result must be trimmed.
+    doReturn(buildByteArrayGetObjectResult(content, 100L))
+        .when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(content.length(), byteArray.getBytes().length);
+    assertEquals(content, new String(byteArray.getBytes(), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void testDoDownloadByteArray_zeroContentLength_drainsEntireStream() {
+    String content = "downloadedData";
+    // A zero content length (e.g. a missing Content-Length header) must fall back to draining the
+    // full stream rather than returning an empty array.
+    doReturn(buildByteArrayGetObjectResult(content, 0L))
+        .when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(content, new String(byteArray.getBytes(), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void testDoDownloadByteArray_nullContentLength_drainsEntireStream() {
+    String content = "downloadedData";
+    // A null content length (e.g. the SDK omits it) must fall back to draining the full stream.
+    GetObjectResult result = buildByteArrayGetObjectResult(content, 0L);
+    doReturn(null).when(result).contentLength();
+    doReturn(result).when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(content, new String(byteArray.getBytes(), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void testDoDownloadByteArray_emptyObject() {
+    doReturn(buildByteArrayGetObjectResult("", 0L))
+        .when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(0, byteArray.getBytes().length);
+  }
+
   void verifyDownloadTestResults(DownloadResponse response, Instant now) {
 
     // Verify the parameters passed into the OSS SDK
@@ -1206,6 +1272,26 @@ public class AliBlobStoreTest {
         .withVersionId("version-1")
         .withRange(10L, 110L)
         .build();
+  }
+
+  private DownloadRequest getTestDownloadRequestNoRange() {
+    return new DownloadRequest.Builder()
+        .withKey("object-1")
+        .withVersionId("version-1")
+        .build();
+  }
+
+  // Builds a minimal GetObjectResult for the byte-array read path with a caller-controlled
+  // reported content length, so tests can exercise exact/over-reported/zero-length behavior.
+  private GetObjectResult buildByteArrayGetObjectResult(String content, long reportedLength) {
+    InputStream inputStream =
+        new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+    GetObjectResult result = mock(GetObjectResult.class);
+    doReturn("version-1").when(result).versionId();
+    doReturn("etag1").when(result).eTag();
+    doReturn(reportedLength).when(result).contentLength();
+    doReturn(inputStream).when(result).body();
+    return result;
   }
 
   private GetObjectResult buildTestGetObjectResult(
