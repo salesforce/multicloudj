@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.inmemory;
 
 import com.salesforce.multicloudj.blob.client.AbstractBlobStoreIT;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
@@ -53,7 +54,11 @@ public class InMemoryBlobStoreIT extends AbstractBlobStoreIT {
 
       // Create the bucket if it should exist
       if (useValidBucket) {
-        InMemoryBlobStore.createBucket(bucketNameToUse);
+        if (useVersionedBucket) {
+          InMemoryBlobStore.createBucket(bucketNameToUse, BucketVersioningStatus.ENABLED);
+        } else {
+          InMemoryBlobStore.createBucket(bucketNameToUse);
+        }
       }
 
       return new InMemoryBlobStore.Builder().withBucket(bucketNameToUse).withRegion(region).build();
