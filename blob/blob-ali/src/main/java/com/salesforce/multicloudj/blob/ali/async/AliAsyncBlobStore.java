@@ -27,6 +27,7 @@ import com.salesforce.multicloudj.blob.ali.AliSdkService;
 import com.salesforce.multicloudj.blob.ali.AliTransformer;
 import com.salesforce.multicloudj.blob.ali.AliTransformerSupplier;
 import com.salesforce.multicloudj.blob.ali.OssClientFactory;
+import com.salesforce.multicloudj.blob.ali.OssCredentialsProvider;
 import com.salesforce.multicloudj.blob.async.driver.AbstractAsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
@@ -952,8 +953,11 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
 
     @Override
     public AsyncBlobStore build() {
-      CredentialsProvider creds = OssClientFactory.resolveCredentials(this);
-      Retryer retryer = OssClientFactory.resolveRetryer(this);
+      CredentialsProvider creds = OssCredentialsProvider.getCredentialsProvider(
+          getCredentialsOverrider(), getRegion());
+      Retryer retryer = getRetryConfig() != null
+          ? AliTransformer.toAliRetryer(getRetryConfig())
+          : null;
 
       OSSAsyncClient async = this.asyncClient;
       if (async == null && creds != null) {

@@ -983,11 +983,14 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
     }
 
     private static OSSClient buildOSSClient(Builder builder) {
-      CredentialsProvider creds = OssClientFactory.resolveCredentials(builder);
+      CredentialsProvider creds = OssCredentialsProvider.getCredentialsProvider(
+          builder.getCredentialsOverrider(), builder.getRegion());
       if (creds == null) {
         return null;
       }
-      Retryer retryer = OssClientFactory.resolveRetryer(builder);
+      Retryer retryer = builder.getRetryConfig() != null
+          ? AliTransformer.toAliRetryer(builder.getRetryConfig())
+          : null;
 
       var clientBuilder = OSSClient.newBuilder();
       OssClientFactory.configure(

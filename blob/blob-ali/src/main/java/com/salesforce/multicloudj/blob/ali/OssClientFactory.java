@@ -35,25 +35,6 @@ public final class OssClientFactory {
   }
 
   /**
-   * Resolves the OSS credentials provider for the given builder configuration, or {@code null} when
-   * no credentials overrider is configured (in which case no client should be built).
-   */
-  public static CredentialsProvider resolveCredentials(BlobStoreBuilder<?> builder) {
-    return OssCredentialsProvider.getCredentialsProvider(
-        builder.getCredentialsOverrider(), builder.getRegion());
-  }
-
-  /**
-   * Resolves the OSS {@link Retryer} from the builder's {@link RetryConfig}, or {@code null} when
-   * no retry configuration is set.
-   */
-  public static Retryer resolveRetryer(BlobStoreBuilder<?> builder) {
-    return builder.getRetryConfig() != null
-        ? AliTransformer.toAliRetryer(builder.getRetryConfig())
-        : null;
-  }
-
-  /**
    * Resolves the value for the Ali SDK's single {@code readWriteTimeout} setting from the two
    * MultiCloudJ inputs that map onto it. {@code RetryConfig.attemptTimeout} (the more specific
    * per-attempt deadline) takes precedence over the transport-level {@code socketTimeout}; if
