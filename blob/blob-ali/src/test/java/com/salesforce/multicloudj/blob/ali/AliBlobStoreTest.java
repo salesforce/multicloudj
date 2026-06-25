@@ -1850,9 +1850,9 @@ public class AliBlobStoreTest {
   void testDoDownload_checkArchived_deletedOnVersionedBucket_throwsWithArchiveInfo() {
     // OSS returns 404 NoSuchKey on a GET of a deleted versioned object, with the
     // x-oss-delete-marker:true header on the ServiceException. Behavior verified live
-    // against a real bucket — see AliCheckArchivedSmokeIT (separate IT branch). With
-    // checkArchived=true, the driver must call ListObjectVersions, capture the prior
-    // ObjectVersion's id, and throw ResourceNotFoundException with ArchiveInfo populated.
+    // against a real versioned bucket. With checkArchived=true, the driver must call
+    // ListObjectVersions, capture the prior ObjectVersion's id, and throw
+    // ResourceNotFoundException with ArchiveInfo populated.
     String key = "deleted-key";
     String priorVersionId = "v-prior-1";
 

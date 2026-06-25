@@ -8,7 +8,7 @@ import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 
-public class OSSCredentialsProvider {
+public class OssCredentialsProvider {
 
   private static final int DEFAULT_DURATION_SECONDS = 3600;
 
