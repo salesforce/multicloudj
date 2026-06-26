@@ -6,7 +6,7 @@ parent: Usage Guides
 ---
 # BucketClient
 
-The `BucketClient` class in the `multicloudj` library provides a comprehensive, cloud-agnostic interface to interact with individual buckets in object storage services like AWS S3, Azure Blob Storage, and Google Cloud Storage.
+The `BucketClient` class in the `multicloudj` library provides a comprehensive, cloud-agnostic interface to interact with individual buckets in object storage services like AWS S3, Google Cloud Storage, and Alibaba Cloud OSS.
 
 This client enables uploading, downloading, deleting, listing, copying, and managing blob metadata and multipart uploads across multiple cloud providers.
 
@@ -24,7 +24,7 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 | **Copy Objects** | ✅ Supported      | ✅ Supported | ✅ Supported | Server-side copy within and across buckets |
 | **Get Metadata** | ✅ Supported      | ✅ Supported | ✅ Supported | Retrieve object metadata and properties |
 | **List Objects** | ✅ Supported      | ✅ Supported | ✅ Supported | Paginated listing with filters |
-| **Object Tagging** | ⏱️ End of July'25 | ✅ Supported | ✅ Supported | Get and set object tags |
+| **Object Tagging** | ✅ Supported | ✅ Supported | ✅ Supported | Get and set object tags |
 | **Presigned URLs** | ✅ Supported | ✅ Supported | ✅ Supported | Generate temporary access URLs |
 | **Versioning Support** | ✅ Supported | ✅ Supported | ✅ Supported | Object version-specific operations |
 
@@ -32,28 +32,28 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 
 | Feature Name | GCP               | AWS | ALI | Comments |
 |--------------|-------------------|-----|-----|----------|
-| **Initiate Multipart** | ️ Mid of Aug'25   | ✅ Supported | ✅ Supported | Start multipart upload session |
-| **Upload Part** | Mid of Aug'25 | ✅ Supported | ✅ Supported | Upload individual parts |
-| **Complete Multipart** | Mid of Aug'25 | ✅ Supported | ✅ Supported | Finalize multipart upload |
-| **List Parts** | Mid of Aug'25 | ✅ Supported | ✅ Supported | List uploaded parts |
-| **Abort Multipart** | Mid of Aug'25 | ✅ Supported | ✅ Supported | Cancel multipart upload |
+| **Initiate Multipart** | ✅ Supported | ✅ Supported | ✅ Supported | Start multipart upload session |
+| **Upload Part** | ✅ Supported | ✅ Supported | ✅ Supported | Upload individual parts |
+| **Complete Multipart** | ✅ Supported | ✅ Supported | ✅ Supported | Finalize multipart upload |
+| **List Parts** | ✅ Supported | ✅ Supported | ✅ Supported | List uploaded parts |
+| **Abort Multipart** | ✅ Supported | ✅ Supported | ✅ Supported | Cancel multipart upload |
 
 ### Object Lock & Retention Features
 
 | Feature Name | GCP | AWS | ALI | Comments |
 |--------------|-----|-----|-----|----------|
-| **Get Object Lock** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Retrieve lock config (mode, retain-until, legal hold) |
-| **Update Object Retention** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Change retention mode and/or expiration date |
-| **Retention Mode Support** | ✅ Supported | ✅ Supported | 📅 In Roadmap | GOVERNANCE and COMPLIANCE modes with uniform rules |
-| **Bypass Governance Retention** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Shorten or remove GOVERNANCE-mode retention |
-| **Update Legal Hold** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Enable/disable legal hold on objects |
-| **Object Lock on Upload** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Set retention at upload time via ObjectLockConfiguration |
+| **Get Object Lock** | ✅ Supported | ✅ Supported | ✅ Supported | Retrieve lock config (mode, retain-until, legal hold) |
+| **Update Object Retention** | ✅ Supported | ✅ Supported | ✅ Supported | Change retention mode and/or expiration date |
+| **Retention Mode Support** | ✅ Supported | ✅ Supported | ✅ Supported | GOVERNANCE and COMPLIANCE modes with uniform rules |
+| **Bypass Governance Retention** | ✅ Supported | ✅ Supported | ✅ Supported | Shorten or remove GOVERNANCE-mode retention |
+| **Update Legal Hold** | ✅ Supported | ✅ Supported | ✅ Supported | Enable/disable legal hold on objects |
+| **Object Lock on Upload** | ✅ Supported | ✅ Supported | ✅ Supported | Set retention at upload time via ObjectLockConfiguration |
 
 ### Advanced Features
 
 | Feature Name | GCP | AWS | ALI | Comments |
 |--------------|-----|-----|-----|----------|
-| **Async Operations** | ✅ Supported | ✅ Supported | 📅 In Roadmap | CompletableFuture-based async API available only for AWS |
+| **Async Operations** | ✅ Supported | ✅ Supported | ✅ Supported | CompletableFuture-based async API via AsyncBucketClient |
 | **Bucket Operations** | ✅ Supported | ✅ Supported | ✅ Supported | List buckets via BlobClient |
 
 ### Configuration Options
@@ -95,8 +95,21 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 
 #### Alibaba OSS
 - **Parallel Uploads**: Via `InitiateMultipartUpload` and `UploadPart` APIs
-- **Max Concurrency**: Manual thread pool configuration, similar to AWS approach
+- **Max Concurrency**: Manual thread pool configuration via a thread pool
 - **Part Buffer Size**: Direct part size available in API but not as a builder config
+
+---
+
+### Provider IDs
+
+| Provider | Provider ID |
+|----------|-------------|
+| AWS S3 | `aws` |
+| GCP (Google Cloud Storage) | `gcp` |
+| Alibaba Cloud OSS | `ali` |
+| In-memory (testing) | `memory` |
+
+> The `memory` provider is an in-memory `BucketClient` implementation intended for unit testing and local development. It needs no cloud credentials and stores objects in process memory, so it is not durable.
 
 ---
 
@@ -187,11 +200,41 @@ bucketClient.download(request, byteArray);
 
 ## Listing Blobs
 
+Iterate every matching object lazily:
+
 ```java
-ListBlobsRequest request = new ListBlobsRequest();
+ListBlobsRequest request = ListBlobsRequest.builder()
+    .withPrefix("logs/")
+    .build();
 Iterator<BlobInfo> blobs = bucketClient.list(request);
 while (blobs.hasNext()) {
     System.out.println(blobs.next().getName());
+}
+```
+
+### Listing with a Delimiter (Common Prefixes)
+
+Supply a delimiter to group keys into "folders". The returned `ListBlobsPageResponse`
+exposes both the matching blobs and the common prefixes:
+
+```java
+ListBlobsPageRequest pageRequest = ListBlobsPageRequest.builder()
+    .withPrefix("logs/")
+    .withDelimiter("/")
+    .build();
+
+ListBlobsPageResponse page = bucketClient.listPage(pageRequest);
+page.getBlobs().forEach(b -> System.out.println("Object: " + b.getName()));
+page.getCommonPrefixes().forEach(p -> System.out.println("Prefix: " + p));
+
+// Fetch the next page when truncated
+if (page.isTruncated()) {
+    ListBlobsPageRequest next = ListBlobsPageRequest.builder()
+        .withPrefix("logs/")
+        .withDelimiter("/")
+        .withPaginationToken(page.getNextPageToken())
+        .build();
+    ListBlobsPageResponse nextPage = bucketClient.listPage(next);
 }
 ```
 
@@ -312,7 +355,7 @@ bucketClient.updateObjectRetention("object-key", null,
 
 ### Rules Table
 
-The SDK enforces uniform rules across AWS and GCP:
+The SDK enforces uniform rules across all providers:
 
 | Current Mode | Action | Bypass Flag | Outcome |
 |-------------|--------|-------------|---------|
@@ -327,6 +370,8 @@ The SDK enforces uniform rules across AWS and GCP:
 | _(none)_ | Any update | Any | ❌ `FailedPreconditionException` |
 
 > **Note:** The `bypassGovernanceRetention` flag maps to `bypassGovernanceRetention` on AWS S3 and `overrideUnlockedRetention` on GCP GCS. It has no effect on COMPLIANCE-mode objects.
+
+> **Alibaba OSS limitation:** OSS treats an object's retention mode as immutable once set, so a GOVERNANCE → COMPLIANCE upgrade (allowed on AWS/GCP with the bypass flag) is rejected on OSS with `UnSupportedOperationException`.
 
 ---
 
