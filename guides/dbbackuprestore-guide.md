@@ -41,14 +41,18 @@ This client enables listing backups, retrieving backup details, restoring backup
 - `kmsEncryptionKeyId` can be specified to encrypt the restored table with a specific KMS key.
 
 **GCP (Firestore)**
-- `resourceName` is the Firestore collection/database name.
+- `resourceName` is the Firestore database/collection name (not a full `projects/.../documents/...` document path).
+- `region` is the location parent used to list backups (e.g. `projects/myproject/locations/nam5`).
 - `restoreBackup` requires `targetResource` (target database ID). The restore operation is asynchronous (long-running operation).
 - `backupId` is the full Firestore backup resource name.
+- `Backup.getVaultId()` is not populated for Firestore backups.
 
 **Alibaba Cloud (TableStore via HBR)**
 - `resourceName` is the TableStore table name.
 - `restoreBackup` requires `vaultId` (HBR vault identifier).
 - Backups are represented as OTS table snapshots.
+
+> **`Backup.getVaultId()` semantics:** On AWS this is the backup vault name (`backupVaultName`) of the recovery point; on Alibaba it is the HBR vault identifier; on GCP Firestore it is not populated.
 
 ---
 
@@ -68,7 +72,7 @@ For GCP Firestore:
 ```java
 DBBackupRestoreClient client = DBBackupRestoreClient.builder("gcp-firestore")
     .withRegion("projects/myproject/locations/nam5")
-    .withResourceName("projects/myproject/databases/(default)/documents/docstore-test-1")
+    .withResourceName("docstore-test-1")   // Firestore database/collection name
     .build();
 ```
 
@@ -116,6 +120,13 @@ System.out.println("Expiry: " + backup.getExpiryTime());
 ## Restoring a Backup
 
 Restore operations are asynchronous. The `restoreBackup` method returns a restore ID that can be used to track progress.
+
+`RestoreRequest` fields are provider-dependent:
+- `backupId` — the backup to restore from (required).
+- `targetResource` — target table/database name; if null or empty, the restore goes to the original table name.
+- `roleId` — IAM role ARN the backup service assumes (AWS).
+- `vaultId` — backup vault identifier (Alibaba HBR).
+- `kmsEncryptionKeyId` — KMS key to encrypt the restored resource (AWS, optional).
 
 ### AWS Example
 
