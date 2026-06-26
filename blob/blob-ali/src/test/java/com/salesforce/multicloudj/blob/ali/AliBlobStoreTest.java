@@ -2163,7 +2163,7 @@ public class AliBlobStoreTest {
   void testResolveReadWriteTimeout_socketTimeoutOnly() {
     Duration socketTimeout = Duration.ofSeconds(30);
     assertEquals(
-        socketTimeout, AliBlobStore.Builder.resolveReadWriteTimeout(null, socketTimeout));
+        socketTimeout, OssClientFactory.resolveReadWriteTimeout(null, socketTimeout));
   }
 
   @Test
@@ -2172,7 +2172,7 @@ public class AliBlobStoreTest {
     Duration socketTimeout = Duration.ofSeconds(30);
     assertEquals(
         Duration.ofMillis(3000L),
-        AliBlobStore.Builder.resolveReadWriteTimeout(retryConfig, socketTimeout));
+        OssClientFactory.resolveReadWriteTimeout(retryConfig, socketTimeout));
   }
 
   @Test
@@ -2180,12 +2180,12 @@ public class AliBlobStoreTest {
     RetryConfig retryConfig = RetryConfig.builder().attemptTimeout(3000L).build();
     assertEquals(
         Duration.ofMillis(3000L),
-        AliBlobStore.Builder.resolveReadWriteTimeout(retryConfig, null));
+        OssClientFactory.resolveReadWriteTimeout(retryConfig, null));
   }
 
   @Test
   void testResolveReadWriteTimeout_neitherSet_returnsNull() {
-    assertNull(AliBlobStore.Builder.resolveReadWriteTimeout(null, null));
+    assertNull(OssClientFactory.resolveReadWriteTimeout(null, null));
   }
 
   @Test
@@ -2194,7 +2194,7 @@ public class AliBlobStoreTest {
     Duration socketTimeout = Duration.ofSeconds(30);
     assertEquals(
         socketTimeout,
-        AliBlobStore.Builder.resolveReadWriteTimeout(retryConfig, socketTimeout));
+        OssClientFactory.resolveReadWriteTimeout(retryConfig, socketTimeout));
   }
 
   // No withClient() — exercises the real buildOSSClient path. Setters are called as statements
