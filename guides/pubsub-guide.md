@@ -16,44 +16,80 @@ These clients enable sending messages to topics, receiving messages from subscri
 
 ### Core API Features
 
-| Feature Name | GCP              | AWS | ALI | Comments |
-|--------------|------------------|-----|-----|----------|
-| **Send Messages** | ✅ Supported      | End of Nov '25 | 📅 In Roadmap | Send messages to topics |
-| **Receive Messages** | ✅ Supported      | End of Nov '25 | 📅 In Roadmap | Pull messages from subscriptions |
-| **Acknowledge Messages** | ✅ Supported      | End of Nov '25 | 📅 In Roadmap | Confirm message processing |
-| **Batch Acknowledgment** | ✅ Supported | End of Nov '25 | 📅 In Roadmap | Acknowledge multiple messages at once |
-| **Negative Acknowledgment** | ✅ Supported      | End of Nov '25 | 📅 In Roadmap | Reject messages for redelivery |
+| Feature Name | GCP | AWS | ALI | Comments |
+|--------------|-----|-----|-----|----------|
+| **Send Messages** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Send messages to topics |
+| **Receive Messages** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Pull messages from subscriptions |
+| **Acknowledge Messages** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Confirm message processing |
+| **Batch Acknowledgment** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Acknowledge multiple messages at once |
+| **Negative Acknowledgment** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Reject messages for redelivery |
+| **Subscription Attributes** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Retrieve subscription name and topic |
 
 ### Advanced Features
 
 | Feature Name | GCP | AWS | ALI | Comments |
 |--------------|-----|-----|-----|----------|
-| **Async Batch Acknowledgment** | ✅ Supported | End of Nov '25 | 📅 In Roadmap | CompletableFuture-based async ack/nack |
-| **Double Acknowledgment Safety** | ✅ Supported | End of Nov '25 | 📅 In Roadmap | Safe to ack same message multiple times |
+| **Async Batch Acknowledgment** | ✅ Supported | ✅ Supported | 📅 In Roadmap | CompletableFuture-based async ack/nack |
+| **Double Acknowledgment Safety** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Safe to ack same message multiple times |
+| **Nack Visibility Timeout** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Control redelivery delay on nack (default and per-call) |
+| **Retryable Error Detection** | ✅ Supported | ✅ Supported | 📅 In Roadmap | `isRetryable()` classifies errors as transient or permanent |
 
 ### Configuration Options
 
 | Configuration | GCP | AWS | ALI | Comments |
 |---------------|-----|-----|-----|----------|
-| **Endpoint Override** | ✅ Supported | End of Nov '25 | 📅 In Roadmap | Custom endpoint configuration |
-| **Proxy Support** | ✅ Supported | End of Nov '25 | 📅 In Roadmap | HTTP proxy configuration |
-| **Credentials Override** | ✅ Supported | End of Nov '25 | 📅 In Roadmap | Custom credential providers via STS |
+| **Region** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Target region for the topic/subscription |
+| **Endpoint Override** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom endpoint configuration |
+| **Proxy Support** | ✅ Supported | ✅ Supported | 📅 In Roadmap | HTTP proxy configuration |
+| **Credentials Override** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom credential providers via STS |
 
 ---
+
+### Provider IDs
+
+The provider ID passed to `TopicClient.builder(...)` and `SubscriptionClient.builder(...)` selects the backing implementation:
+
+| Provider | Topic provider ID | Subscription provider ID |
+|----------|-------------------|--------------------------|
+| GCP (Google Cloud Pub/Sub) | `gcp` | `gcp` |
+| AWS SNS | `awssns` | `aws` |
+| AWS SQS | `awssqs` | `aws` |
+
+On AWS, messages are published through either SNS (`awssns`) or SQS (`awssqs`), while messages are always received from an SQS queue using the `aws` subscription provider.
 
 ### Provider-Specific Notes
 
 **GCP (Google Cloud Pub/Sub)**
-- Topic names must use full resource format: `projects/{projectId}/topics/{topicId}`
-- Subscription names must use full resource format: `projects/{projectId}/subscriptions/{subscriptionId}`
+- Topic names must use the full resource format: `projects/{projectId}/topics/{topicId}`
+- Subscription names must use the full resource format: `projects/{projectId}/subscriptions/{subscriptionId}`
+
+**AWS (SNS / SQS)**
+- SNS topics (`awssns`) are identified by their topic ARN, e.g. `arn:aws:sns:us-west-2:123456789012:my-topic`. The topic is validated to exist when the client is built.
+- SQS topics (`awssqs`) accept either a queue name (resolved to a queue URL automatically) or a full queue URL.
+- Subscriptions (`aws`) read from an SQS queue, identified by a queue name or queue URL.
+
+---
 
 ## Creating Clients
 
 ### Topic Client
 
 ```java
+// GCP
 TopicClient topicClient = TopicClient.builder("gcp")
     .withTopicName("projects/my-project/topics/my-topic")
+    .build();
+
+// AWS SNS
+TopicClient snsTopicClient = TopicClient.builder("awssns")
+    .withTopicName("arn:aws:sns:us-west-2:123456789012:my-topic")
+    .withRegion("us-west-2")
+    .build();
+
+// AWS SQS
+TopicClient sqsTopicClient = TopicClient.builder("awssqs")
+    .withTopicName("my-queue")
+    .withRegion("us-west-2")
     .build();
 ```
 
@@ -73,8 +109,15 @@ topicClient = TopicClient.builder("gcp")
 ### Subscription Client
 
 ```java
+// GCP
 SubscriptionClient subscriptionClient = SubscriptionClient.builder("gcp")
     .withSubscriptionName("projects/my-project/subscriptions/my-subscription")
+    .build();
+
+// AWS
+SubscriptionClient awsSubscriptionClient = SubscriptionClient.builder("aws")
+    .withSubscriptionName("my-queue")
+    .withRegion("us-west-2")
     .build();
 ```
 
@@ -90,6 +133,18 @@ subscriptionClient = SubscriptionClient.builder("gcp")
     .withProxyEndpoint(proxy)
     .build();
 ```
+
+To delay redelivery whenever a message is nacked, set a default nack visibility timeout on the builder:
+
+```java
+SubscriptionClient subscriptionClient = SubscriptionClient.builder("aws")
+    .withSubscriptionName("my-queue")
+    .withRegion("us-west-2")
+    .withNackVisibilityTimeout(Duration.ofSeconds(30))
+    .build();
+```
+
+`Duration.ZERO` (the default) makes nacked messages immediately available for redelivery; a positive value delays redelivery by that amount.
 
 ---
 
@@ -242,6 +297,18 @@ if (message != null) {
 }
 ```
 
+### Nack with a Custom Visibility Timeout
+
+Override the subscription's default nack visibility timeout for an individual message. This requests a specific redelivery delay without reconfiguring the subscription:
+
+```java
+Message message = subscription.receive();
+if (message != null && subscription.canNack()) {
+    // Delay redelivery of this message by 60 seconds
+    subscription.sendNack(message.getAckID(), Duration.ofSeconds(60));
+}
+```
+
 ### Batch Negative Acknowledgment
 
 ```java
@@ -257,6 +324,17 @@ if (subscription.canNack()) {
     subscription.sendNacks(nackIDs).join();
 }
 ```
+
+You can also apply a visibility timeout to an entire nack batch:
+
+```java
+if (subscription.canNack()) {
+    // Delay redelivery of all nacked messages by 60 seconds
+    subscription.sendNacks(nackIDs, Duration.ofSeconds(60)).join();
+}
+```
+
+Passing `null` for the timeout uses the subscription's default nack visibility timeout.
 
 ---
 
@@ -276,20 +354,13 @@ if (subscription.canNack()) {
 
 ### Get Subscription Attributes
 
-Retrieve provider-specific subscription metadata:
+Retrieve common subscription metadata via `getAttributes()`, which returns a `GetAttributeResult`:
 
 ```java
-Map<String, String> attributes = subscription.getAttributes();
-for (Map.Entry<String, String> entry : attributes.entrySet()) {
-    System.out.println(entry.getKey() + ": " + entry.getValue());
-}
+GetAttributeResult attributes = subscription.getAttributes();
+System.out.println("Subscription name: " + attributes.getName());
+System.out.println("Bound topic: " + attributes.getTopic());
 ```
-
----
-
-**Important GCP Format Requirements:**
-- Topic names: `projects/{projectId}/topics/{topicId}`
-- Subscription names: `projects/{projectId}/subscriptions/{subscriptionId}`
 
 ---
 
@@ -313,6 +384,23 @@ try {
     subscription.sendAck(null);
 } catch (InvalidArgumentException e) {
     System.err.println("Cannot acknowledge null AckID");
+}
+```
+
+### Retryable Errors
+
+Use `isRetryable()` to decide whether a failed operation is worth retrying or should be treated as a permanent failure:
+
+```java
+try {
+    Message message = subscription.receive();
+    subscription.sendAck(message.getAckID());
+} catch (SubstrateSdkException e) {
+    if (subscription.isRetryable(e)) {
+        // Transient error - safe to retry
+    } else {
+        // Permanent failure - handle accordingly
+    }
 }
 ```
 

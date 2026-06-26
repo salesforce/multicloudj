@@ -22,7 +22,7 @@
   },"3": {
     "doc": "How to Blob store",
     "title": "Feature Support Across Providers",
-    "content": "Core API Features . | Feature Name | GCP | AWS | ALI | Comments | . | Basic Upload | ✅ Supported | ✅ Supported | ✅ Supported | Upload from InputStream, byte[], File, Path | . | Basic Download | ✅ Supported | ✅ Supported | ✅ Supported | Download to OutputStream, byte[], File, Path | . | Delete Objects | ✅ Supported | ✅ Supported | ✅ Supported | Single and batch delete operations | . | Copy Objects | ✅ Supported | ✅ Supported | ✅ Supported | Server-side copy within and across buckets | . | Get Metadata | ✅ Supported | ✅ Supported | ✅ Supported | Retrieve object metadata and properties | . | List Objects | ✅ Supported | ✅ Supported | ✅ Supported | Paginated listing with filters | . | Object Tagging | ⏱️ End of July’25 | ✅ Supported | ✅ Supported | Get and set object tags | . | Presigned URLs | ✅ Supported | ✅ Supported | ✅ Supported | Generate temporary access URLs | . | Versioning Support | ✅ Supported | ✅ Supported | ✅ Supported | Object version-specific operations | . Multipart Upload Features . | Feature Name | GCP | AWS | ALI | Comments | . | Initiate Multipart | ️ Mid of Aug’25 | ✅ Supported | ✅ Supported | Start multipart upload session | . | Upload Part | Mid of Aug’25 | ✅ Supported | ✅ Supported | Upload individual parts | . | Complete Multipart | Mid of Aug’25 | ✅ Supported | ✅ Supported | Finalize multipart upload | . | List Parts | Mid of Aug’25 | ✅ Supported | ✅ Supported | List uploaded parts | . | Abort Multipart | Mid of Aug’25 | ✅ Supported | ✅ Supported | Cancel multipart upload | . Advanced Features . | Feature Name | GCP | AWS | ALI | Comments | . | Async Operations | ✅ Supported | ✅ Supported | 📅 In Roadmap | CompletableFuture-based async API available only for AWS | . | Bucket Operations | ✅ Supported | ✅ Supported | ✅ Supported | List buckets via BlobClient | . Configuration Options . | Configuration | GCP | AWS | ALI | Comments | . | Endpoint Override | ✅ Supported | ✅ Supported | ✅ Supported | Custom endpoint configuration | . | Proxy Support | ✅ Supported | ✅ Supported | ✅ Supported | HTTP proxy configuration | . | Credentials Override | ✅ Supported | ✅ Supported | ✅ Supported | Custom credential providers via STS | . Performance Configuration . | Configuration | GCP | AWS | ALI | Comments | . | Parallel Uploads | ✅ Supported | ✅ Supported | ✅ Supported | Multipart parallel uploads for large objects | . | Part Buffer Size | ⚠️ Indirect | ✅ Supported | ⚠️ API-level only | Size of each part in multipart upload | . | Threshold Bytes | ⚠️ Indirect through part buffer size | ✅ Supported | ❌ Not supported | File size threshold to trigger multipart upload | . | Max Concurrency | ✅ Supported | ✅ Supported | ✅ Supported | Maximum concurrent transfer threads | . | Parallel Downloads | ✅ Supported | ✅ Supported | ❌ Not supported | Parallel range-based downloads | . | Target Throughput (Gbps) | ❌ Not supported | ✅ CRT client only | ❌ Not supported | Network throughput hint | . | Max Native Memory Limit | ❌ Not supported | ✅ CRT client only | ❌ Not supported | Caps native memory for CRT client | . Provider-Specific Notes . AWS S3 . | Parallel Uploads: Enabled via multipartEnabled(true) on the S3 async client | Parallel Downloads: Uses CRT-based S3 client when enabled for high-throughput range-based downloads | Part Buffer Size: Maps to minimumPartSizeInBytes in MultipartConfiguration | Threshold Bytes: Maps to thresholdInBytes — default 150MB, configurable | Max Concurrency: Configured via ExecutorService or CRT client maxConcurrency | Target Throughput / Max Native Memory: Available only with the CRT-based client, activated when parallel downloads are enabled | . GCP GCS . | Parallel Uploads: Automatic when file size exceeds SDK threshold; uses ParallelCompositeUpload (default threshold: 150MB, configurable via isAllowParallelCompositeUpload) | Parallel Downloads: Uses AllowDivideAndConquerDownload(true) for parallel range-based downloads (configurable via isAllowDivideAndConquer) | Part Buffer Size: Indirect support via setPerWorkerBufferSize in Transfer Manager | Max Concurrency: Configured via setMaxWorkers() on the Transfer Manager | Threshold Bytes: 4*setPerWorkerBufferSize, defaults to 64MiB | . Alibaba OSS . | Parallel Uploads: Via InitiateMultipartUpload and UploadPart APIs | Max Concurrency: Manual thread pool configuration, similar to AWS approach | Part Buffer Size: Direct part size available in API but not as a builder config | . ",
+    "content": "Core API Features . | Feature Name | GCP | AWS | ALI | Comments | . | Basic Upload | ✅ Supported | ✅ Supported | ✅ Supported | Upload from InputStream, byte[], File, Path | . | Basic Download | ✅ Supported | ✅ Supported | ✅ Supported | Download to OutputStream, byte[], File, Path | . | Delete Objects | ✅ Supported | ✅ Supported | ✅ Supported | Single and batch delete operations | . | Copy Objects | ✅ Supported | ✅ Supported | ✅ Supported | Server-side copy within and across buckets | . | Get Metadata | ✅ Supported | ✅ Supported | ✅ Supported | Retrieve object metadata and properties | . | List Objects | ✅ Supported | ✅ Supported | ✅ Supported | Paginated listing with filters | . | Object Tagging | ⏱️ End of July’25 | ✅ Supported | ✅ Supported | Get and set object tags | . | Presigned URLs | ✅ Supported | ✅ Supported | ✅ Supported | Generate temporary access URLs | . | Versioning Support | ✅ Supported | ✅ Supported | ✅ Supported | Object version-specific operations | . Multipart Upload Features . | Feature Name | GCP | AWS | ALI | Comments | . | Initiate Multipart | ️ Mid of Aug’25 | ✅ Supported | ✅ Supported | Start multipart upload session | . | Upload Part | Mid of Aug’25 | ✅ Supported | ✅ Supported | Upload individual parts | . | Complete Multipart | Mid of Aug’25 | ✅ Supported | ✅ Supported | Finalize multipart upload | . | List Parts | Mid of Aug’25 | ✅ Supported | ✅ Supported | List uploaded parts | . | Abort Multipart | Mid of Aug’25 | ✅ Supported | ✅ Supported | Cancel multipart upload | . Object Lock &amp; Retention Features . | Feature Name | GCP | AWS | ALI | Comments | . | Get Object Lock | ✅ Supported | ✅ Supported | 📅 In Roadmap | Retrieve lock config (mode, retain-until, legal hold) | . | Update Object Retention | ✅ Supported | ✅ Supported | 📅 In Roadmap | Change retention mode and/or expiration date | . | Retention Mode Support | ✅ Supported | ✅ Supported | 📅 In Roadmap | GOVERNANCE and COMPLIANCE modes with uniform rules | . | Bypass Governance Retention | ✅ Supported | ✅ Supported | 📅 In Roadmap | Shorten or remove GOVERNANCE-mode retention | . | Update Legal Hold | ✅ Supported | ✅ Supported | 📅 In Roadmap | Enable/disable legal hold on objects | . | Object Lock on Upload | ✅ Supported | ✅ Supported | 📅 In Roadmap | Set retention at upload time via ObjectLockConfiguration | . Advanced Features . | Feature Name | GCP | AWS | ALI | Comments | . | Async Operations | ✅ Supported | ✅ Supported | 📅 In Roadmap | CompletableFuture-based async API available only for AWS | . | Bucket Operations | ✅ Supported | ✅ Supported | ✅ Supported | List buckets via BlobClient | . Configuration Options . | Configuration | GCP | AWS | ALI | Comments | . | Endpoint Override | ✅ Supported | ✅ Supported | ✅ Supported | Custom endpoint configuration | . | Proxy Support | ✅ Supported | ✅ Supported | ✅ Supported | HTTP proxy configuration | . | Credentials Override | ✅ Supported | ✅ Supported | ✅ Supported | Custom credential providers via STS | . Performance Configuration . | Configuration | GCP | AWS | ALI | Comments | . | Parallel Uploads | ✅ Supported | ✅ Supported | ✅ Supported | Multipart parallel uploads for large objects | . | Part Buffer Size | ⚠️ Indirect | ✅ Supported | ⚠️ API-level only | Size of each part in multipart upload | . | Threshold Bytes | ⚠️ Indirect through part buffer size | ✅ Supported | ❌ Not supported | File size threshold to trigger multipart upload | . | Max Concurrency | ✅ Supported | ✅ Supported | ✅ Supported | Maximum concurrent transfer threads | . | Parallel Downloads | ✅ Supported | ✅ Supported | ❌ Not supported | Parallel range-based downloads | . | Target Throughput (Gbps) | ❌ Not supported | ✅ CRT client only | ❌ Not supported | Network throughput hint | . | Max Native Memory Limit | ❌ Not supported | ✅ CRT client only | ❌ Not supported | Caps native memory for CRT client | . Provider-Specific Notes . AWS S3 . | Parallel Uploads: Enabled via multipartEnabled(true) on the S3 async client | Parallel Downloads: Uses CRT-based S3 client when enabled for high-throughput range-based downloads | Part Buffer Size: Maps to minimumPartSizeInBytes in MultipartConfiguration | Threshold Bytes: Maps to thresholdInBytes — default 150MB, configurable | Max Concurrency: Configured via ExecutorService or CRT client maxConcurrency | Target Throughput / Max Native Memory: Available only with the CRT-based client, activated when parallel downloads are enabled | . GCP GCS . | Parallel Uploads: Automatic when file size exceeds SDK threshold; uses ParallelCompositeUpload (default threshold: 150MB, configurable via isAllowParallelCompositeUpload) | Parallel Downloads: Uses AllowDivideAndConquerDownload(true) for parallel range-based downloads (configurable via isAllowDivideAndConquer) | Part Buffer Size: Indirect support via setPerWorkerBufferSize in Transfer Manager | Max Concurrency: Configured via setMaxWorkers() on the Transfer Manager | Threshold Bytes: 4*setPerWorkerBufferSize, defaults to 64MiB | . Alibaba OSS . | Parallel Uploads: Via InitiateMultipartUpload and UploadPart APIs | Max Concurrency: Manual thread pool configuration, similar to AWS approach | Part Buffer Size: Direct part size available in API but not as a builder config | . ",
     "url": "/multicloudj/guides/blobstore-guide.html#feature-support-across-providers",
     
     "relUrl": "/guides/blobstore-guide.html#feature-support-across-providers"
@@ -98,740 +98,747 @@
     "relUrl": "/guides/blobstore-guide.html#multipart-uploads"
   },"14": {
     "doc": "How to Blob store",
+    "title": "Object Retention",
+    "content": "Update per-object retention with explicit mode and bypass control using ObjectRetentionConfig: . import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig; import com.salesforce.multicloudj.blob.driver.RetentionMode; // Extend retention on a GOVERNANCE-mode object bucketClient.updateObjectRetention(\"object-key\", null, ObjectRetentionConfig.builder() .mode(RetentionMode.GOVERNANCE) .retainUntilDate(Instant.now().plus(Duration.ofDays(90))) .build()); // Extend retention on a COMPLIANCE-mode object bucketClient.updateObjectRetention(\"object-key\", null, ObjectRetentionConfig.builder() .mode(RetentionMode.COMPLIANCE) .retainUntilDate(Instant.now().plus(Duration.ofDays(365))) .build()); // Shorten GOVERNANCE retention (requires bypass flag) bucketClient.updateObjectRetention(\"object-key\", null, ObjectRetentionConfig.builder() .mode(RetentionMode.GOVERNANCE) .retainUntilDate(Instant.now().plus(Duration.ofDays(7))) .bypassGovernanceRetention(true) .build()); // Upgrade from GOVERNANCE to COMPLIANCE (requires bypass flag) bucketClient.updateObjectRetention(\"object-key\", null, ObjectRetentionConfig.builder() .mode(RetentionMode.COMPLIANCE) .retainUntilDate(Instant.now().plus(Duration.ofDays(365))) .bypassGovernanceRetention(true) .build()); // Preserve current mode (pass null for mode) bucketClient.updateObjectRetention(\"object-key\", null, ObjectRetentionConfig.builder() .retainUntilDate(Instant.now().plus(Duration.ofDays(60))) .build()); . Retention Modes . | Mode | Description | . | GOVERNANCE | Retention can be shortened or removed by users with bypass permissions | . | COMPLIANCE | Retention cannot be shortened or removed by anyone until it expires | . Rules Table . The SDK enforces uniform rules across AWS and GCP: . | Current Mode | Action | Bypass Flag | Outcome | . | GOVERNANCE | Extend retention | Not required | ✅ Succeeds | . | GOVERNANCE | Shorten retention | true | ✅ Succeeds | . | GOVERNANCE | Shorten retention | false | ❌ FailedPreconditionException | . | GOVERNANCE | Upgrade to COMPLIANCE | true | ✅ Succeeds | . | GOVERNANCE | Upgrade to COMPLIANCE | false | ❌ FailedPreconditionException | . | COMPLIANCE | Extend retention | Not required | ✅ Succeeds | . | COMPLIANCE | Shorten retention | Any | ❌ FailedPreconditionException | . | COMPLIANCE | Downgrade to GOVERNANCE | Any | ❌ FailedPreconditionException | . | (none) | Any update | Any | ❌ FailedPreconditionException | . Note: The bypassGovernanceRetention flag maps to bypassGovernanceRetention on AWS S3 and overrideUnlockedRetention on GCP GCS. It has no effect on COMPLIANCE-mode objects. ",
+    "url": "/multicloudj/guides/blobstore-guide.html#object-retention",
+    
+    "relUrl": "/guides/blobstore-guide.html#object-retention"
+  },"15": {
+    "doc": "How to Blob store",
     "title": "Error Handling",
     "content": "All operations may throw SubstrateSdkException. These can be caught and handled generically: . try { bucketClient.upload(request, new File(\"file.txt\")); } catch (SubstrateSdkException e) { // Handle access denied, IO failure, etc. e.printStackTrace(); } . Use BucketClient when you need full CRUD support and advanced control over blobs inside a single bucket, across any supported cloud provider. ",
     "url": "/multicloudj/guides/blobstore-guide.html#error-handling",
     
     "relUrl": "/guides/blobstore-guide.html#error-handling"
-  },"15": {
+  },"16": {
     "doc": "How to Blob store",
     "title": "How to Blob store",
     "content": " ",
     "url": "/multicloudj/guides/blobstore-guide.html",
     
     "relUrl": "/guides/blobstore-guide.html"
-  },"16": {
+  },"17": {
     "doc": "How to: Conformance tests in multicloudj",
     "title": "How to: Conformance tests in multicloud",
     "content": "This document is to help you write the conformance tests (can be aka integration tests) for multicloudj using wiremock to record and replay the cloud service calls. ",
     "url": "/multicloudj/guides/conformance-tests-guide.html#how-to-conformance-tests-in-multicloud",
     
     "relUrl": "/guides/conformance-tests-guide.html#how-to-conformance-tests-in-multicloud"
-  },"17": {
+  },"18": {
     "doc": "How to: Conformance tests in multicloudj",
     "title": "Overview",
     "content": "Conformance tests are very powerful to validate the SDK for multi-cloud environments where all the provider implementation satisfy the common abstractions. | Conformance tests are written once at the abstract level and all the provider implementations supply the substrate specific details such as resource names to execute the tests for that cloud provider. | Conformance tests can be executed in the offline mode where it’s challenging to get real time network connectivity from a single source to multiple cloud providers. | . Conformance tests can run in two modes: . | Record mode: where the tests hit the real service endpoint and transactions get intercepted by proxy and recorded in the files. | Replay mode: where the tests get the replayed responses from the previously recorded transactions. | . ",
     "url": "/multicloudj/guides/conformance-tests-guide.html#overview",
     
     "relUrl": "/guides/conformance-tests-guide.html#overview"
-  },"18": {
+  },"19": {
     "doc": "How to: Conformance tests in multicloudj",
     "title": "Wiremock as a forward proxy",
     "content": "To intercept the tests in record mode, we use wiremock server as forward proxy which has the ability the record the transactions and replay it later. SDK client to wiremock doesn’t matter much for security because everything is local, therefore we configure the SDK clients to trust all the certs which includes the wiremock self signed cert presented to the SDK client. We can also have that layer to http as well. ",
     "url": "/multicloudj/guides/conformance-tests-guide.html#wiremock-as-a-forward-proxy",
     
     "relUrl": "/guides/conformance-tests-guide.html#wiremock-as-a-forward-proxy"
-  },"19": {
+  },"20": {
     "doc": "How to: Conformance tests in multicloudj",
     "title": "How to configure the SDK to proxy through wiremock",
     "content": "In order to utilize the record/replay mode through wiremock there are two most common ways provide the SDKs: . Override the http client in SDK (preferred) . You should be able to override the http client in SDK client and your http client should have the proxy configured to wiremock. AWS example: You can create the custom http client for AWS (code ref) and inject in into the SDK client. Ali example: You can create the httpclient config (code ref) for the client profile and inject it in the SDK client (code ref). Environment Variables . Some SDKs support reading the HTTPS_PROXY, HTTP_PROXY environment variables if set and direct the API call through the proxy. Examples from Alibaba tablestore here. If your SDK is not re-using any of the existing patterns already in the conformance tests, it might take some research on how to inject the custom client. ",
     "url": "/multicloudj/guides/conformance-tests-guide.html#how-to-configure-the-sdk-to-proxy-through-wiremock",
     
     "relUrl": "/guides/conformance-tests-guide.html#how-to-configure-the-sdk-to-proxy-through-wiremock"
-  },"20": {
+  },"21": {
     "doc": "How to: Conformance tests in multicloudj",
     "title": "How to run the Java SDK conformance tests for alibaba",
     "content": "Steps: . | Get the alibaba credentials for authenticating to service as admin preferably unless you want to deal with role based access: . acs-sso login --env . | Go to your GoLand IDE: . | Run → Edit Configurations → Environment. Add the above credentials in the environment: ALICLOUD_ACCESS_KEY, ALICLOUD_SECRET_KEY and ALICLOUD_SECURITY_TOKEN . | For docstore: the env variables are: TABLESTORE_ACCESS_KEY_ID, TABLESTORE_ACCESS_KEY_SECRET and TABLESTORE_SESSION_TOKEN | . | In the arguments, add -Drecord | . | You should be all set to run the tests in record mode. | In order to run your tests in replay mode, just remove -Drecord from Program arguments. Your tests will stop going across the network and will replay from recorded files. | . ",
     "url": "/multicloudj/guides/conformance-tests-guide.html#how-to-run-the-java-sdk-conformance-tests-for-alibaba",
     
     "relUrl": "/guides/conformance-tests-guide.html#how-to-run-the-java-sdk-conformance-tests-for-alibaba"
-  },"21": {
+  },"22": {
     "doc": "How to: Conformance tests in multicloudj",
     "title": "How to set up the google cloud credentials in IDE",
     "content": ". | Login to the gcloud from cli: gcloud auth application-default login . | Recommended (impersonate the service account and grant all the permissions required to this SA): gcloud config set auth/impersonate_service_account $SA_EMAIL . | Set the GOOGLE_APPLICATION_CREDENTIALS environment variable pointing to the file with gcp credentials: GOOGLE_APPLICATION_CREDENTIALS=/Users/&lt;username&gt;/.config/gcloud/application_default_credentials.json . | . ",
     "url": "/multicloudj/guides/conformance-tests-guide.html#how-to-set-up-the-google-cloud-credentials-in-ide",
     
     "relUrl": "/guides/conformance-tests-guide.html#how-to-set-up-the-google-cloud-credentials-in-ide"
-  },"22": {
+  },"23": {
     "doc": "How to: Conformance tests in multicloudj",
     "title": "How to run the record mode",
     "content": "The tests are configured to take the java system property -Drecord which will do the recording of the transactions. In intellij for bazel, you can setup this property through Run configurations. Note for Bazel . When running in bazel, your recording path need to be set temporarily to outside the resources directory, and later copied to the resources directory for the module (for example: sts-aws resources directory) once you are done recording. The reason for this is the bazel executing tests in the temporary directory and not the actual path. If you don’t override the recording location, your recordings will be located in that temporary directory for bazel. Tip: You can setup the root directory to /tmp which doesn’t need any special write permissions for bazel. Once you run the tests, you should be able to see the /tmp/mappings directory for the recordings. The equivalent of -Drecord in bazel will be --jvmopt=\"-Drecord\" . Reference command to copy the mappings to bazel path: . cp -r /tmp/mappings /Users/$relativePath/multicloudj/docstore/docstore-aws/src/test/resources/ . Note for alibaba SDK . Alibaba SDK puts all the secret and dynamic information such as security token, in the URL query params itself instead of headers. This dynamic information creates the problem with replaying because of dynamic nature since the the replayer won’t be able to find the match with mappings. Wiremock doesn’t provide any clean way to redact the information in the URL. Thus we have to manually change the recorded URL to URL pattern and replace the dynamic information with the wildcards: . For example: . We change the dynamic information to .* and changed the key from url to urlPattern: . \"urlPattern\" : \"/\\\\?SecurityToken=.*&amp;SignatureVersion=1.0&amp;Action=GetCallerIdentity&amp;Format=JSON&amp;SignatureNonce=.*&amp;Version=2015-04-01&amp;AccessKeyId=.*&amp;Signature=.*&amp;SignatureMethod=HMAC-SHA1&amp;RegionId=cn-shanghai&amp;Timestamp=.*\" . ",
     "url": "/multicloudj/guides/conformance-tests-guide.html#how-to-run-the-record-mode",
     
     "relUrl": "/guides/conformance-tests-guide.html#how-to-run-the-record-mode"
-  },"23": {
+  },"24": {
     "doc": "How to: Conformance tests in multicloudj",
     "title": "How to run the replay mode",
     "content": "If you don’t set up the -Drecord in the jvmopt, by default the test will run the replay mode and looks for the mappings in the root directory for wiremock. ",
     "url": "/multicloudj/guides/conformance-tests-guide.html#how-to-run-the-replay-mode",
     
     "relUrl": "/guides/conformance-tests-guide.html#how-to-run-the-replay-mode"
-  },"24": {
+  },"25": {
     "doc": "How to: Conformance tests in multicloudj",
     "title": "How to: Conformance tests in multicloudj",
     "content": " ",
     "url": "/multicloudj/guides/conformance-tests-guide.html",
     
     "relUrl": "/guides/conformance-tests-guide.html"
-  },"25": {
+  },"26": {
     "doc": "How to DB Backup Restore",
     "title": "DBBackupRestoreClient",
     "content": "The DBBackupRestoreClient class in the multicloudj library provides a cloud-agnostic interface to interact with database backup and restore services like AWS Backup (DynamoDB), GCP Firestore Admin, and Alibaba Cloud HBR (TableStore). This client enables listing backups, retrieving backup details, restoring backups to target resources, and tracking restore job status across multiple cloud providers with a consistent API. ",
     "url": "/multicloudj/guides/dbbackuprestore-guide.html#dbbackuprestoreclient",
     
     "relUrl": "/guides/dbbackuprestore-guide.html#dbbackuprestoreclient"
-  },"26": {
+  },"27": {
     "doc": "How to DB Backup Restore",
     "title": "Feature Support Across Providers",
     "content": "Core API Features . | Feature Name | GCP (Firestore) | AWS (DynamoDB) | ALI (TableStore) | Comments | . | List Backups | ✅ Supported | ✅ Supported | ✅ Supported | List all available backups for a resource | . | Get Backup | ✅ Supported | ✅ Supported | ✅ Supported | Retrieve details of a specific backup | . | Restore Backup | ✅ Supported | ✅ Supported | ✅ Supported | Initiate an async restore operation | . | Get Restore Job | ✅ Supported | ✅ Supported | ✅ Supported | Track the status of a restore operation | . Configuration Options . | Configuration | GCP (Firestore) | AWS (DynamoDB) | ALI (TableStore) | Comments | . | Region | ✅ Required | ✅ Required | ✅ Required | Cloud region for the service | . | Resource Name | ✅ Required | ✅ Required | ✅ Required | Table name or ARN | . Provider-Specific Notes . AWS (DynamoDB via AWS Backup) . | resourceName must be the full DynamoDB table ARN (e.g., arn:aws:dynamodb:us-east-1:123456789012:table/my-table). | restoreBackup requires roleId (IAM role ARN for the restore job) and targetResource (target table name). | backupId values are recovery point ARNs. | kmsEncryptionKeyId can be specified to encrypt the restored table with a specific KMS key. | . GCP (Firestore) . | resourceName is the Firestore collection/database name. | restoreBackup requires targetResource (target database ID). The restore operation is asynchronous (long-running operation). | backupId is the full Firestore backup resource name. | . Alibaba Cloud (TableStore via HBR) . | resourceName is the TableStore table name. | restoreBackup requires vaultId (HBR vault identifier). | Backups are represented as OTS table snapshots. | . ",
     "url": "/multicloudj/guides/dbbackuprestore-guide.html#feature-support-across-providers",
     
     "relUrl": "/guides/dbbackuprestore-guide.html#feature-support-across-providers"
-  },"27": {
+  },"28": {
     "doc": "How to DB Backup Restore",
     "title": "Creating the Client",
     "content": "Basic Client . For AWS: . DBBackupRestoreClient client = DBBackupRestoreClient.builder(\"aws\") .withRegion(\"us-east-1\") .withResourceName(\"arn:aws:dynamodb:us-east-1:123456789012:table/my-table\") .build(); . For GCP Firestore: . DBBackupRestoreClient client = DBBackupRestoreClient.builder(\"gcp-firestore\") .withRegion(\"projects/myproject/locations/nam5\") .withResourceName(\"projects/myproject/databases/(default)/documents/docstore-test-1\") .build(); . Use the appropriate provider ID: \"aws\", \"gcp-firestore\", or \"ali\". The client implements AutoCloseable; use try-with-resources or call close() when done. ",
     "url": "/multicloudj/guides/dbbackuprestore-guide.html#creating-the-client",
     
     "relUrl": "/guides/dbbackuprestore-guide.html#creating-the-client"
-  },"28": {
+  },"29": {
     "doc": "How to DB Backup Restore",
     "title": "Listing Backups",
     "content": "List&lt;Backup&gt; backups = client.listBackups(); for (Backup backup : backups) { System.out.println(\"Backup ID: \" + backup.getBackupId()); System.out.println(\"Status: \" + backup.getStatus()); System.out.println(\"Created: \" + backup.getCreationTime()); System.out.println(\"Size: \" + backup.getSizeInBytes() + \" bytes\"); } . ",
     "url": "/multicloudj/guides/dbbackuprestore-guide.html#listing-backups",
     
     "relUrl": "/guides/dbbackuprestore-guide.html#listing-backups"
-  },"29": {
+  },"30": {
     "doc": "How to DB Backup Restore",
     "title": "Getting Backup Details",
     "content": "Backup backup = client.getBackup(\"backup-id\"); System.out.println(\"Resource: \" + backup.getResourceName()); System.out.println(\"Status: \" + backup.getStatus()); System.out.println(\"Description: \" + backup.getDescription()); System.out.println(\"Expiry: \" + backup.getExpiryTime()); . Backup Status Values . | Status | Description | . | CREATING | Backup is being created | . | AVAILABLE | Backup is ready for restoration | . | DELETING | Backup is being deleted | . | DELETED | Backup has been deleted | . | FAILED | Backup operation failed | . | UNKNOWN | Status could not be determined | . ",
     "url": "/multicloudj/guides/dbbackuprestore-guide.html#getting-backup-details",
     
     "relUrl": "/guides/dbbackuprestore-guide.html#getting-backup-details"
-  },"30": {
+  },"31": {
     "doc": "How to DB Backup Restore",
     "title": "Restoring a Backup",
     "content": "Restore operations are asynchronous. The restoreBackup method returns a restore ID that can be used to track progress. AWS Example . RestoreRequest request = RestoreRequest.builder() .backupId(\"arn:aws:backup:us-east-1:123456789012:recovery-point/abc-123\") .targetResource(\"restored-table\") .roleId(\"arn:aws:iam::123456789012:role/backup-restore-role\") .kmsEncryptionKeyId(\"arn:aws:kms:us-east-1:123456789012:key/my-key-id\") .build(); String restoreId = client.restoreBackup(request); . GCP Firestore Example . RestoreRequest request = RestoreRequest.builder() .backupId(\"projects/my-project/locations/us-east1/backups/my-backup\") .targetResource(\"restored-database\") .build(); String restoreId = client.restoreBackup(request); . Alibaba Cloud Example . RestoreRequest request = RestoreRequest.builder() .backupId(\"snapshot-id\") .vaultId(\"vault-id\") .build(); String restoreId = client.restoreBackup(request); . ",
     "url": "/multicloudj/guides/dbbackuprestore-guide.html#restoring-a-backup",
     
     "relUrl": "/guides/dbbackuprestore-guide.html#restoring-a-backup"
-  },"31": {
+  },"32": {
     "doc": "How to DB Backup Restore",
     "title": "Tracking Restore Status",
     "content": "Restore restore = client.getRestoreJob(restoreId); System.out.println(\"Restore ID: \" + restore.getRestoreId()); System.out.println(\"Status: \" + restore.getStatus()); System.out.println(\"Target: \" + restore.getTargetResource()); System.out.println(\"Started: \" + restore.getStartTime()); System.out.println(\"Message: \" + restore.getStatusMessage()); . Restore Status Values . | Status | Description | . | RESTORING | Restore operation is in progress | . | COMPLETED | Restore completed successfully | . | FAILED | Restore operation failed | . | UNKNOWN | Status could not be determined | . ",
     "url": "/multicloudj/guides/dbbackuprestore-guide.html#tracking-restore-status",
     
     "relUrl": "/guides/dbbackuprestore-guide.html#tracking-restore-status"
-  },"32": {
+  },"33": {
     "doc": "How to DB Backup Restore",
     "title": "Error Handling",
     "content": "Exception Handling . All operations may throw SubstrateSdkException: . try { List&lt;Backup&gt; backups = client.listBackups(); } catch (SubstrateSdkException e) { // Handle resource not found, access denied, etc. e.printStackTrace(); } . ",
     "url": "/multicloudj/guides/dbbackuprestore-guide.html#error-handling",
     
     "relUrl": "/guides/dbbackuprestore-guide.html#error-handling"
-  },"33": {
+  },"34": {
     "doc": "How to DB Backup Restore",
     "title": "How to DB Backup Restore",
     "content": " ",
     "url": "/multicloudj/guides/dbbackuprestore-guide.html",
     
     "relUrl": "/guides/dbbackuprestore-guide.html"
-  },"34": {
+  },"35": {
     "doc": "How to Docstore",
     "title": "Docstore",
     "content": "The DocStoreClient class in the multicloudj library provides a portable document store like abstraction over NoSQSL database providers like Amazon DynamoDB, Alibaba Tablestore, and Google Firestore. It supports core document operations like create, read, update, delete (CRUD), batching, and querying with the support of indexing. Internally, each provider is implemented via a driver extending AbstractDocStore. ",
     "url": "/multicloudj/guides/docstore-guide.html#docstore",
     
     "relUrl": "/guides/docstore-guide.html#docstore"
-  },"35": {
+  },"36": {
     "doc": "How to Docstore",
     "title": "Feature Support Across Providers",
     "content": "Core API Features . | Feature Name | GCP Firestore | AWS DynamoDB | ALI Tablestore | Comments | . | Create Document | ✅ Supported | ✅ Supported | ✅ Supported | Insert new documents | . | Get Document | ✅ Supported | ✅ Supported | ✅ Supported | Get the document by key | . | Put Document | ✅ Supported | ✅ Supported | ✅ Supported | Insert or replace document | . | Replace Document | ✅ Supported | ✅ Supported | ✅ Supported | Replace existing document | . | Delete Document | ✅ Supported | ✅ Supported | ✅ Supported | Remove document by key | . | Update Document | ⏱️ Coming Soon | ⏱️ Coming Soon | ⏱️ Coming Soon | Update operations not yet implemented in any provider | . Batch Operations . | Feature Name | GCP Firestore | AWS DynamoDB | ALI Tablestore | Comments | . | Batch Get | ✅ Supported | ✅ Supported | ✅ Supported | Retrieve multiple documents in one call | . | Batch Write | ✅ Supported | ✅ Supported | ✅ Supported | Write multiple documents atomically | . | Atommic Writes | ✅ Supported | ✅ Supported | ✅ Supported | Atomic write operations across multiple documents | . Query Features . | Feature Name | GCP Firestore | AWS DynamoDB | ALI Tablestore | Comments | . | Basic Queries | ✅ Supported | ✅ Supported | ✅ Supported | Filter and projection queries | . | Compound Filters | ✅ Supported | ✅ Supported | ✅ Supported | Multiple filter conditions | . | Order By | ✅ Supported | ✅ Supported | ✅ Supported | Sort query results | . | Order By in Full Scan | ❌ Not Supported | ❌ Not Supported | ❌ Not Supported | ** It’s too expensive ** | . | Pagination Token | ✅ Supported | ✅ Supported | 📅 In Roadmap | Query with pagination | . | Limit/Offset | ✅ Supported | ✅ Supported | ✅ Supported | Pagination support | . | Index-based Queries | ✅ Supported | ✅ Supported | ✅ Supported | Query using secondary indexes | . | Query Planning | ✅ Supported | ✅ Supported | ✅ Supported | Explain query execution plans | . Advanced Features . | Feature Name | GCP Firestore | AWS DynamoDB | ALI Tablestore | Comments | . | Revision/Versioning | ✅ Supported | ✅ Supported | ✅ Supported | Optimistic concurrency control | . | Single Key Collections | ✅ Supported | ✅ Supported | ✅ Supported | Collections with only partition key | . | Two Key Collections | ✅ Supported | ✅ Supported | ✅ Supported | Collections with partition + sort key(uses indexes in firestore) | . Configuration Options . | Configuration | GCP Firestore | AWS DynamoDB | ALI Tablestore | Comments | . | Regional Support | ✅ Supported | ✅ Supported | ✅ Supported | Region-specific operations | . | Custom Endpoints | ✅ Supported | ✅ Supported | ✅ Supported | Override default service endpoints | . | Credentials Override | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom credential providers via STS | . | Collection Options | ✅ Supported | ✅ Supported | ✅ Supported | Table/collection configuration | . Important Notes about semantics: . | If you are using in-equality filters (&lt;, &gt;, &lt;=, &gt;=) in query, make sure to put an order by on the same fields to get the consistent results. This is the limitation from gcp firestore (ref). | Nested Maps, List types are not supported in Alibaba. If your service is targeting alibaba as well, please consider serializing it yourself for this use-case. | Atomic writes doesn’t support global transaction (across partition keys) across alibaba. | . ",
     "url": "/multicloudj/guides/docstore-guide.html#feature-support-across-providers",
     
     "relUrl": "/guides/docstore-guide.html#feature-support-across-providers"
-  },"36": {
+  },"37": {
     "doc": "How to Docstore",
     "title": "Creating a Client",
     "content": "To begin using DocStoreClient, use the static builder: . CollectionOptions collectionOptions = new CollectionOptions.CollectionOptionsBuilder() .withTableName(\"chameleon-test\") .withPartitionKey(\"pName\") .withSortKey(\"s\") .withRevisionField(\"docRevision\") .build(); DocStoreClient client = DocStoreClient.builder(\"aws\") .withRegion(\"us-west-2\") .withCollectionOptions(collectionOptions) .build(); . ",
     "url": "/multicloudj/guides/docstore-guide.html#creating-a-client",
     
     "relUrl": "/guides/docstore-guide.html#creating-a-client"
-  },"37": {
+  },"38": {
     "doc": "How to Docstore",
     "title": "Document Representation",
     "content": "The Document class accepts either a user-defined class or a generic map. Option 1: Using a POJO (Player) . @AllArgsConstructor @NoArgsConstructor @Data public class Player { private String pName; private int i; private float f; private boolean b; private String s; } Player player = new Player(\"Alice\", 42, 99.5f, true, \"metadata\"); Document doc = new Document(player); . Option 2: Using a HashMap . Map&lt;String, Object&gt; map = new HashMap&lt;&gt;(); map.put(\"pName\", \"Alice\"); map.put(\"i\", 42); map.put(\"f\", 99.5f); map.put(\"b\", true); map.put(\"s\", \"metadata\"); Document doc = new Document(map); . ",
     "url": "/multicloudj/guides/docstore-guide.html#document-representation",
     
     "relUrl": "/guides/docstore-guide.html#document-representation"
-  },"38": {
+  },"39": {
     "doc": "How to Docstore",
     "title": "Actions",
     "content": "Once you have initialized a docstore client, you can call action methods on it to read, modify, and write documents. These are referred to as actions, and can be executed individually or as part of a batch using an action list. DocStore supports the following types of actions: . | Get retrieves a document. | Create creates a new document. | Replace replaces an existing document. | Put puts a document whether or not it already exists. | Update applies modifications to a document (not supported yet). | Delete deletes a document. | . Each of the following examples illustrates one of these actions. ",
     "url": "/multicloudj/guides/docstore-guide.html#actions",
     
     "relUrl": "/guides/docstore-guide.html#actions"
-  },"39": {
+  },"40": {
     "doc": "How to Docstore",
     "title": "Basic Operations",
     "content": "Create . Create will throw an exception ResourceAlreadyExists if the document already exists. client.create(doc); . Get . To retrieve a document, you must provide a Document initialized with the corresponding object and pre-populate the fields that uniquely identify it (e.g., partition key and sort key): . Player player = new Player(); player.setPName(\"Alice\"); // Assuming pName is the partition key player.setS(\"metadata\"); // Assuming s is the sort key client.get(new Document(player)); . With optional fields you want to retrieve: . client.get(new Document(player), \"pName\", \"f\"); . Replace . Replaces the existing doc, will throw ResourceNotFound is the document doesn’t exist. client.replace(doc); . Put . Put is similar to create but will not throw in case the document doesn’t exist. client.put(doc); . Delete . To delete a document, the input must also have the required key fields populated: . Player player = new Player(); player.setPName(\"Alice\"); player.setS(\"metadata\"); client.delete(new Document(player)); . Update (Not Supported) . client.update(doc, Map.of(\"f\", 120.0f)); // Throws UnSupportedOperationException . ",
     "url": "/multicloudj/guides/docstore-guide.html#basic-operations",
     
     "relUrl": "/guides/docstore-guide.html#basic-operations"
-  },"40": {
+  },"41": {
     "doc": "How to Docstore",
     "title": "Batch Operations",
     "content": "Batch Get . List&lt;Document&gt; docs = List.of( new Document().put(\"pName\", \"Alice\").put(\"s\", \"metadata\"), new Document().put(\"pName\", \"Bob\").put(\"s\", \"stats\") ); client.batchGet(docs); . Batch Put . List&lt;Document&gt; docs = List.of( new Document().put(\"pName\", \"Alice\").put(\"f\", 10.5f), new Document().put(\"pName\", \"Bob\").put(\"f\", 20.0f) ); client.batchPut(docs); . ",
     "url": "/multicloudj/guides/docstore-guide.html#batch-operations-1",
     
     "relUrl": "/guides/docstore-guide.html#batch-operations-1"
-  },"41": {
+  },"42": {
     "doc": "How to Docstore",
     "title": "Queries",
     "content": "DocStore’s get action retrieves a single document by its primary key. However, when you need to retrieve or manipulate multiple documents that match a condition, you can use queries. Queries allow you to: . | Retrieve all documents that match specific conditions. | Delete or update documents in bulk based on criteria. | . The query interface is chainable and supports filtering and sorting (depending on driver support). DocStore can also optimize queries automatically. Based on your filter conditions, it attempts to determine whether a global secondary index (GSI) or a local secondary index (LSI) can be used to execute the query more efficiently. This helps reduce latency and improves performance. Queries support the following methods: . | Where: Describes a condition on a document. You can ask whether a field is equal to, greater than, or less than a value. The “not equals” comparison isn’t supported, because it isn’t portable across providers. | OrderBy: Specifies the order of the resulting documents, by field and direction. For portability, you can specify at most one OrderBy, and its field must also be mentioned in a Where clause. | Limit: Limits the number of documents in the result. | . Query query = client.query(); // Apply filtering, sorting, etc. (Depends on driver implementation.) . ",
     "url": "/multicloudj/guides/docstore-guide.html#queries",
     
     "relUrl": "/guides/docstore-guide.html#queries"
-  },"42": {
+  },"43": {
     "doc": "How to Docstore",
     "title": "Advanced Usage",
     "content": "Action Lists . ActionList actions = client.getActions(); actions.put(doc1).get(doc2).delete(doc3); actions.run(); . You can also chain operations directly using the fluent API with enableAtomicWrites() for atomic execution: . client.getActions() .create(new Document(new Player(\"Alice\", 1, 3.99f, true, \"CA\"))) .create(new Document(new Player(\"Bob\", 2, 3.99f, true, \"PT\"))) .create(new Document(new Player(\"Carol\", 3, 3.99f, true, \"PA\"))) .enableAtomicWrites() .create(new Document(new Player(\"Dave\", 4, 3.99f, true, \"TX\"))) .create(new Document(new Player(\"Eve\", 5, 3.99f, true, \"OR\"))) .create(new Document(new Player(\"Frank\", 6, 3.99f, true, \"NJ\"))) .run(); . Atomic Writes: . If you want to write your documents atomically, just use the enableAtomicWrites as above and all the writes are this will be executed atomically. Close the Client . client.close(); . ",
     "url": "/multicloudj/guides/docstore-guide.html#advanced-usage",
     
     "relUrl": "/guides/docstore-guide.html#advanced-usage"
-  },"43": {
+  },"44": {
     "doc": "How to Docstore",
     "title": "How to Docstore",
     "content": " ",
     "url": "/multicloudj/guides/docstore-guide.html",
     
     "relUrl": "/guides/docstore-guide.html"
-  },"44": {
+  },"45": {
     "doc": "Exception Handling",
     "title": "Exception Handling in Substrate SDK",
     "content": " ",
     "url": "/multicloudj/design/errors.html#exception-handling-in-substrate-sdk",
     
     "relUrl": "/design/errors.html#exception-handling-in-substrate-sdk"
-  },"45": {
+  },"46": {
     "doc": "Exception Handling",
     "title": "How Does Exception Handling Work for SDK Users?",
     "content": "Substrate SDK defines substrate-agnostic exceptions for end users, so they don’t have to deal with substrate-specific exceptions directly. The SDK wraps all exceptions from cloud providers in a standardized wrapper based on the exception type before propagating it to the end user. Some broadly categorized exceptions include: . | SubstrateSdkException –&gt; Base class for all the exceptions | AccessDeniedException | ResourceNotFoundException | ResourceAlreadyExistsException | ResourceExhaustedException | InvalidArgumentException | FailedPreConditionException | DeadlineExceededException | ResourceConflictException | UnAuthorizedException | UnSupportedOperationException | UnknownException –&gt; This is used when no predefined mapping exists. Ideally, as the SDK evolves, there should be no occurrences of this exception. | . ",
     "url": "/multicloudj/design/errors.html#how-does-exception-handling-work-for-sdk-users",
     
     "relUrl": "/design/errors.html#how-does-exception-handling-work-for-sdk-users"
-  },"46": {
+  },"47": {
     "doc": "Exception Handling",
     "title": "How Does Exception Handling Work for Provider Implementations?",
     "content": "Handling Server-Side Exceptions . Server-side exceptions are relatively straightforward because provider implementations do not need to process them explicitly. These exceptions are considered RunTimeExceptions, which are thrown to the client layer and wrapped according to the predefined mapping. When Provider Implementations Need to Throw Exceptions . There are cases where provider implementations must throw SubstrateSdkException themselves. Some examples include: . | Input Validation Failures . | If a provider implementation validates input parameters and detects an issue, it can throw an InvalidArgumentException directly. | . | Converting Server-Side Exceptions to Different Semantics . | In some cases, a provider implementation may need to reinterpret server-side exceptions. | Example: In DocStore, the create API expects the item not to exist, while the put API does not have this constraint. If a key already exists, the provider must decide which exception to throw based on the API semantics. | . | . Exception Wrapping . | If the exception is already a subclass of SubstrateSdkException, it is not re-wrapped. | Otherwise, exceptions are wrapped according to predefined mappings to ensure a consistent experience for SDK users. | . ",
     "url": "/multicloudj/design/errors.html#how-does-exception-handling-work-for-provider-implementations",
     
     "relUrl": "/design/errors.html#how-does-exception-handling-work-for-provider-implementations"
-  },"47": {
+  },"48": {
     "doc": "Exception Handling",
     "title": "Exception Handling",
     "content": " ",
     "url": "/multicloudj/design/errors.html",
     
     "relUrl": "/design/errors.html"
-  },"48": {
+  },"49": {
     "doc": "Flexibility",
     "title": "Flexibility",
     "content": "Substrate SDK remains extensible and you can have your custom providers implementing the driver layer and include the provider jar in the classpath. All you need to do is load the provider with providerId, for example: . BucketClient.builder(\"&lt;BlobstoreCustomProvider&gt;\")... DocstoreClient.builder(\"DocstoreCustomProvider\")... You can also keep the providers outside of this SDK repo anywhere as long as they have access to driver layer. There might be few use-case where you want to tweak the implementation provided by Substrate SDK for your special requirements. You can can have your own implementation overriding the the implementation provided by Substrate SDK and provide that in the runtime. ",
     "url": "/multicloudj/design/flexibility.html",
     
     "relUrl": "/design/flexibility.html"
-  },"49": {
+  },"50": {
     "doc": "How to IAM",
     "title": "IAM",
     "content": "The IamClient class in the multicloudj library provides a comprehensive, cloud-agnostic interface to interact with Identity and Access Management services like AWS IAM, GCP IAM, and AliCloud RAM. This client enables creating and managing identities (roles, service accounts), attaching and managing inline policies, and configuring trust relationships across multiple cloud providers with a consistent API. ",
     "url": "/multicloudj/guides/iam-guide.html#iam",
     
     "relUrl": "/guides/iam-guide.html#iam"
-  },"50": {
+  },"51": {
     "doc": "How to IAM",
     "title": "Feature Support Across Providers",
     "content": "Core API Features . | Feature Name | GCP | AWS | ALI | Comments | . | Create Identity | ✅ Supported | ✅ Supported | 📅 In Roadmap | Create roles/service accounts with optional trust and options | . | Get Identity | ✅ Supported | ✅ Supported | 📅 In Roadmap | Retrieve identity metadata (ARN, email, or roleId) | . | Delete Identity | ✅ Supported | ✅ Supported | 📅 In Roadmap | Remove an identity from the cloud provider | . | Attach Inline Policy | ✅ Supported | ✅ Supported | 📅 In Roadmap | Attach a policy document; AWS use PutRolePolicy directly | . | Get Attached Policies | ✅ Supported | ✅ Supported | 📅 In Roadmap | List inline policies attached to an identity | . | Get Inline Policy Details | ✅ Supported | ✅ Supported | 📅 In Roadmap | Retrieve policy document details | . | Remove Policy | ✅ Supported | ✅ Supported | 📅 In Roadmap | Remove an inline policy from an identity | . Configuration Options . | Configuration | GCP | AWS | ALI | Comments | . | Trust Configuration | ✅ Supported | ✅ Supported | 📅 In Roadmap | Principals and conditions for assume/impersonate | . Provider-Specific Notes . AWS (IAM) . | Tenant ID is the AWS account ID (12-digit). IAM is global per partition; region is used by the IAM client to resolve the partition and its endpoint. | Get inline policy details: policyName is required. | . GCP (IAM) . | Tenant ID: for identity operations use project ID (or projects/...); for policy operations use the resource that owns the IAM policy (e.g. projects/my-project, folders/123). | Create Identity creates a Service Account on GCP. You provide the service account ID; it returns email {id}@{project}.iam.gserviceaccount.com. Create options are unused. | Attach policy: resource is the IAM member (e.g. serviceAccount:...); policy actions are GCP role names (e.g. roles/storage.objectViewer). Get inline policy details: roleName is required; policyName is not used. | Remove policy: policyName is the role name to remove. | . ",
     "url": "/multicloudj/guides/iam-guide.html#feature-support-across-providers",
     
     "relUrl": "/guides/iam-guide.html#feature-support-across-providers"
-  },"51": {
+  },"52": {
     "doc": "How to IAM",
     "title": "Creating the Client",
     "content": "Basic Client . IamClient iamClient = IamClient.builder(\"aws\") .withRegion(\"us-west-2\") .build(); . Use the appropriate provider ID: \"aws\", \"gcp\", or \"ali\". The client implements AutoCloseable; use try-with-resources or call close() when done. ",
     "url": "/multicloudj/guides/iam-guide.html#creating-the-client",
     
     "relUrl": "/guides/iam-guide.html#creating-the-client"
-  },"52": {
+  },"53": {
     "doc": "How to IAM",
     "title": "Identity Operations",
     "content": "Creating an Identity . try (IamClient iamClient = IamClient.builder(\"aws\").withRegion(\"us-west-2\").build()) { String identityId = iamClient.createIdentity( \"MyRole\", \"Example role for storage access\", \"123456789012\", \"us-west-2\", Optional.empty(), Optional.empty() ); } . With trust configuration: . TrustConfiguration trustConfig = TrustConfiguration.builder() .addTrustedPrincipal(\"arn:aws:iam::123456789012:root\") .build(); String identityId = iamClient.createIdentity( \"CrossAccountRole\", \"Role assumable by account 123456789012\", \"123456789012\", \"us-west-2\", Optional.of(trustConfig), Optional.empty() ); . With creation options (path, max session duration, permission boundary): . CreateOptions options = CreateOptions.builder() .path(\"/service-roles/\") .maxSessionDuration(3600) .build(); String identityId = iamClient.createIdentity( \"ServiceRole\", \"Role for backend service\", \"123456789012\", \"us-west-2\", Optional.empty(), Optional.of(options) ); . Getting Identity Metadata . String identityInfo = iamClient.getIdentity(\"MyRole\", \"123456789012\", \"us-west-2\"); . Deleting an Identity . iamClient.deleteIdentity(\"MyRole\", \"123456789012\", \"us-west-2\"); . ",
     "url": "/multicloudj/guides/iam-guide.html#identity-operations",
     
     "relUrl": "/guides/iam-guide.html#identity-operations"
-  },"53": {
+  },"54": {
     "doc": "How to IAM",
     "title": "Policy Operations",
     "content": "Building a Policy Document . The example below uses AWS-style actions and resources (version 2012-10-17, S3 actions, ARN resource). PolicyDocument policy = PolicyDocument.builder() .version(\"2012-10-17\") .statement(\"StorageAccess\") .effect(\"Allow\") .addAction(\"s3:GetObject\") .addAction(\"s3:PutObject\") .addResource(\"arn:aws:s3:::my-bucket/*\") .condition(\"StringEquals\", \"aws:RequestedRegion\", \"us-west-2\") .endStatement() .build(); . Attaching an Inline Policy . iamClient.attachInlinePolicy(policy, \"123456789012\", \"us-west-2\", \"MyRole\"); . Listing Attached Policies . List&lt;String&gt; policyNames = iamClient.getAttachedPolicies(\"MyRole\", \"123456789012\", \"us-west-2\"); policyNames.forEach(name -&gt; System.out.println(\"Policy: \" + name)); . Getting Inline Policy Details . String policyJson = iamClient.getInlinePolicyDetails( \"MyRole\", \"StorageAccess\", \"MyRole\", \"123456789012\", \"us-west-2\" ); . Removing a Policy . iamClient.removePolicy(\"MyRole\", \"StorageAccess\", \"123456789012\", \"us-west-2\"); . Important: Parameter semantics (identityName, policyName, roleName, tenantId) differ by provider. See Provider-Specific Notes above. ",
     "url": "/multicloudj/guides/iam-guide.html#policy-operations",
     
     "relUrl": "/guides/iam-guide.html#policy-operations"
-  },"54": {
+  },"55": {
     "doc": "How to IAM",
     "title": "Error Handling",
     "content": "Exception Handling . All IAM operations may throw SubstrateSdkException: . try { String identityId = iamClient.createIdentity(\"MyRole\", \"Description\", \"123456789012\", \"us-west-2\", Optional.empty(), Optional.empty()); } catch (SubstrateSdkException e) { // Handle access denied, validation errors, etc. e.printStackTrace(); } . ",
     "url": "/multicloudj/guides/iam-guide.html#error-handling",
     
     "relUrl": "/guides/iam-guide.html#error-handling"
-  },"55": {
+  },"56": {
     "doc": "How to IAM",
     "title": "How to IAM",
     "content": " ",
     "url": "/multicloudj/guides/iam-guide.html",
     
     "relUrl": "/guides/iam-guide.html"
-  },"56": {
+  },"57": {
     "doc": "MultiCloudJ Overview",
     "title": "MultiCloudJ",
     "content": " ",
     "url": "/multicloudj/#multicloudj",
     
     "relUrl": "/#multicloudj"
-  },"57": {
+  },"58": {
     "doc": "MultiCloudJ Overview",
     "title": "Write once, deploy in any cloud…",
     "content": "MultiCloudJ providing unified and vendor-neutral interfaces for commonly used cloud services such as Blob Storage, Document Store, Security Token Service (STS), and more. It enabbles the cloud developers to write applications that can developed once and be deployed to any of the cloud providers. The interfaces are designed in a way that it can support any of the major cloud providers. ",
     "url": "/multicloudj/#write-once-deploy-in-any-cloud",
     
     "relUrl": "/#write-once-deploy-in-any-cloud"
-  },"58": {
+  },"59": {
     "doc": "MultiCloudJ Overview",
     "title": "Key Features",
     "content": "Substrate-Neutral Write once, deploy anywhere. No vendor lock-in or provider-specific code. Currently Supported Cloud Providers Seamlessly work across AWS, Alibaba Cloud, and Google Cloud Platform with a single, consistent API. Additional cloud providers such as Azure can also be potentially supported. Uniform Semantics Common abstractions with unform semantics that work identically across cloud providers. Enterprise Ready Built with security, scalability, and maintainability in mind for production workloads. Extensiblity Built with extensible architecture design to support additional cloud providers in future. Flexiblity Providers flexibility to users to provider their own custom implementation and just have it in the run time. ",
     "url": "/multicloudj/#key-features",
     
     "relUrl": "/#key-features"
-  },"59": {
+  },"60": {
     "doc": "MultiCloudJ Overview",
     "title": "Supported Services",
     "content": "STS (Security Token Service) . Get access credentials using roles, service accounts, and more across all supported cloud providers. Blob Storage . Manage object storage with unified operations for uploading, downloading, listing, and managing blobs. Document Store . Work with document-oriented databases using consistent interfaces for CRUD operations and querying. Additional services such pubsub, secrets, compute are also in roadmap. Getting Started . ",
     "url": "/multicloudj/#supported-services",
     
     "relUrl": "/#supported-services"
-  },"60": {
+  },"61": {
     "doc": "MultiCloudJ Overview",
     "title": "Running Examples",
     "content": "MultiCloudJ includes comprehensive example programs demonstrating how to interact with supported services. Examples are located in the examples directory and cover: . | STS authentication flows | Blob storage operations | Document store CRUD operations | Cross-provider migration scenarios | . ",
     "url": "/multicloudj/#running-examples",
     
     "relUrl": "/#running-examples"
-  },"61": {
+  },"62": {
     "doc": "MultiCloudJ Overview",
     "title": "Where to Go from Here",
     "content": "Documentation and Guides: . | How-to Guides - Step-by-step guides for developers ready to use the SDK | Design Decisions - Architecture and design principles behind the SDK | . API Documentation: . | Java API Documentation (Javadoc) - Complete API reference | . Community and Support: . | GitHub Issues - Report bugs and request features | Discussion Forum - Get help from the community | Contribution Guidelines - Contribute to the project | . Additional Resources: . | MultiCloudJ Homepage - Source code and project information | Release Notes - Latest updates and changes | Examples Repository - Complete working examples | . MultiCloudJ is maintained by the Salesforce MultiCloudJ team and is open source under the Apache License 2.0. ",
     "url": "/multicloudj/#where-to-go-from-here",
     
     "relUrl": "/#where-to-go-from-here"
-  },"62": {
+  },"63": {
     "doc": "MultiCloudJ Overview",
     "title": "MultiCloudJ Overview",
     "content": " ",
     "url": "/multicloudj/",
     
     "relUrl": "/"
-  },"63": {
+  },"64": {
     "doc": "Design",
     "title": "Design Guides",
     "content": "Welcome to the MultiCloudJ Design Guides. This section provides concise, task-focused guides to help you understand the key design decisions behind the SDK. | Layers of the SDK - Understanding the layered architecture | Error Handling - How errors are handled across the SDK | Flexibility - How to extend and customize the SDK | . ",
     "url": "/multicloudj/design/#design-guides",
     
     "relUrl": "/design/#design-guides"
-  },"64": {
+  },"65": {
     "doc": "Design",
     "title": "Core Design Principles",
     "content": "MultiCloudJ is built on several key principles: . | Unified/Cloud Agnostic Interfaces/: Write once, interact across multiple cloud providers without changing your application code. | Extensibility: New cloud providers can be added without modifying existing code. | Flexibility: Easily override the default implementations and inject your own custom implementation in the env. | Simplicity: The API is designed to be intuitive and easy to use. | Uniform Semantics*: SDK provides the uniform semantics to the end user irrespective of the cloud provider. Examples: . | Object Deletion: AWS S3 returns HTTP 200 when deleting a non-existent object, while Google Cloud Storage returns HTTP 404. MultiCloudJ provides consistent semantics, returning either 200 (success) or 400 (error) regardless of the underlying provider. | Pagination: DynamoDB paginated queries return LastEvaluatedKey for continuation, while Google Cloud Firestore doesn’t provide this field and let the user figure that out using the last document in the page. MultiCloudJ abstracts this complexity and provides a uniform pagination API that works consistently across all providers. | . Note: While MultiCloudJ strives for uniform semantics, certain provider-specific server side features may not be available across all substrates. For example, global transactions are supported in Google Cloud Firestore, Azure Cosmos and AWS DynamoDB but not in Alibaba Cloud TableStore. In such cases, the SDK will throw appropriate exceptions when unsupported features are attempted on providers that don’t support them. However, these advanced features are rarely required for majority of the use cases. | Reliability: Robust error handling and retry mechanisms ensure reliable operation. | . ",
     "url": "/multicloudj/design/#core-design-principles",
     
     "relUrl": "/design/#core-design-principles"
-  },"65": {
+  },"66": {
     "doc": "Design",
     "title": "Contributing to Design",
     "content": "We welcome contributions to improve MultiCloudJ’s design. When contributing: . | Follow the established architectural patterns | Document your design decisions | Consider backward compatibility | Test your changes thoroughly | Update relevant documentation | . ",
     "url": "/multicloudj/design/#contributing-to-design",
     
     "relUrl": "/design/#contributing-to-design"
-  },"66": {
+  },"67": {
     "doc": "Design",
     "title": "Design Decisions",
     "content": "Key design decisions in MultiCloudJ include: . | Layered Architecture: Separating concerns between portable, driver, and provider layers | Builder Pattern: Using builders for flexible client configuration | Provider Loading: Dynamic loading of cloud provider implementations | Error Handling: Comprehensive error handling and recovery mechanisms | Extensibility: Support for custom providers and implementations | . ",
     "url": "/multicloudj/design/#design-decisions",
     
     "relUrl": "/design/#design-decisions"
-  },"67": {
+  },"68": {
     "doc": "Design",
     "title": "Best Practices",
     "content": "When working with MultiCloudJ’s design: . | Keep it Simple: Prefer simple solutions over complex ones | Be Consistent: Follow established patterns and conventions | Think Ahead: Consider future extensibility and maintenance | Document Everything: Clear documentation is essential | Test Thoroughly: Ensure your changes work across all supported providers | . ",
     "url": "/multicloudj/design/#best-practices",
     
     "relUrl": "/design/#best-practices"
-  },"68": {
+  },"69": {
     "doc": "Design",
     "title": "Related Resources",
     "content": ". | API Documentation | How-to Guides | Examples | Contribution Guidelines | . ",
     "url": "/multicloudj/design/#related-resources",
     
     "relUrl": "/design/#related-resources"
-  },"69": {
+  },"70": {
     "doc": "Design",
     "title": "Design",
     "content": " ",
     "url": "/multicloudj/design/",
     
     "relUrl": "/design/"
-  },"70": {
+  },"71": {
     "doc": "Getting Started",
     "title": "Quick Start",
     "content": "This tutorial provides a quick introduction to set up MultiCloudJ dependency and write a multi-cloud application with blobstore and docstore interface. 1. Add maven Dependencies . Each service have a $service-client such as blob-client artifact as well $service-$provider artifact such blob-aws. The $service-client is MUST HAVE at the build time and your application code uses this to write the code. The $service-$provider is required at the run time, and you can have dependencies for one or multiple providers at the same time. For example, you can have blob-aws, blob-gcp in your dependencies in your classpath at runtime and you can choose the provider during the client initialization. Add MultiCloudJ blob and docstore dependencies to your Maven project: . &lt;dependency&gt; &lt;groupId&gt;com.salesforce.multicloudj&lt;/groupId&gt; &lt;artifactId&gt;blob-client&lt;/artifactId&gt; &lt;version&gt;0.2.2&lt;/version&gt; &lt;/dependency&gt; &lt;dependency&gt; &lt;groupId&gt;com.salesforce.multicloudj&lt;/groupId&gt; &lt;artifactId&gt;blob-aws&lt;/artifactId&gt; &lt;version&gt;0.2.2&lt;/version&gt; &lt;/dependency&gt; &lt;dependency&gt; &lt;groupId&gt;com.salesforce.multicloudj&lt;/groupId&gt; &lt;artifactId&gt;blob-gcp&lt;/artifactId&gt; &lt;version&gt;0.2.2&lt;/version&gt; &lt;/dependency&gt; . Or for Gradle: . implementation 'com.salesforce.multicloudj:blob-client:0.2.2' implementation 'com.salesforce.multicloudj:blob-aws:0.2.2' implementation 'com.salesforce.multicloudj:blob-gcp:0.2.2' . 2. Set Up AWS Credentials . First, you need to configure AWS credentials on your machine. You have several options: . Option A: AWS CLI Configuration (Recommended) . Follow https://docs.aws.amazon.com/cli/v1/userguide/cli-chap-configure.html To get started, You can have AWS credentials on environment variables or the ~/.aws/credentials file. 3. Create an S3 Bucket . You can create a bucket using the AWS Console, AWS CLI, or programmatically: . # Using AWS CLI aws s3 mb s3://my-multicloudj-bucket --region us-west-2 . 4. Your First MultiCloudJ Application . Now let’s create a simple application that connects to your bucket and performs basic operations: . import com.salesforce.multicloudj.blob.client.BucketClient; import com.salesforce.multicloudj.blob.driver.UploadRequest; import com.salesforce.multicloudj.blob.driver.DownloadRequest; public class MultiCloudJQuickStart { public static void main(String[] args) { // Initialize a session to your S3 bucket BucketClient bucketClient = BucketClient.builder(\"aws\") .withRegion(\"us-west-2\") // Replace with your region .withBucket(\"my-multicloudj-bucket\") // Replace with your bucket name .build(); try { // Upload a blob System.out.println(\"Uploading blob...\"); UploadRequest uploadRequest = new UploadRequest(\"hello.txt\"); bucketClient.upload(uploadRequest, \"Hello, MultiCloudJ!\".getBytes()); System.out.println(\"Upload successful!\"); // Download the blob System.out.println(\"Downloading blob...\"); DownloadRequest downloadRequest = new DownloadRequest(\"hello.txt\"); byte[] content = bucketClient.download(downloadRequest); System.out.println(\"Downloaded content: \" + new String(content)); // List all blobs in the bucket System.out.println(\"Listing blobs in bucket...\"); bucketClient.listBlobs().forEach(blob -&gt; System.out.println(\"Found blob: \" + blob.getKey() + \" (size: \" + blob.getSize() + \" bytes)\") ); } catch (Exception e) { System.err.println(\"Error: \" + e.getMessage()); e.printStackTrace(); } } } . 5. Run Your Application (If you have IDE that’s better) . # Compile and run javac -cp \".:multicloudj-blob-0.2.2.jar\" MultiCloudJQuickStart.java java -cp \".:multicloudj-blob-0.2.2.jar\" MultiCloudJQuickStart . 6. What Just Happened? . | BucketClient Creation: We created a BucketClient instance that connects to your S3 bucket | Upload: We uploaded a simple text file with the content “Hello, MultiCloudJ!” | Download: We downloaded the same file and displayed its content | List: We listed all objects in your bucket to see what’s there | . ",
     "url": "/multicloudj/getting-started/#quick-start",
     
     "relUrl": "/getting-started/#quick-start"
-  },"71": {
+  },"72": {
     "doc": "Getting Started",
     "title": "Next Steps",
     "content": ". | Explore Guides: Check out our detailed guides for specific use cases | API Reference: Browse the complete Java API documentation | Examples: See working examples in our examples repository | Design Decisions: Understand the architecture and design principles | . ",
     "url": "/multicloudj/getting-started/#next-steps",
     
     "relUrl": "/getting-started/#next-steps"
-  },"72": {
+  },"73": {
     "doc": "Getting Started",
     "title": "Getting Help",
     "content": ". | GitHub Issues: Report bugs and request features | Community: Join discussions | Contributing: Learn how to contribute | . MultiCloudJ is maintained by the Salesforce MultiCloudJ team and is open source under the Apache License 2.0. ",
     "url": "/multicloudj/getting-started/#getting-help",
     
     "relUrl": "/getting-started/#getting-help"
-  },"73": {
+  },"74": {
     "doc": "Getting Started",
     "title": "Getting Started",
     "content": " ",
     "url": "/multicloudj/getting-started/",
     
     "relUrl": "/getting-started/"
-  },"74": {
+  },"75": {
     "doc": "Usage Guides",
     "title": "How-To Guides",
     "content": "Welcome to the MultiCloudJ How-To Guides. This section provides concise, task-focused guides designed to help you accomplish common goals using MultiCloudJ’s cloud-agnostic interfaces. Each guide is grouped by API and includes practical examples and usage patterns. ",
     "url": "/multicloudj/guides/#how-to-guides",
     
     "relUrl": "/guides/#how-to-guides"
-  },"75": {
+  },"76": {
     "doc": "Usage Guides",
     "title": "🛡️ STS",
     "content": "Learn how to get access credentials using roles/service accounts etc. | STS | . ",
     "url": "/multicloudj/guides/#%EF%B8%8F-sts",
     
     "relUrl": "/guides/#️-sts"
-  },"76": {
+  },"77": {
     "doc": "Usage Guides",
     "title": "☁️ Blob",
     "content": "Learn how to manage object storage (uploading, downloading, listing blobs) in a cloud-neutral way. | Blob Store | . ",
     "url": "/multicloudj/guides/#%EF%B8%8F-blob",
     
     "relUrl": "/guides/#️-blob"
-  },"77": {
+  },"78": {
     "doc": "Usage Guides",
     "title": "📄 Docstore",
     "content": "Work with document-oriented databases using a consistent interface. | Docstore | . ",
     "url": "/multicloudj/guides/#-docstore",
     
     "relUrl": "/guides/#-docstore"
-  },"78": {
+  },"79": {
     "doc": "Usage Guides",
     "title": "📬 Pub/Sub",
     "content": "Use publish/subscribe systems to send and receive messages. | Pubsub | . ",
     "url": "/multicloudj/guides/#-pubsub",
     
     "relUrl": "/guides/#-pubsub"
-  },"79": {
+  },"80": {
     "doc": "Usage Guides",
     "title": "📬 IAM",
     "content": "Learn how to manage identities and policies in a cloud-neutral way. | IAM | . ",
     "url": "/multicloudj/guides/#-iam",
     
     "relUrl": "/guides/#-iam"
-  },"80": {
+  },"81": {
     "doc": "Usage Guides",
     "title": "💾 DB Backup Restore",
     "content": "Learn how to manage database backup and restore operations across cloud providers. | DB Backup Restore | . ",
     "url": "/multicloudj/guides/#-db-backup-restore",
     
     "relUrl": "/guides/#-db-backup-restore"
-  },"81": {
+  },"82": {
     "doc": "Usage Guides",
     "title": "📦 Container Registry",
     "content": "Pull and inspect OCI/Docker container images from cloud-hosted registries in a cloud-neutral way. | Container Registry | . ",
     "url": "/multicloudj/guides/#-container-registry",
     
     "relUrl": "/guides/#-container-registry"
-  },"82": {
+  },"83": {
     "doc": "Usage Guides",
     "title": "🧪 Testing",
     "content": "Learn how to write and run conformance tests for multi-cloud applications. | Conformance Tests | . Explore these guides to master the MultiCloudJ SDK and build robust multi-cloud Java applications with ease. ",
     "url": "/multicloudj/guides/#-testing",
     
     "relUrl": "/guides/#-testing"
-  },"83": {
+  },"84": {
     "doc": "Usage Guides",
     "title": "Usage Guides",
     "content": " ",
     "url": "/multicloudj/guides/",
     
     "relUrl": "/guides/"
-  },"84": {
+  },"85": {
     "doc": "Layers",
     "title": "Layers",
     "content": " ",
     "url": "/multicloudj/design/layers.html",
     
     "relUrl": "/design/layers.html"
-  },"85": {
+  },"86": {
     "doc": "Layers",
     "title": "Introduction",
     "content": "The Substrate SDK uses a layered architecture to provide a clean separation between the public API, internal abstractions, and provider-specific implementations. This architecture enables: . | A consistent, substrate-agnostic experience for end users | Easy addition of new cloud providers | Clear separation of concerns | Maintainable and testable code | . ",
     "url": "/multicloudj/design/layers.html#introduction",
     
     "relUrl": "/design/layers.html#introduction"
-  },"86": {
+  },"87": {
     "doc": "Layers",
     "title": "Components",
     "content": ". The architecture consists of three main layers: . | Portable Layer (Top) - The public-facing API that users interact with | Driver Layer (Middle) - The abstraction layer that defines common interfaces | Provider Layer (Bottom) - The implementation layer for specific cloud providers | . ",
     "url": "/multicloudj/design/layers.html#components",
     
     "relUrl": "/design/layers.html#components"
-  },"87": {
+  },"88": {
     "doc": "Layers",
     "title": "Portable Layer",
     "content": "The portable layer is the most important and front-facing layer for end users. End users should mostly interact with the portable Layer to make cloud service calls. The portable Layer should expose all necessary functions/APIs for the end user. For example, for a blobstore service, it can expose methods like upload, download, delete, etc., through the portable Layer. Characteristics of an ideal portable Layer: . | The portable Layer should be substrate-agnostic, containing no substrate-specific logic. It should offer a substrate-agnostic experience for the end user. | The portable Layer should accept the substrate(provider) value from the end user and initiate the appropriate session on that substrate. (We might consider that empty provider will pick whatever provider it finds first in the classpath, if required). | The portable Layer should allow users to provide substrate-agnostic inputs such as region name, credentials through a credentials provider defined in Substrate SDK, bucket name (for blob services), etc. | The portable Layer should only expose functions that are supported across all substrates. It should not support or expose features that work on one substrate but not on others. | The portable Layer should strive to provide the best experience for the end user, requiring as little information as possible. | . Example usage of the portable Layer for blob storage and uploading the blob: . // hardcodes for illustration purposes values should be outside of the service code String substrate = \"aws\" String region = \"us-east-1\" // Setting up session credentials - // these are optional and ideally in prod, this is not required // since the k8s pods are set with default credentials and Substrate SDK // uses the default credentials in that case. StsCredentials credentials = new StsCredentials( \"accessKeyId\", \"accessKeySecret\", \"sessionToken\"); CredentialsOverrider credsOverrider = new CredentialsOverrider .Builder(CredentialsType.SESSION).withSessionCredentials(credentials).build(); // Initiate the substrate agnostic BucketClient BucketClient client = BucketClient.builder(substrate) .withBucket(\"chameleon-java\") .withRegion(region) .withCredentialsOverrider(credsOverrider).build(); // Prepare the substrate agnostic UploadRequest UploadRequest uploadRequest = new UploadRequest.Builder() .withKey(\"bucket-path/chameleon.jpg\") // Upload the content UploadResponse response = client.upload(uploadRequest, \"dummy-content\"); . The above example demonstrates that the end user wants to open the client for the blob storage in the AWS substrate to the bucket “chameleon-java” in the region “us-east-1”. The client is used to upload/write the blob in the bucket. In this example, the portable fulfills all the requirements as discussed above: . | There is no substrate specific logic exposed on the portable Layer. From the code block, there is no substrate specific exposure and this logic works in the same manner for other substrates by just providing a different substrate value. | portable Layer forces the client the provide a substrate value, it doesn’t assume or interpret the substrate based on the runtime. | It provides a way to supply inputs to open the session in a substrate agnostic manner. | It asks the minimum amount of information from the end user without knowing the internals of the SDK. | . ",
     "url": "/multicloudj/design/layers.html#portable-layer",
     
     "relUrl": "/design/layers.html#portable-layer"
-  },"88": {
+  },"89": {
     "doc": "Layers",
     "title": "Driver Layer",
     "content": "The driver layer is a layer behind the portable Layer which defines the abstract functions and implementations for each substrate/provider. The driver layer can also include wrapper logic on top of abstract functions to further simplify portable Layer. Structure . The basic structure of abstract Blob Store looks like this which defines some variables required for the provider implementation such as region and the provider id: . public abstract class AbstracBlobtore { protected final String providerId; protected final String region; protected final String bucket; // Abstract methods for substrate-specific implementations protected abstract UploadResponse doUpload(UploadRequest uploadRequest); protected abstract DownloadResponse doDownload(DownloadRequest downloadRequest); protected abstract void doDelete(String key); } . Why do need a separate driver layer? . While it’s possible to achieve the abstraction of service capabilities without this driver layer and instead make the portable layer an abstract class, there are numerous benefits to keeping the portable layer separate. These benefits include: . Separation of concerns: . Abstract classes deal with internal code of SDK and abstract methods for providers to implement where as portable Layer or client is all about external facing code. We can keep the portable Layer light weight and to the point. Driver abstraction consist of: . | Common methods for logic which applies to all providers | Abstract methods to be implemented by providers | . Prevention of leaky abstractions: . Having a separate portable Layer prevents the leaky abstractions because the client doesn’t have to deal with or access the driver layer which might expose some internals. Maintainability: . Changing the internal implementations are comparatively safe without breaking portable Layer contracts. Testing: . End users have simple portable layer for mocks and testing. Example: . For instance, the upload method in BucketClient have multiple methods in the backend, such as validateContent to validate if the content is in the right format which is common for all providers. This validateContent method should be internal and not exposed to end users, therefore it can be part of driver layer and keep the BucketClient purely public. Secondly, if we have a prepContent abstraction function in driver which should be implemented by all the provider implementations to prepareContent for specific substrate. Now, let’s say each substrate appends the content with some prefix bytes which are substrate specific. So the upload method is executed as follow behind the scenes: . public UploadResponse upload(UploadRequest uploadRequest) { validation(); &lt;- this is common validation for all substrates prepContent(); &lt;- this is provider specific prep content doUpload(); this is provider specific upload of the content } . Basically we might have several methods which the end user doesn’t care about and should be completely abstracted from the users. These functions should be placed in driver layer, keeping the portable layer purely public and sanitized. ",
     "url": "/multicloudj/design/layers.html#driver-layer",
     
     "relUrl": "/design/layers.html#driver-layer"
-  },"89": {
+  },"90": {
     "doc": "Layers",
     "title": "Provider Layer",
     "content": "Provider layer implements the driver layer for each substrate. Provider layer is for each provider or substrate which powers the API calls from the end users to make substrate specific calls. In the below code example: AWSBlobStore is the provider for blob/blobstore for AWS substrate and implements all the abstract functions in the AWS substrate. public class AWSBlobStore extends AbstractBlobStore { S3Client s3Client; public AWSBlobStore(Builder builder) { s3Client = ... // code logic to build the s3Client by information from builder } @Override protected void doUploadFile(String key, String filePath) { Map&lt;String, String&gt; metadata = new HashMap&lt;&gt;(); PutObjectRequest putOb = PutObjectRequest.builder() .bucket(this.bucketName) .key(key) .metadata(metadata) .build(); s3Client.putObject(putOb, RequestBody.fromFile(new File(filePath))); log.info(\"Successfully placed object\" + \" into bucket \" + bucketName); } @Override public Builder builder() { return new Builder(); } public static class Builder extends AbstractBlobStore.Builder&lt;AwsBlobStore&gt; { public Builder() { providerId(\"aws\"); } @Override public AwsBlobStore build() { return new AwsBlobStore(this); } ... } } . ",
     "url": "/multicloudj/design/layers.html#provider-layer",
     
     "relUrl": "/design/layers.html#provider-layer"
-  },"90": {
+  },"91": {
     "doc": "Layers",
     "title": "Best Practices",
     "content": ". | Keep the Portable Layer Clean . | Only expose substrate-agnostic APIs | Validate inputs before passing to driver layer | Handle common error cases | . | Driver Layer Design . | Define clear interfaces | Include common validation logic | Provide default implementations where possible | Document expected behavior | . | Provider Implementation . | Follow the driver layer contract strictly | Handle provider-specific edge cases | Implement proper error handling | Add provider-specific logging | . | . ",
     "url": "/multicloudj/design/layers.html#best-practices",
     
     "relUrl": "/design/layers.html#best-practices"
-  },"91": {
+  },"92": {
     "doc": "Layers",
     "title": "Common Pitfalls",
     "content": ". | Leaky Abstractions . | Avoid exposing provider-specific types in the portable layer | Don’t let provider-specific exceptions bubble up | Keep provider-specific configuration internal | . | Inconsistent Behavior . | Ensure all providers implement the same behavior | Handle edge cases consistently | Document any provider-specific limitations | . | Performance Issues . | Avoid unnecessary abstraction layers | Cache provider clients when possible | Use efficient data structures | . | . ",
     "url": "/multicloudj/design/layers.html#common-pitfalls",
     
     "relUrl": "/design/layers.html#common-pitfalls"
-  },"92": {
+  },"93": {
     "doc": "How to Pub/Sub",
     "title": "Pub/Sub",
     "content": "The TopicClient and SubscriptionClient classes in the multicloudj library provide a comprehensive, cloud-agnostic interface to interact with publish/subscribe messaging services like Google Cloud Pub/Sub, AWS SNS/SQS, and Alibaba Cloud Message Service. These clients enable sending messages to topics, receiving messages from subscriptions, and managing message acknowledgment across multiple cloud providers with a consistent API. ",
     "url": "/multicloudj/guides/pubsub-guide.html#pubsub",
     
     "relUrl": "/guides/pubsub-guide.html#pubsub"
-  },"93": {
+  },"94": {
     "doc": "How to Pub/Sub",
     "title": "Feature Support Across Providers",
-    "content": "Core API Features . | Feature Name | GCP | AWS | ALI | Comments | . | Send Messages | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Send messages to topics | . | Receive Messages | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Pull messages from subscriptions | . | Acknowledge Messages | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Confirm message processing | . | Batch Acknowledgment | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Acknowledge multiple messages at once | . | Negative Acknowledgment | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Reject messages for redelivery | . Advanced Features . | Feature Name | GCP | AWS | ALI | Comments | . | Async Batch Acknowledgment | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | CompletableFuture-based async ack/nack | . | Double Acknowledgment Safety | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Safe to ack same message multiple times | . Configuration Options . | Configuration | GCP | AWS | ALI | Comments | . | Endpoint Override | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Custom endpoint configuration | . | Proxy Support | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | HTTP proxy configuration | . | Credentials Override | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Custom credential providers via STS | . Provider-Specific Notes . GCP (Google Cloud Pub/Sub) . | Topic names must use full resource format: projects/{projectId}/topics/{topicId} | Subscription names must use full resource format: projects/{projectId}/subscriptions/{subscriptionId} | . ",
+    "content": "Core API Features . | Feature Name | GCP | AWS | ALI | Comments | . | Send Messages | ✅ Supported | ✅ Supported | 📅 In Roadmap | Send messages to topics | . | Receive Messages | ✅ Supported | ✅ Supported | 📅 In Roadmap | Pull messages from subscriptions | . | Acknowledge Messages | ✅ Supported | ✅ Supported | 📅 In Roadmap | Confirm message processing | . | Batch Acknowledgment | ✅ Supported | ✅ Supported | 📅 In Roadmap | Acknowledge multiple messages at once | . | Negative Acknowledgment | ✅ Supported | ✅ Supported | 📅 In Roadmap | Reject messages for redelivery | . | Subscription Attributes | ✅ Supported | ✅ Supported | 📅 In Roadmap | Retrieve subscription name and topic | . Advanced Features . | Feature Name | GCP | AWS | ALI | Comments | . | Async Batch Acknowledgment | ✅ Supported | ✅ Supported | 📅 In Roadmap | CompletableFuture-based async ack/nack | . | Double Acknowledgment Safety | ✅ Supported | ✅ Supported | 📅 In Roadmap | Safe to ack same message multiple times | . | Nack Visibility Timeout | ✅ Supported | ✅ Supported | 📅 In Roadmap | Control redelivery delay on nack (default and per-call) | . | Retryable Error Detection | ✅ Supported | ✅ Supported | 📅 In Roadmap | isRetryable() classifies errors as transient or permanent | . Configuration Options . | Configuration | GCP | AWS | ALI | Comments | . | Region | ✅ Supported | ✅ Supported | 📅 In Roadmap | Target region for the topic/subscription | . | Endpoint Override | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom endpoint configuration | . | Proxy Support | ✅ Supported | ✅ Supported | 📅 In Roadmap | HTTP proxy configuration | . | Credentials Override | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom credential providers via STS | . Provider IDs . The provider ID passed to TopicClient.builder(...) and SubscriptionClient.builder(...) selects the backing implementation: . | Provider | Topic provider ID | Subscription provider ID | . | GCP (Google Cloud Pub/Sub) | gcp | gcp | . | AWS SNS | awssns | aws | . | AWS SQS | awssqs | aws | . On AWS, messages are published through either SNS (awssns) or SQS (awssqs), while messages are always received from an SQS queue using the aws subscription provider. Provider-Specific Notes . GCP (Google Cloud Pub/Sub) . | Topic names must use the full resource format: projects/{projectId}/topics/{topicId} | Subscription names must use the full resource format: projects/{projectId}/subscriptions/{subscriptionId} | . AWS (SNS / SQS) . | SNS topics (awssns) are identified by their topic ARN, e.g. arn:aws:sns:us-west-2:123456789012:my-topic. The topic is validated to exist when the client is built. | SQS topics (awssqs) accept either a queue name (resolved to a queue URL automatically) or a full queue URL. | Subscriptions (aws) read from an SQS queue, identified by a queue name or queue URL. | . ",
     "url": "/multicloudj/guides/pubsub-guide.html#feature-support-across-providers",
     
     "relUrl": "/guides/pubsub-guide.html#feature-support-across-providers"
-  },"94": {
+  },"95": {
     "doc": "How to Pub/Sub",
     "title": "Creating Clients",
-    "content": "Topic Client . TopicClient topicClient = TopicClient.builder(\"gcp\") .withTopicName(\"projects/my-project/topics/my-topic\") .build(); . You can also configure advanced options: . URI endpoint = URI.create(\"https://custom-endpoint.com\"); URI proxy = URI.create(\"https://proxy.example.com\"); topicClient = TopicClient.builder(\"gcp\") .withTopicName(\"projects/my-project/topics/my-topic\") .withEndpoint(endpoint) .withProxyEndpoint(proxy) .build(); . Subscription Client . SubscriptionClient subscriptionClient = SubscriptionClient.builder(\"gcp\") .withSubscriptionName(\"projects/my-project/subscriptions/my-subscription\") .build(); . You can also configure advanced options: . URI endpoint = URI.create(\"https://custom-endpoint.com\"); URI proxy = URI.create(\"https://proxy.example.com\"); subscriptionClient = SubscriptionClient.builder(\"gcp\") .withSubscriptionName(\"projects/my-project/subscriptions/my-subscription\") .withEndpoint(endpoint) .withProxyEndpoint(proxy) .build(); . ",
+    "content": "Topic Client . // GCP TopicClient topicClient = TopicClient.builder(\"gcp\") .withTopicName(\"projects/my-project/topics/my-topic\") .build(); // AWS SNS TopicClient snsTopicClient = TopicClient.builder(\"awssns\") .withTopicName(\"arn:aws:sns:us-west-2:123456789012:my-topic\") .withRegion(\"us-west-2\") .build(); // AWS SQS TopicClient sqsTopicClient = TopicClient.builder(\"awssqs\") .withTopicName(\"my-queue\") .withRegion(\"us-west-2\") .build(); . You can also configure advanced options: . URI endpoint = URI.create(\"https://custom-endpoint.com\"); URI proxy = URI.create(\"https://proxy.example.com\"); topicClient = TopicClient.builder(\"gcp\") .withTopicName(\"projects/my-project/topics/my-topic\") .withEndpoint(endpoint) .withProxyEndpoint(proxy) .build(); . Subscription Client . // GCP SubscriptionClient subscriptionClient = SubscriptionClient.builder(\"gcp\") .withSubscriptionName(\"projects/my-project/subscriptions/my-subscription\") .build(); // AWS SubscriptionClient awsSubscriptionClient = SubscriptionClient.builder(\"aws\") .withSubscriptionName(\"my-queue\") .withRegion(\"us-west-2\") .build(); . You can also configure advanced options: . URI endpoint = URI.create(\"https://custom-endpoint.com\"); URI proxy = URI.create(\"https://proxy.example.com\"); subscriptionClient = SubscriptionClient.builder(\"gcp\") .withSubscriptionName(\"projects/my-project/subscriptions/my-subscription\") .withEndpoint(endpoint) .withProxyEndpoint(proxy) .build(); . To delay redelivery whenever a message is nacked, set a default nack visibility timeout on the builder: . SubscriptionClient subscriptionClient = SubscriptionClient.builder(\"aws\") .withSubscriptionName(\"my-queue\") .withRegion(\"us-west-2\") .withNackVisibilityTimeout(Duration.ofSeconds(30)) .build(); . Duration.ZERO (the default) makes nacked messages immediately available for redelivery; a positive value delays redelivery by that amount. ",
     "url": "/multicloudj/guides/pubsub-guide.html#creating-clients",
     
     "relUrl": "/guides/pubsub-guide.html#creating-clients"
-  },"95": {
+  },"96": {
     "doc": "How to Pub/Sub",
     "title": "Sending Messages",
     "content": "Basic Message . try (TopicClient topic = topicClient) { Message message = Message.builder() .withBody(\"Hello, World!\".getBytes()) .build(); topic.send(message); } . Message with Metadata . Message message = Message.builder() .withBody(\"Order processed\".getBytes()) .withMetadata(Map.of( \"order-id\", \"12345\", \"priority\", \"high\", \"source\", \"api-service\" )) .build(); topic.send(message); . Sending Multiple Messages . List&lt;Message&gt; messages = List.of( Message.builder().withBody(\"Message 1\".getBytes()).withMetadata(Map.of(\"batch-id\", \"1\")).build(), Message.builder().withBody(\"Message 2\".getBytes()).withMetadata(Map.of(\"batch-id\", \"2\")).build(), Message.builder().withBody(\"Message 3\".getBytes()).withMetadata(Map.of(\"batch-id\", \"3\")).build() ); for (Message message : messages) { topic.send(message); } . ",
     "url": "/multicloudj/guides/pubsub-guide.html#sending-messages",
     
     "relUrl": "/guides/pubsub-guide.html#sending-messages"
-  },"96": {
+  },"97": {
     "doc": "How to Pub/Sub",
     "title": "Receiving Messages",
     "content": "Single Message Receive . The receive() method blocks until a message is available: . try (SubscriptionClient subscription = subscriptionClient) { Message message = subscription.receive(); String data = new String(message.getBody()); System.out.println(\"Received: \" + data); // Process the message... // Acknowledge successful processing subscription.sendAck(message.getAckID()); } . Continuous Message Processing . try (SubscriptionClient subscription = subscriptionClient) { while (true) { Message message = subscription.receive(); try { String data = new String(message.getBody()); // Process the message processMessage(data); // Acknowledge on success subscription.sendAck(message.getAckID()); } catch (Exception e) { // Nack on failure for redelivery (if supported) if (subscription.canNack()) { subscription.sendNack(message.getAckID()); } } } } . ",
     "url": "/multicloudj/guides/pubsub-guide.html#receiving-messages",
     
     "relUrl": "/guides/pubsub-guide.html#receiving-messages"
-  },"97": {
+  },"98": {
     "doc": "How to Pub/Sub",
     "title": "Message Acknowledgment",
-    "content": "Single Acknowledgment . Message message = subscription.receive(); if (message != null &amp;&amp; message.getAckID() != null) { // Process the message... // Acknowledge successful processing subscription.sendAck(message.getAckID()); } . Batch Acknowledgment . Batch acknowledgment returns a CompletableFuture: . List&lt;AckID&gt; ackIDs = new ArrayList&lt;&gt;(); // Collect messages for (int i = 0; i &lt; 10; i++) { Message message = subscription.receive(); if (message != null &amp;&amp; message.getAckID() != null) { // Process message... ackIDs.add(message.getAckID()); } } // Acknowledge all at once subscription.sendAcks(ackIDs).join(); . Negative Acknowledgment (Nack) . Use nack to reject a message and make it available for redelivery. Check if nacking is supported first: . Message message = subscription.receive(); if (message != null) { try { // Try to process processMessage(message); subscription.sendAck(message.getAckID()); } catch (Exception e) { // Failed to process, nack for redelivery (if supported) if (subscription.canNack()) { subscription.sendNack(message.getAckID()); } else { // Provider doesn't support nack System.err.println(\"Nack not supported\"); } } } . Batch Negative Acknowledgment . List&lt;AckID&gt; nackIDs = new ArrayList&lt;&gt;(); for (Message message : messages) { if (shouldReject(message)) { nackIDs.add(message.getAckID()); } } if (subscription.canNack()) { subscription.sendNacks(nackIDs).join(); } . ",
+    "content": "Single Acknowledgment . Message message = subscription.receive(); if (message != null &amp;&amp; message.getAckID() != null) { // Process the message... // Acknowledge successful processing subscription.sendAck(message.getAckID()); } . Batch Acknowledgment . Batch acknowledgment returns a CompletableFuture: . List&lt;AckID&gt; ackIDs = new ArrayList&lt;&gt;(); // Collect messages for (int i = 0; i &lt; 10; i++) { Message message = subscription.receive(); if (message != null &amp;&amp; message.getAckID() != null) { // Process message... ackIDs.add(message.getAckID()); } } // Acknowledge all at once subscription.sendAcks(ackIDs).join(); . Negative Acknowledgment (Nack) . Use nack to reject a message and make it available for redelivery. Check if nacking is supported first: . Message message = subscription.receive(); if (message != null) { try { // Try to process processMessage(message); subscription.sendAck(message.getAckID()); } catch (Exception e) { // Failed to process, nack for redelivery (if supported) if (subscription.canNack()) { subscription.sendNack(message.getAckID()); } else { // Provider doesn't support nack System.err.println(\"Nack not supported\"); } } } . Nack with a Custom Visibility Timeout . Override the subscription’s default nack visibility timeout for an individual message. This requests a specific redelivery delay without reconfiguring the subscription: . Message message = subscription.receive(); if (message != null &amp;&amp; subscription.canNack()) { // Delay redelivery of this message by 60 seconds subscription.sendNack(message.getAckID(), Duration.ofSeconds(60)); } . Batch Negative Acknowledgment . List&lt;AckID&gt; nackIDs = new ArrayList&lt;&gt;(); for (Message message : messages) { if (shouldReject(message)) { nackIDs.add(message.getAckID()); } } if (subscription.canNack()) { subscription.sendNacks(nackIDs).join(); } . You can also apply a visibility timeout to an entire nack batch: . if (subscription.canNack()) { // Delay redelivery of all nacked messages by 60 seconds subscription.sendNacks(nackIDs, Duration.ofSeconds(60)).join(); } . Passing null for the timeout uses the subscription’s default nack visibility timeout. ",
     "url": "/multicloudj/guides/pubsub-guide.html#message-acknowledgment",
     
     "relUrl": "/guides/pubsub-guide.html#message-acknowledgment"
-  },"98": {
+  },"99": {
     "doc": "How to Pub/Sub",
     "title": "Subscription Information",
-    "content": "Check Nack Support . Not all providers support negative acknowledgment. Check before using: . if (subscription.canNack()) { System.out.println(\"This subscription supports nacking\"); } else { System.out.println(\"This subscription does not support nacking\"); } . Get Subscription Attributes . Retrieve provider-specific subscription metadata: . Map&lt;String, String&gt; attributes = subscription.getAttributes(); for (Map.Entry&lt;String, String&gt; entry : attributes.entrySet()) { System.out.println(entry.getKey() + \": \" + entry.getValue()); } . Important GCP Format Requirements: . | Topic names: projects/{projectId}/topics/{topicId} | Subscription names: projects/{projectId}/subscriptions/{subscriptionId} | . ",
+    "content": "Check Nack Support . Not all providers support negative acknowledgment. Check before using: . if (subscription.canNack()) { System.out.println(\"This subscription supports nacking\"); } else { System.out.println(\"This subscription does not support nacking\"); } . Get Subscription Attributes . Retrieve common subscription metadata via getAttributes(), which returns a GetAttributeResult: . GetAttributeResult attributes = subscription.getAttributes(); System.out.println(\"Subscription name: \" + attributes.getName()); System.out.println(\"Bound topic: \" + attributes.getTopic()); . ",
     "url": "/multicloudj/guides/pubsub-guide.html#subscription-information",
     
     "relUrl": "/guides/pubsub-guide.html#subscription-information"
-  },"99": {
+  },"100": {
     "doc": "How to Pub/Sub",
     "title": "Error Handling",
-    "content": "Null Check for AckID . Always validate that an AckID is not null before acknowledging: . Message message = subscription.receive(); if (message != null &amp;&amp; message.getAckID() != null) { subscription.sendAck(message.getAckID()); } . Attempting to acknowledge with a null AckID will throw InvalidArgumentException: . try { subscription.sendAck(null); } catch (InvalidArgumentException e) { System.err.println(\"Cannot acknowledge null AckID\"); } . Exception Handling . All topic operations may throw SubstrateSdkException: . try { topic.send(message); } catch (SubstrateSdkException e) { // Handle access denied, quota exceeded, network errors, etc. e.printStackTrace(); } . All subscription operations may throw SubstrateSdkException: . try { Message message = subscription.receive(); subscription.sendAck(message.getAckID()); } catch (SubstrateSdkException e) { // Handle access denied, network errors, etc. e.printStackTrace(); } . ",
+    "content": "Null Check for AckID . Always validate that an AckID is not null before acknowledging: . Message message = subscription.receive(); if (message != null &amp;&amp; message.getAckID() != null) { subscription.sendAck(message.getAckID()); } . Attempting to acknowledge with a null AckID will throw InvalidArgumentException: . try { subscription.sendAck(null); } catch (InvalidArgumentException e) { System.err.println(\"Cannot acknowledge null AckID\"); } . Retryable Errors . Use isRetryable() to decide whether a failed operation is worth retrying or should be treated as a permanent failure: . try { Message message = subscription.receive(); subscription.sendAck(message.getAckID()); } catch (SubstrateSdkException e) { if (subscription.isRetryable(e)) { // Transient error - safe to retry } else { // Permanent failure - handle accordingly } } . Exception Handling . All topic operations may throw SubstrateSdkException: . try { topic.send(message); } catch (SubstrateSdkException e) { // Handle access denied, quota exceeded, network errors, etc. e.printStackTrace(); } . All subscription operations may throw SubstrateSdkException: . try { Message message = subscription.receive(); subscription.sendAck(message.getAckID()); } catch (SubstrateSdkException e) { // Handle access denied, network errors, etc. e.printStackTrace(); } . ",
     "url": "/multicloudj/guides/pubsub-guide.html#error-handling",
     
     "relUrl": "/guides/pubsub-guide.html#error-handling"
-  },"100": {
+  },"101": {
     "doc": "How to Pub/Sub",
     "title": "How to Pub/Sub",
     "content": " ",
     "url": "/multicloudj/guides/pubsub-guide.html",
     
     "relUrl": "/guides/pubsub-guide.html"
-  },"101": {
+  },"102": {
     "doc": "How to Container Registry",
     "title": "ContainerRegistryClient",
     "content": "The ContainerRegistryClient class in the multicloudj library provides a cloud-agnostic interface to pull OCI/Docker container images from cloud-hosted container registries such as AWS Elastic Container Registry (ECR) and GCP Artifact Registry. This client enables pulling images by tag or digest, selecting platform-specific images from multi-architecture manifests, and extracting image layer contents — all with a consistent API across cloud providers. Note: This client is read-only. It supports pulling and extracting images only. Pushing images, listing repositories, and deleting images are not supported. ",
     "url": "/multicloudj/guides/registry-guide.html#containerregistryclient",
     
     "relUrl": "/guides/registry-guide.html#containerregistryclient"
-  },"102": {
+  },"103": {
     "doc": "How to Container Registry",
     "title": "Feature Support Across Providers",
     "content": "Core API Features . | Feature Name | GCP | AWS | ALI | Comments | . | Pull image by tag | ✅ Supported | ✅ Supported | 📅 In Roadmap | Pull a named image version | . | Pull image by digest | ✅ Supported | ✅ Supported | 📅 In Roadmap | Pull an immutable image by its sha256 digest | . | Multi-arch image selection | ✅ Supported | ✅ Supported | 📅 In Roadmap | Selects the right image from an OCI image index based on platform | . | Extract layers to tar stream | ✅ Supported | ✅ Supported | 📅 In Roadmap | Flattens all image layers into a single merged tar InputStream | . | Lazy layer download | ✅ Supported | ✅ Supported | 📅 In Roadmap | Layer blobs are only downloaded when getUncompressed() is called | . Configuration Options . | Configuration | GCP | AWS | ALI | Comments | . | Registry endpoint | ✅ Required | ✅ Required | 📅 In Roadmap | Base URL of the container registry | . | Region | ➖ Not required | ✅ Required | 📅 In Roadmap | AWS uses region to construct and authenticate against ECR | . | Platform (multi-arch) | ✅ Supported | ✅ Supported | 📅 In Roadmap | Target OS/architecture; defaults to linux/amd64 | . | Proxy endpoint | ✅ Supported | ✅ Supported | 📅 In Roadmap | HTTP proxy for outbound registry traffic | . | Credentials override | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom credential providers via CredentialsOverrider | . Provider-Specific Notes . AWS (Elastic Container Registry) . | Authentication uses EcrClient.getAuthorizationToken(). Tokens are valid for 12 hours and are proactively refreshed at the 6-hour mark. | Blob (layer) downloads are redirected to S3 pre-signed URLs. The client automatically strips the Authorization header for those requests to prevent authentication conflicts. | Both registryEndpoint and region are required builder parameters. | . GCP (Artifact Registry) . | Authentication uses Google Application Default Credentials (GoogleCredentials), scoped to https://www.googleapis.com/auth/cloud-platform. Credentials are automatically refreshed when expired. | Auth username is oauth2accesstoken (standard for GCP Docker-compatible registries). | region is not required; only registryEndpoint is mandatory. | . ",
     "url": "/multicloudj/guides/registry-guide.html#feature-support-across-providers",
     
     "relUrl": "/guides/registry-guide.html#feature-support-across-providers"
-  },"103": {
+  },"104": {
     "doc": "How to Container Registry",
     "title": "Creating a Client",
     "content": "AWS ECR . ContainerRegistryClient client = ContainerRegistryClient.builder(\"aws\") .withRegistryEndpoint(\"https://123456789012.dkr.ecr.us-east-1.amazonaws.com\") .withRegion(\"us-east-1\") .build(); . GCP Artifact Registry . ContainerRegistryClient client = ContainerRegistryClient.builder(\"gcp\") .withRegistryEndpoint(\"https://us-docker.pkg.dev\") .build(); . With a Proxy . URI proxy = URI.create(\"http://proxy.example.com:8080\"); ContainerRegistryClient client = ContainerRegistryClient.builder(\"aws\") .withRegistryEndpoint(\"https://123456789012.dkr.ecr.us-east-1.amazonaws.com\") .withRegion(\"us-east-1\") .withProxyEndpoint(proxy) .build(); . ContainerRegistryClient implements AutoCloseable. Use try-with-resources or call close() when done. ",
     "url": "/multicloudj/guides/registry-guide.html#creating-a-client",
     
     "relUrl": "/guides/registry-guide.html#creating-a-client"
-  },"104": {
+  },"105": {
     "doc": "How to Container Registry",
     "title": "Pulling an Image",
     "content": "pull(String imageRef) fetches the image manifest and returns an Image object. Layer blobs are not downloaded at this point — they are fetched lazily when getUncompressed() is called on a layer. Pull by Tag . try (ContainerRegistryClient client = ContainerRegistryClient.builder(\"aws\") .withRegistryEndpoint(\"https://123456789012.dkr.ecr.us-east-1.amazonaws.com\") .withRegion(\"us-east-1\") .build()) { Image image = client.pull(\"my-repo/my-image:latest\"); System.out.println(\"Pulled image digest: \" + image.getDigest()); } . Pull by Digest . Image image = client.pull(\"my-repo/my-image@sha256:abcdef1234567890...\"); . ",
     "url": "/multicloudj/guides/registry-guide.html#pulling-an-image",
     
     "relUrl": "/guides/registry-guide.html#pulling-an-image"
-  },"105": {
+  },"106": {
     "doc": "How to Container Registry",
     "title": "Working with Image Metadata",
     "content": "After pulling, you can inspect the image without downloading any data: . Image image = client.pull(\"my-repo/my-image:latest\"); System.out.println(\"Image ref: \" + image.getImageRef()); // original reference used to pull System.out.println(\"Image digest: \" + image.getDigest()); // sha256 manifest digest List&lt;Layer&gt; layers = image.getLayers(); System.out.println(\"Layer count: \" + layers.size()); for (Layer layer : layers) { System.out.println(\"Layer digest: \" + layer.getDigest() + \" size: \" + layer.getSize()); } . ",
     "url": "/multicloudj/guides/registry-guide.html#working-with-image-metadata",
     
     "relUrl": "/guides/registry-guide.html#working-with-image-metadata"
-  },"106": {
+  },"107": {
     "doc": "How to Container Registry",
     "title": "Extracting Image Layers",
     "content": "extract(Image image) flattens all image layers into a single merged tar InputStream, applying OCI whiteout semantics (deleted files and opaque directories are handled correctly). This is useful for inspecting the image filesystem contents. Image image = client.pull(\"my-repo/my-image:latest\"); try (InputStream tarStream = client.extract(image)) { // pipe to a TarArchiveInputStream for entry-by-entry inspection, // or write directly to disk Files.copy(tarStream, Paths.get(\"/tmp/image.tar\")); } . Note: extract() starts a background thread to stream layer data. Close the returned InputStream when done to release resources. ",
     "url": "/multicloudj/guides/registry-guide.html#extracting-image-layers",
     
     "relUrl": "/guides/registry-guide.html#extracting-image-layers"
-  },"107": {
+  },"108": {
     "doc": "How to Container Registry",
     "title": "Multi-Architecture Images",
     "content": "When pulling from a multi-arch image index, the client selects the image matching the configured Platform. The default platform is linux/amd64. Platform arm64 = Platform.builder() .operatingSystem(\"linux\") .architecture(\"arm64\") .build(); ContainerRegistryClient client = ContainerRegistryClient.builder(\"gcp\") .withRegistryEndpoint(\"https://us-docker.pkg.dev\") .withPlatform(arm64) .build(); Image image = client.pull(\"my-project/my-repo/my-image:latest\"); . Use Platform.DEFAULT explicitly if you want linux/amd64: . ContainerRegistryClient client = ContainerRegistryClient.builder(\"aws\") .withRegistryEndpoint(\"https://123456789012.dkr.ecr.us-east-1.amazonaws.com\") .withRegion(\"us-east-1\") .withPlatform(Platform.DEFAULT) .build(); . Advanced Platform Fields . Platform supports additional optional fields for precise matching against multi-arch index entries: . Platform platform = Platform.builder() .operatingSystem(\"linux\") .architecture(\"arm\") .variant(\"v7\") // e.g. ARMv7 vs ARMv8 .operatingSystemVersion(\"5.10.0\") // kernel or OS version .operatingSystemFeatures(List.of(\"win32k\")) // OS-level feature flags .build(); . These fields follow OCI image index semantics: any field left null acts as a wildcard. operatingSystemFeatures, if specified, must be a subset of those declared in the index entry to match. No Matching Platform . If the configured Platform does not match any entry in a multi-arch image index, the client throws a SubstrateSdkException listing all available platforms from the index. Use that information to adjust your Platform configuration. ",
     "url": "/multicloudj/guides/registry-guide.html#multi-architecture-images",
     
     "relUrl": "/guides/registry-guide.html#multi-architecture-images"
-  },"108": {
+  },"109": {
     "doc": "How to Container Registry",
     "title": "Downloading Individual Layers",
     "content": "You can work with layers directly if you need per-layer access rather than a merged tar: . Image image = client.pull(\"my-repo/my-image:latest\"); for (Layer layer : image.getLayers()) { System.out.println(\"Downloading layer: \" + layer.getDigest()); // getUncompressed() triggers blob download and gzip-decompresses on the fly try (InputStream layerStream = layer.getUncompressed()) { // process the uncompressed tar stream for this layer } } . ",
     "url": "/multicloudj/guides/registry-guide.html#downloading-individual-layers",
     
     "relUrl": "/guides/registry-guide.html#downloading-individual-layers"
-  },"109": {
+  },"110": {
     "doc": "How to Container Registry",
     "title": "Error Handling",
     "content": "All operations may throw SubstrateSdkException: . try (ContainerRegistryClient client = ContainerRegistryClient.builder(\"aws\") .withRegistryEndpoint(\"https://123456789012.dkr.ecr.us-east-1.amazonaws.com\") .withRegion(\"us-east-1\") .build()) { Image image = client.pull(\"my-repo/my-image:latest\"); try (InputStream tarStream = client.extract(image)) { Files.copy(tarStream, Paths.get(\"/tmp/image.tar\")); } } catch (SubstrateSdkException e) { // covers: unauthorized, image not found, network errors, digest mismatch e.printStackTrace(); } catch (IOException e) { // covers: stream I/O errors during extract e.printStackTrace(); } . ",
     "url": "/multicloudj/guides/registry-guide.html#error-handling",
     
     "relUrl": "/guides/registry-guide.html#error-handling"
-  },"110": {
+  },"111": {
     "doc": "How to Container Registry",
     "title": "How to Container Registry",
     "content": " ",
     "url": "/multicloudj/guides/registry-guide.html",
     
     "relUrl": "/guides/registry-guide.html"
-  },"111": {
+  },"112": {
     "doc": "How to STS",
     "title": "STS (Security Token Service)",
     "content": "The StsClient class in the multicloudj library provides a portable interface for interacting with cloud provider security token services such as AWS STS, GCP IAM Credentials, or any other compatible implementation. It allows you to obtain temporary credentials, access tokens, and caller identity information in a cloud-neutral way. ",
     "url": "/multicloudj/guides/sts-guide.html#sts-security-token-service",
     
     "relUrl": "/guides/sts-guide.html#sts-security-token-service"
-  },"112": {
+  },"113": {
     "doc": "How to STS",
     "title": "Overview",
     "content": "The StsClient is built on top of provider-specific implementations of AbstractSts. Each provider registers its implementation and is selected dynamically at runtime. ",
     "url": "/multicloudj/guides/sts-guide.html#overview",
     
     "relUrl": "/guides/sts-guide.html#overview"
-  },"113": {
+  },"114": {
     "doc": "How to STS",
     "title": "Feature Support Across Providers",
     "content": "Core API Features . | Feature Name | GCP | AWS | ALI | Comments | . | Assume Role | ✅ Supported | ✅ Supported | ✅ Supported | Core feature for temporary credentials for role/service account | . | Get Caller Identity | ✅ Supported | ✅ Supported | ✅ Supported | Returns identity information of the current caller | . | Get Access Token | ✅ Supported | ✅ Supported | ✅ Supported | Get credentials using default env configs | . Configuration Options . | Configuration | GCP | AWS | ALI | Comments | . | Region Support | ✅ Supported | ✅ Supported | ✅ Supported | All providers support region-specific operations | . | Endpoint Override | ✅ Supported | ✅ Supported | ✅ Supported | Custom endpoint configuration | . Provider-Specific Notes . GCP (Google Cloud Platform) . | Uses Google’s OAuth 2.0 access tokens for credentials and ID tokens for Caller Identity | . ",
     "url": "/multicloudj/guides/sts-guide.html#feature-support-across-providers",
     
     "relUrl": "/guides/sts-guide.html#feature-support-across-providers"
-  },"114": {
+  },"115": {
     "doc": "How to STS",
     "title": "Creating a Client",
     "content": "StsClient stsClient = StsClient.builder(\"aws\") .withRegion(\"us-west-2\") .build(); . Optionally, you can set a custom endpoint: . URI endpoint = URI.create(\"https://sts.custom-endpoint.com\"); StsClient stsClient = StsClient.builder(\"aws\") .withRegion(\"us-west-2\") .withEndpoint(endpoint) .build(); . ",
     "url": "/multicloudj/guides/sts-guide.html#creating-a-client",
     
     "relUrl": "/guides/sts-guide.html#creating-a-client"
-  },"115": {
+  },"116": {
     "doc": "How to STS",
     "title": "Getting Caller Identity",
     "content": "Retrieve the caller identity associated with the current credentials: . CallerIdentity identity = stsClient.getCallerIdentity(); System.out.println(\"Caller: \" + identity.getArn()); . ",
     "url": "/multicloudj/guides/sts-guide.html#getting-caller-identity",
     
     "relUrl": "/guides/sts-guide.html#getting-caller-identity"
-  },"116": {
+  },"117": {
     "doc": "How to STS",
     "title": "Getting an Access Token",
     "content": "Use this when you need an OAuth2-style token (provider support may vary): . GetAccessTokenRequest request = new GetAccessTokenRequest(); StsCredentials token = stsClient.getAccessToken(request); System.out.println(\"Access Token: \" + token.getAccessToken()); . ",
     "url": "/multicloudj/guides/sts-guide.html#getting-an-access-token",
     
     "relUrl": "/guides/sts-guide.html#getting-an-access-token"
-  },"117": {
+  },"118": {
     "doc": "How to STS",
     "title": "Assuming a Role",
     "content": "To assume a different identity (e.g., for cross-account access): . AssumedRoleRequest request = new AssumedRoleRequest(); request.setRoleArn(\"arn:aws:iam::123456789012:role/example-role\"); request.setSessionName(\"example-session\"); StsCredentials credentials = stsClient.getAssumeRoleCredentials(request); System.out.println(\"Temporary Credentials: \" + credentials.getAccessKeyId()); . ",
     "url": "/multicloudj/guides/sts-guide.html#assuming-a-role",
     
     "relUrl": "/guides/sts-guide.html#assuming-a-role"
-  },"118": {
+  },"119": {
     "doc": "How to STS",
     "title": "Error Handling",
     "content": "All errors are translated to SubstrateSdkException subclasses by the underlying driver. The client will automatically map exceptions to meaningful runtime errors based on the provider: . try { CallerIdentity identity = stsClient.getCallerIdentity(); } catch (SubstrateSdkException e) { // Handle known errors: AccessDenied, Timeout, etc. e.printStackTrace(); } . ",
     "url": "/multicloudj/guides/sts-guide.html#error-handling",
     
     "relUrl": "/guides/sts-guide.html#error-handling"
-  },"119": {
+  },"120": {
     "doc": "How to STS",
     "title": "How to STS",
     "content": " ",
