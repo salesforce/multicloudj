@@ -6,10 +6,20 @@ parent: Usage Guides
 ---
 # Docstore
 
-The `DocStoreClient` class in the `multicloudj` library provides a portable document store like abstraction over NoSQSL database providers like Amazon DynamoDB, Alibaba Tablestore, and Google Firestore. It supports core document operations like create, read, update, delete (CRUD), batching, and querying with the support of indexing.
+The `DocStoreClient` class in the `multicloudj` library provides a portable document-store-like abstraction over NoSQL database providers like Amazon DynamoDB, Alibaba Tablestore, and Google Firestore. It supports core document operations like create, read, update, delete (CRUD), batching, and querying with the support of indexing.
 
 
 Internally, each provider is implemented via a driver extending `AbstractDocStore`.
+
+### Provider IDs
+
+| Provider | Provider ID |
+|----------|-------------|
+| AWS DynamoDB | `aws` |
+| GCP Firestore | `gcp-firestore` |
+| Alibaba Tablestore | `ali` |
+
+> A GCP Spanner codec module (`docstore-gcp-spanner`) exists for value encoding/decoding, but it is not registered as a runnable docstore backend — there is no Spanner provider ID. Use `gcp-firestore` for GCP document storage.
 
 ## Feature Support Across Providers
 
@@ -30,7 +40,7 @@ Internally, each provider is implemented via a driver extending `AbstractDocStor
 |--------------|---------------|--------------|----------------|----------|
 | **Batch Get** | ✅ Supported | ✅ Supported | ✅ Supported | Retrieve multiple documents in one call |
 | **Batch Write** | ✅ Supported | ✅ Supported | ✅ Supported | Write multiple documents atomically |
-| **Atommic Writes** | ✅ Supported | ✅ Supported | ✅ Supported | Atomic write operations across multiple documents |
+| **Atomic Writes** | ✅ Supported | ✅ Supported | ✅ Supported | Atomic write operations across multiple documents |
 
 ### Query Features
 
@@ -40,7 +50,7 @@ Internally, each provider is implemented via a driver extending `AbstractDocStor
 | **Compound Filters**      | ✅ Supported | ✅ Supported | ✅ Supported | Multiple filter conditions |
 | **Order By**              | ✅ Supported | ✅ Supported | ✅ Supported | Sort query results        |
 | **Order By in Full Scan** | ❌ **Not Supported** | ❌ **Not Supported** | ❌ **Not Supported** | ** It's too expensive **  |
-| **Pagination Token**      | ✅ Supported | ✅ Supported | 📅 In Roadmap | Query with pagination     |
+| **Pagination Token**      | ✅ Supported | ✅ Supported | ✅ Supported | Query with pagination     |
 | **Limit/Offset**          | ✅ Supported | ✅ Supported | ✅ Supported | Pagination support        |
 | **Index-based Queries**   | ✅ Supported | ✅ Supported | ✅ Supported | Query using secondary indexes |
 | **Query Planning**        | ✅ Supported | ✅ Supported | ✅ Supported | Explain query execution plans |
@@ -59,7 +69,7 @@ Internally, each provider is implemented via a driver extending `AbstractDocStor
 |---------------|---------------|--------------|----------------|----------|
 | **Regional Support** | ✅ Supported | ✅ Supported | ✅ Supported | Region-specific operations |
 | **Custom Endpoints** | ✅ Supported | ✅ Supported | ✅ Supported | Override default service endpoints |
-| **Credentials Override** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom credential providers via STS |
+| **Credentials Override** | ✅ Supported | ✅ Supported | ✅ Supported | Custom credential providers via STS |
 | **Collection Options** | ✅ Supported | ✅ Supported | ✅ Supported | Table/collection configuration |
 
 ### Important Notes about semantics:
@@ -196,12 +206,14 @@ client.update(doc, Map.of("f", 120.0f)); // Throws UnSupportedOperationException
 
 ## Batch Operations
 
+A `Document` wraps either a POJO or a `Map<String, Object>`. The batch examples below use maps for brevity.
+
 ### Batch Get
 
 ```java
 List<Document> docs = List.of(
-    new Document().put("pName", "Alice").put("s", "metadata"),
-    new Document().put("pName", "Bob").put("s", "stats")
+    new Document(Map.of("pName", "Alice", "s", "metadata")),
+    new Document(Map.of("pName", "Bob", "s", "stats"))
 );
 client.batchGet(docs);
 ```
@@ -210,36 +222,46 @@ client.batchGet(docs);
 
 ```java
 List<Document> docs = List.of(
-    new Document().put("pName", "Alice").put("f", 10.5f),
-    new Document().put("pName", "Bob").put("f", 20.0f)
+    new Document(Map.of("pName", "Alice", "f", 10.5f)),
+    new Document(Map.of("pName", "Bob", "f", 20.0f))
 );
 client.batchPut(docs);
 ```
 
 ## Queries
 
-DocStore's `get` action retrieves a single document by its primary key. However, when you need to retrieve or manipulate multiple documents that match a condition, you can use queries.
+DocStore's `get` action retrieves a single document by its primary key. However, when you need to retrieve multiple documents that match a condition, you can use queries.
 
-Queries allow you to:
-- Retrieve all documents that match specific conditions.
-- Delete or update documents in bulk based on criteria.
-
-The query interface is chainable and supports filtering and sorting (depending on driver support).
+A query is built fluently from `client.query()` and executed with `get(...)`, which returns a `DocumentIterator` for streaming the matching documents. Queries are read-only retrieval — there is no bulk update or bulk delete via the query API.
 
 DocStore can also optimize queries automatically. Based on your filter conditions, it attempts to determine whether a global secondary index (GSI) or a local secondary index (LSI) can be used to execute the query more efficiently. This helps reduce latency and improves performance.
 
 Queries support the following methods:
 
-- **Where**: Describes a condition on a document. You can ask whether a field is equal to, greater than, or less than a value. The "not equals" comparison isn't supported, because it isn't portable across providers.
-- **OrderBy**: Specifies the order of the resulting documents, by field and direction. For portability, you can specify at most one OrderBy, and its field must also be mentioned in a Where clause.
-- **Limit**: Limits the number of documents in the result.
+- **where(fieldPath, op, value)**: Describes a condition on a document. The supported `FilterOperation` values are `EQUAL`, `GREATER_THAN`, `LESS_THAN`, `GREATER_THAN_OR_EQUAL_TO`, `LESS_THAN_OR_EQUAL_TO`, `IN`, and `NOT_IN`. A "not equals" comparison isn't supported because it isn't portable across providers.
+- **orderBy(fieldName, orderAscending)**: Specifies the order of the resulting documents. For portability, you can specify at most one `orderBy`, and its field must also be mentioned in a `where` clause.
+- **limit(n)**: Limits the number of documents in the result.
+- **offset(n)**: Skips the first `n` matching documents.
+- **paginationToken(token)**: Resumes a query from a previous page.
 
 ```java
-Query query = client.query();
-// Apply filtering, sorting, etc.
-```
+import com.salesforce.multicloudj.docstore.driver.FilterOperation;
 
-(Depends on driver implementation.)
+DocumentIterator it = client.query()
+    .where("i", FilterOperation.GREATER_THAN_OR_EQUAL_TO, 10)
+    .orderBy("i", true)
+    .limit(50)
+    .get();
+
+while (it.hasNext()) {
+    Document result = new Document(new Player());
+    it.next(result);
+    // use result...
+}
+
+// Resume from where this page ended
+PaginationToken nextPage = it.getPaginationToken();
+```
 
 ## Advanced Usage
 
