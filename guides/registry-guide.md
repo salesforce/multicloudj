@@ -36,6 +36,15 @@ This client enables pulling images by tag or digest, selecting platform-specific
 | **Proxy endpoint** | ✅ Supported | ✅ Supported | 📅 In Roadmap | HTTP proxy for outbound registry traffic |
 | **Credentials override** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom credential providers via `CredentialsOverrider` |
 
+### Provider IDs
+
+| Provider | Provider ID |
+|----------|-------------|
+| AWS Elastic Container Registry (ECR) | `aws` |
+| GCP Artifact Registry | `gcp` |
+
+> Alibaba Cloud is not yet implemented for container registry. There is currently no `registry-ali` module, so only the `aws` and `gcp` provider IDs are available.
+
 ---
 
 ### Provider-Specific Notes
@@ -47,7 +56,8 @@ This client enables pulling images by tag or digest, selecting platform-specific
 
 **GCP (Artifact Registry)**
 - Authentication uses Google Application Default Credentials (`GoogleCredentials`), scoped to `https://www.googleapis.com/auth/cloud-platform`. Credentials are automatically refreshed when expired.
-- Auth username is `oauth2accesstoken` (standard for GCP Docker-compatible registries).
+- The access token is exchanged for a registry bearer token (`Authorization: Bearer <token>`) scoped to the `pull` action on the target repository.
+- The registry endpoint must use the format `https://{location}-docker.pkg.dev` (e.g. `https://us-central1-docker.pkg.dev`).
 - `region` is not required; only `registryEndpoint` is mandatory.
 
 ---
@@ -67,7 +77,7 @@ ContainerRegistryClient client = ContainerRegistryClient.builder("aws")
 
 ```java
 ContainerRegistryClient client = ContainerRegistryClient.builder("gcp")
-    .withRegistryEndpoint("https://us-docker.pkg.dev")
+    .withRegistryEndpoint("https://us-central1-docker.pkg.dev")
     .build();
 ```
 
@@ -161,7 +171,7 @@ Platform arm64 = Platform.builder()
     .build();
 
 ContainerRegistryClient client = ContainerRegistryClient.builder("gcp")
-    .withRegistryEndpoint("https://us-docker.pkg.dev")
+    .withRegistryEndpoint("https://us-central1-docker.pkg.dev")
     .withPlatform(arm64)
     .build();
 
