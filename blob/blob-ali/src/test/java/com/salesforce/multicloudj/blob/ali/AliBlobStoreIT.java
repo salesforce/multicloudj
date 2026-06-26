@@ -188,8 +188,11 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
     @Override
     public boolean isBucketVersioningSupported() {
-      // The synchronous AliBlobStore does not implement bucket-level versioning configuration, so
-      // the bucket versioning conformance tests are skipped via this capability flag.
+      // AliBlobStore implements getBucketVersioning (see AliBlobStore#doGetBucketVersioning), and
+      // it is exercised by the AliBlobStoreTest / AliTransformerTest unit tests. The bucket
+      // versioning conformance tests remain skipped via this capability flag only until the
+      // WireMock replay mappings are recorded — Alibaba recordings are produced on dedicated
+      // machines, not locally — at which point this flag is flipped to true.
       return false;
     }
 

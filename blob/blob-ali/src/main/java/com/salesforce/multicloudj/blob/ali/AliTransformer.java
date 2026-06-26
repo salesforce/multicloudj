@@ -10,6 +10,8 @@ import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
 import com.aliyun.sdk.service.oss2.models.Delete;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetBucketVersioningRequest;
+import com.aliyun.sdk.service.oss2.models.GetBucketVersioningResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectLegalHoldRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectLegalHoldResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
@@ -42,6 +44,7 @@ import com.aliyun.sdk.service.oss2.models.TagSet;
 import com.aliyun.sdk.service.oss2.models.Tagging;
 import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartResult;
+import com.aliyun.sdk.service.oss2.models.VersioningConfiguration;
 import com.aliyun.sdk.service.oss2.retry.BackoffDelayer;
 import com.aliyun.sdk.service.oss2.retry.EqualJitterBackoff;
 import com.aliyun.sdk.service.oss2.retry.FixedDelayBackoff;
@@ -52,6 +55,8 @@ import com.aliyun.sdk.service.oss2.transport.HttpClientOptions;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -985,5 +990,32 @@ public class AliTransformer {
       default:
         throw new InvalidArgumentException("Unsupported retention mode: " + mode);
     }
+  }
+
+  /** Creates a {@link GetBucketVersioningRequest} for the bound bucket. */
+  public GetBucketVersioningRequest toGetBucketVersioningRequest() {
+    return GetBucketVersioningRequest.newBuilder().bucket(bucket).build();
+  }
+
+  /**
+   * Converts a {@link GetBucketVersioningResult} to a {@link BucketVersioningConfiguration}.
+   *
+   * <p>OSS returns the bucket's versioning state as a string status of {@code "Enabled"} or
+   * {@code "Suspended"}. A bucket that has never had versioning configured carries no status
+   * element, which the SDK surfaces as a {@code null} {@link VersioningConfiguration} or a
+   * {@code null} status; both map to {@link BucketVersioningStatus#UNVERSIONED}.
+   */
+  public BucketVersioningConfiguration toBucketVersioningConfiguration(
+      GetBucketVersioningResult result) {
+    BucketVersioningStatus status = BucketVersioningStatus.UNVERSIONED;
+    if (result != null && result.versioningConfiguration() != null) {
+      String ossStatus = result.versioningConfiguration().status();
+      if ("Enabled".equalsIgnoreCase(ossStatus)) {
+        status = BucketVersioningStatus.ENABLED;
+      } else if ("Suspended".equalsIgnoreCase(ossStatus)) {
+        status = BucketVersioningStatus.SUSPENDED;
+      }
+    }
+    return BucketVersioningConfiguration.of(status);
   }
 }

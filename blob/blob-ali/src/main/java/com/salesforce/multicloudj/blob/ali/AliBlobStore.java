@@ -12,6 +12,7 @@ import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
 import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetBucketVersioningResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectLegalHoldResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
@@ -44,6 +45,7 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -946,6 +948,30 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
   @Override
   protected boolean doDoesBucketExist() {
     return ossClient.doesBucketExist(bucket);
+  }
+
+  /**
+   * Reads the bucket's versioning configuration.
+   *
+   * <p>OSS returns the versioning state as a {@code "Enabled"}/{@code "Suspended"} status string,
+   * or no status element at all for a bucket that has never had versioning configured. When the
+   * bucket itself does not exist, OSS responds with HTTP 404 {@code NoSuchBucket}; this is
+   * translated to {@link ResourceNotFoundException} so callers receive a consistent error type.
+   */
+  @Override
+  protected BucketVersioningConfiguration doGetBucketVersioning() {
+    try {
+      GetBucketVersioningResult result =
+          ossClient.getBucketVersioning(
+              transformer.toGetBucketVersioningRequest(), OperationOptions.defaults());
+      return transformer.toBucketVersioningConfiguration(result);
+    } catch (Exception e) {
+      ServiceException service = extractServiceException(e);
+      if (service != null && service.statusCode() == 404) {
+        throw new ResourceNotFoundException("Bucket does not exist: " + bucket, e);
+      }
+      throw e;
+    }
   }
 
   @Override

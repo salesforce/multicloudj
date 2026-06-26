@@ -382,9 +382,9 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
    * <p>Default implementation throws {@link UnsupportedOperationException}; providers opt in
    * by overriding this method. This is intentionally non-abstract (unlike
    * {@link #doDoesBucketExist()}) because not every substrate supports bucket-level versioning
-   * configuration (e.g. Alibaba's synchronous store does not). An opt-in default avoids
-   * forcing those providers to implement a stub that merely throws, while still requiring a
-   * deliberate decision from any new provider that does support the feature.
+   * configuration. An opt-in default avoids forcing those providers to implement a stub that
+   * merely throws, while still requiring a deliberate decision from any new provider that does
+   * support the feature.
    *
    * <p><strong>Error contract:</strong> When the bucket does not exist, implementations must
    * throw {@link com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException} so
