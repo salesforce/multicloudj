@@ -6,7 +6,7 @@ parent: Usage Guides
 ---
 # IAM
 
-The `IamClient` class in the `multicloudj` library provides a comprehensive, cloud-agnostic interface to interact with Identity and Access Management services like AWS IAM, GCP IAM, and AliCloud RAM.
+The `IamClient` class in the `multicloudj` library provides a comprehensive, cloud-agnostic interface to interact with Identity and Access Management services like AWS IAM and GCP IAM.
 
 This client enables creating and managing identities (roles, service accounts), attaching and managing inline policies, and configuring trust relationships across multiple cloud providers with a consistent API.
 
@@ -21,7 +21,7 @@ This client enables creating and managing identities (roles, service accounts), 
 | **Create Identity** | ✅ Supported      | ✅ Supported | 📅 In Roadmap | Create roles/service accounts with optional trust and options |
 | **Get Identity** | ✅ Supported      | ✅ Supported | 📅 In Roadmap | Retrieve identity metadata (ARN, email, or roleId) |
 | **Delete Identity** | ✅ Supported      | ✅ Supported | 📅 In Roadmap | Remove an identity from the cloud provider |
-| **Attach Inline Policy** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Attach a policy document; AWS use PutRolePolicy directly |
+| **Attach Inline Policy** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Attach a policy document to an identity |
 | **Get Attached Policies** | ✅ Supported      | ✅ Supported | 📅 In Roadmap | List inline policies attached to an identity |
 | **Get Inline Policy Details** | ✅ Supported      | ✅ Supported | 📅 In Roadmap | Retrieve policy document details |
 | **Remove Policy** | ✅ Supported      | ✅ Supported | 📅 In Roadmap | Remove an inline policy from an identity |
@@ -31,6 +31,17 @@ This client enables creating and managing identities (roles, service accounts), 
 | Configuration | GCP | AWS | ALI | Comments |
 |---------------|-----|-----|-----|----------|
 | **Trust Configuration** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Principals and conditions for assume/impersonate |
+| **Endpoint Override** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom endpoint configuration |
+| **Credentials Override** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom credential providers via STS |
+
+### Provider IDs
+
+| Provider | Provider ID |
+|----------|-------------|
+| AWS | `aws` |
+| GCP (Google Cloud Platform) | `gcp` |
+
+> Alibaba Cloud RAM is not yet implemented for IAM. There is currently no `iam-ali` module, so only the `aws` and `gcp` provider IDs are available.
 
 ---
 
@@ -43,7 +54,7 @@ This client enables creating and managing identities (roles, service accounts), 
 **GCP (IAM)**
 - Tenant ID: for identity operations use project ID (or `projects/...`); for policy operations use the resource that owns the IAM policy (e.g. `projects/my-project`, `folders/123`).
 - Create Identity creates a Service Account on GCP. You provide the service account ID; it returns email `{id}@{project}.iam.gserviceaccount.com`. Create options are unused.
-- Attach policy: `resource` is the IAM member (e.g. `serviceAccount:...`); policy actions are GCP role names (e.g. `roles/storage.objectViewer`). Get inline policy details: `roleName` is required; `policyName` is not used. 
+- Attach policy: the policy principal is the IAM member (e.g. `serviceAccount:...`); policy actions are GCP role names (e.g. `roles/storage.objectViewer`). Get inline policy details: `roleName` is required; `policyName` is not used.
 - Remove policy: `policyName` is the role name to remove.
 
 ---
@@ -58,7 +69,17 @@ IamClient iamClient = IamClient.builder("aws")
     .build();
 ```
 
-Use the appropriate provider ID: `"aws"`, `"gcp"`, or `"ali"`. The client implements `AutoCloseable`; use try-with-resources or call `close()` when done.
+Use the appropriate provider ID: `"aws"` or `"gcp"`. The client implements `AutoCloseable`; use try-with-resources or call `close()` when done.
+
+You can also override the endpoint or supply custom credentials:
+
+```java
+IamClient iamClient = IamClient.builder("aws")
+    .withRegion("us-west-2")
+    .withEndpoint(URI.create("https://iam.custom-endpoint.com"))
+    .withCredentialsOverrider(credentialsOverrider)
+    .build();
+```
 
 ---
 
@@ -133,45 +154,67 @@ iamClient.deleteIdentity("MyRole", "123456789012", "us-west-2");
 
 ### Building a Policy Document
 
-The example below uses AWS-style actions and resources (version `2012-10-17`, S3 actions, ARN resource).
+A policy document is composed of one or more `Statement` objects. Each statement is built with `Statement.builder()` and added to the document with `.statement(...)`. Actions are substrate-neutral `Action` values (use the pre-defined constants in `StorageActions`, `ComputeActions`, and `IamActions`, or `Action.of("service:operation")` for custom actions), and effects use the `Effect` enum.
 
 ```java
 PolicyDocument policy = PolicyDocument.builder()
     .version("2012-10-17")
-    .statement("StorageAccess")
-        .effect("Allow")
-        .addAction("s3:GetObject")
-        .addAction("s3:PutObject")
-        .addResource("arn:aws:s3:::my-bucket/*")
-        .condition("StringEquals", "aws:RequestedRegion", "us-west-2")
-    .endStatement()
+    .statement(Statement.builder()
+        .sid("StorageAccess")
+        .effect(Effect.ALLOW)
+        .action(StorageActions.GET_OBJECT)
+        .action(StorageActions.PUT_OBJECT)
+        .resource("storage://my-bucket/*")
+        .condition(ConditionOperator.STRING_EQUALS, "aws:RequestedRegion", "us-west-2")
+        .build())
+    .build();
+```
+
+You can also create custom actions:
+
+```java
+Statement statement = Statement.builder()
+    .sid("CustomAccess")
+    .effect(Effect.ALLOW)
+    .action(Action.of("storage:GetObject"))
+    .resource("storage://my-bucket/*")
     .build();
 ```
 
 ### Attaching an Inline Policy
 
 ```java
-iamClient.attachInlinePolicy(policy, "123456789012", "us-west-2", "MyRole");
+iamClient.attachInlinePolicy(AttachInlinePolicyRequest.builder()
+    .policyDocument(policy)
+    .tenantId("123456789012")
+    .region("us-west-2")
+    .identityName("MyRole")
+    .build());
 ```
 
 ### Listing Attached Policies
 
 ```java
-List<String> policyNames = iamClient.getAttachedPolicies("MyRole", "123456789012", "us-west-2");
+List<String> policyNames = iamClient.getAttachedPolicies(GetAttachedPoliciesRequest.builder()
+    .identityName("MyRole")
+    .tenantId("123456789012")
+    .region("us-west-2")
+    .build());
 policyNames.forEach(name -> System.out.println("Policy: " + name));
 ```
 
 ### Getting Inline Policy Details
 
 ```java
-String policyJson = iamClient.getInlinePolicyDetails(
-    "MyRole",
-    "StorageAccess",
-    "MyRole",
-    "123456789012",
-    "us-west-2"
-);
+String policyJson = iamClient.getInlinePolicyDetails(GetInlinePolicyDetailsRequest.builder()
+    .identityName("MyRole")
+    .policyName("StorageAccess")
+    .tenantId("123456789012")
+    .region("us-west-2")
+    .build());
 ```
+
+> On GCP, set `roleName` instead of `policyName` (the role to inspect). See Provider-Specific Notes above.
 
 ### Removing a Policy
 
