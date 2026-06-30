@@ -174,9 +174,13 @@ public class AwsTransformerTest {
   }
 
   @Test
-  void testUpload_correlationIdInjectedIntoMetadata() {
+  void testUpload_correlationIdInjectedUnderCallerSuppliedKey() {
     var key = "some-key";
-    var ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    var ctx =
+        OperationContext.builder()
+            .correlationIdKey("x-request-id")
+            .correlationId("req-abc-123")
+            .build();
 
     var request =
         UploadRequest.builder()
@@ -190,8 +194,27 @@ public class AwsTransformerTest {
     assertEquals("user-value", actual.metadata().get("user-key"));
     assertEquals(
         "req-abc-123",
-        actual.metadata().get("correlation-id"),
-        "transformer must persist the operation correlation_id under the well-known metadata key");
+        actual.metadata().get("x-request-id"),
+        "transformer must persist the correlation id under the caller-supplied key");
+  }
+
+  @Test
+  void testUpload_noCorrelationIdKey_noInjection() {
+    var key = "some-key";
+    var ctx = OperationContext.builder().correlationId("orphan-value").build();
+    var metadata = Map.of("user-key", "user-value");
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(metadata)
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(metadata, actual.metadata(),
+        "without a key the SDK has no name under which to surface the value");
   }
 
   @Test
@@ -205,19 +228,23 @@ public class AwsTransformerTest {
 
     assertEquals(metadata, actual.metadata());
     assertFalse(
-        actual.metadata().containsKey("correlation-id"),
+        actual.metadata().containsKey("x-request-id"),
         "no injection when the request carries no OperationContext");
   }
 
   @Test
-  void testUpload_userSuppliedCorrelationIdNotOverwritten() {
+  void testUpload_userSuppliedValueAtSameKeyNotOverwritten() {
     var key = "some-key";
-    var ctx = OperationContext.builder().correlationId("sdk-generated").build();
+    var ctx =
+        OperationContext.builder()
+            .correlationIdKey("x-request-id")
+            .correlationId("sdk-generated")
+            .build();
 
     var request =
         UploadRequest.builder()
             .withKey(key)
-            .withMetadata(Map.of("correlation-id", "user-supplied"))
+            .withMetadata(Map.of("x-request-id", "user-supplied"))
             .withOperationContext(ctx)
             .build();
 
@@ -225,8 +252,8 @@ public class AwsTransformerTest {
 
     assertEquals(
         "user-supplied",
-        actual.metadata().get("correlation-id"),
-        "application's explicit correlation-id metadata value must take precedence over the SDK's");
+        actual.metadata().get("x-request-id"),
+        "application's explicit value at the same key must take precedence");
   }
 
   @Test

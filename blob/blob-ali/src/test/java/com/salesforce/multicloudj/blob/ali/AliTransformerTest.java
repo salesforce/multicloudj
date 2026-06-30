@@ -38,6 +38,7 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -1257,5 +1258,123 @@ public class AliTransformerTest {
     assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", actual.contentMd5());
     assertNull(actual.headers().get("x-oss-hash-crc64ecma"));
     assertNull(actual.headers().get("x-oss-content-sha256"));
+  }
+
+  @Test
+  void testUpload_correlationIdInjectedUnderCallerSuppliedKey() {
+    var key = "some-key";
+    var ctx =
+        OperationContext.builder()
+            .correlationIdKey("x-request-id")
+            .correlationId("req-abc-123")
+            .build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        actual.metadata().get("x-request-id"),
+        "transformer must persist the correlation id under the caller-supplied key");
+  }
+
+  @Test
+  void testUpload_noCorrelationIdKey_noInjection() {
+    var key = "some-key";
+    var ctx = OperationContext.builder().correlationId("orphan-value").build();
+    var metadata = Map.of("user-key", "user-value");
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(metadata)
+            .withOperationContext(ctx)
+            .build();
+
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals(metadata, actual.metadata(),
+        "without a key the SDK has no name under which to surface the value");
+  }
+
+  @Test
+  void testUpload_correlationIdNotInjectedWhenContextMissing() {
+    var key = "some-key";
+    var metadata = Map.of("user-key", "user-value");
+
+    var request = UploadRequest.builder().withKey(key).withMetadata(metadata).build();
+
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals(metadata, actual.metadata());
+    assertFalse(
+        actual.metadata().containsKey("x-request-id"),
+        "no injection when the request carries no OperationContext");
+  }
+
+  @Test
+  void testUpload_userSuppliedValueAtSameKeyNotOverwritten() {
+    var key = "some-key";
+    var ctx =
+        OperationContext.builder()
+            .correlationIdKey("x-request-id")
+            .correlationId("sdk-generated")
+            .build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("x-request-id", "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals(
+        "user-supplied",
+        actual.metadata().get("x-request-id"),
+        "application's explicit value at the same key must take precedence");
+  }
+
+  @Test
+  void testUpload_userCanFreelySetCorrelationIdMetadata() {
+    // Verifies that a user can set their own "correlation-id" metadata without the SDK
+    // interfering — the SDK now only uses the caller-specified correlationIdKey.
+    var key = "some-key";
+    var ctx =
+        OperationContext.builder()
+            .correlationIdKey("x-request-id")
+            .correlationId("sdk-value")
+            .build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("correlation-id", "my-app-correlation"))
+            .withOperationContext(ctx)
+            .build();
+
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals(
+        "my-app-correlation",
+        actual.metadata().get("correlation-id"),
+        "user's own 'correlation-id' metadata key is preserved untouched");
+    assertEquals(
+        "sdk-value",
+        actual.metadata().get("x-request-id"),
+        "SDK correlation is injected under the separate caller-supplied key");
   }
 }

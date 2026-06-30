@@ -237,8 +237,12 @@ class GcpTransformerTest {
   }
 
   @Test
-  void testToBlobInfo_correlationIdInjectedIntoMetadata() {
-    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
+  void testToBlobInfo_correlationIdInjectedUnderCallerSuppliedKey() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationIdKey("x-request-id")
+            .correlationId("req-abc-123")
+            .build();
     UploadRequest uploadRequest =
         UploadRequest.builder()
             .withKey(TEST_KEY)
@@ -251,8 +255,25 @@ class GcpTransformerTest {
     assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
     assertEquals(
         "req-abc-123",
-        blobInfo.getMetadata().get("correlation-id"),
-        "transformer must persist the operation correlation_id under the well-known metadata key");
+        blobInfo.getMetadata().get("x-request-id"),
+        "transformer must persist the correlation id under the caller-supplied key");
+  }
+
+  @Test
+  void testToBlobInfo_noCorrelationIdKey_noInjection() {
+    OperationContext ctx = OperationContext.builder().correlationId("orphan-value").build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
+    assertEquals(1, blobInfo.getMetadata().size(),
+        "without a key the SDK has no name under which to surface the value");
   }
 
   @Test
@@ -267,17 +288,21 @@ class GcpTransformerTest {
 
     assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
     assertFalse(
-        blobInfo.getMetadata().containsKey("correlation-id"),
+        blobInfo.getMetadata().containsKey("x-request-id"),
         "no injection when the request carries no OperationContext");
   }
 
   @Test
-  void testToBlobInfo_userSuppliedCorrelationIdNotOverwritten() {
-    OperationContext ctx = OperationContext.builder().correlationId("sdk-generated").build();
+  void testToBlobInfo_userSuppliedValueAtSameKeyNotOverwritten() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationIdKey("x-request-id")
+            .correlationId("sdk-generated")
+            .build();
     UploadRequest uploadRequest =
         UploadRequest.builder()
             .withKey(TEST_KEY)
-            .withMetadata(Map.of("correlation-id", "user-supplied"))
+            .withMetadata(Map.of("x-request-id", "user-supplied"))
             .withOperationContext(ctx)
             .build();
 
@@ -285,8 +310,8 @@ class GcpTransformerTest {
 
     assertEquals(
         "user-supplied",
-        blobInfo.getMetadata().get("correlation-id"),
-        "application's explicit correlation-id metadata value must take precedence");
+        blobInfo.getMetadata().get("x-request-id"),
+        "application's explicit value at the same key must take precedence");
   }
 
   @Test

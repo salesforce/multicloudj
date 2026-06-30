@@ -894,12 +894,16 @@ public class BucketClient implements AutoCloseable {
   /**
    * Returns a copy of {@code req} with the resolved {@link OperationContext} attached so the
    * provider's transformer can read the same correlation id that this call's trace/log/MDC
-   * emit (auto-generating a UUID via {@code MultiCloudJLogger} when the caller didn't supply
-   * one). The transformer then persists that id onto the stored object metadata under
-   * {@link com.salesforce.multicloudj.blob.driver.BlobMetadataKeys#CORRELATION_ID}.
+   * emit. Skips the rebuild (and returns the original request) when neither the original nor
+   * the resolved context carries anything actionable for the transformer — that is, when no
+   * caller-supplied {@code correlationIdKey} is present and no tenant id is set — because in
+   * that case the transformer would inject nothing anyway.
    */
   static UploadRequest withResolvedContext(UploadRequest req, OperationContext ctx) {
     if (ctx == req.getOperationContext()) {
+      return req;
+    }
+    if (req.getOperationContext() == null && isEmptyContext(ctx)) {
       return req;
     }
     return UploadRequest.builder()
@@ -916,6 +920,13 @@ public class BucketClient implements AutoCloseable {
         .withContentType(req.getContentType())
         .withOperationContext(ctx)
         .build();
+  }
+
+  private static boolean isEmptyContext(OperationContext ctx) {
+    return ctx == null
+        || (ctx.getCorrelationIdKey() == null
+            && ctx.getCorrelationId() == null
+            && ctx.getTenantId() == null);
   }
 
   public static class BlobBuilder {

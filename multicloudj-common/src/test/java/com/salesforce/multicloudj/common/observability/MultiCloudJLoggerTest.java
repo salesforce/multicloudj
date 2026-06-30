@@ -28,6 +28,12 @@ import org.slf4j.MDC;
 
 class MultiCloudJLoggerTest {
 
+  /**
+   * Per-test correlation id name. The SDK does not pick a default; each test uses an explicit
+   * key to drive MDC / span attribute / metadata surfacing.
+   */
+  private static final String CORR_KEY = "x-request-id";
+
   @RegisterExtension
   static final OpenTelemetryExtension otel = OpenTelemetryExtension.create();
 
@@ -38,10 +44,18 @@ class MultiCloudJLoggerTest {
     MultiCloudJObservability.setDefaultTracingPolicy(TracingPolicy.DISABLED);
   }
 
+  private static OperationContext withKey(String value) {
+    return OperationContext.builder().correlationIdKey(CORR_KEY).correlationId(value).build();
+  }
+
+  private static OperationContext keyOnly() {
+    return OperationContext.builder().correlationIdKey(CORR_KEY).build();
+  }
+
   // --- DISABLED policy -----------------------------------------------------
 
   @Test
-  void disabled_noSpanCreated_butMdcSet() {
+  void disabled_noSpanCreated_butCorrelationIdInMdcUnderCallerKey() {
     MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.DISABLED, "blob", "test");
     AtomicReference<String> capturedCorrelation = new AtomicReference<>();
     AtomicReference<String> capturedTraceId = new AtomicReference<>();
@@ -50,24 +64,43 @@ class MultiCloudJLoggerTest {
         logger.traceOperation(
             "blob.test",
             Map.of("bucket", "b1"),
-            null,
+            keyOnly(),
             ctx -> {
-              capturedCorrelation.set(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
+              capturedCorrelation.set(MDC.get(CORR_KEY));
               capturedTraceId.set(MDC.get(MultiCloudJLogger.MDC_TRACE_ID));
               return "ok";
             });
 
     assertEquals("ok", result);
-    assertNotNull(capturedCorrelation.get());
+    assertNotNull(capturedCorrelation.get(), "SDK-generated id must appear under caller key");
     assertNull(capturedTraceId.get(), "trace_id MDC should not be set under DISABLED");
     assertTrue(otel.getSpans().isEmpty(), "no spans expected under DISABLED");
-    assertNull(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID), "MDC must be cleared after");
+    assertNull(MDC.get(CORR_KEY), "caller key in MDC must be cleared after");
+  }
+
+  @Test
+  void disabled_noCorrelationIdKey_noMdcCorrelationEntry() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.DISABLED, "blob", "test");
+    AtomicReference<String> capturedAnyCorr = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        null, // no OperationContext at all
+        ctx -> {
+          capturedAnyCorr.set(MDC.get(CORR_KEY));
+          return null;
+        });
+
+    assertNull(
+        capturedAnyCorr.get(),
+        "without a caller-supplied key the SDK must not invent an MDC entry");
   }
 
   // --- JOIN_ONLY policy ----------------------------------------------------
 
   @Test
-  void joinOnly_noParent_noSpanCreated_butMdcSet() {
+  void joinOnly_noParent_noSpanCreated_correlationStillInMdcWhenKeySet() {
     MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.JOIN_ONLY, "blob", "test");
     AtomicReference<String> capturedCorrelation = new AtomicReference<>();
     AtomicReference<String> capturedTraceId = new AtomicReference<>();
@@ -75,9 +108,9 @@ class MultiCloudJLoggerTest {
     logger.traceOperation(
         "blob.test",
         null,
-        null,
+        keyOnly(),
         ctx -> {
-          capturedCorrelation.set(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
+          capturedCorrelation.set(MDC.get(CORR_KEY));
           capturedTraceId.set(MDC.get(MultiCloudJLogger.MDC_TRACE_ID));
           return null;
         });
@@ -110,10 +143,11 @@ class MultiCloudJLoggerTest {
   // --- CHILD_AND_ROOT policy -----------------------------------------------
 
   @Test
-  void childAndRoot_noParent_rootSpanCreated() {
+  void childAndRoot_noParent_rootSpanCreated_withCallerKeyAttribute() {
     MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
 
-    logger.traceOperation("blob.upload", Map.of("bucket", "my-bucket"), null, ctx -> null);
+    logger.traceOperation(
+        "blob.upload", Map.of("bucket", "my-bucket"), keyOnly(), ctx -> null);
 
     List<SpanData> spans = otel.getSpans();
     assertEquals(1, spans.size());
@@ -123,7 +157,22 @@ class MultiCloudJLoggerTest {
     assertEquals("my-bucket", span.getAttributes().get(AttributeKey.stringKey("bucket")));
     assertEquals("blob", span.getAttributes().get(AttributeKey.stringKey("sdk_service")));
     assertEquals("aws", span.getAttributes().get(AttributeKey.stringKey("sdk_provider")));
-    assertNotNull(span.getAttributes().get(AttributeKey.stringKey("correlation_id")));
+    assertNotNull(
+        span.getAttributes().get(AttributeKey.stringKey(CORR_KEY)),
+        "correlation attribute must use the caller-supplied key");
+  }
+
+  @Test
+  void childAndRoot_noCorrelationIdKey_noCorrelationAttributeOnSpan() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+
+    logger.traceOperation("blob.test", null, null, ctx -> null);
+
+    SpanData span = otel.getSpans().get(0);
+    assertEquals("blob", span.getAttributes().get(AttributeKey.stringKey("sdk_service")));
+    // No correlation attribute under any name — the SDK doesn't invent one.
+    assertNull(span.getAttributes().get(AttributeKey.stringKey(CORR_KEY)));
+    assertNull(span.getAttributes().get(AttributeKey.stringKey("correlation_id")));
   }
 
   @Test
@@ -149,9 +198,76 @@ class MultiCloudJLoggerTest {
   // --- Correlation ID flow -------------------------------------------------
 
   @Test
-  void correlationId_provided_echoedInResolvedContext() {
+  void correlationId_providedWithKey_echoedAndSurfacedUnderKey() {
     MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
-    OperationContext input = OperationContext.builder().correlationId("req-abc-123").build();
+    AtomicReference<OperationContext> resolved = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        withKey("req-abc-123"),
+        ctx -> {
+          resolved.set(ctx);
+          return null;
+        });
+
+    assertEquals("req-abc-123", resolved.get().getCorrelationId());
+    assertEquals(
+        "req-abc-123",
+        otel.getSpans().get(0).getAttributes().get(AttributeKey.stringKey(CORR_KEY)));
+  }
+
+  @Test
+  void correlationId_keyOnly_andMdcAlreadyHasValue_sdkReadsItFromMdc() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    MDC.put(CORR_KEY, "from-mdc-7f31");
+    AtomicReference<OperationContext> resolved = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        keyOnly(),
+        ctx -> {
+          resolved.set(ctx);
+          return null;
+        });
+
+    assertEquals(
+        "from-mdc-7f31",
+        resolved.get().getCorrelationId(),
+        "SDK must reuse the MDC value the caller's request filter already populated");
+    assertEquals(
+        "from-mdc-7f31",
+        otel.getSpans().get(0).getAttributes().get(AttributeKey.stringKey(CORR_KEY)));
+  }
+
+  @Test
+  void correlationId_keyOnly_noMdcValue_sdkGeneratesUuid() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    AtomicReference<OperationContext> resolved = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        keyOnly(),
+        ctx -> {
+          resolved.set(ctx);
+          return null;
+        });
+
+    String generated = resolved.get().getCorrelationId();
+    assertNotNull(generated);
+    assertEquals(
+        generated,
+        UUID.fromString(generated).toString(),
+        "auto-generated correlation id must be a valid UUID");
+  }
+
+  @Test
+  void correlationId_keyOnly_emptyExplicitValue_treatedAsMissingAndResolved() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.DISABLED, "blob", "aws");
+    OperationContext input =
+        OperationContext.builder().correlationIdKey(CORR_KEY).correlationId("").build();
     AtomicReference<OperationContext> resolved = new AtomicReference<>();
 
     logger.traceOperation(
@@ -163,11 +279,34 @@ class MultiCloudJLoggerTest {
           return null;
         });
 
-    assertEquals("req-abc-123", resolved.get().getCorrelationId());
-    assertEquals(
-        "req-abc-123",
-        otel.getSpans().get(0).getAttributes().get(AttributeKey.stringKey("correlation_id")));
+    String value = resolved.get().getCorrelationId();
+    assertNotNull(value);
+    assertFalse(value.isEmpty());
   }
+
+  @Test
+  void correlationId_valueButNoKey_echoedOnContext_butNotInMdcOrSpan() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    OperationContext input = OperationContext.builder().correlationId("orphan").build();
+    AtomicReference<String> mdcUnderAnyKey = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        input,
+        ctx -> {
+          // Without a key the SDK has no name under which to surface the value externally.
+          mdcUnderAnyKey.set(MDC.get(CORR_KEY));
+          return null;
+        });
+
+    assertNull(mdcUnderAnyKey.get(), "no key, no MDC entry");
+    SpanData span = otel.getSpans().get(0);
+    assertNull(span.getAttributes().get(AttributeKey.stringKey(CORR_KEY)));
+    assertNull(span.getAttributes().get(AttributeKey.stringKey("correlation_id")));
+  }
+
+  // --- Fixed SDK MDC fields ------------------------------------------------
 
   @Test
   void mdcPopulated_during_clearedAfter() {
@@ -176,16 +315,18 @@ class MultiCloudJLoggerTest {
     AtomicReference<String> capturedSpanId = new AtomicReference<>();
     AtomicReference<String> capturedSdkService = new AtomicReference<>();
     AtomicReference<String> capturedSdkProvider = new AtomicReference<>();
+    AtomicReference<String> capturedCorrelation = new AtomicReference<>();
 
     logger.traceOperation(
         "blob.test",
         null,
-        null,
+        keyOnly(),
         ctx -> {
           capturedTraceId.set(MDC.get(MultiCloudJLogger.MDC_TRACE_ID));
           capturedSpanId.set(MDC.get(MultiCloudJLogger.MDC_SPAN_ID));
           capturedSdkService.set(MDC.get(MultiCloudJLogger.MDC_SDK_SERVICE));
           capturedSdkProvider.set(MDC.get(MultiCloudJLogger.MDC_SDK_PROVIDER));
+          capturedCorrelation.set(MDC.get(CORR_KEY));
           return null;
         });
 
@@ -193,12 +334,13 @@ class MultiCloudJLoggerTest {
     assertNotNull(capturedSpanId.get());
     assertEquals("blob", capturedSdkService.get());
     assertEquals("aws", capturedSdkProvider.get());
+    assertNotNull(capturedCorrelation.get());
 
     assertNull(MDC.get(MultiCloudJLogger.MDC_TRACE_ID));
     assertNull(MDC.get(MultiCloudJLogger.MDC_SPAN_ID));
-    assertNull(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
     assertNull(MDC.get(MultiCloudJLogger.MDC_SDK_SERVICE));
     assertNull(MDC.get(MultiCloudJLogger.MDC_SDK_PROVIDER));
+    assertNull(MDC.get(CORR_KEY));
   }
 
   @Test
@@ -211,13 +353,13 @@ class MultiCloudJLoggerTest {
             logger.traceOperation(
                 "blob.test",
                 null,
-                null,
+                keyOnly(),
                 ctx -> {
                   throw new IllegalStateException("boom");
                 }));
 
     assertNull(MDC.get(MultiCloudJLogger.MDC_TRACE_ID));
-    assertNull(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
+    assertNull(MDC.get(CORR_KEY));
   }
 
   // --- Exception recording --------------------------------------------------
@@ -260,7 +402,7 @@ class MultiCloudJLoggerTest {
                 }));
 
     assertTrue(otel.getSpans().isEmpty());
-    assertNull(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
+    assertNull(MDC.get(CORR_KEY));
   }
 
   // --- Global default fallback ---------------------------------------------
@@ -300,7 +442,7 @@ class MultiCloudJLoggerTest {
         logger.traceAsyncOperation(
             "blob.upload.async",
             Map.of("bucket", "b1"),
-            null,
+            keyOnly(),
             ctx -> CompletableFuture.completedFuture("ok-" + ctx.getCorrelationId()));
 
     String result = future.get();
@@ -321,8 +463,7 @@ class MultiCloudJLoggerTest {
     CompletableFuture<String> future =
         logger.traceAsyncOperation("blob.test.async", null, null, ctx -> failing);
 
-    ExecutionException thrown =
-        assertThrows(ExecutionException.class, future::get);
+    ExecutionException thrown = assertThrows(ExecutionException.class, future::get);
     Throwable rootCause =
         thrown.getCause() instanceof CompletionException
             ? thrown.getCause().getCause()
@@ -335,7 +476,7 @@ class MultiCloudJLoggerTest {
   }
 
   @Test
-  void traceAsyncOperation_disabled_noSpanButMdcSet()
+  void traceAsyncOperation_disabled_noSpanButCorrelationInMdcUnderCallerKey()
       throws ExecutionException, InterruptedException {
     MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.DISABLED, "blob", "aws");
     AtomicReference<String> capturedCorrelation = new AtomicReference<>();
@@ -344,16 +485,16 @@ class MultiCloudJLoggerTest {
         logger.traceAsyncOperation(
             "blob.test.async",
             null,
-            null,
+            keyOnly(),
             ctx -> {
-              capturedCorrelation.set(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
+              capturedCorrelation.set(MDC.get(CORR_KEY));
               return CompletableFuture.completedFuture("ok");
             });
 
     assertEquals("ok", future.get());
     assertNotNull(capturedCorrelation.get());
     assertTrue(otel.getSpans().isEmpty());
-    assertNull(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
+    assertNull(MDC.get(CORR_KEY));
   }
 
   @Test
@@ -373,7 +514,7 @@ class MultiCloudJLoggerTest {
 
     assertEquals(1, otel.getSpans().size());
     assertSame(StatusCode.ERROR, otel.getSpans().get(0).getStatus().getStatusCode());
-    assertNull(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
+    assertNull(MDC.get(CORR_KEY));
   }
 
   // --- tenantId ------------------------------------------------------------
@@ -382,7 +523,11 @@ class MultiCloudJLoggerTest {
   void tenantId_provided_setOnSpanAttributeAndMdc() {
     MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
     OperationContext input =
-        OperationContext.builder().correlationId("req-1").tenantId("tenant-42").build();
+        OperationContext.builder()
+            .correlationIdKey(CORR_KEY)
+            .correlationId("req-1")
+            .tenantId("tenant-42")
+            .build();
     AtomicReference<String> capturedTenant = new AtomicReference<>();
 
     logger.traceOperation(
@@ -475,7 +620,9 @@ class MultiCloudJLoggerTest {
           return null;
         });
 
-    assertNotNull(resolved.get().getCorrelationId(), "correlation_id is always generated");
+    assertNull(
+        resolved.get().getCorrelationId(),
+        "without correlationIdKey the SDK does not auto-generate a value");
     assertNull(resolved.get().getTenantId(), "tenant_id must NOT be auto-generated");
   }
 
@@ -485,8 +632,9 @@ class MultiCloudJLoggerTest {
   // (rather than hard-removing) so the outer scope is not corrupted.
 
   @Test
-  void priorSdkMdc_isRestoredAfterTrace_underTracedPolicy() {
-    MDC.put(MultiCloudJLogger.MDC_CORRELATION_ID, "outer-correlation");
+  void priorCallerCorrelationMdc_isRestoredAfterTrace_underTracedPolicy() {
+    // App's request filter already populated MDC under the same key.
+    MDC.put(CORR_KEY, "outer-correlation");
     MDC.put(MultiCloudJLogger.MDC_TENANT_ID, "outer-tenant");
     MDC.put(MultiCloudJLogger.MDC_SDK_SERVICE, "outer-svc");
     MDC.put(MultiCloudJLogger.MDC_SDK_PROVIDER, "outer-provider");
@@ -499,11 +647,12 @@ class MultiCloudJLoggerTest {
         "blob.test",
         Map.of("bucket", "b1"),
         OperationContext.builder()
+            .correlationIdKey(CORR_KEY)
             .correlationId("inner-correlation")
             .tenantId("inner-tenant")
             .build(),
         ctx -> {
-          insideCorrelation.set(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
+          insideCorrelation.set(MDC.get(CORR_KEY));
           insideTenant.set(MDC.get(MultiCloudJLogger.MDC_TENANT_ID));
           return null;
         });
@@ -511,14 +660,14 @@ class MultiCloudJLoggerTest {
     assertEquals(
         "inner-correlation",
         insideCorrelation.get(),
-        "SDK's correlation_id must be visible inside the lambda");
+        "SDK's correlation value must be visible inside the lambda");
     assertEquals(
         "inner-tenant", insideTenant.get(), "SDK's tenant_id must be visible inside the lambda");
 
     assertEquals(
         "outer-correlation",
-        MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID),
-        "prior correlation_id must be restored after the trace");
+        MDC.get(CORR_KEY),
+        "prior correlation value at the caller's key must be restored after the trace");
     assertEquals(
         "outer-tenant",
         MDC.get(MultiCloudJLogger.MDC_TENANT_ID),
@@ -534,8 +683,8 @@ class MultiCloudJLoggerTest {
   }
 
   @Test
-  void priorSdkMdc_isRestoredAfterTrace_underDisabledPolicy() {
-    MDC.put(MultiCloudJLogger.MDC_CORRELATION_ID, "outer-correlation");
+  void priorCallerCorrelationMdc_isRestoredAfterTrace_underDisabledPolicy() {
+    MDC.put(CORR_KEY, "outer-correlation");
     MDC.put(MultiCloudJLogger.MDC_TENANT_ID, "outer-tenant");
 
     MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.DISABLED, "blob", "aws");
@@ -544,23 +693,26 @@ class MultiCloudJLoggerTest {
     logger.traceOperation(
         "blob.test",
         null,
-        OperationContext.builder().correlationId("inner-correlation").build(),
+        OperationContext.builder()
+            .correlationIdKey(CORR_KEY)
+            .correlationId("inner-correlation")
+            .build(),
         ctx -> {
-          insideCorrelation.set(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
+          insideCorrelation.set(MDC.get(CORR_KEY));
           return null;
         });
 
     assertEquals("inner-correlation", insideCorrelation.get());
     assertEquals(
         "outer-correlation",
-        MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID),
+        MDC.get(CORR_KEY),
         "DISABLED-policy quiet path must also restore prior MDC values");
     assertEquals("outer-tenant", MDC.get(MultiCloudJLogger.MDC_TENANT_ID));
   }
 
   @Test
-  void priorSdkMdc_isRestoredAfterTrace_evenOnException() {
-    MDC.put(MultiCloudJLogger.MDC_CORRELATION_ID, "outer-correlation");
+  void priorCallerCorrelationMdc_isRestoredAfterTrace_evenOnException() {
+    MDC.put(CORR_KEY, "outer-correlation");
 
     MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
 
@@ -570,14 +722,17 @@ class MultiCloudJLoggerTest {
             logger.traceOperation(
                 "blob.test",
                 null,
-                OperationContext.builder().correlationId("inner-correlation").build(),
+                OperationContext.builder()
+                    .correlationIdKey(CORR_KEY)
+                    .correlationId("inner-correlation")
+                    .build(),
                 ctx -> {
                   throw new IllegalStateException("boom");
                 }));
 
     assertEquals(
         "outer-correlation",
-        MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID),
+        MDC.get(CORR_KEY),
         "prior MDC values must be restored even when the operation throws");
   }
 
@@ -611,8 +766,8 @@ class MultiCloudJLoggerTest {
   }
 
   @Test
-  void priorSdkMdc_isRestoredAfterAsyncTrace_successPath() {
-    MDC.put(MultiCloudJLogger.MDC_CORRELATION_ID, "outer-correlation");
+  void priorCallerCorrelationMdc_isRestoredAfterAsyncTrace_successPath() {
+    MDC.put(CORR_KEY, "outer-correlation");
     MDC.put(MultiCloudJLogger.MDC_TENANT_ID, "outer-tenant");
 
     MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
@@ -622,6 +777,7 @@ class MultiCloudJLoggerTest {
             "blob.test.async",
             Map.of("bucket", "b1"),
             OperationContext.builder()
+                .correlationIdKey(CORR_KEY)
                 .correlationId("inner-correlation")
                 .tenantId("inner-tenant")
                 .build(),
@@ -630,7 +786,7 @@ class MultiCloudJLoggerTest {
     assertEquals("ok", future.join());
     assertEquals(
         "outer-correlation",
-        MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID),
+        MDC.get(CORR_KEY),
         "prior MDC must be restored after async trace");
     assertEquals("outer-tenant", MDC.get(MultiCloudJLogger.MDC_TENANT_ID));
   }

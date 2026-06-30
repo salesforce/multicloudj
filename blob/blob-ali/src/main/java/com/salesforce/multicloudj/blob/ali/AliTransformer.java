@@ -73,6 +73,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.InputStream;
@@ -83,6 +84,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -109,8 +111,22 @@ public class AliTransformer {
             .key(uploadRequest.getKey())
             .body(body);
 
-    if (uploadRequest.getMetadata() != null && !uploadRequest.getMetadata().isEmpty()) {
-      builder.metadata(uploadRequest.getMetadata());
+    // Copy the application-supplied metadata and, when the caller has chosen to surface a
+    // correlation id externally, stamp it onto the stored object under their key (e.g.
+    // x-oss-meta-<correlationIdKey> in OSS). Skipped entirely when the caller didn't supply a
+    // key (no default name) or when their metadata already contains an entry under the key.
+    Map<String, String> metadata = uploadRequest.getMetadata() != null
+        ? new HashMap<>(uploadRequest.getMetadata()) : new HashMap<>();
+    OperationContext ctx = uploadRequest.getOperationContext();
+    if (ctx != null
+        && ctx.getCorrelationIdKey() != null
+        && !ctx.getCorrelationIdKey().isEmpty()
+        && ctx.getCorrelationId() != null
+        && !metadata.containsKey(ctx.getCorrelationIdKey())) {
+      metadata.put(ctx.getCorrelationIdKey(), ctx.getCorrelationId());
+    }
+    if (!metadata.isEmpty()) {
+      builder.metadata(metadata);
     }
 
     if (uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {

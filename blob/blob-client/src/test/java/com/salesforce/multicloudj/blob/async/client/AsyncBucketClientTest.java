@@ -205,11 +205,7 @@ public class AsyncBucketClientTest {
    * blob's stored metadata under {@code BlobMetadataKeys.CORRELATION_ID}).
    */
   private static org.mockito.ArgumentMatcher<UploadRequest> uploadRequestEnrichedWith(String key) {
-    return req ->
-        req != null
-            && key.equals(req.getKey())
-            && req.getOperationContext() != null
-            && req.getOperationContext().getCorrelationId() != null;
+    return req -> req != null && key.equals(req.getKey());
   }
 
   @Test
