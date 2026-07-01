@@ -62,7 +62,9 @@ class MultiCloudJLoggerTest {
     assertNotNull(capturedCorrelation.get(), "SDK-generated id must appear under the SDK key");
     assertNull(capturedTraceId.get(), "trace_id MDC should not be set under DISABLED");
     assertTrue(otel.getSpans().isEmpty(), "no spans expected under DISABLED");
-    assertNull(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID), "SDK key in MDC must be cleared after");
+    assertNull(
+        MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID),
+        "SDK key in MDC must be cleared after");
   }
 
   @Test
@@ -134,7 +136,8 @@ class MultiCloudJLoggerTest {
     MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
 
     logger.traceOperation(
-        "blob.upload", Map.of("bucket", "my-bucket"), OperationContext.builder().build(), ctx -> null);
+        "blob.upload", Map.of("bucket", "my-bucket"),
+        OperationContext.builder().build(), ctx -> null);
 
     List<SpanData> spans = otel.getSpans();
     assertEquals(1, spans.size());
@@ -145,7 +148,8 @@ class MultiCloudJLoggerTest {
     assertEquals("blob", span.getAttributes().get(AttributeKey.stringKey("sdk_service")));
     assertEquals("aws", span.getAttributes().get(AttributeKey.stringKey("sdk_provider")));
     assertNotNull(
-        span.getAttributes().get(AttributeKey.stringKey(MultiCloudJLogger.CORRELATION_ID_METADATA_KEY)),
+        span.getAttributes().get(AttributeKey.stringKey(
+            MultiCloudJLogger.CORRELATION_ID_METADATA_KEY)),
         "correlation attribute must use the SDK's well-known key");
   }
 
@@ -158,7 +162,8 @@ class MultiCloudJLoggerTest {
     SpanData span = otel.getSpans().get(0);
     assertEquals("blob", span.getAttributes().get(AttributeKey.stringKey("sdk_service")));
     assertNotNull(
-        span.getAttributes().get(AttributeKey.stringKey(MultiCloudJLogger.CORRELATION_ID_METADATA_KEY)),
+        span.getAttributes().get(AttributeKey.stringKey(
+            MultiCloudJLogger.CORRELATION_ID_METADATA_KEY)),
         "SDK always stamps correlation attribute even with null context");
   }
 
@@ -289,7 +294,8 @@ class MultiCloudJLoggerTest {
     assertNotNull(mdcCorrelation.get(), "SDK always stamps MDC even with null context");
     SpanData span = otel.getSpans().get(0);
     assertNotNull(
-        span.getAttributes().get(AttributeKey.stringKey(MultiCloudJLogger.CORRELATION_ID_METADATA_KEY)));
+        span.getAttributes().get(AttributeKey.stringKey(
+            MultiCloudJLogger.CORRELATION_ID_METADATA_KEY)));
   }
 
   // --- Fixed SDK MDC fields ------------------------------------------------
