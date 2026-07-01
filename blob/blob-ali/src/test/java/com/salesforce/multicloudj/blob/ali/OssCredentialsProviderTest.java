@@ -8,7 +8,7 @@ import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-public class OSSCredentialsProviderTest {
+public class OssCredentialsProviderTest {
 
   @Test
   public void testSessionCredentialsProvider() {
@@ -18,7 +18,7 @@ public class OSSCredentialsProviderTest {
             .withSessionCredentials(stsCredentials)
             .build();
     CredentialsProvider provider =
-        OSSCredentialsProvider.getCredentialsProvider(credentialsOverrider, "cn-shanghai");
+        OssCredentialsProvider.getCredentialsProvider(credentialsOverrider, "cn-shanghai");
     Assertions.assertNotNull(provider);
     Assertions.assertInstanceOf(StaticCredentialsProvider.class, provider);
     Assertions.assertEquals("key", provider.getCredentials().accessKeyId());
@@ -35,16 +35,16 @@ public class OSSCredentialsProviderTest {
             .withDurationSeconds(1800)
             .build();
     CredentialsProvider provider =
-        OSSCredentialsProvider.getCredentialsProvider(credentialsOverrider, "cn-shanghai");
+        OssCredentialsProvider.getCredentialsProvider(credentialsOverrider, "cn-shanghai");
     Assertions.assertNotNull(provider);
     Assertions.assertInstanceOf(
-        OSSCredentialsProvider.AssumeRoleCredentialsProvider.class, provider);
+        OssCredentialsProvider.AssumeRoleCredentialsProvider.class, provider);
   }
 
   @Test
   public void testNullOverrider() {
     CredentialsProvider provider =
-        OSSCredentialsProvider.getCredentialsProvider(null, "cn-shanghai");
+        OssCredentialsProvider.getCredentialsProvider(null, "cn-shanghai");
     Assertions.assertNull(provider);
   }
 
@@ -53,7 +53,7 @@ public class OSSCredentialsProviderTest {
     CredentialsOverrider credentialsOverrider =
         new CredentialsOverrider.Builder(null).build();
     CredentialsProvider provider =
-        OSSCredentialsProvider.getCredentialsProvider(credentialsOverrider, "cn-shanghai");
+        OssCredentialsProvider.getCredentialsProvider(credentialsOverrider, "cn-shanghai");
     Assertions.assertNull(provider);
   }
 }

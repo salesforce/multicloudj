@@ -986,7 +986,7 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
 
     private static OSSClient buildOSSClient(Builder builder) {
       CredentialsProvider creds =
-          OSSCredentialsProvider.getCredentialsProvider(
+          OssCredentialsProvider.getCredentialsProvider(
               builder.getCredentialsOverrider(), builder.getRegion());
       if (creds == null) {
         return null;

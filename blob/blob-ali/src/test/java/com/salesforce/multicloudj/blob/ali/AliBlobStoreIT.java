@@ -113,7 +113,7 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
               .region(region)
               .endpoint(endpoint)
               .credentialsProvider(
-                  OSSCredentialsProvider.getCredentialsProvider(credentialsOverrider, region))
+                  OssCredentialsProvider.getCredentialsProvider(credentialsOverrider, region))
               .httpClient(httpClient);
       if (System.getProperty("record") != null) {
         ossClientBuilder.retryMaxAttempts(1);

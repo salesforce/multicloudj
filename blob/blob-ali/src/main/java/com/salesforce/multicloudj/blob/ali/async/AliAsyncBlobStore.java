@@ -26,7 +26,7 @@ import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClientBuil
 import com.salesforce.multicloudj.blob.ali.AliSdkService;
 import com.salesforce.multicloudj.blob.ali.AliTransformer;
 import com.salesforce.multicloudj.blob.ali.AliTransformerSupplier;
-import com.salesforce.multicloudj.blob.ali.OSSCredentialsProvider;
+import com.salesforce.multicloudj.blob.ali.OssCredentialsProvider;
 import com.salesforce.multicloudj.blob.async.driver.AbstractAsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
@@ -954,7 +954,7 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
     @Override
     public AsyncBlobStore build() {
       CredentialsProvider creds =
-          OSSCredentialsProvider.getCredentialsProvider(
+          OssCredentialsProvider.getCredentialsProvider(
               getCredentialsOverrider(), getRegion());
 
       Retryer retryer =
