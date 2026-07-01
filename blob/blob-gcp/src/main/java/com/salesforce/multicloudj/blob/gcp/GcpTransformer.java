@@ -78,16 +78,10 @@ public class GcpTransformer {
     }
 
     OperationContext ctx = uploadRequest.getOperationContext();
-    if (ctx != null && ctx.getCorrelationId() != null) {
-      if (!metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-        metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
-      }
-      if (ctx.getCorrelationIdKey() != null
-          && !ctx.getCorrelationIdKey().isEmpty()
-          && !ctx.getCorrelationIdKey().equals(CORRELATION_ID_METADATA_KEY)
-          && !metadata.containsKey(ctx.getCorrelationIdKey())) {
-        metadata.put(ctx.getCorrelationIdKey(), ctx.getCorrelationId());
-      }
+    if (ctx != null
+        && ctx.getCorrelationId() != null
+        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+      metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
     }
 
     // Delegate to the protected toBlobInfo method which handles storage class, checksum, object

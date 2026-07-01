@@ -1283,37 +1283,7 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testUpload_correlationIdInjectedUnderCallerSuppliedKey() {
-    var key = "some-key";
-    var ctx =
-        OperationContext.builder()
-            .correlationIdKey("x-request-id")
-            .correlationId("req-abc-123")
-            .build();
-
-    var request =
-        UploadRequest.builder()
-            .withKey(key)
-            .withMetadata(Map.of("user-key", "user-value"))
-            .withOperationContext(ctx)
-            .build();
-
-    BinaryData body = BinaryData.fromBytes("data".getBytes());
-    var actual = transformer.toPutObjectRequest(request, body);
-
-    assertEquals("user-value", actual.metadata().get("user-key"));
-    assertEquals(
-        "req-abc-123",
-        actual.metadata().get("x-request-id"),
-        "transformer must also persist the correlation id under the caller-supplied key");
-    assertEquals(
-        "req-abc-123",
-        actual.metadata().get(AliTransformer.CORRELATION_ID_METADATA_KEY),
-        "SDK's well-known key must always be stamped");
-  }
-
-  @Test
-  void testUpload_noCorrelationIdKey_sdkKeyStillStamped() {
+  void testUpload_correlationIdStampedWithoutExplicitValue() {
     var key = "some-key";
     var ctx = OperationContext.builder().correlationId("orphan-value").build();
 
@@ -1331,7 +1301,7 @@ public class AliTransformerTest {
     assertEquals(
         "orphan-value",
         actual.metadata().get(AliTransformer.CORRELATION_ID_METADATA_KEY),
-        "SDK key is always stamped even without a caller-supplied correlationIdKey");
+        "SDK key is always stamped under the well-known key");
   }
 
   @Test
@@ -1372,44 +1342,9 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testUpload_userSuppliedValueAtCallerKeyNotOverwritten() {
-    var key = "some-key";
-    var ctx =
-        OperationContext.builder()
-            .correlationIdKey("x-request-id")
-            .correlationId("sdk-generated")
-            .build();
-
-    var request =
-        UploadRequest.builder()
-            .withKey(key)
-            .withMetadata(Map.of("x-request-id", "user-supplied"))
-            .withOperationContext(ctx)
-            .build();
-
-    BinaryData body = BinaryData.fromBytes("data".getBytes());
-    var actual = transformer.toPutObjectRequest(request, body);
-
-    assertEquals(
-        "user-supplied",
-        actual.metadata().get("x-request-id"),
-        "application's explicit value at the caller key must take precedence");
-    assertEquals(
-        "sdk-generated",
-        actual.metadata().get(AliTransformer.CORRELATION_ID_METADATA_KEY),
-        "SDK key is still stamped independently");
-  }
-
-  @Test
   void testUpload_userCanFreelySetCorrelationIdMetadata() {
-    // Verifies that a user can set their own "correlation-id" metadata without the SDK
-    // interfering — the SDK uses "sdk-logging-correlation-id" and the caller-specified key.
     var key = "some-key";
-    var ctx =
-        OperationContext.builder()
-            .correlationIdKey("x-request-id")
-            .correlationId("sdk-value")
-            .build();
+    var ctx = OperationContext.builder().correlationId("sdk-value").build();
 
     var request =
         UploadRequest.builder()
@@ -1425,10 +1360,6 @@ public class AliTransformerTest {
         "my-app-correlation",
         actual.metadata().get("correlation-id"),
         "user's own 'correlation-id' metadata key is preserved untouched");
-    assertEquals(
-        "sdk-value",
-        actual.metadata().get("x-request-id"),
-        "SDK correlation is injected under the separate caller-supplied key");
     assertEquals(
         "sdk-value",
         actual.metadata().get(AliTransformer.CORRELATION_ID_METADATA_KEY),

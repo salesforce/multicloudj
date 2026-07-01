@@ -195,36 +195,7 @@ public class AwsTransformerTest {
   }
 
   @Test
-  void testUpload_correlationIdInjectedUnderCallerSuppliedKey() {
-    var key = "some-key";
-    var ctx =
-        OperationContext.builder()
-            .correlationIdKey("x-request-id")
-            .correlationId("req-abc-123")
-            .build();
-
-    var request =
-        UploadRequest.builder()
-            .withKey(key)
-            .withMetadata(Map.of("user-key", "user-value"))
-            .withOperationContext(ctx)
-            .build();
-
-    var actual = transformer.toRequest(request);
-
-    assertEquals("user-value", actual.metadata().get("user-key"));
-    assertEquals(
-        "req-abc-123",
-        actual.metadata().get("x-request-id"),
-        "transformer must also persist the correlation id under the caller-supplied key");
-    assertEquals(
-        "req-abc-123",
-        actual.metadata().get(AwsTransformer.CORRELATION_ID_METADATA_KEY),
-        "SDK's well-known key must always be stamped");
-  }
-
-  @Test
-  void testUpload_noCorrelationIdKey_sdkKeyStillStamped() {
+  void testUpload_correlationIdStampedWithoutExplicitValue() {
     var key = "some-key";
     var ctx = OperationContext.builder().correlationId("orphan-value").build();
 
@@ -241,7 +212,7 @@ public class AwsTransformerTest {
     assertEquals(
         "orphan-value",
         actual.metadata().get(AwsTransformer.CORRELATION_ID_METADATA_KEY),
-        "SDK key is always stamped even without a caller-supplied correlationIdKey");
+        "SDK key is always stamped under the well-known key");
   }
 
   @Test
@@ -279,33 +250,6 @@ public class AwsTransformerTest {
         "application's explicit value at the SDK key must take precedence");
   }
 
-  @Test
-  void testUpload_userSuppliedValueAtCallerKeyNotOverwritten() {
-    var key = "some-key";
-    var ctx =
-        OperationContext.builder()
-            .correlationIdKey("x-request-id")
-            .correlationId("sdk-generated")
-            .build();
-
-    var request =
-        UploadRequest.builder()
-            .withKey(key)
-            .withMetadata(Map.of("x-request-id", "user-supplied"))
-            .withOperationContext(ctx)
-            .build();
-
-    var actual = transformer.toRequest(request);
-
-    assertEquals(
-        "user-supplied",
-        actual.metadata().get("x-request-id"),
-        "application's explicit value at the caller key must take precedence");
-    assertEquals(
-        "sdk-generated",
-        actual.metadata().get(AwsTransformer.CORRELATION_ID_METADATA_KEY),
-        "SDK key is still stamped independently");
-  }
 
   @Test
   void testUploadWithUseKmsManagedKey() {

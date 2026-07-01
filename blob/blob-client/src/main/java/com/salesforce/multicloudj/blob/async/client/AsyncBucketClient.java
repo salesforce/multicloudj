@@ -515,8 +515,7 @@ public class AsyncBucketClient implements AutoCloseable {
 
   private static boolean isEmptyContext(OperationContext ctx) {
     return ctx == null
-        || (ctx.getCorrelationIdKey() == null
-            && ctx.getCorrelationId() == null
+        || (ctx.getCorrelationId() == null
             && ctx.getTenantId() == null);
   }
 

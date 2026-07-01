@@ -161,9 +161,7 @@ public class BucketClientTest {
   }
 
   /**
-   * Matches an {@link UploadRequest} by key. When the test fixture does not supply an
-   * {@code OperationContext} with a {@code correlationIdKey}, the SDK passes the request
-   * through unchanged (no enrichment), so we only assert on the key.
+   * Matches an {@link UploadRequest} by key.
    */
   private static org.mockito.ArgumentMatcher<UploadRequest> uploadRequestEnrichedWith(String key) {
     return req -> req != null && key.equals(req.getKey());

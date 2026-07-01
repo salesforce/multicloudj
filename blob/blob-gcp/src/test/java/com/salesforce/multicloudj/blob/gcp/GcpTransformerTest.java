@@ -256,34 +256,7 @@ class GcpTransformerTest {
   }
 
   @Test
-  void testToBlobInfo_correlationIdInjectedUnderCallerSuppliedKey() {
-    OperationContext ctx =
-        OperationContext.builder()
-            .correlationIdKey("x-request-id")
-            .correlationId("req-abc-123")
-            .build();
-    UploadRequest uploadRequest =
-        UploadRequest.builder()
-            .withKey(TEST_KEY)
-            .withMetadata(Map.of("user-key", "user-value"))
-            .withOperationContext(ctx)
-            .build();
-
-    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
-
-    assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
-    assertEquals(
-        "req-abc-123",
-        blobInfo.getMetadata().get("x-request-id"),
-        "transformer must also persist the correlation id under the caller-supplied key");
-    assertEquals(
-        "req-abc-123",
-        blobInfo.getMetadata().get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
-        "SDK's well-known key must always be stamped");
-  }
-
-  @Test
-  void testToBlobInfo_noCorrelationIdKey_sdkKeyStillStamped() {
+  void testToBlobInfo_correlationIdStampedWithoutExplicitValue() {
     OperationContext ctx = OperationContext.builder().correlationId("orphan-value").build();
     UploadRequest uploadRequest =
         UploadRequest.builder()
@@ -298,7 +271,7 @@ class GcpTransformerTest {
     assertEquals(
         "orphan-value",
         blobInfo.getMetadata().get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
-        "SDK key is always stamped even without a caller-supplied correlationIdKey");
+        "SDK key is always stamped under the well-known key");
   }
 
   @Test
@@ -335,31 +308,6 @@ class GcpTransformerTest {
         "application's explicit value at the SDK key must take precedence");
   }
 
-  @Test
-  void testToBlobInfo_userSuppliedValueAtCallerKeyNotOverwritten() {
-    OperationContext ctx =
-        OperationContext.builder()
-            .correlationIdKey("x-request-id")
-            .correlationId("sdk-generated")
-            .build();
-    UploadRequest uploadRequest =
-        UploadRequest.builder()
-            .withKey(TEST_KEY)
-            .withMetadata(Map.of("x-request-id", "user-supplied"))
-            .withOperationContext(ctx)
-            .build();
-
-    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
-
-    assertEquals(
-        "user-supplied",
-        blobInfo.getMetadata().get("x-request-id"),
-        "application's explicit value at the caller key must take precedence");
-    assertEquals(
-        "sdk-generated",
-        blobInfo.getMetadata().get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
-        "SDK key is still stamped independently");
-  }
 
   @Test
   void testToBlobInfo_WithTagsOnly() {
