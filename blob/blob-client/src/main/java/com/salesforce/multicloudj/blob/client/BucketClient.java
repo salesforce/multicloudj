@@ -896,10 +896,13 @@ public class BucketClient implements AutoCloseable {
    * provider's transformer can read the same correlation id that this call's trace/log/MDC
    * emit (auto-generating a UUID via {@code MultiCloudJLogger} when the caller didn't supply
    * one). The transformer then persists that id onto the stored object metadata under
-   * {@link com.salesforce.multicloudj.blob.driver.BlobMetadataKeys#CORRELATION_ID}.
+   * {@code CORRELATION_ID_METADATA_KEY}.
    */
   static UploadRequest withResolvedContext(UploadRequest req, OperationContext ctx) {
     if (ctx == req.getOperationContext()) {
+      return req;
+    }
+    if (req.getOperationContext() == null && isEmptyContext(ctx)) {
       return req;
     }
     return UploadRequest.builder()
@@ -916,6 +919,12 @@ public class BucketClient implements AutoCloseable {
         .withContentType(req.getContentType())
         .withOperationContext(ctx)
         .build();
+  }
+
+  private static boolean isEmptyContext(OperationContext ctx) {
+    return ctx == null
+        || (ctx.getCorrelationId() == null
+            && ctx.getTenantId() == null);
   }
 
   public static class BlobBuilder {

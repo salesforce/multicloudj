@@ -174,7 +174,7 @@ public class AwsTransformerTest {
   }
 
   @Test
-  void testUpload_correlationIdInjectedIntoMetadata() {
+  void testUpload_correlationIdAlwaysStampedUnderSdkKey() {
     var key = "some-key";
     var ctx = OperationContext.builder().correlationId("req-abc-123").build();
 
@@ -190,8 +190,29 @@ public class AwsTransformerTest {
     assertEquals("user-value", actual.metadata().get("user-key"));
     assertEquals(
         "req-abc-123",
-        actual.metadata().get("correlation-id"),
-        "transformer must persist the operation correlation_id under the well-known metadata key");
+        actual.metadata().get(AwsTransformer.CORRELATION_ID_METADATA_KEY),
+        "transformer must always persist the correlation id under the SDK's well-known key");
+  }
+
+  @Test
+  void testUpload_correlationIdStampedWithoutExplicitValue() {
+    var key = "some-key";
+    var ctx = OperationContext.builder().correlationId("orphan-value").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "orphan-value",
+        actual.metadata().get(AwsTransformer.CORRELATION_ID_METADATA_KEY),
+        "SDK key is always stamped under the well-known key");
   }
 
   @Test
@@ -205,19 +226,19 @@ public class AwsTransformerTest {
 
     assertEquals(metadata, actual.metadata());
     assertFalse(
-        actual.metadata().containsKey("correlation-id"),
+        actual.metadata().containsKey(AwsTransformer.CORRELATION_ID_METADATA_KEY),
         "no injection when the request carries no OperationContext");
   }
 
   @Test
-  void testUpload_userSuppliedCorrelationIdNotOverwritten() {
+  void testUpload_userSuppliedValueAtSdkKeyNotOverwritten() {
     var key = "some-key";
     var ctx = OperationContext.builder().correlationId("sdk-generated").build();
 
     var request =
         UploadRequest.builder()
             .withKey(key)
-            .withMetadata(Map.of("correlation-id", "user-supplied"))
+            .withMetadata(Map.of(AwsTransformer.CORRELATION_ID_METADATA_KEY, "user-supplied"))
             .withOperationContext(ctx)
             .build();
 
@@ -225,9 +246,10 @@ public class AwsTransformerTest {
 
     assertEquals(
         "user-supplied",
-        actual.metadata().get("correlation-id"),
-        "application's explicit correlation-id metadata value must take precedence over the SDK's");
+        actual.metadata().get(AwsTransformer.CORRELATION_ID_METADATA_KEY),
+        "application's explicit value at the SDK key must take precedence");
   }
+
 
   @Test
   void testUploadWithUseKmsManagedKey() {

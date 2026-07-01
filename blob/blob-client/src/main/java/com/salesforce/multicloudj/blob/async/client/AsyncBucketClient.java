@@ -494,6 +494,9 @@ public class AsyncBucketClient implements AutoCloseable {
     if (ctx == req.getOperationContext()) {
       return req;
     }
+    if (req.getOperationContext() == null && isEmptyContext(ctx)) {
+      return req;
+    }
     return UploadRequest.builder()
         .withKey(req.getKey())
         .withContentLength(req.getContentLength())
@@ -508,6 +511,12 @@ public class AsyncBucketClient implements AutoCloseable {
         .withContentType(req.getContentType())
         .withOperationContext(ctx)
         .build();
+  }
+
+  private static boolean isEmptyContext(OperationContext ctx) {
+    return ctx == null
+        || (ctx.getCorrelationId() == null
+            && ctx.getTenantId() == null);
   }
 
   public static class Builder extends BlobClientBuilder<AsyncBucketClient, AsyncBlobStore> {

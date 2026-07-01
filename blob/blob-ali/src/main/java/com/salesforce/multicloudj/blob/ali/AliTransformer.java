@@ -73,6 +73,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.InputStream;
@@ -83,6 +84,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -91,6 +93,8 @@ import org.apache.commons.lang3.StringUtils;
 
 @Getter
 public class AliTransformer {
+
+  public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
 
   private static final String SERVER_SIDE_ENCRYPTION_KMS = "KMS";
 
@@ -109,8 +113,16 @@ public class AliTransformer {
             .key(uploadRequest.getKey())
             .body(body);
 
-    if (uploadRequest.getMetadata() != null && !uploadRequest.getMetadata().isEmpty()) {
-      builder.metadata(uploadRequest.getMetadata());
+    Map<String, String> metadata = uploadRequest.getMetadata() != null
+        ? new HashMap<>(uploadRequest.getMetadata()) : new HashMap<>();
+    OperationContext ctx = uploadRequest.getOperationContext();
+    if (ctx != null
+        && ctx.getCorrelationId() != null
+        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+      metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
+    }
+    if (!metadata.isEmpty()) {
+      builder.metadata(metadata);
     }
 
     if (uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {

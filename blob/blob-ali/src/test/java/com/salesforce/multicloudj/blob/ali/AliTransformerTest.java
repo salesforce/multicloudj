@@ -38,6 +38,7 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -1257,5 +1258,111 @@ public class AliTransformerTest {
     assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", actual.contentMd5());
     assertNull(actual.headers().get("x-oss-hash-crc64ecma"));
     assertNull(actual.headers().get("x-oss-content-sha256"));
+  }
+
+  @Test
+  void testUpload_correlationIdAlwaysStampedUnderSdkKey() {
+    var key = "some-key";
+    var ctx = OperationContext.builder().correlationId("req-abc-123").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        actual.metadata().get(AliTransformer.CORRELATION_ID_METADATA_KEY),
+        "transformer must always persist the correlation id under the SDK's well-known key");
+  }
+
+  @Test
+  void testUpload_correlationIdStampedWithoutExplicitValue() {
+    var key = "some-key";
+    var ctx = OperationContext.builder().correlationId("orphan-value").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "orphan-value",
+        actual.metadata().get(AliTransformer.CORRELATION_ID_METADATA_KEY),
+        "SDK key is always stamped under the well-known key");
+  }
+
+  @Test
+  void testUpload_correlationIdNotInjectedWhenContextMissing() {
+    var key = "some-key";
+    var metadata = Map.of("user-key", "user-value");
+
+    var request = UploadRequest.builder().withKey(key).withMetadata(metadata).build();
+
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals(metadata, actual.metadata());
+    assertFalse(
+        actual.metadata().containsKey(AliTransformer.CORRELATION_ID_METADATA_KEY),
+        "no injection when the request carries no OperationContext");
+  }
+
+  @Test
+  void testUpload_userSuppliedValueAtSdkKeyNotOverwritten() {
+    var key = "some-key";
+    var ctx = OperationContext.builder().correlationId("sdk-generated").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of(AliTransformer.CORRELATION_ID_METADATA_KEY, "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals(
+        "user-supplied",
+        actual.metadata().get(AliTransformer.CORRELATION_ID_METADATA_KEY),
+        "application's explicit value at the SDK key must take precedence");
+  }
+
+  @Test
+  void testUpload_userCanFreelySetCorrelationIdMetadata() {
+    var key = "some-key";
+    var ctx = OperationContext.builder().correlationId("sdk-value").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("correlation-id", "my-app-correlation"))
+            .withOperationContext(ctx)
+            .build();
+
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals(
+        "my-app-correlation",
+        actual.metadata().get("correlation-id"),
+        "user's own 'correlation-id' metadata key is preserved untouched");
+    assertEquals(
+        "sdk-value",
+        actual.metadata().get(AliTransformer.CORRELATION_ID_METADATA_KEY),
+        "SDK's well-known key is always stamped");
   }
 }

@@ -27,6 +27,7 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.IOException;
@@ -54,15 +55,10 @@ import org.apache.commons.lang3.tuple.Pair;
 @Getter
 public class GcpTransformer {
 
+  public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
+
   private final String bucket;
   private static final String TAG_PREFIX = "gcp-tag-";
-
-  /**
-   * Object-metadata key under which the SDK persists the operation correlation id during upload,
-   * so the value is stored on the blob in GCS and matches the correlation id that appears in the
-   * same upload's logs and trace span.
-   */
-  public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
 
   public GcpTransformer(String bucket) {
     this.bucket = bucket;
@@ -81,15 +77,11 @@ public class GcpTransformer {
           .forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
     }
 
-    // Stamp the SDK's correlation id onto the stored object so it persists in GCS alongside
-    // the user's metadata. Skipped when the request carries no operation context, or when the
-    // app has supplied the same key explicitly.
-    if (uploadRequest.getOperationContext() != null
-        && StringUtils.isNotBlank(uploadRequest.getOperationContext().getCorrelationId())
+    OperationContext ctx = uploadRequest.getOperationContext();
+    if (ctx != null
+        && ctx.getCorrelationId() != null
         && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-      metadata.put(
-          CORRELATION_ID_METADATA_KEY,
-          uploadRequest.getOperationContext().getCorrelationId());
+      metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
     }
 
     // Delegate to the protected toBlobInfo method which handles storage class, checksum, object

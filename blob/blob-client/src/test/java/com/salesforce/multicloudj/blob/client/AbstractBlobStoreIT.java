@@ -4393,9 +4393,10 @@ public abstract class AbstractBlobStoreIT {
   /**
    * Asserts that the user-visible portion of {@code actual} blob metadata equals {@code expected},
    * ignoring SDK-internal entries that the blob clients stamp onto uploaded objects. Today that
-   * means the {@code correlation-id} key the SDK persists to tie a stored blob back to the trace
-   * span and logs of the upload that produced it; the value is non-deterministic per upload and is
-   * not user content, so it must not participate in user-metadata round-trip equality checks.
+   * means the {@code sdk-logging-correlation-id} key the SDK persists to tie a stored blob back to
+   * the trace span and logs of the upload that produced it; the value is non-deterministic per
+   * upload and is not user content, so it must not participate in user-metadata round-trip equality
+   * checks.
    *
    * <p>Keep this filter list in sync with the {@code CORRELATION_ID_METADATA_KEY} constants in the
    * provider transformers.
@@ -4403,7 +4404,7 @@ public abstract class AbstractBlobStoreIT {
   private static void assertUserMetadataEquals(
       Map<String, String> expected, Map<String, String> actual, String message) {
     Map<String, String> filtered = new HashMap<>(actual);
-    filtered.remove("correlation-id");
+    filtered.remove("sdk-logging-correlation-id");
     Assertions.assertEquals(expected, filtered, message);
   }
 

@@ -37,6 +37,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -72,12 +73,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
   private static final String PROVIDER_ID = "memory";
 
-  /**
-   * Object-metadata key under which the SDK persists the operation correlation id during upload,
-   * so the value is stored on the blob alongside the user's metadata and matches the correlation
-   * id that appears in the same upload's logs and trace span.
-   */
-  public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
+  public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
 
   // Shared storage across all instances - key is "bucket:key:versionId"
   private static final Map<String, StoredBlob> STORAGE = new ConcurrentHashMap<>();
@@ -142,16 +138,12 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     String versionId = UUID.randomUUID().toString();
     String versionedKey = baseKey + ":" + versionId;
 
-    // Copy the application-supplied metadata and stamp the SDK's correlation id on it so
-    // the value persists with the stored blob alongside the user's metadata. Skipped when
-    // the request carries no operation context, or when the app has supplied the same key.
     Map<String, String> metadata = new HashMap<>(uploadRequest.getMetadata());
-    if (uploadRequest.getOperationContext() != null
-        && uploadRequest.getOperationContext().getCorrelationId() != null
+    OperationContext ctx = uploadRequest.getOperationContext();
+    if (ctx != null
+        && ctx.getCorrelationId() != null
         && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-      metadata.put(
-          CORRELATION_ID_METADATA_KEY,
-          uploadRequest.getOperationContext().getCorrelationId());
+      metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
     }
 
     StoredBlob blob =
