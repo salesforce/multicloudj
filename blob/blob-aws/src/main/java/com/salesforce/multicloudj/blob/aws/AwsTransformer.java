@@ -113,6 +113,13 @@ import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 
 public class AwsTransformer {
 
+  /**
+   * Object-metadata key under which the SDK always persists the operation correlation id during
+   * upload, so the value is stored on the blob (as {@code x-amz-meta-sdk-logging-correlation-id}
+   * in S3) and matches the correlation id that appears in the same upload's logs and trace span.
+   */
+  public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
+
   private final String bucket;
 
   public AwsTransformer(String bucket) {
@@ -190,18 +197,23 @@ public class AwsTransformer {
             .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
             .collect(Collectors.toList());
 
-    // Copy the application-supplied metadata and, when the caller has chosen to surface a
-    // correlation id externally, stamp it onto the stored object under their key (e.g.
-    // x-amz-meta-<correlationIdKey> in S3). Skipped entirely when the caller didn't supply a
-    // key (no default name) or when their metadata already contains an entry under the key.
+    // Copy the application-supplied metadata and stamp the SDK's correlation id onto the
+    // stored object so it persists in S3 alongside the user's metadata. Additionally, when
+    // the caller has chosen to surface a correlation id under their own key (e.g.
+    // x-amz-meta-<correlationIdKey> in S3), stamp it there too. Skipped when the app has
+    // already supplied the same key explicitly.
     Map<String, String> metadata = new HashMap<>(request.getMetadata());
     OperationContext ctx = request.getOperationContext();
-    if (ctx != null
-        && ctx.getCorrelationIdKey() != null
-        && !ctx.getCorrelationIdKey().isEmpty()
-        && ctx.getCorrelationId() != null
-        && !metadata.containsKey(ctx.getCorrelationIdKey())) {
-      metadata.put(ctx.getCorrelationIdKey(), ctx.getCorrelationId());
+    if (ctx != null && ctx.getCorrelationId() != null) {
+      if (!metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+        metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
+      }
+      if (ctx.getCorrelationIdKey() != null
+          && !ctx.getCorrelationIdKey().isEmpty()
+          && !ctx.getCorrelationIdKey().equals(CORRELATION_ID_METADATA_KEY)
+          && !metadata.containsKey(ctx.getCorrelationIdKey())) {
+        metadata.put(ctx.getCorrelationIdKey(), ctx.getCorrelationId());
+      }
     }
 
     PutObjectRequest.Builder builder =

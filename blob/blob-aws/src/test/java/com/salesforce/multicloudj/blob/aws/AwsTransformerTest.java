@@ -174,6 +174,27 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testUpload_correlationIdAlwaysStampedUnderSdkKey() {
+    var key = "some-key";
+    var ctx = OperationContext.builder().correlationId("req-abc-123").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        actual.metadata().get(AwsTransformer.CORRELATION_ID_METADATA_KEY),
+        "transformer must always persist the correlation id under the SDK's well-known key");
+  }
+
+  @Test
   void testUpload_correlationIdInjectedUnderCallerSuppliedKey() {
     var key = "some-key";
     var ctx =
@@ -195,26 +216,32 @@ public class AwsTransformerTest {
     assertEquals(
         "req-abc-123",
         actual.metadata().get("x-request-id"),
-        "transformer must persist the correlation id under the caller-supplied key");
+        "transformer must also persist the correlation id under the caller-supplied key");
+    assertEquals(
+        "req-abc-123",
+        actual.metadata().get(AwsTransformer.CORRELATION_ID_METADATA_KEY),
+        "SDK's well-known key must always be stamped");
   }
 
   @Test
-  void testUpload_noCorrelationIdKey_noInjection() {
+  void testUpload_noCorrelationIdKey_sdkKeyStillStamped() {
     var key = "some-key";
     var ctx = OperationContext.builder().correlationId("orphan-value").build();
-    var metadata = Map.of("user-key", "user-value");
 
     var request =
         UploadRequest.builder()
             .withKey(key)
-            .withMetadata(metadata)
+            .withMetadata(Map.of("user-key", "user-value"))
             .withOperationContext(ctx)
             .build();
 
     var actual = transformer.toRequest(request);
 
-    assertEquals(metadata, actual.metadata(),
-        "without a key the SDK has no name under which to surface the value");
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "orphan-value",
+        actual.metadata().get(AwsTransformer.CORRELATION_ID_METADATA_KEY),
+        "SDK key is always stamped even without a caller-supplied correlationIdKey");
   }
 
   @Test
@@ -228,12 +255,32 @@ public class AwsTransformerTest {
 
     assertEquals(metadata, actual.metadata());
     assertFalse(
-        actual.metadata().containsKey("x-request-id"),
+        actual.metadata().containsKey(AwsTransformer.CORRELATION_ID_METADATA_KEY),
         "no injection when the request carries no OperationContext");
   }
 
   @Test
-  void testUpload_userSuppliedValueAtSameKeyNotOverwritten() {
+  void testUpload_userSuppliedValueAtSdkKeyNotOverwritten() {
+    var key = "some-key";
+    var ctx = OperationContext.builder().correlationId("sdk-generated").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of(AwsTransformer.CORRELATION_ID_METADATA_KEY, "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(
+        "user-supplied",
+        actual.metadata().get(AwsTransformer.CORRELATION_ID_METADATA_KEY),
+        "application's explicit value at the SDK key must take precedence");
+  }
+
+  @Test
+  void testUpload_userSuppliedValueAtCallerKeyNotOverwritten() {
     var key = "some-key";
     var ctx =
         OperationContext.builder()
@@ -253,7 +300,11 @@ public class AwsTransformerTest {
     assertEquals(
         "user-supplied",
         actual.metadata().get("x-request-id"),
-        "application's explicit value at the same key must take precedence");
+        "application's explicit value at the caller key must take precedence");
+    assertEquals(
+        "sdk-generated",
+        actual.metadata().get(AwsTransformer.CORRELATION_ID_METADATA_KEY),
+        "SDK key is still stamped independently");
   }
 
   @Test

@@ -73,6 +73,13 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
   private static final String PROVIDER_ID = "memory";
 
+  /**
+   * Object-metadata key under which the SDK always persists the operation correlation id during
+   * upload, so the value is stored on the blob alongside the user's metadata and matches the
+   * correlation id that appears in the same upload's logs and trace span.
+   */
+  public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
+
   // Shared storage across all instances - key is "bucket:key:versionId"
   private static final Map<String, StoredBlob> STORAGE = new ConcurrentHashMap<>();
   // Track latest version for each key - key is "bucket:key", value is versionId
@@ -136,18 +143,22 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     String versionId = UUID.randomUUID().toString();
     String versionedKey = baseKey + ":" + versionId;
 
-    // When the caller has chosen to surface a correlation id externally, stamp it on the
-    // stored blob under their key (the same name appears in the upload's logs and span).
-    // Skipped entirely when the caller didn't supply a key (no default name) or when their
-    // metadata already contains an entry under the key.
+    // Stamp the SDK's correlation id onto the stored blob so it persists alongside the
+    // user's metadata. Additionally, when the caller has chosen to surface a correlation id
+    // under their own key, stamp it there too. Skipped when the app has already supplied the
+    // same key explicitly.
     Map<String, String> metadata = new HashMap<>(uploadRequest.getMetadata());
     OperationContext ctx = uploadRequest.getOperationContext();
-    if (ctx != null
-        && ctx.getCorrelationIdKey() != null
-        && !ctx.getCorrelationIdKey().isEmpty()
-        && ctx.getCorrelationId() != null
-        && !metadata.containsKey(ctx.getCorrelationIdKey())) {
-      metadata.put(ctx.getCorrelationIdKey(), ctx.getCorrelationId());
+    if (ctx != null && ctx.getCorrelationId() != null) {
+      if (!metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+        metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
+      }
+      if (ctx.getCorrelationIdKey() != null
+          && !ctx.getCorrelationIdKey().isEmpty()
+          && !ctx.getCorrelationIdKey().equals(CORRELATION_ID_METADATA_KEY)
+          && !metadata.containsKey(ctx.getCorrelationIdKey())) {
+        metadata.put(ctx.getCorrelationIdKey(), ctx.getCorrelationId());
+      }
     }
 
     StoredBlob blob =

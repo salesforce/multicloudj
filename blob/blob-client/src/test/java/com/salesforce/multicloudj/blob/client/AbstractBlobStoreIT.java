@@ -2583,7 +2583,7 @@ public abstract class AbstractBlobStoreIT {
             uploadResponse.getETag(),
             blobMetadata.getETag(),
             testConfig.testName + ": The metadata etag does not match the original");
-        Assertions.assertEquals(
+        assertUserMetadataEquals(
             testConfig.expectedMetadata,
             blobMetadata.getMetadata(),
             testConfig.testName + ": The metadata does not match the original");
@@ -3166,14 +3166,14 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertNotNull(v1Metadata);
       Assertions.assertEquals(v1Metadata.getKey(), uploadResponse1.getKey());
       Assertions.assertEquals(v1Metadata.getVersionId(), uploadResponse1.getVersionId());
-      Assertions.assertEquals(metadata1, v1Metadata.getMetadata(), "v1 metadata mismatch");
+      assertUserMetadataEquals(metadata1, v1Metadata.getMetadata(), "v1 metadata mismatch");
 
       // Now verify the metadata from v2
       BlobMetadata v2Metadata = bucketClient.getMetadata(key, uploadResponse2.getVersionId());
       Assertions.assertNotNull(v2Metadata);
       Assertions.assertEquals(v2Metadata.getKey(), uploadResponse2.getKey());
       Assertions.assertEquals(v2Metadata.getVersionId(), uploadResponse2.getVersionId());
-      Assertions.assertEquals(metadata2, v2Metadata.getMetadata(), "v2 metadata mismatch");
+      assertUserMetadataEquals(metadata2, v2Metadata.getMetadata(), "v2 metadata mismatch");
     } finally {
       // Delete our blob to clean up the test
       safeDeleteBlobs(bucketClient, key);
@@ -4388,6 +4388,24 @@ public abstract class AbstractBlobStoreIT {
         // Ignore
       }
     }
+  }
+
+  /**
+   * Asserts that the user-visible portion of {@code actual} blob metadata equals {@code expected},
+   * ignoring SDK-internal entries that the blob clients stamp onto uploaded objects. Today that
+   * means the {@code sdk-logging-correlation-id} key the SDK persists to tie a stored blob back to
+   * the trace span and logs of the upload that produced it; the value is non-deterministic per
+   * upload and is not user content, so it must not participate in user-metadata round-trip equality
+   * checks.
+   *
+   * <p>Keep this filter list in sync with the {@code CORRELATION_ID_METADATA_KEY} constants in the
+   * provider transformers.
+   */
+  private static void assertUserMetadataEquals(
+      Map<String, String> expected, Map<String, String> actual, String message) {
+    Map<String, String> filtered = new HashMap<>(actual);
+    filtered.remove("sdk-logging-correlation-id");
+    Assertions.assertEquals(expected, filtered, message);
   }
 
   @Test
