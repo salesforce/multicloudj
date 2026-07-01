@@ -1196,15 +1196,15 @@ public class AliAsyncBlobStoreTest {
   }
 
   @Test
-  void testUploadDirectoryLoggingDisabledReturnsNullTotal(
+  void testUploadDirectoryLoggingDisabledReturnsRequestedBytesOnSuccess(
       @TempDir Path tempDir) throws Exception {
-    Files.writeString(tempDir.resolve("a.txt"), "alpha");
+    Files.writeString(tempDir.resolve("a.txt"), "alpha"); // 5 bytes
 
     PutObjectResult mockResult = mock(PutObjectResult.class);
     when(mockResult.versionId()).thenReturn(null);
     when(mockResult.eTag()).thenReturn("\"etag\"");
     // No listener should be attached when logging is disabled; assert that and
-    // ensure we never drive progress so the counter stays at zero / null.
+    // ensure we never drive progress so the listener counter stays at zero.
     when(mockAsyncClient.putObjectAsync(
         any(PutObjectRequest.class), any(OperationOptions.class)))
         .thenAnswer(invocation -> {
@@ -1224,6 +1224,41 @@ public class AliAsyncBlobStoreTest {
 
     assertNotNull(response);
     assertEquals(0, response.getFailedTransfers().size());
+    // Listener off + zero failures → fall back to sum of source-file sizes.
+    assertEquals(5L, response.getTotalBytesTransferred());
+  }
+
+  @Test
+  void testUploadDirectoryLoggingDisabledReturnsZeroOnPartialFailure(
+      @TempDir Path tempDir) throws Exception {
+    Files.writeString(tempDir.resolve("ok.txt"), "alpha"); // 5 bytes
+    Files.writeString(tempDir.resolve("bad.txt"), "beta-bytes"); // 10 bytes
+
+    PutObjectResult mockResult = mock(PutObjectResult.class);
+    when(mockResult.versionId()).thenReturn(null);
+    when(mockResult.eTag()).thenReturn("\"etag\"");
+    when(mockAsyncClient.putObjectAsync(
+        any(PutObjectRequest.class), any(OperationOptions.class)))
+        .thenAnswer(invocation -> {
+          PutObjectRequest req = invocation.getArgument(0);
+          if (req.key().endsWith("bad.txt")) {
+            return CompletableFuture.failedFuture(new RuntimeException("upload boom"));
+          }
+          return CompletableFuture.completedFuture(mockResult);
+        });
+
+    DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("pfx")
+        .includeSubFolders(true)
+        .build();
+    DirectoryUploadResponse response =
+        store.uploadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(1, response.getFailedTransfers().size());
+    // Listener off + at least one failed transfer → null so callers can't confuse it with an
+    // empty directory that succeeded. failedTransfers carries the actual error detail.
     assertNull(response.getTotalBytesTransferred());
   }
 
@@ -1456,7 +1491,7 @@ public class AliAsyncBlobStoreTest {
   }
 
   @Test
-  void testDownloadDirectoryLoggingDisabledReturnsNullTotal(
+  void testDownloadDirectoryLoggingDisabledReturnsRequestedBytesOnSuccess(
       @TempDir Path tempDir) throws Exception {
     ObjectSummary obj = mock(ObjectSummary.class);
     when(obj.key()).thenReturn("log/data.bin");
@@ -1479,7 +1514,7 @@ public class AliAsyncBlobStoreTest {
         any(GetObjectRequest.class), any(OperationOptions.class)))
         .thenReturn(CompletableFuture.completedFuture(getResult));
 
-    // transferStatusLoggingEnabled defaults to false — no listener attached, null total.
+    // transferStatusLoggingEnabled defaults to false — no per-file listener attached.
     DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
         .prefixToDownload("log")
         .localDestinationDirectory(tempDir.toString())
@@ -1489,9 +1524,56 @@ public class AliAsyncBlobStoreTest {
 
     assertNotNull(response);
     assertEquals(0, response.getFailedTransfers().size());
-    assertNull(response.getTotalBytesTransferred());
+    // Listener off + zero failures → fall back to sum of object sizes seen during listing.
+    assertEquals(2048L, response.getTotalBytesTransferred());
     // The file is still downloaded correctly even with no listener.
     assertTrue(Files.exists(tempDir.resolve("data.bin")));
+  }
+
+  @Test
+  void testDownloadDirectoryLoggingDisabledReturnsZeroOnPartialFailure(
+      @TempDir Path tempDir) throws Exception {
+    ObjectSummary okObj = mock(ObjectSummary.class);
+    when(okObj.key()).thenReturn("log/ok.bin");
+    when(okObj.size()).thenReturn(100L);
+    ObjectSummary badObj = mock(ObjectSummary.class);
+    when(badObj.key()).thenReturn("log/bad.bin");
+    when(badObj.size()).thenReturn(200L);
+
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of(okObj, badObj));
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    when(mockAsyncClient.getObjectAsync(
+        any(GetObjectRequest.class), any(OperationOptions.class)))
+        .thenAnswer(invocation -> {
+          GetObjectRequest req = invocation.getArgument(0);
+          if (req.key().endsWith("bad.bin")) {
+            return CompletableFuture.failedFuture(new RuntimeException("download boom"));
+          }
+          GetObjectResult result = mock(GetObjectResult.class);
+          when(result.body()).thenReturn(new ByteArrayInputStream(new byte[100]));
+          when(result.contentLength()).thenReturn(100L);
+          when(result.eTag()).thenReturn("\"e\"");
+          return CompletableFuture.completedFuture(result);
+        });
+
+    DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+        .prefixToDownload("log")
+        .localDestinationDirectory(tempDir.toString())
+        .build();
+    DirectoryDownloadResponse response =
+        store.downloadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(1, response.getFailedTransfers().size());
+    // Listener off + at least one failed transfer → null so callers can't confuse it with an
+    // empty directory that succeeded. failedTransfers carries the actual error detail.
+    assertNull(response.getTotalBytesTransferred());
   }
 
   @Test
