@@ -181,16 +181,17 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
     rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
-    try {
-      Blob blob =
-          storage.createFrom(
-              transformer.toBlobInfo(uploadRequest),
-              inputStream,
-              transformer.getBlobWriteOptions(uploadRequest));
-      return transformer.toUploadResponse(blob);
+    try (WriteChannel writer =
+            storage.writer(
+                transformer.toBlobInfo(uploadRequest),
+                transformer.getBlobWriteOptions(uploadRequest));
+         var channel = Channels.newOutputStream(writer)) {
+      ByteStreams.copy(inputStream, channel);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from input stream", e);
     }
+    Blob blob = getRequiredBlob(BlobId.of(getBucket(), uploadRequest.getKey()));
+    return transformer.toUploadResponse(blob);
   }
 
   @Override
@@ -283,23 +284,32 @@ public class GcpBlobStore extends AbstractBlobStore {
   // cannot produce an InputStream directly.
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
+    boolean hasRange = downloadRequest.getStart() != null || downloadRequest.getEnd() != null;
     Blob blob = getRequiredBlobForDownload(downloadRequest);
-    try {
-      ReadChannel reader = blob.reader();
-      var range =
-          transformer.computeRange(
-              downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
-      if (range.getLeft() != null) {
-        reader.seek(range.getLeft());
+
+    if (hasRange) {
+      try {
+        ReadChannel reader = blob.reader();
+        var range =
+            transformer.computeRange(
+                downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
+        if (range.getLeft() != null) {
+          reader.seek(range.getLeft());
+        }
+        if (range.getRight() != null) {
+          reader.limit(range.getRight());
+        }
+        InputStream inputStream = Channels.newInputStream(reader);
+        return transformer.toDownloadResponse(blob, inputStream);
+      } catch (IOException e) {
+        throw new SubstrateSdkException("Failed to create input stream for download", e);
       }
-      if (range.getRight() != null) {
-        reader.limit(range.getRight());
-      }
-      InputStream inputStream = Channels.newInputStream(reader);
-      return transformer.toDownloadResponse(blob, inputStream);
-    } catch (IOException e) {
-      throw new SubstrateSdkException("Failed to create input stream for download", e);
     }
+
+    BlobId blobId = transformer.toBlobId(downloadRequest);
+    ReadChannel reader = storage.reader(blobId);
+    InputStream inputStream = Channels.newInputStream(reader);
+    return transformer.toDownloadResponse(blob, inputStream);
   }
 
   /**

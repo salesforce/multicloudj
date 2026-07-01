@@ -30,6 +30,7 @@ import com.google.api.gax.paging.Page;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.cloud.ReadChannel;
+import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -177,6 +178,9 @@ class GcpBlobStoreTest {
   private BlobInfo mockBlobInfo;
 
   @Mock
+  private WriteChannel mockWriteChannel;
+
+  @Mock
   private ReadChannel mockReadChannel;
 
   @Mock
@@ -270,49 +274,85 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testDoUpload_WithInputStream() throws IOException {
-    // Given
-    UploadRequest uploadRequest =
-        UploadRequest.builder().withKey(TEST_KEY).withContentLength(TEST_CONTENT.length).build();
-    UploadResponse expectedResponse =
-        UploadResponse.builder().key(TEST_KEY).versionId(TEST_VERSION_ID).eTag(TEST_ETAG).build();
+  void testDoUpload_WithInputStream() {
+    try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+      // Given
+      UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
 
-    when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-    when(mockTransformer.getBlobWriteOptions(uploadRequest))
-        .thenReturn(new Storage.BlobWriteOption[0]);
-    when(mockStorage.createFrom(
-            eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
-        .thenReturn(mockBlob);
-    when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
+      UploadResponse expectedResponse =
+          UploadResponse.builder().key(TEST_KEY).versionId(TEST_VERSION_ID).eTag(TEST_ETAG).build();
 
-    // When
-    UploadResponse response =
-        gcpBlobStore.doUpload(uploadRequest, new ByteArrayInputStream(TEST_CONTENT));
+      when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
+      when(mockTransformer.getBlobWriteOptions(uploadRequest))
+          .thenReturn(new Storage.BlobWriteOption[0]);
+      when(mockStorage.writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class)))
+          .thenReturn(mockWriteChannel);
+      when(mockStorage.get(BlobId.of(TEST_BUCKET, TEST_KEY))).thenReturn(mockBlob);
+      when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
-    // Then
-    assertEquals(expectedResponse, response);
-    verify(mockStorage).createFrom(
-        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
-    verify(mockStorage, never())
-        .create(any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
-    verify(mockTransformer).toUploadResponse(mockBlob);
+      // When
+      UploadResponse response =
+          gcpBlobStore.doUpload(uploadRequest, new ByteArrayInputStream(TEST_CONTENT));
+
+      // Then
+      assertEquals(expectedResponse, response);
+      verify(mockStorage).writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class));
+      verify(mockStorage).get(BlobId.of(TEST_BUCKET, TEST_KEY));
+      verify(mockTransformer).toUploadResponse(mockBlob);
+    }
   }
 
   @Test
-  void testDoUpload_WithInputStream_ThrowsException() throws IOException {
-    // Given
-    UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
+  void testDoUpload_WithInputStream_ThrowsException() {
+    try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+      // Given
+      UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
 
-    when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-    when(mockTransformer.getBlobWriteOptions(uploadRequest))
-        .thenReturn(new Storage.BlobWriteOption[0]);
-    when(mockStorage.createFrom(
-            any(BlobInfo.class), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
-        .thenThrow(new IOException("simulated IO error"));
+      when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
+      when(mockTransformer.getBlobWriteOptions(uploadRequest))
+          .thenReturn(new Storage.BlobWriteOption[0]);
+      when(mockStorage.writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class)))
+          .thenReturn(mockWriteChannel);
+      mockedStatic
+          .when(() -> ByteStreams.copy(any(InputStream.class), any(OutputStream.class)))
+          .thenThrow(new IOException("Test exception"));
 
-    assertThrows(
-        SubstrateSdkException.class,
-        () -> gcpBlobStore.doUpload(uploadRequest, new ByteArrayInputStream(TEST_CONTENT)));
+      // When & Then
+      SubstrateSdkException exception =
+          assertThrows(
+              SubstrateSdkException.class,
+              () -> {
+                gcpBlobStore.doUpload(uploadRequest, new ByteArrayInputStream(TEST_CONTENT));
+              });
+      assertEquals("Request failed while uploading from input stream", exception.getMessage());
+    }
+  }
+
+  @Test
+  void testDoUpload_FileNotFound() {
+    try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+      // Given
+      UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
+
+      when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
+      when(mockTransformer.getBlobWriteOptions(uploadRequest))
+          .thenReturn(new Storage.BlobWriteOption[0]);
+      when(mockStorage.writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class)))
+          .thenReturn(mockWriteChannel);
+      when(mockStorage.get(BlobId.of(TEST_BUCKET, TEST_KEY))).thenReturn(null);
+
+      // When
+      ResourceNotFoundException exception =
+          assertThrows(
+              ResourceNotFoundException.class,
+              () -> {
+                gcpBlobStore.doUpload(uploadRequest, new ByteArrayInputStream(TEST_CONTENT));
+              });
+
+      // Then
+      verify(mockStorage).writer(mockBlobInfo);
+      verify(mockStorage).get(BlobId.of(TEST_BUCKET, TEST_KEY));
+    }
   }
 
   @Test
@@ -1768,10 +1808,7 @@ class GcpBlobStoreTest {
 
     when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
-    when(mockBlob.reader()).thenReturn(mockReadChannel);
-    when(mockBlob.getSize()).thenReturn(100L);
-    when(mockTransformer.computeRange(null, null, 100L))
-        .thenReturn(new ImmutablePair<>(null, null));
+    when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
     when(mockTransformer.toDownloadResponse(eq(mockBlob), any(InputStream.class)))
         .thenAnswer(invocation -> DownloadResponse.builder()
             .key(TEST_KEY)
@@ -1783,7 +1820,9 @@ class GcpBlobStoreTest {
     assertEquals(TEST_KEY, response.getKey());
     assertNotNull(response.getInputStream());
     verify(mockStorage).get(mockBlobId);
-    verify(mockBlob).reader();
+    verify(mockStorage).reader(mockBlobId);
+    verify(mockBlob, never()).reader();
+    verify(mockTransformer, never()).computeRange(any(), any(), anyLong());
     verify(mockTransformer).toDownloadResponse(eq(mockBlob), any(InputStream.class));
   }
 
