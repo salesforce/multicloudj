@@ -1,0 +1,25 @@
+{
+  "id" : "7af49bd6-9404-448c-8d1f-031a3cee7dd8",
+  "name" : "AwsBlobStoreIT_testUploadWithInvalidMd5Checksum_InputStream-PUT-1",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/checksum/upload-inputstream-invalid-md5",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGVzdCBpbnZhbGlkIE1ENSBjaGVja3N1bQ=="
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>BadDigest</Code><Message>The Content-MD5 you specified did not match what we received.</Message><CalculatedDigest>KFbnUQtHnG2KM8r3CtkReA==</CalculatedDigest><ExpectedDigest>00000000000000000000000000000000</ExpectedDigest><RequestId>MDN1CSY6BJ3VPYWT</RequestId><HostId>VKu2pryuPhMQWcgUGBcghAPvIOZ+pkisnZtGYGrYuZWjjZ4AK8MnIZcnELB7v1IrTyTRBu+FUUg/pumYnMVgzyT7ru5frUKs</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "MDN1CSY6BJ3VPYWT",
+      "x-amz-id-2" : "VKu2pryuPhMQWcgUGBcghAPvIOZ+pkisnZtGYGrYuZWjjZ4AK8MnIZcnELB7v1IrTyTRBu+FUUg/pumYnMVgzyT7ru5frUKs",
+      "Date" : "Tue, 23 Jun 2026 00:15:26 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "7af49bd6-9404-448c-8d1f-031a3cee7dd8",
+  "persistent" : true,
+  "insertionIndex" : 769
+}

@@ -170,11 +170,13 @@ public class GcpBlobStore extends AbstractBlobStore {
   }
 
   private void rejectUnsupportedChecksum(ChecksumMethod algorithm) {
-    // GCS exposes CRC32C (and MD5) for object integrity, but not SHA256 or CRC64. A null
-    // algorithm means "use the substrate default" (CRC32C) and is allowed.
-    if (algorithm != null && algorithm != ChecksumMethod.CRC32C) {
+    // GCS validates CRC32C and MD5 as caller-supplied object checksums, but not SHA256 or CRC64.
+    // A null algorithm means "use the substrate default" (CRC32C) and is allowed.
+    if (algorithm != null
+        && algorithm != ChecksumMethod.CRC32C
+        && algorithm != ChecksumMethod.MD5) {
       throw new UnsupportedOperationException(
-          algorithm + " checksum is not supported by GCP Cloud Storage. Use CRC32C instead.");
+          algorithm + " checksum is not supported by GCP Cloud Storage. Use CRC32C or MD5.");
     }
   }
 
@@ -981,13 +983,20 @@ public class GcpBlobStore extends AbstractBlobStore {
       if (request.getChecksumValue() != null) {
         ChecksumMethod algo = request.getChecksumAlgorithm() != null
             ? request.getChecksumAlgorithm() : ChecksumMethod.CRC32C;
-        if (algo == ChecksumMethod.SHA256) {
+        if (algo == ChecksumMethod.MD5) {
+          // Content-MD5 is folded into the V4 signature via withMd5() (the value is read from the
+          // BlobInfo, which toPresignBlobInfo populates). The uploader must send a matching
+          // Content-MD5, and GCS validates the body against it.
+          options.add(Storage.SignUrlOption.withMd5());
+          signedHeaders.put("Content-MD5", request.getChecksumValue());
+        } else if (algo == ChecksumMethod.SHA256) {
           throw new UnSupportedOperationException(
-              "SHA256 presigned-URL upload integrity is not supported on GCS; use CRC32C");
+              "SHA256 presigned-URL upload integrity is not supported on GCS; use CRC32C or MD5");
+        } else {
+          String hashHeader = "crc32c=" + request.getChecksumValue();
+          extHeaders.put("x-goog-hash", hashHeader);
+          signedHeaders.put("x-goog-hash", hashHeader);
         }
-        String hashHeader = "crc32c=" + request.getChecksumValue();
-        extHeaders.put("x-goog-hash", hashHeader);
-        signedHeaders.put("x-goog-hash", hashHeader);
       }
     }
 
@@ -1112,7 +1121,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       String blobKey = transformer.toBlobKey(sourceDir, filePath, prefix);
       keyToSource.put(blobKey, filePath);
       if (objectLock != null) {
-        return transformer.toBlobInfo(blobKey, metadata, null, null, objectLock, null);
+        return transformer.toBlobInfo(blobKey, metadata, null, null, null, objectLock, null);
       }
       BlobInfo.Builder b = BlobInfo.newBuilder(bucketName, blobKey);
       if (!metadata.isEmpty()) {

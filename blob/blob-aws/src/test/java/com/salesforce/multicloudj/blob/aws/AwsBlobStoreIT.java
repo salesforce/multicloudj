@@ -2,11 +2,13 @@ package com.salesforce.multicloudj.blob.aws;
 
 import com.salesforce.multicloudj.blob.client.AbstractBlobStoreIT;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.common.aws.util.TestsUtilAws;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -126,6 +128,11 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
     @Override
     public String getKmsKeyId() {
       return "arn:aws:kms:us-west-2:654654370895:key/faa140af-8195-49c0-9f8a-f03e9fd47d89";
+    }
+
+    @Override
+    public Set<ChecksumMethod> getSupportedChecksumAlgorithmsForUpload() {
+      return Set.of(ChecksumMethod.CRC32C, ChecksumMethod.SHA256, ChecksumMethod.MD5);
     }
 
     @Override

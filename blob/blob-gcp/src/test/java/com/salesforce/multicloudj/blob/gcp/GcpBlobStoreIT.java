@@ -15,6 +15,7 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.salesforce.multicloudj.blob.client.AbstractBlobStoreIT;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.gcp.util.MultipartBoundaryTransformer;
 import com.salesforce.multicloudj.common.gcp.util.MockGoogleCredentialsFactory;
 import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class GcpBlobStoreIT extends AbstractBlobStoreIT {
@@ -195,6 +197,11 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
     @Override
     public boolean isSha256Supported() {
       return false;
+    }
+
+    @Override
+    public Set<ChecksumMethod> getSupportedChecksumAlgorithmsForUpload() {
+      return Set.of(ChecksumMethod.CRC32C, ChecksumMethod.MD5);
     }
 
     @Override

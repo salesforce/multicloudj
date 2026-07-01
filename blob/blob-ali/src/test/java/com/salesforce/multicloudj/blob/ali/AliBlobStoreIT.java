@@ -6,12 +6,14 @@ import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClient;
 import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClientBuilder;
 import com.salesforce.multicloudj.blob.client.AbstractBlobStoreIT;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.net.ssl.SSLContext;
 import org.apache.hc.client5.http.config.RequestConfig;
@@ -167,6 +169,13 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
       // caller-supplied checksums (see AliTransformer.rejectUnsupportedChecksum). SHA256-specific
       // conformance tests are skipped via this capability flag rather than a provider guard.
       return false;
+    }
+
+    @Override
+    public Set<ChecksumMethod> getSupportedChecksumAlgorithmsForUpload() {
+      // OSS server-validates only Content-MD5 for a caller-supplied upload digest. CRC32C/SHA256
+      // request headers are inert, and CRC64 is server-computed (not a caller-validated digest).
+      return Set.of(ChecksumMethod.MD5);
     }
 
     @Override

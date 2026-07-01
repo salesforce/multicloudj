@@ -246,10 +246,16 @@ public class AwsTransformer {
     if (StringUtils.isNotEmpty(request.getChecksumValue())
         && request.getChecksumAlgorithm() != null) {
       ChecksumMethod algo = request.getChecksumAlgorithm();
-      builder.checksumAlgorithm(toAwsChecksumAlgorithm(algo));
-      if (algo == ChecksumMethod.SHA256) {
+      if (algo == ChecksumMethod.MD5) {
+        // MD5 is sent as the classic RFC 1864 Content-MD5 header (server-validated; mismatch ->
+        // BadDigest), not via the x-amz-checksum-* "additional checksum" path. The two mechanisms
+        // are mutually exclusive, so checksumAlgorithm() is intentionally not set here.
+        builder.contentMD5(request.getChecksumValue());
+      } else if (algo == ChecksumMethod.SHA256) {
+        builder.checksumAlgorithm(toAwsChecksumAlgorithm(algo));
         builder.checksumSHA256(request.getChecksumValue());
       } else {
+        builder.checksumAlgorithm(toAwsChecksumAlgorithm(algo));
         builder.checksumCRC32C(request.getChecksumValue());
       }
     }

@@ -219,6 +219,7 @@ class GcpBlobStoreTest {
             anyMap(),
             isNull(),
             isNull(),
+            nullable(ChecksumMethod.class),
             nullable(ObjectLockConfiguration.class),
             isNull()))
         .thenAnswer(invocation -> {
@@ -2516,6 +2517,7 @@ class GcpBlobStoreTest {
             anyMap(),
             isNull(),
             isNull(),
+            nullable(ChecksumMethod.class),
             eq(objectLock),
             isNull()))
         .thenReturn(mockFileBlobInfo);

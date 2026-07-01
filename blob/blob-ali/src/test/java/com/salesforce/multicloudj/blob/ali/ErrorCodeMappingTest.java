@@ -24,5 +24,6 @@ public class ErrorCodeMappingTest {
     assertEquals(InvalidArgumentException.class, getException("BucketAlreadyExists"));
     assertEquals(InvalidArgumentException.class, getException("InvalidBucketName"));
     assertEquals(InvalidArgumentException.class, getException("MissingArgument"));
+    assertEquals(InvalidArgumentException.class, getException("InvalidDigest"));
   }
 }

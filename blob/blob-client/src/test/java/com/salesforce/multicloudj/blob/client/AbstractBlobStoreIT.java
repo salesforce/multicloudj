@@ -145,6 +145,40 @@ public abstract class AbstractBlobStoreIT {
       return Base64.getEncoder().encodeToString(checksumBytes);
     }
 
+    // Computes the base64-encoded checksum of the given content using the requested algorithm,
+    // independent of the substrate's native default. Used by tests that exercise a specific
+    // caller-supplied algorithm (e.g. MD5). Algorithm-driven, so no per-provider override needed.
+    default String computeChecksum(byte[] content, ChecksumMethod algorithm) {
+      switch (algorithm) {
+        case MD5:
+          return base64Digest(content, "MD5");
+        case SHA256:
+          return base64Digest(content, "SHA-256");
+        case CRC32C:
+          return computeChecksum(content);
+        default:
+          throw new UnSupportedOperationException(
+              "computeChecksum does not support algorithm " + algorithm);
+      }
+    }
+
+    default String base64Digest(byte[] content, String jdkAlgorithm) {
+      try {
+        return Base64.getEncoder().encodeToString(
+            MessageDigest.getInstance(jdkAlgorithm).digest(content));
+      } catch (NoSuchAlgorithmException e) {
+        throw new UnSupportedOperationException(jdkAlgorithm + " not available", e);
+      }
+    }
+
+    // The checksum algorithms this substrate validates against a caller-supplied digest on
+    // single-object upload and presigned-URL upload. Excludes server-computed-only checksums
+    // and multipart per-part validation (see isSha256Supported). Tests that exercise a specific
+    // caller-supplied algorithm gate on this set.
+    default Set<ChecksumMethod> getSupportedChecksumAlgorithmsForUpload() {
+      return Set.of(ChecksumMethod.CRC32C);
+    }
+
     // Whether this provider supports SHA256 checksums.
     default boolean isSha256Supported() {
       return true;
@@ -4633,7 +4667,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testPresignV2_checksumCrc32cBinding() throws Exception {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/presign-v2/checksum-crc32c-binding";
     byte[] content = "checksum test data".getBytes(StandardCharsets.UTF_8);
 
@@ -4890,6 +4926,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUploadWithChecksumValidationInputStream() {
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/checksum/upload-inputstream-checksum";
     byte[] content = "Test checksum with InputStream".getBytes(StandardCharsets.UTF_8);
 
@@ -4925,6 +4964,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUploadWithChecksumValidationFile() throws Exception {
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/checksum/upload-file-checksum";
     byte[] content = "Test checksum with File".getBytes(StandardCharsets.UTF_8);
 
@@ -4966,8 +5008,135 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
+  public void testUploadWithMd5Checksum_InputStream() {
+    // MD5 is validated as a caller-supplied digest on every substrate this SDK supports, so this
+    // test runs unconditionally.
+    String key = "conformance-tests/checksum/upload-inputstream-md5";
+    byte[] content = "Test MD5 checksum with InputStream".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      String md5 = harness.computeChecksum(content, ChecksumMethod.MD5);
+
+      UploadRequest uploadRequest =
+          UploadRequest.builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withChecksumValue(md5)
+              .withChecksumAlgorithm(ChecksumMethod.MD5)
+              .build();
+
+      UploadResponse uploadResponse =
+          bucketClient.upload(uploadRequest, new ByteArrayInputStream(content));
+
+      Assertions.assertNotNull(uploadResponse);
+      Assertions.assertEquals(key, uploadResponse.getKey());
+      Assertions.assertTrue(
+          bucketClient.doesObjectExist(key, null), "Uploaded blob should exist");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUploadWithMd5Checksum_ByteArray() {
+    String key = "conformance-tests/checksum/upload-bytearray-md5";
+    byte[] content = "Test MD5 checksum with byte array".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      String md5 = harness.computeChecksum(content, ChecksumMethod.MD5);
+
+      UploadRequest uploadRequest =
+          UploadRequest.builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withChecksumValue(md5)
+              .withChecksumAlgorithm(ChecksumMethod.MD5)
+              .build();
+
+      UploadResponse uploadResponse = bucketClient.upload(uploadRequest, content);
+
+      Assertions.assertNotNull(uploadResponse);
+      Assertions.assertEquals(key, uploadResponse.getKey());
+      Assertions.assertTrue(
+          bucketClient.doesObjectExist(key, null), "Uploaded blob should exist");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUploadWithInvalidMd5Checksum_InputStream() {
+    String key = "conformance-tests/checksum/upload-inputstream-invalid-md5";
+    byte[] content = "Test invalid MD5 checksum".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      // A syntactically valid but incorrect base64 MD5 (16 zero bytes) the substrate must reject.
+      String invalidMd5 = Base64.getEncoder().encodeToString(new byte[16]);
+
+      UploadRequest uploadRequest =
+          UploadRequest.builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withChecksumValue(invalidMd5)
+              .withChecksumAlgorithm(ChecksumMethod.MD5)
+              .build();
+
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> bucketClient.upload(uploadRequest, new ByteArrayInputStream(content)));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_md5Binding() throws Exception {
+    String key = "conformance-tests/presign-v2/md5-binding";
+    byte[] content = "Test MD5 presign binding".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              // Bind a content-type so the upload helper replays a signed Content-Type rather than
+              // forcing an unsigned empty one (which would break the OSS V4 signature).
+              .contentType("text/plain")
+              .checksumValue(harness.computeChecksum(content, ChecksumMethod.MD5))
+              .checksumAlgorithm(ChecksumMethod.MD5)
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+      Assertions.assertFalse(response.getSignedHeaders().isEmpty());
+
+      // Upload only in record mode — presigned URLs bypass WireMock and can't be replayed.
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
   public void testUploadWithInvalidChecksumInputStream() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/checksum/upload-inputstream-invalid-checksum";
     byte[] content = "Test invalid checksum with InputStream".getBytes(StandardCharsets.UTF_8);
 
@@ -4995,7 +5164,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUploadWithInvalidChecksumByteArray() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/checksum/upload-bytearray-invalid-checksum";
     byte[] content = "Test invalid checksum with byte array".getBytes(StandardCharsets.UTF_8);
 
@@ -5022,7 +5193,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUploadWithInvalidChecksumFile() throws Exception {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/checksum/upload-file-invalid-checksum";
     byte[] content = "Test invalid checksum with File".getBytes(StandardCharsets.UTF_8);
 
