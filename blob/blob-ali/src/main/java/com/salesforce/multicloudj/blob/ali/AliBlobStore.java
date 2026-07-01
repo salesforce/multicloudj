@@ -76,7 +76,6 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.provider.Provider;
-import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -85,7 +84,6 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -985,70 +983,27 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
     }
 
     private static OSSClient buildOSSClient(Builder builder) {
-      CredentialsProvider creds =
-          OssCredentialsProvider.getCredentialsProvider(
-              builder.getCredentialsOverrider(), builder.getRegion());
+      CredentialsProvider creds = OssCredentialsProvider.getCredentialsProvider(
+          builder.getCredentialsOverrider(), builder.getRegion());
       if (creds == null) {
         return null;
       }
+      Retryer retryer = builder.getRetryConfig() != null
+          ? AliTransformer.toAliRetryer(builder.getRetryConfig())
+          : null;
 
-      var clientBuilder = OSSClient.newBuilder()
-          .region(builder.getRegion())
-          .credentialsProvider(creds);
-
-      if (builder.getEndpoint() != null) {
-        clientBuilder.endpoint(builder.getEndpoint().toString());
-      }
-      if (builder.getProxyEndpoint() != null) {
-        clientBuilder.proxyHost(
-            builder.getProxyEndpoint().getHost()
-                + ":" + builder.getProxyEndpoint().getPort());
-      }
-      if (builder.getRetryConfig() != null) {
-        Retryer retryer = AliTransformer.toAliRetryer(builder.getRetryConfig());
-        if (retryer != null) {
-          clientBuilder.retryer(retryer);
-        }
-      }
-
-      Duration readWriteTimeout =
-          resolveReadWriteTimeout(builder.getRetryConfig(), builder.getSocketTimeout());
-
-      // Connection-pool size and idle-connection timeout are only settable via HttpClientOptions,
-      // not on the OSS client builder. When the caller sets either, build an explicit transport
-      // client from those options (carrying proxyHost + readWriteTimeout forward so nothing the
-      // builder would otherwise set is lost). When neither is set, leave the SDK to construct its
-      // own default client and set readWriteTimeout directly, preserving the prior behavior.
-      if (builder.getMaxConnections() != null || builder.getIdleConnectionTimeout() != null) {
-        String proxyHost = builder.getProxyEndpoint() != null
-            ? builder.getProxyEndpoint().getHost() + ":" + builder.getProxyEndpoint().getPort()
-            : null;
-        clientBuilder.httpClient(
-            Apache5HttpClientBuilder.create()
-                .options(AliTransformer.toHttpClientOptions(
-                    proxyHost,
-                    readWriteTimeout,
-                    builder.getMaxConnections(),
-                    builder.getIdleConnectionTimeout()))
-                .build());
-      } else if (readWriteTimeout != null) {
-        clientBuilder.readWriteTimeout(readWriteTimeout);
-      }
-
+      var clientBuilder = OSSClient.newBuilder();
+      OssClientFactory.configure(
+          clientBuilder,
+          builder,
+          creds,
+          retryer,
+          (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) ->
+              Apache5HttpClientBuilder.create()
+                  .options(AliTransformer.toHttpClientOptions(
+                      proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout))
+                  .build());
       return clientBuilder.build();
-    }
-
-    /**
-     * Resolves the value for the Ali SDK's single {@code readWriteTimeout} setting from the two
-     * MultiCloudJ inputs that map onto it. {@code RetryConfig.attemptTimeout} (the more specific
-     * per-attempt deadline) takes precedence over the transport-level {@code socketTimeout}; if
-     * neither is set, returns {@code null} so the SDK default is left in place.
-     */
-    static Duration resolveReadWriteTimeout(RetryConfig retryConfig, Duration socketTimeout) {
-      if (retryConfig != null && retryConfig.getAttemptTimeout() != null) {
-        return Duration.ofMillis(retryConfig.getAttemptTimeout());
-      }
-      return socketTimeout;
     }
 
     @Override
