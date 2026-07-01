@@ -352,6 +352,33 @@ public class AwsBlobStoreTest {
   }
 
   @Test
+  void testDoUploadInputStreamWithoutContentLength() throws java.io.IOException {
+    // contentLength is optional on UploadRequest; when omitted, the request body handed to the
+    // S3 client must be an unknown-length stream, not a zero-length body.
+    doReturn(buildMockPutObjectResponse())
+        .when(mockS3Client)
+        .putObject((PutObjectRequest) any(), (RequestBody) any());
+
+    byte[] content = "payload-without-content-length".getBytes();
+    UploadRequest uploadRequest = new UploadRequest.Builder().withKey("object-1").build();
+
+    UploadResponse response =
+        aws.doUpload(uploadRequest, new java.io.ByteArrayInputStream(content));
+    assertEquals("object-1", response.getKey());
+
+    org.mockito.ArgumentCaptor<RequestBody> captor =
+        org.mockito.ArgumentCaptor.forClass(RequestBody.class);
+    verify(mockS3Client).putObject((PutObjectRequest) any(), captor.capture());
+    RequestBody captured = captor.getValue();
+    assertFalse(
+        captured.optionalContentLength().isPresent(),
+        "RequestBody must report unknown length when contentLength is not supplied");
+    try (InputStream streamed = captured.contentStreamProvider().newStream()) {
+      assertArrayEquals(content, streamed.readAllBytes());
+    }
+  }
+
+  @Test
   void testDoUploadByteArray() {
     doReturn(buildMockPutObjectResponse())
         .when(mockS3Client)
