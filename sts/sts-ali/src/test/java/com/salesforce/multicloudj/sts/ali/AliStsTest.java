@@ -10,10 +10,13 @@ import com.aliyuncs.http.HttpClientConfig;
 import com.aliyuncs.profile.IClientProfile;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleRequest;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleResponse;
+import com.aliyuncs.sts.model.v20150401.AssumeRoleWithOIDCRequest;
+import com.aliyuncs.sts.model.v20150401.AssumeRoleWithOIDCResponse;
 import com.aliyuncs.sts.model.v20150401.GetCallerIdentityRequest;
 import com.aliyuncs.sts.model.v20150401.GetCallerIdentityResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -21,6 +24,7 @@ import java.net.URI;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 public class AliStsTest {
@@ -45,6 +49,16 @@ public class AliStsTest {
         .thenReturn(mockResponse);
     Mockito.when(mockStsClient.getAcsResponse(any(GetCallerIdentityRequest.class)))
         .thenReturn(callerIdentityResponse);
+
+    AssumeRoleWithOIDCResponse.Credentials oidcCredentials =
+        new AssumeRoleWithOIDCResponse.Credentials();
+    oidcCredentials.setAccessKeyId("oidcKeyId");
+    oidcCredentials.setAccessKeySecret("oidcSecret");
+    oidcCredentials.setSecurityToken("oidcToken");
+    AssumeRoleWithOIDCResponse oidcResponse = new AssumeRoleWithOIDCResponse();
+    oidcResponse.setCredentials(oidcCredentials);
+    Mockito.when(mockStsClient.getAcsResponse(any(AssumeRoleWithOIDCRequest.class)))
+        .thenReturn(oidcResponse);
   }
 
   @Test
@@ -95,6 +109,61 @@ public class AliStsTest {
     Assertions.assertEquals("testKeyId", credentials.getAccessKeyId());
     Assertions.assertEquals("testSecret", credentials.getAccessKeySecret());
     Assertions.assertEquals("testToken", credentials.getSecurityToken());
+  }
+
+  @Test
+  public void testAssumeRoleWithWebIdentity_explicitProviderArn() throws ClientException {
+    // Use a dedicated mock so the captured request is unambiguous (the class-level mock is shared).
+    DefaultAcsClient client = Mockito.mock(DefaultAcsClient.class);
+    AssumeRoleWithOIDCResponse.Credentials creds = new AssumeRoleWithOIDCResponse.Credentials();
+    creds.setAccessKeyId("oidcKeyId");
+    creds.setAccessKeySecret("oidcSecret");
+    creds.setSecurityToken("oidcToken");
+    AssumeRoleWithOIDCResponse response = new AssumeRoleWithOIDCResponse();
+    response.setCredentials(creds);
+    Mockito.when(client.getAcsResponse(any(AssumeRoleWithOIDCRequest.class))).thenReturn(response);
+
+    AliSts sts = new AliSts().builder().build(client);
+    AssumeRoleWebIdentityRequest request =
+        AssumeRoleWebIdentityRequest.builder()
+            .role("testRole")
+            .webIdentityToken("testOidcToken")
+            .sessionName("testSession")
+            .webIdentityProviderArn("acs:ram::123:oidc-provider/test")
+            .build();
+
+    StsCredentials credentials = sts.assumeRoleWithWebIdentity(request);
+
+    Assertions.assertEquals("oidcKeyId", credentials.getAccessKeyId());
+    Assertions.assertEquals("oidcSecret", credentials.getAccessKeySecret());
+    Assertions.assertEquals("oidcToken", credentials.getSecurityToken());
+
+    // Verify the cloud-agnostic request was wired to the Aliyun OIDC request correctly.
+    ArgumentCaptor<AssumeRoleWithOIDCRequest> captor =
+        ArgumentCaptor.forClass(AssumeRoleWithOIDCRequest.class);
+    Mockito.verify(client).getAcsResponse(captor.capture());
+    AssumeRoleWithOIDCRequest sent = captor.getValue();
+    Assertions.assertEquals("testRole", sent.getRoleArn());
+    Assertions.assertEquals("testOidcToken", sent.getOIDCToken());
+    Assertions.assertEquals("testSession", sent.getRoleSessionName());
+    Assertions.assertEquals("acs:ram::123:oidc-provider/test", sent.getOIDCProviderArn());
+  }
+
+  @Test
+  public void testAssumeRoleWithWebIdentity_missingProviderArn_throws() {
+    AliSts sts = new AliSts().builder().build(mockStsClient);
+    AssumeRoleWebIdentityRequest request =
+        AssumeRoleWebIdentityRequest.builder()
+            .role("testRole")
+            .webIdentityToken("testOidcToken")
+            .sessionName("testSession")
+            .build();
+
+    // No provider ARN on the request. Guarded so the assertion is only made when the env-var
+    // fallback is also absent (keeps the test correct in any environment).
+    if (System.getenv(AliSts.OIDC_PROVIDER_ARN_ENV) == null) {
+      assertThrows(InvalidArgumentException.class, () -> sts.assumeRoleWithWebIdentity(request));
+    }
   }
 
   @Test
