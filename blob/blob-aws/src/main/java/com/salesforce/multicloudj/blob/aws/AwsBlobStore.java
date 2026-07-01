@@ -134,8 +134,7 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
    */
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
-    return doUpload(
-        uploadRequest, RequestBody.fromInputStream(inputStream, uploadRequest.getContentLength()));
+    return doUpload(uploadRequest, transformer.toRequestBody(uploadRequest, inputStream));
   }
 
   /**

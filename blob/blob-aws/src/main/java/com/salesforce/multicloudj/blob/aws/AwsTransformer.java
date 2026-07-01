@@ -56,6 +56,8 @@ import org.apache.commons.lang3.StringUtils;
 import software.amazon.awssdk.awscore.presigner.PresignedRequest;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.http.ContentStreamProvider;
 import software.amazon.awssdk.retries.StandardRetryStrategy;
 import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.retries.api.RetryStrategy;
@@ -118,6 +120,9 @@ public class AwsTransformer {
    * the correlation id that appears in the same upload's logs and trace span.
    */
   public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
+
+  /** Default MIME type used for the request body when the caller does not provide one. */
+  private static final String OCTET_STREAM_MIME = "application/octet-stream";
 
   private final String bucket;
 
@@ -186,8 +191,24 @@ public class AwsTransformer {
   }
 
   public AsyncRequestBody toAsyncRequestBody(UploadRequest uploadRequest, InputStream inputStream) {
+    Long contentLength =
+        uploadRequest.getContentLength() > 0 ? uploadRequest.getContentLength() : null;
     return AsyncRequestBody.fromInputStream(
-        inputStream, uploadRequest.getContentLength(), Executors.newSingleThreadExecutor());
+        inputStream, contentLength, Executors.newSingleThreadExecutor());
+  }
+
+  /**
+   * Builds a sync {@link RequestBody} for an {@link InputStream} upload, honouring the optional
+   * {@code contentLength} on {@link UploadRequest}. When {@code contentLength} is unspecified
+   * (i.e. not positive), an unknown-length {@link ContentStreamProvider}-based body is returned;
+   * the AWS SDK will buffer chunks internally to support retries.
+   */
+  public RequestBody toRequestBody(UploadRequest uploadRequest, InputStream inputStream) {
+    if (uploadRequest.getContentLength() > 0) {
+      return RequestBody.fromInputStream(inputStream, uploadRequest.getContentLength());
+    }
+    return RequestBody.fromContentProvider(
+        ContentStreamProvider.fromInputStream(inputStream), OCTET_STREAM_MIME);
   }
 
   public PutObjectRequest toRequest(UploadRequest request) {

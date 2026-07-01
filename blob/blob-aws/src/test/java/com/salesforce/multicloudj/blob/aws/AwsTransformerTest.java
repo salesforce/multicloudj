@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.aws;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -48,6 +49,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
@@ -330,6 +332,53 @@ public class AwsTransformerTest {
 
     assertTrue(asyncRequestBody.contentLength().isPresent());
     assertEquals(content.length, asyncRequestBody.contentLength().get());
+  }
+
+  @Test
+  void testToAsyncRequestBodyInputStreamWithoutContentLength() {
+    // When the caller omits contentLength (Optional per UploadRequest javadoc), the SDK must
+    // read the stream to EOF instead of interpreting the primitive default 0 as an empty body.
+    byte[] content = "This is test data".getBytes();
+    InputStream inputStream = new ByteArrayInputStream(content);
+    UploadRequest uploadRequest = UploadRequest.builder().withKey("key").build();
+
+    AsyncRequestBody asyncRequestBody = transformer.toAsyncRequestBody(uploadRequest, inputStream);
+
+    assertFalse(asyncRequestBody.contentLength().isPresent());
+  }
+
+  @Test
+  void testToRequestBodyInputStreamWithContentLength() throws Exception {
+    byte[] content = "This is test data".getBytes();
+    InputStream inputStream = new ByteArrayInputStream(content);
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey("key").withContentLength(content.length).build();
+
+    RequestBody requestBody = transformer.toRequestBody(uploadRequest, inputStream);
+
+    assertTrue(requestBody.optionalContentLength().isPresent());
+    assertEquals(content.length, requestBody.optionalContentLength().get());
+    // Bytes streamed through the provider must match the input verbatim.
+    try (InputStream streamed = requestBody.contentStreamProvider().newStream()) {
+      assertArrayEquals(content, streamed.readAllBytes());
+    }
+  }
+
+  @Test
+  void testToRequestBodyInputStreamWithoutContentLength() throws Exception {
+    // Bug reproduction: without withContentLength(...) the previous code called
+    // RequestBody.fromInputStream(stream, 0) which uploads a zero-length body. The fixed
+    // path must produce an unknown-length RequestBody whose bytes still match the input.
+    byte[] content = "This is test data".getBytes();
+    InputStream inputStream = new ByteArrayInputStream(content);
+    UploadRequest uploadRequest = UploadRequest.builder().withKey("key").build();
+
+    RequestBody requestBody = transformer.toRequestBody(uploadRequest, inputStream);
+
+    assertFalse(requestBody.optionalContentLength().isPresent());
+    try (InputStream streamed = requestBody.contentStreamProvider().newStream()) {
+      assertArrayEquals(content, streamed.readAllBytes());
+    }
   }
 
   @Test

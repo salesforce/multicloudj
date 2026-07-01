@@ -493,6 +493,29 @@ public class AwsAsyncBlobStoreTest {
   }
 
   @Test
+  void testDoUploadInputStreamWithoutContentLength()
+      throws ExecutionException, InterruptedException {
+    // contentLength is optional. When omitted the AsyncRequestBody must report unknown length,
+    // otherwise the SDK will interpret the primitive default (0) as a zero-length upload.
+    doReturn(CompletableFuture.completedFuture(buildMockPutObjectResponse()))
+        .when(mockS3Client)
+        .putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
+
+    UploadRequest uploadRequest =
+        new UploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(java.util.Map.of("key-1", "value-1"))
+            .withTags(java.util.Map.of("tag-1", "value-1"))
+            .build();
+
+    aws.doUpload(uploadRequest, mock(InputStream.class)).get();
+
+    ArgumentCaptor<AsyncRequestBody> bodyCaptor = ArgumentCaptor.forClass(AsyncRequestBody.class);
+    verify(mockS3Client).putObject(any(PutObjectRequest.class), bodyCaptor.capture());
+    assertFalse(bodyCaptor.getValue().contentLength().isPresent());
+  }
+
+  @Test
   void testDoUploadByteArray() throws ExecutionException, InterruptedException {
     doReturn(CompletableFuture.completedFuture(buildMockPutObjectResponse()))
         .when(mockS3Client)
