@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.1](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.0...multicloudj-v0.4.1) (2026-07-01)
+
+
+### Blob Store
+
+* add MD5 as a caller-supplied checksum algorithm (PUT + presign) ([#505](https://github.com/salesforce/multicloudj/issues/505)) ([7501bae](https://github.com/salesforce/multicloudj/commit/7501bae6078f3142a6d312a63510f3bcbdacf6f3))
+* add the total bytes request when transfer logging is disabled ([#504](https://github.com/salesforce/multicloudj/issues/504)) ([8431cc3](https://github.com/salesforce/multicloudj/commit/8431cc35d807aeac0591c27ab3ed0eba18d59925))
+* consolidate duplicated Ali OSS client construction into OssClientFactory ([#510](https://github.com/salesforce/multicloudj/issues/510)) ([0bc975d](https://github.com/salesforce/multicloudj/commit/0bc975debd968e2b8a9684eebabed2a8316556aa))
+* dedupe Ali OSS download paths and avoid byte[] double buffering ([#508](https://github.com/salesforce/multicloudj/issues/508)) ([b36980b](https://github.com/salesforce/multicloudj/commit/b36980b65af369ccf6f1eef59ff4964c8e39ee87))
+* fix the content length handling in aws blob store ([#522](https://github.com/salesforce/multicloudj/issues/522)) ([fbb9036](https://github.com/salesforce/multicloudj/commit/fbb9036b9acb6aaf37a60d54075016406b29afd0))
+* rename OSSCredentialsProvider to OssCredentialsProvider and remove redundant Ali smoke ITs ([#509](https://github.com/salesforce/multicloudj/issues/509)) ([34d8de4](https://github.com/salesforce/multicloudj/commit/34d8de48d5ff09f3c85870a877f2c74e78df6ac3))
+
+
+### STS
+
+* implement AssumeRoleWithWebIdentity (OIDC) for Alibaba ([#521](https://github.com/salesforce/multicloudj/issues/521)) ([753138f](https://github.com/salesforce/multicloudj/commit/753138f3360e9eeeb89283ee56e1b31f66236a48))
+
 ## [0.4.0](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.6...multicloudj-v0.4.0) (2026-06-19)
 
 
