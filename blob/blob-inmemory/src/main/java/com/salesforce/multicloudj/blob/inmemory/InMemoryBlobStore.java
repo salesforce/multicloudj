@@ -73,11 +73,6 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
   private static final String PROVIDER_ID = "memory";
 
-  /**
-   * Object-metadata key under which the SDK always persists the operation correlation id during
-   * upload, so the value is stored on the blob alongside the user's metadata and matches the
-   * correlation id that appears in the same upload's logs and trace span.
-   */
   public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
 
   // Shared storage across all instances - key is "bucket:key:versionId"
@@ -143,10 +138,6 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     String versionId = UUID.randomUUID().toString();
     String versionedKey = baseKey + ":" + versionId;
 
-    // Stamp the SDK's correlation id onto the stored blob so it persists alongside the
-    // user's metadata. Additionally, when the caller has chosen to surface a correlation id
-    // under their own key, stamp it there too. Skipped when the app has already supplied the
-    // same key explicitly.
     Map<String, String> metadata = new HashMap<>(uploadRequest.getMetadata());
     OperationContext ctx = uploadRequest.getOperationContext();
     if (ctx != null && ctx.getCorrelationId() != null) {

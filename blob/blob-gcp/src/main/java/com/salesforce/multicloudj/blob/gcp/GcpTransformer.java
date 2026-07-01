@@ -55,11 +55,6 @@ import org.apache.commons.lang3.tuple.Pair;
 @Getter
 public class GcpTransformer {
 
-  /**
-   * Object-metadata key under which the SDK always persists the operation correlation id during
-   * upload, so the value is stored on the blob alongside the user's metadata and matches the
-   * correlation id that appears in the same upload's logs and trace span.
-   */
   public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
 
   private final String bucket;
@@ -82,10 +77,6 @@ public class GcpTransformer {
           .forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
     }
 
-    // Stamp the SDK's correlation id onto the stored object so it persists alongside the
-    // user's metadata. Additionally, when the caller has chosen to surface a correlation id
-    // under their own key, stamp it there too. Skipped when the app has already supplied the
-    // same key explicitly.
     OperationContext ctx = uploadRequest.getOperationContext();
     if (ctx != null && ctx.getCorrelationId() != null) {
       if (!metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {

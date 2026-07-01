@@ -94,11 +94,6 @@ import org.apache.commons.lang3.StringUtils;
 @Getter
 public class AliTransformer {
 
-  /**
-   * Object-metadata key under which the SDK always persists the operation correlation id during
-   * upload, so the value is stored on the blob (as {@code x-oss-meta-sdk-logging-correlation-id}
-   * in OSS) and matches the correlation id that appears in the same upload's logs and trace span.
-   */
   public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
 
   private static final String SERVER_SIDE_ENCRYPTION_KMS = "KMS";
@@ -118,10 +113,6 @@ public class AliTransformer {
             .key(uploadRequest.getKey())
             .body(body);
 
-    // Copy the application-supplied metadata and stamp the SDK's correlation id onto the
-    // stored object so it persists in OSS alongside the user's metadata. Additionally, when
-    // the caller has chosen to surface a correlation id under their own key, stamp it there
-    // too. Skipped when the app has already supplied the same key explicitly.
     Map<String, String> metadata = uploadRequest.getMetadata() != null
         ? new HashMap<>(uploadRequest.getMetadata()) : new HashMap<>();
     OperationContext ctx = uploadRequest.getOperationContext();
