@@ -235,23 +235,15 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
+    boolean hasRange = downloadRequest.getStart() != null || downloadRequest.getEnd() != null;
     BlobId blobId = transformer.toBlobId(downloadRequest);
-    Blob blob = getRequiredBlobForDownload(downloadRequest);
-    // Parallel download uses Transfer Manager / file paths only; OutputStream downloads always use
-    // ReadChannel streaming (parallelDownload is ignored for this overload).
+    Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
     try (ReadChannel reader = storage.reader(blobId);
         var channel = Channels.newInputStream(reader)) {
-
-      var range =
-          transformer.computeRange(
-              downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
-      if (range.getLeft() != null) {
-        reader.seek(range.getLeft());
+      // Range setup (computeRange + seek/limit) is skipped entirely for full-object downloads.
+      if (hasRange) {
+        applyRange(reader, downloadRequest, blob);
       }
-      if (range.getRight() != null) {
-        reader.limit(range.getRight());
-      }
-
       ByteStreams.copy(channel, outputStream);
       return transformer.toDownloadResponse(blob);
     } catch (IOException e) {
@@ -276,22 +268,45 @@ public class GcpBlobStore extends AbstractBlobStore {
   // cannot produce an InputStream directly.
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
-    Blob blob = getRequiredBlobForDownload(downloadRequest);
-    try {
-      ReadChannel reader = blob.reader();
-      var range =
-          transformer.computeRange(
-              downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
-      if (range.getLeft() != null) {
-        reader.seek(range.getLeft());
+    boolean hasRange = downloadRequest.getStart() != null || downloadRequest.getEnd() != null;
+    BlobId blobId = transformer.toBlobId(downloadRequest);
+    Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
+
+    if (hasRange) {
+      try {
+        ReadChannel reader = blob.reader();
+        applyRange(reader, downloadRequest, blob);
+        InputStream inputStream = Channels.newInputStream(reader);
+        return transformer.toDownloadResponse(blob, inputStream);
+      } catch (IOException e) {
+        throw new SubstrateSdkException("Failed to create input stream for download", e);
       }
-      if (range.getRight() != null) {
-        reader.limit(range.getRight());
-      }
-      InputStream inputStream = Channels.newInputStream(reader);
-      return transformer.toDownloadResponse(blob, inputStream);
-    } catch (IOException e) {
-      throw new SubstrateSdkException("Failed to create input stream for download", e);
+    }
+
+    ReadChannel reader = storage.reader(blobId);
+    InputStream inputStream = Channels.newInputStream(reader);
+    return transformer.toDownloadResponse(blob, inputStream);
+  }
+
+  /**
+   * Applies the requested byte range to an open {@link ReadChannel} by resolving it via
+   * {@link GcpTransformer#computeRange} and setting the channel's seek/limit bounds. Callers must
+   * only invoke this for range requests; full-object downloads skip range setup entirely.
+   *
+   * @param reader the open read channel to bound
+   * @param downloadRequest the request carrying the start/end offsets
+   * @param blob the resolved blob, used for its total size
+   */
+  private void applyRange(ReadChannel reader, DownloadRequest downloadRequest, Blob blob)
+      throws IOException {
+    var range =
+        transformer.computeRange(
+            downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
+    if (range.getLeft() != null) {
+      reader.seek(range.getLeft());
+    }
+    if (range.getRight() != null) {
+      reader.limit(range.getRight());
     }
   }
 
@@ -327,7 +342,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    */
   private DownloadResponse doParallelDownload(DownloadRequest downloadRequest, Path destination) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
-    Blob blob = getRequiredBlobForDownload(downloadRequest);
+    Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
     ParallelTmPaths tmPaths = computeParallelTmPaths(downloadRequest, destination);
     if (transferManager == null || tmPaths == null) {
       return downloadBlobToPath(blob, destination);
@@ -803,17 +818,16 @@ public class GcpBlobStore extends AbstractBlobStore {
     return blob;
   }
 
-  private Blob getRequiredBlobForDownload(DownloadRequest downloadRequest) {
-    BlobId getBlob = transformer.toBlobId(downloadRequest);
-    Blob blob = storage.get(getBlob);
+  private Blob getRequiredBlobForDownload(DownloadRequest downloadRequest, BlobId blobId) {
+    Blob blob = storage.get(blobId);
     if (blob != null) {
       return blob;
     }
     if (downloadRequest.isCheckArchived()) {
-      handleArchived(getBlob);
+      handleArchived(blobId);
     }
     throw new ResourceNotFoundException(
-        "Blob not found: " + getBlob.getBucket() + "/" + getBlob.getName());
+        "Blob not found: " + blobId.getBucket() + "/" + blobId.getName());
   }
 
   private void handleArchived(BlobId blobId) {
@@ -1500,6 +1514,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Getter
   public static class Builder extends AbstractBlobStore.Builder<GcpBlobStore, Builder> {
+    private static final int DEFAULT_MAX_CONNECTIONS = 50;
 
     private Storage storage;
     private MultipartUploadClient mpuClient;
@@ -1717,10 +1732,16 @@ public class GcpBlobStore extends AbstractBlobStore {
     private static HttpClientConnectionManager buildConnectionManager(Builder builder) {
       PoolingHttpClientConnectionManager connectionManager =
           new PoolingHttpClientConnectionManager();
-      if (builder.getMaxConnections() != null) {
-        connectionManager.setMaxTotal(builder.getMaxConnections());
-        connectionManager.setDefaultMaxPerRoute(builder.getMaxConnections());
-      }
+      // Apache HttpClient defaults to maxTotal=20 / perRoute=2, which throttles the
+      // small-object hot path (all requests target a single GCS route). Raise the pool
+      // to DEFAULT_MAX_CONNECTIONS when the caller has not set an explicit value.
+      // Note: buildStorage and buildMultipartUploadClient each create their own pool, so
+      // a GcpBlobStore instance holds two pools of this size. That is intentional for now;
+      // consolidating them into a single shared connection manager is tracked as a follow-up.
+      int maxConns = builder.getMaxConnections() != null
+          ? builder.getMaxConnections() : DEFAULT_MAX_CONNECTIONS;
+      connectionManager.setMaxTotal(maxConns);
+      connectionManager.setDefaultMaxPerRoute(maxConns);
       return connectionManager;
     }
 
