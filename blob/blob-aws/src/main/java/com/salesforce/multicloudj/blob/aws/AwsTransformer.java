@@ -4,6 +4,8 @@ import com.salesforce.multicloudj.blob.aws.async.S3LoggingTransferListener;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -74,6 +76,8 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketVersioningRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketVersioningResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -1133,4 +1137,36 @@ public class AwsTransformer {
                 && legalHoldResponse.legalHold().status() == ObjectLockLegalHoldStatus.ON)
         .build();
   }
+
+  /** Creates a {@link GetBucketVersioningRequest} for the bound bucket. */
+  public GetBucketVersioningRequest toGetBucketVersioningRequest() {
+    return GetBucketVersioningRequest.builder().bucket(getBucket()).build();
+  }
+
+  /**
+   * Converts a {@link GetBucketVersioningResponse} to a {@link BucketVersioningConfiguration}.
+   *
+   * <p>S3 returns no status element for a bucket that has never had versioning configured; the SDK
+   * surfaces this as a {@code null} status, which maps to {@link
+   * BucketVersioningStatus#UNVERSIONED}.
+   */
+  public BucketVersioningConfiguration toBucketVersioningConfiguration(
+      GetBucketVersioningResponse response) {
+    BucketVersioningStatus status = BucketVersioningStatus.UNVERSIONED;
+    if (response != null && response.status() != null) {
+      switch (response.status()) {
+        case ENABLED:
+          status = BucketVersioningStatus.ENABLED;
+          break;
+        case SUSPENDED:
+          status = BucketVersioningStatus.SUSPENDED;
+          break;
+        default:
+          status = BucketVersioningStatus.UNVERSIONED;
+          break;
+      }
+    }
+    return BucketVersioningConfiguration.of(status);
+  }
+
 }

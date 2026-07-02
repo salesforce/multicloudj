@@ -6,6 +6,8 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
@@ -898,6 +900,15 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   @Override
+  protected BucketVersioningConfiguration doGetBucketVersioning() {
+    BucketMetadata metadata = BUCKETS.get(bucket);
+    if (metadata == null) {
+      throw new ResourceNotFoundException("Bucket does not exist: " + bucket);
+    }
+    return BucketVersioningConfiguration.of(metadata.getVersioningStatus());
+  }
+
+  @Override
   public void close() {
     // Nothing to close for in-memory implementation
   }
@@ -1187,9 +1198,15 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   @Getter
   static class BucketMetadata {
     private final Instant creationDate;
+    private final BucketVersioningStatus versioningStatus;
 
     public BucketMetadata(Instant creationDate) {
+      this(creationDate, BucketVersioningStatus.UNVERSIONED);
+    }
+
+    public BucketMetadata(Instant creationDate, BucketVersioningStatus versioningStatus) {
       this.creationDate = creationDate;
+      this.versioningStatus = versioningStatus;
     }
   }
 
@@ -1281,6 +1298,16 @@ public class InMemoryBlobStore extends AbstractBlobStore {
    */
   public static void createBucket(String bucketName) {
     BUCKETS.putIfAbsent(bucketName, new BucketMetadata(Instant.now()));
+  }
+
+  /**
+   * Creates a bucket with the specified versioning status for testing purposes.
+   *
+   * @param bucketName the name of the bucket to create
+   * @param versioningStatus the initial versioning status for the bucket
+   */
+  public static void createBucket(String bucketName, BucketVersioningStatus versioningStatus) {
+    BUCKETS.putIfAbsent(bucketName, new BucketMetadata(Instant.now(), versioningStatus));
   }
 
   /** Clears all in-memory storage including buckets, blobs, tags, and multipart uploads. */

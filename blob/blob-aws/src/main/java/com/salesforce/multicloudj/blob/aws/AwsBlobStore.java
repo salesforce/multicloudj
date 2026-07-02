@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -573,6 +574,19 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
     } catch (S3Exception e) {
       if (e.statusCode() == 404) {
         return false;
+      }
+      throw e;
+    }
+  }
+
+  @Override
+  protected BucketVersioningConfiguration doGetBucketVersioning() {
+    try {
+      return transformer.toBucketVersioningConfiguration(
+          s3Client.getBucketVersioning(transformer.toGetBucketVersioningRequest()));
+    } catch (S3Exception e) {
+      if (e.statusCode() == 404) {
+        throw new ResourceNotFoundException("Bucket does not exist: " + bucket, e);
       }
       throw e;
     }

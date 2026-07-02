@@ -12,6 +12,8 @@ import static org.mockito.Mockito.mock;
 
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
@@ -59,6 +61,8 @@ import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.GetBucketVersioningRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketVersioningResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
@@ -1937,4 +1941,54 @@ public class AwsTransformerTest {
     assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", actual.putObjectRequest().contentMD5());
     assertNull(actual.putObjectRequest().checksumAlgorithm());
   }
+
+  @Test
+  void testToGetBucketVersioningRequest_setsBucket() {
+    GetBucketVersioningRequest request = transformer.toGetBucketVersioningRequest();
+
+    assertEquals(BUCKET, request.bucket());
+  }
+
+  @Test
+  void testToBucketVersioningConfiguration_enabled() {
+    GetBucketVersioningResponse response =
+        GetBucketVersioningResponse.builder()
+            .status(software.amazon.awssdk.services.s3.model.BucketVersioningStatus.ENABLED)
+            .build();
+
+    BucketVersioningConfiguration actual = transformer.toBucketVersioningConfiguration(response);
+
+    assertEquals(BucketVersioningStatus.ENABLED, actual.getStatus());
+    assertTrue(actual.isEnabled());
+  }
+
+  @Test
+  void testToBucketVersioningConfiguration_suspended() {
+    GetBucketVersioningResponse response =
+        GetBucketVersioningResponse.builder()
+            .status(software.amazon.awssdk.services.s3.model.BucketVersioningStatus.SUSPENDED)
+            .build();
+
+    BucketVersioningConfiguration actual = transformer.toBucketVersioningConfiguration(response);
+
+    assertEquals(BucketVersioningStatus.SUSPENDED, actual.getStatus());
+    assertFalse(actual.isEnabled());
+  }
+
+  @Test
+  void testToBucketVersioningConfiguration_nullStatusMapsToUnversioned() {
+    GetBucketVersioningResponse response = GetBucketVersioningResponse.builder().build();
+
+    BucketVersioningConfiguration actual = transformer.toBucketVersioningConfiguration(response);
+
+    assertEquals(BucketVersioningStatus.UNVERSIONED, actual.getStatus());
+  }
+
+  @Test
+  void testToBucketVersioningConfiguration_nullResponseMapsToUnversioned() {
+    BucketVersioningConfiguration actual = transformer.toBucketVersioningConfiguration(null);
+
+    assertEquals(BucketVersioningStatus.UNVERSIONED, actual.getStatus());
+  }
+
 }
