@@ -235,23 +235,33 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
-    BlobId blobId = transformer.toBlobId(downloadRequest);
+    boolean hasRange = downloadRequest.getStart() != null || downloadRequest.getEnd() != null;
+
+    if (hasRange) {
+      Blob blob = getRequiredBlobForDownload(downloadRequest);
+      BlobId blobId = transformer.toBlobId(downloadRequest);
+      try (ReadChannel reader = storage.reader(blobId);
+           var channel = Channels.newInputStream(reader)) {
+        var range =
+                transformer.computeRange(
+                        downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
+        if (range.getLeft() != null) {
+          reader.seek(range.getLeft());
+        }
+        if (range.getRight() != null) {
+          reader.limit(range.getRight());
+        }
+        ByteStreams.copy(channel, outputStream);
+        return transformer.toDownloadResponse(blob);
+      } catch (IOException e) {
+        throw new SubstrateSdkException("Request failed during download", e);
+      }
+    }
+
     Blob blob = getRequiredBlobForDownload(downloadRequest);
-    // Parallel download uses Transfer Manager / file paths only; OutputStream downloads always use
-    // ReadChannel streaming (parallelDownload is ignored for this overload).
+    BlobId blobId = transformer.toBlobId(downloadRequest);
     try (ReadChannel reader = storage.reader(blobId);
         var channel = Channels.newInputStream(reader)) {
-
-      var range =
-          transformer.computeRange(
-              downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
-      if (range.getLeft() != null) {
-        reader.seek(range.getLeft());
-      }
-      if (range.getRight() != null) {
-        reader.limit(range.getRight());
-      }
-
       ByteStreams.copy(channel, outputStream);
       return transformer.toDownloadResponse(blob);
     } catch (IOException e) {
@@ -276,23 +286,32 @@ public class GcpBlobStore extends AbstractBlobStore {
   // cannot produce an InputStream directly.
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
+    boolean hasRange = downloadRequest.getStart() != null || downloadRequest.getEnd() != null;
     Blob blob = getRequiredBlobForDownload(downloadRequest);
-    try {
-      ReadChannel reader = blob.reader();
-      var range =
-          transformer.computeRange(
-              downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
-      if (range.getLeft() != null) {
-        reader.seek(range.getLeft());
+
+    if (hasRange) {
+      try {
+        ReadChannel reader = blob.reader();
+        var range =
+            transformer.computeRange(
+                downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
+        if (range.getLeft() != null) {
+          reader.seek(range.getLeft());
+        }
+        if (range.getRight() != null) {
+          reader.limit(range.getRight());
+        }
+        InputStream inputStream = Channels.newInputStream(reader);
+        return transformer.toDownloadResponse(blob, inputStream);
+      } catch (IOException e) {
+        throw new SubstrateSdkException("Failed to create input stream for download", e);
       }
-      if (range.getRight() != null) {
-        reader.limit(range.getRight());
-      }
-      InputStream inputStream = Channels.newInputStream(reader);
-      return transformer.toDownloadResponse(blob, inputStream);
-    } catch (IOException e) {
-      throw new SubstrateSdkException("Failed to create input stream for download", e);
     }
+
+    BlobId blobId = transformer.toBlobId(downloadRequest);
+    ReadChannel reader = storage.reader(blobId);
+    InputStream inputStream = Channels.newInputStream(reader);
+    return transformer.toDownloadResponse(blob, inputStream);
   }
 
   /**
@@ -1500,6 +1519,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Getter
   public static class Builder extends AbstractBlobStore.Builder<GcpBlobStore, Builder> {
+    private static final int DEFAULT_MAX_CONNECTIONS = 50;
 
     private Storage storage;
     private MultipartUploadClient mpuClient;
@@ -1717,10 +1737,10 @@ public class GcpBlobStore extends AbstractBlobStore {
     private static HttpClientConnectionManager buildConnectionManager(Builder builder) {
       PoolingHttpClientConnectionManager connectionManager =
           new PoolingHttpClientConnectionManager();
-      if (builder.getMaxConnections() != null) {
-        connectionManager.setMaxTotal(builder.getMaxConnections());
-        connectionManager.setDefaultMaxPerRoute(builder.getMaxConnections());
-      }
+      int maxConns = builder.getMaxConnections() != null
+          ? builder.getMaxConnections() : DEFAULT_MAX_CONNECTIONS;
+      connectionManager.setMaxTotal(maxConns);
+      connectionManager.setDefaultMaxPerRoute(maxConns);
       return connectionManager;
     }
 

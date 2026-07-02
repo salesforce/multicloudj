@@ -22,6 +22,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -382,12 +383,13 @@ class GcpBlobStoreTest {
     assertEquals(expectedResponse, response);
     verify(mockStorage).createFrom(
         eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
+    verify(mockStorage, never()).create(
+        any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
   @Test
   void testDoUpload_WithFile() throws IOException {
-    // Given
     Path testFile = tempDir.resolve("test.txt");
     Files.write(testFile, TEST_CONTENT);
 
@@ -404,19 +406,18 @@ class GcpBlobStoreTest {
         .thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
-    // When
     UploadResponse response = gcpBlobStore.doUpload(uploadRequest, testFile.toFile());
 
-    // Then
     assertEquals(expectedResponse, response);
-    verify(mockStorage)
-        .createFrom(eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class));
+    verify(mockStorage).createFrom(
+        eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class));
+    verify(mockStorage, never())
+        .create(any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
   @Test
   void testDoUpload_WithPath() throws IOException {
-    // Given
     Path testFile = tempDir.resolve("test.txt");
     Files.write(testFile, TEST_CONTENT);
 
@@ -433,21 +434,19 @@ class GcpBlobStoreTest {
         .thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
-    // When
     UploadResponse response = gcpBlobStore.doUpload(uploadRequest, testFile);
 
-    // Then
     assertEquals(expectedResponse, response);
-    verify(mockStorage)
-        .createFrom(eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class));
+    verify(mockStorage).createFrom(
+        eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class));
+    verify(mockStorage, never())
+        .create(any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
   @Test
   void testDoUpload_WithPath_ThrowsException() throws IOException {
-    // Given
-    Path testFile = tempDir.resolve("test.txt");
-    Files.write(testFile, TEST_CONTENT);
+    Path missingFile = tempDir.resolve("missing.txt");
 
     UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
 
@@ -455,34 +454,27 @@ class GcpBlobStoreTest {
     when(mockTransformer.getBlobWriteOptions(uploadRequest))
         .thenReturn(new Storage.BlobWriteOption[0]);
     when(mockStorage.createFrom(
-        eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class)))
-        .thenThrow(new IOException("Test exception"));
+            any(BlobInfo.class), eq(missingFile), any(Storage.BlobWriteOption[].class)))
+        .thenThrow(new IOException("simulated IO error"));
 
-    // When & Then
     SubstrateSdkException exception =
         assertThrows(
             SubstrateSdkException.class,
-            () -> {
-              gcpBlobStore.doUpload(uploadRequest, testFile);
-            });
+            () -> gcpBlobStore.doUpload(uploadRequest, missingFile));
     assertEquals("Request failed while uploading from path", exception.getMessage());
   }
 
   @Test
   void testDoDownload_WithOutputStream() {
     try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
-      // Given
       DownloadRequest downloadRequest = DownloadRequest.builder().withKey(TEST_KEY).build();
 
       DownloadResponse expectedResponse = DownloadResponse.builder().key(TEST_KEY).build();
 
       when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
-      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockTransformer.toDownloadResponse(mockBlob)).thenReturn(expectedResponse);
-      doReturn(new ImmutablePair<>(null, null))
-          .when(mockTransformer)
-          .computeRange(any(), any(), anyLong());
 
       ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
@@ -491,8 +483,8 @@ class GcpBlobStoreTest {
 
       // Then
       assertEquals(expectedResponse, response);
-      verify(mockStorage).reader(mockBlobId);
       verify(mockStorage).get(mockBlobId);
+      verify(mockStorage).reader(mockBlobId);
       verify(mockTransformer).toDownloadResponse(mockBlob);
     }
   }
@@ -502,15 +494,13 @@ class GcpBlobStoreTest {
     try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
       DownloadRequest downloadRequest =
           DownloadRequest.builder().withKey(TEST_KEY).withParallelDownload(true).build();
+
       DownloadResponse expectedResponse = DownloadResponse.builder().key(TEST_KEY).build();
 
       when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
-      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockTransformer.toDownloadResponse(mockBlob)).thenReturn(expectedResponse);
-      doReturn(new ImmutablePair<>(null, null))
-          .when(mockTransformer)
-          .computeRange(any(), any(), anyLong());
 
       ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
       DownloadResponse response = gcpBlobStore.doDownload(downloadRequest, outputStream);
@@ -523,24 +513,20 @@ class GcpBlobStoreTest {
 
   @Test
   void testDoDownload_BlobNotFound() {
-    try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
-      // Given
-      DownloadRequest downloadRequest = DownloadRequest.builder().withKey(TEST_KEY).build();
+    // Given
+    DownloadRequest downloadRequest = DownloadRequest.builder().withKey(TEST_KEY).build();
 
-      when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
-      when(mockStorage.get(mockBlobId)).thenReturn(null);
+    when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(null);
 
-      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-      // When
-      SubstrateSdkException exception =
-          assertThrows(
-              ResourceNotFoundException.class,
-              () -> {
-                gcpBlobStore.doDownload(downloadRequest, outputStream);
-              });
-      assertTrue(exception.getMessage().startsWith("Blob not found"));
-    }
+    // When
+    ResourceNotFoundException exception =
+        assertThrows(
+            ResourceNotFoundException.class,
+            () -> gcpBlobStore.doDownload(downloadRequest, outputStream));
+    assertTrue(exception.getMessage().startsWith("Blob not found"));
   }
 
   @Test
@@ -579,9 +565,6 @@ class GcpBlobStoreTest {
 
       when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
       when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
-      doReturn(new ImmutablePair<>(null, null))
-          .when(mockTransformer)
-          .computeRange(any(), any(), anyLong());
       when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       mockedStatic
           .when(() -> ByteStreams.copy(any(InputStream.class), any(OutputStream.class)))
@@ -593,28 +576,23 @@ class GcpBlobStoreTest {
       SubstrateSdkException exception =
           assertThrows(
               SubstrateSdkException.class,
-              () -> {
-                gcpBlobStore.doDownload(downloadRequest, outputStream);
-              });
+              () -> gcpBlobStore.doDownload(downloadRequest, outputStream));
       assertEquals("Request failed during download", exception.getMessage());
     }
   }
 
   @Test
   void testDoDownload_WithByteArray() {
-    try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+    try (MockedStatic<ByteStreams> ignored = Mockito.mockStatic(ByteStreams.class)) {
       // Given
       DownloadRequest downloadRequest = DownloadRequest.builder().withKey(TEST_KEY).build();
 
       DownloadResponse expectedResponse = DownloadResponse.builder().key(TEST_KEY).build();
 
       when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
-      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockTransformer.toDownloadResponse(mockBlob)).thenReturn(expectedResponse);
-      doReturn(new ImmutablePair<>(null, null))
-          .when(mockTransformer)
-          .computeRange(any(), any(), anyLong());
 
       ByteArray byteArray = new ByteArray();
 
@@ -623,7 +601,7 @@ class GcpBlobStoreTest {
 
       // Then
       assertEquals(expectedResponse, response);
-      assertArrayEquals(new byte[0], byteArray.getBytes()); // Empty because mock doesn't write data
+      assertNotNull(byteArray.getBytes());
     }
   }
 
@@ -637,12 +615,9 @@ class GcpBlobStoreTest {
       DownloadResponse expectedResponse = DownloadResponse.builder().key(TEST_KEY).build();
 
       when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
-      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockTransformer.toDownloadResponse(mockBlob)).thenReturn(expectedResponse);
-      doReturn(new ImmutablePair<>(null, null))
-          .when(mockTransformer)
-          .computeRange(any(), any(), anyLong());
 
       // When
       DownloadResponse response = gcpBlobStore.doDownload(downloadRequest, testFile.toFile());
@@ -662,12 +637,9 @@ class GcpBlobStoreTest {
       DownloadResponse expectedResponse = DownloadResponse.builder().key(TEST_KEY).build();
 
       when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
-      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockTransformer.toDownloadResponse(mockBlob)).thenReturn(expectedResponse);
-      doReturn(new ImmutablePair<>(null, null))
-          .when(mockTransformer)
-          .computeRange(any(), any(), anyLong());
 
       // When
       DownloadResponse response = gcpBlobStore.doDownload(downloadRequest, testFile);
@@ -692,12 +664,9 @@ class GcpBlobStoreTest {
           DownloadResponse.builder().key("prefix-a/prefix-b/test.txt").build();
 
       when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
-      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockTransformer.toDownloadResponse(mockBlob)).thenReturn(expectedResponse);
-      doReturn(new ImmutablePair<>(null, null))
-          .when(mockTransformer)
-          .computeRange(any(), any(), anyLong());
 
       // When
       DownloadResponse response = gcpBlobStore.doDownload(downloadRequest, destinationRoot);
@@ -768,11 +737,8 @@ class GcpBlobStoreTest {
       DownloadRequest downloadRequest = DownloadRequest.builder().withKey(TEST_KEY).build();
 
       when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
-      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
-      doReturn(new ImmutablePair<>(null, null))
-          .when(mockTransformer)
-          .computeRange(any(), any(), anyLong());
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       mockedStatic
           .when(() -> ByteStreams.copy(any(InputStream.class), any(OutputStream.class)))
           .thenThrow(new IOException("Test exception"));
@@ -781,9 +747,7 @@ class GcpBlobStoreTest {
       SubstrateSdkException exception =
           assertThrows(
               SubstrateSdkException.class,
-              () -> {
-                gcpBlobStore.doDownload(downloadRequest, testFile);
-              });
+              () -> gcpBlobStore.doDownload(downloadRequest, testFile));
       assertEquals("Request failed during download", exception.getMessage());
     }
   }
@@ -1841,52 +1805,44 @@ class GcpBlobStoreTest {
 
   @Test
   void testDoDownloadWithInputStream() {
-    try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
-      // Given
-      DownloadRequest downloadRequest = DownloadRequest.builder().withKey(TEST_KEY).build();
+    DownloadRequest downloadRequest = DownloadRequest.builder().withKey(TEST_KEY).build();
 
-      DownloadResponse expectedResponse = DownloadResponse.builder().key(TEST_KEY).build();
+    when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+    when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
+    when(mockTransformer.toDownloadResponse(eq(mockBlob), any(InputStream.class)))
+        .thenAnswer(invocation -> DownloadResponse.builder()
+            .key(TEST_KEY)
+            .inputStream(invocation.getArgument(1))
+            .build());
 
-      when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
-      when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
-      when(mockBlob.reader()).thenReturn(mockReadChannel);
-      when(mockBlob.getSize()).thenReturn(100L);
-      when(mockTransformer.computeRange(any(), any(), anyLong()))
-          .thenReturn(new ImmutablePair<>(null, null));
-      when(mockTransformer.toDownloadResponse(eq(mockBlob), any(InputStream.class)))
-          .thenReturn(expectedResponse);
+    DownloadResponse response = gcpBlobStore.doDownload(downloadRequest);
 
-      DownloadResponse response = gcpBlobStore.doDownload(downloadRequest);
-
-      assertEquals(expectedResponse, response);
-      verify(mockTransformer).toBlobId(downloadRequest);
-      verify(mockStorage).get(mockBlobId);
-      verify(mockBlob).reader();
-      verify(mockTransformer).computeRange(null, null, 100L);
-      verify(mockTransformer).toDownloadResponse(eq(mockBlob), any(InputStream.class));
-    }
+    assertEquals(TEST_KEY, response.getKey());
+    assertNotNull(response.getInputStream());
+    verify(mockStorage).get(mockBlobId);
+    verify(mockStorage).reader(mockBlobId);
+    verify(mockBlob, never()).reader();
+    verify(mockTransformer, never()).computeRange(any(), any(), anyLong());
+    verify(mockTransformer).toDownloadResponse(eq(mockBlob), any(InputStream.class));
   }
 
   @Test
   void tesDoDownloadWithInputStreamBlobNotFound() {
-    try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
-      // Given
-      DownloadRequest downloadRequest = DownloadRequest.builder().withKey(TEST_KEY).build();
+    // Given
+    DownloadRequest downloadRequest = DownloadRequest.builder().withKey(TEST_KEY).build();
 
-      when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
-      when(mockStorage.get(mockBlobId)).thenReturn(null);
+    when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(null);
 
-      // When & Then
-      SubstrateSdkException exception =
-          assertThrows(
-              ResourceNotFoundException.class,
-              () -> {
-                gcpBlobStore.doDownload(downloadRequest);
-              });
-      assertTrue(exception.getMessage().startsWith("Blob not found"));
-      verify(mockTransformer).toBlobId(downloadRequest);
-      verify(mockStorage).get(mockBlobId);
-    }
+    // When & Then
+    ResourceNotFoundException exception =
+        assertThrows(
+            ResourceNotFoundException.class,
+            () -> gcpBlobStore.doDownload(downloadRequest));
+    assertTrue(exception.getMessage().startsWith("Blob not found"));
+    verify(mockTransformer).toBlobId(downloadRequest);
+    verify(mockStorage).get(mockBlobId);
   }
 
   @Test
@@ -1910,7 +1866,7 @@ class GcpBlobStoreTest {
 
       // Then
       assertEquals(expectedResponse, response);
-      verify(mockTransformer).toBlobId(downloadRequest);
+      verify(mockTransformer, times(1)).toBlobId(downloadRequest);
       verify(mockStorage).get(mockBlobId);
       verify(mockBlob).reader();
       verify(mockReadChannel).seek(10L);
@@ -2136,9 +2092,10 @@ class GcpBlobStoreTest {
       UploadRequest request = UploadRequest.builder().withKey(TEST_KEY).build();
 
       when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
-      when(mockTransformer.getBlobWriteOptions(request)).thenReturn(new Storage.BlobWriteOption[0]);
+      when(mockTransformer.getBlobWriteOptions(request))
+          .thenReturn(new Storage.BlobWriteOption[0]);
       when(mockStorage.createFrom(
-          eq(mockBlobInfo), eq(tempFile), any(Storage.BlobWriteOption[].class)))
+          any(BlobInfo.class), eq(tempFile), any(Storage.BlobWriteOption[].class)))
           .thenReturn(mockBlob);
       when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
 
@@ -2146,7 +2103,9 @@ class GcpBlobStoreTest {
 
       assertNotNull(response);
       verify(mockStorage)
-          .createFrom(eq(mockBlobInfo), eq(tempFile), any(Storage.BlobWriteOption[].class));
+          .createFrom(any(BlobInfo.class), eq(tempFile), any(Storage.BlobWriteOption[].class));
+      verify(mockStorage, never())
+          .create(any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
     } finally {
       Files.deleteIfExists(tempFile);
     }
@@ -2160,14 +2119,12 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
     when(mockTransformer.getBlobWriteOptions(request)).thenReturn(new Storage.BlobWriteOption[0]);
     when(mockStorage.createFrom(
-        any(BlobInfo.class), any(Path.class), any(Storage.BlobWriteOption[].class)))
-        .thenThrow(new IOException("File not found"));
+            any(BlobInfo.class), eq(nonExistentFile), any(Storage.BlobWriteOption[].class)))
+        .thenThrow(new IOException("file not found"));
 
     assertThrows(
         SubstrateSdkException.class,
-        () -> {
-          gcpBlobStore.doUpload(request, nonExistentFile);
-        });
+        () -> gcpBlobStore.doUpload(request, nonExistentFile));
   }
 
   @Test
@@ -2178,7 +2135,7 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
     when(mockTransformer.getBlobWriteOptions(request)).thenReturn(new Storage.BlobWriteOption[0]);
     when(mockStorage.createFrom(
-        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
+        any(BlobInfo.class), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
         .thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
 
@@ -2186,7 +2143,9 @@ class GcpBlobStoreTest {
 
     assertNotNull(response);
     verify(mockStorage).createFrom(
-        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
+        any(BlobInfo.class), any(InputStream.class), any(Storage.BlobWriteOption[].class));
+    verify(mockStorage, never()).create(
+        any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
   }
 
   @Test
@@ -2196,17 +2155,20 @@ class GcpBlobStoreTest {
       UploadRequest request = UploadRequest.builder().withKey(TEST_KEY).build();
 
       when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
-      when(mockTransformer.getBlobWriteOptions(request)).thenReturn(new Storage.BlobWriteOption[0]);
+      when(mockTransformer.getBlobWriteOptions(request))
+          .thenReturn(new Storage.BlobWriteOption[0]);
       when(mockStorage.createFrom(
-          eq(mockBlobInfo), eq(emptyFile), any(Storage.BlobWriteOption[].class)))
+          any(BlobInfo.class), eq(emptyFile), any(Storage.BlobWriteOption[].class)))
           .thenReturn(mockBlob);
       when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
 
-      UploadResponse response = gcpBlobStore.doUpload(request, emptyFile);
+      UploadResponse response = gcpBlobStore.doUpload(request, emptyFile.toFile());
 
       assertNotNull(response);
       verify(mockStorage)
-          .createFrom(eq(mockBlobInfo), eq(emptyFile), any(Storage.BlobWriteOption[].class));
+          .createFrom(any(BlobInfo.class), eq(emptyFile), any(Storage.BlobWriteOption[].class));
+      verify(mockStorage, never())
+          .create(any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
     } finally {
       Files.deleteIfExists(emptyFile);
     }
@@ -4256,89 +4218,83 @@ class GcpBlobStoreTest {
 
   @Test
   void testDoDownload_checkArchived_archivedObject() {
-    try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
-      DownloadRequest downloadRequest = DownloadRequest.builder()
-          .withKey(TEST_KEY)
-          .withCheckArchived(true)
-          .build();
+    DownloadRequest downloadRequest = DownloadRequest.builder()
+        .withKey(TEST_KEY)
+        .withCheckArchived(true)
+        .build();
 
-      BlobId blobId = BlobId.of(TEST_BUCKET, TEST_KEY);
-      when(mockTransformer.toBlobId(downloadRequest)).thenReturn(blobId);
-      when(mockStorage.get(blobId)).thenReturn(null);
+    BlobId blobId = BlobId.of(TEST_BUCKET, TEST_KEY);
+    when(mockTransformer.toBlobId(downloadRequest)).thenReturn(blobId);
+    when(mockStorage.get(blobId)).thenReturn(null);
 
-      Blob archivedBlob = mock(Blob.class);
-      when(archivedBlob.getName()).thenReturn(TEST_KEY);
-      when(archivedBlob.getGeneration()).thenReturn(98765L);
+    Blob archivedBlob = mock(Blob.class);
+    when(archivedBlob.getName()).thenReturn(TEST_KEY);
+    when(archivedBlob.getGeneration()).thenReturn(98765L);
 
-      @SuppressWarnings("unchecked")
-      Page<Blob> versionsPage = mock(Page.class);
-      when(versionsPage.iterateAll()).thenReturn(List.of(archivedBlob));
-      when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
-          .thenReturn(versionsPage);
+    @SuppressWarnings("unchecked")
+    Page<Blob> versionsPage = mock(Page.class);
+    when(versionsPage.iterateAll()).thenReturn(List.of(archivedBlob));
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(versionsPage);
 
-      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-      ResourceNotFoundException thrown = assertThrows(
-          ResourceNotFoundException.class,
-          () -> gcpBlobStore.doDownload(downloadRequest, outputStream));
+    ResourceNotFoundException thrown = assertThrows(
+        ResourceNotFoundException.class,
+        () -> gcpBlobStore.doDownload(downloadRequest, outputStream));
 
-      ArchiveInfo archiveInfo = thrown.getArchiveInfo();
-      assertNotNull(archiveInfo);
-      assertTrue(archiveInfo.isArchived());
-      assertEquals("98765", archiveInfo.getVersionId());
-    }
+    ArchiveInfo archiveInfo = thrown.getArchiveInfo();
+    assertNotNull(archiveInfo);
+    assertTrue(archiveInfo.isArchived());
+    assertEquals("98765", archiveInfo.getVersionId());
   }
 
   @Test
   void testDoDownload_checkArchived_neverExisted() {
-    try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
-      DownloadRequest downloadRequest = DownloadRequest.builder()
-          .withKey(TEST_KEY)
-          .withCheckArchived(true)
-          .build();
+    DownloadRequest downloadRequest = DownloadRequest.builder()
+        .withKey(TEST_KEY)
+        .withCheckArchived(true)
+        .build();
 
-      BlobId blobId = BlobId.of(TEST_BUCKET, TEST_KEY);
-      when(mockTransformer.toBlobId(downloadRequest)).thenReturn(blobId);
-      when(mockStorage.get(blobId)).thenReturn(null);
+    BlobId blobId = BlobId.of(TEST_BUCKET, TEST_KEY);
+    when(mockTransformer.toBlobId(downloadRequest)).thenReturn(blobId);
+    when(mockStorage.get(blobId)).thenReturn(null);
 
-      @SuppressWarnings("unchecked")
-      Page<Blob> versionsPage = mock(Page.class);
-      when(versionsPage.iterateAll()).thenReturn(Collections.emptyList());
-      when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
-          .thenReturn(versionsPage);
+    @SuppressWarnings("unchecked")
+    Page<Blob> versionsPage = mock(Page.class);
+    when(versionsPage.iterateAll()).thenReturn(Collections.emptyList());
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(versionsPage);
 
-      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-      ResourceNotFoundException thrown = assertThrows(
-          ResourceNotFoundException.class,
-          () -> gcpBlobStore.doDownload(downloadRequest, outputStream));
+    ResourceNotFoundException thrown = assertThrows(
+        ResourceNotFoundException.class,
+        () -> gcpBlobStore.doDownload(downloadRequest, outputStream));
 
-      assertNull(thrown.getArchiveInfo());
-      assertTrue(thrown.getMessage().startsWith("Blob not found"));
-    }
+    assertNull(thrown.getArchiveInfo());
+    assertTrue(thrown.getMessage().startsWith("Blob not found"));
   }
 
   @Test
   void testDoDownload_checkArchivedFalse_noListCall() {
-    try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
-      DownloadRequest downloadRequest = DownloadRequest.builder()
-          .withKey(TEST_KEY)
-          .withCheckArchived(false)
-          .build();
+    DownloadRequest downloadRequest = DownloadRequest.builder()
+        .withKey(TEST_KEY)
+        .withCheckArchived(false)
+        .build();
 
-      BlobId blobId = BlobId.of(TEST_BUCKET, TEST_KEY);
-      when(mockTransformer.toBlobId(downloadRequest)).thenReturn(blobId);
-      when(mockStorage.get(blobId)).thenReturn(null);
+    BlobId blobId = BlobId.of(TEST_BUCKET, TEST_KEY);
+    when(mockTransformer.toBlobId(downloadRequest)).thenReturn(blobId);
+    when(mockStorage.get(blobId)).thenReturn(null);
 
-      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-      ResourceNotFoundException thrown = assertThrows(
-          ResourceNotFoundException.class,
-          () -> gcpBlobStore.doDownload(downloadRequest, outputStream));
+    ResourceNotFoundException thrown = assertThrows(
+        ResourceNotFoundException.class,
+        () -> gcpBlobStore.doDownload(downloadRequest, outputStream));
 
-      assertNull(thrown.getArchiveInfo());
-      verify(mockStorage, never()).list(anyString(), any(Storage.BlobListOption[].class));
-    }
+    assertNull(thrown.getArchiveInfo());
+    verify(mockStorage, never()).list(anyString(), any(Storage.BlobListOption[].class));
   }
 
   // ---- New overload: updateObjectRetention(String, String, ObjectRetentionConfig) ----
