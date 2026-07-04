@@ -1727,11 +1727,6 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     private static CloseableHttpClient buildHttpClient(Builder builder) {
-      // Start from ApacheHttpTransport.newDefaultHttpClientBuilder() so we inherit GCP's
-      // curated defaults (maxConnTotal=200, maxConnPerRoute=20, useSystemProperties,
-      // SSL socket factory, system-default route planner, redirect/retry disabled) instead
-      // of the raw Apache defaults (maxTotal=20, maxPerRoute=2) that HttpClientBuilder.create()
-      // would give us.
       HttpClientBuilder httpClientBuilder = ApacheHttpTransport.newDefaultHttpClientBuilder();
       httpClientBuilder.setDefaultRequestConfig(buildRequestConfig(builder));
       if (builder.getMaxConnections() != null) {
