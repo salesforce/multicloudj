@@ -7,7 +7,6 @@ import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.Credentials;
 import com.google.auto.service.AutoService;
 import com.google.cloud.ReadChannel;
-import com.google.cloud.WriteChannel;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
@@ -183,15 +182,17 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
     rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
-    try (WriteChannel writer =
-            storage.writer(
-                transformer.toBlobInfo(uploadRequest),
-                transformer.getBlobWriteOptions(uploadRequest));
-         var channel = Channels.newOutputStream(writer)) {
-      ByteStreams.copy(inputStream, channel);
+    try {
+      storage.createFrom(
+          transformer.toBlobInfo(uploadRequest),
+          inputStream,
+          transformer.getBlobWriteOptions(uploadRequest));
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from input stream", e);
     }
+    // Fetch the committed object so the response carries the fully-populated server-side
+    // metadata (generation, retention, hold flags, etag) rather than relying on the
+    // upload-response fields, which some GCS API paths do not fully populate.
     Blob blob = getRequiredBlob(BlobId.of(getBucket(), uploadRequest.getKey()));
     return transformer.toUploadResponse(blob);
   }
@@ -241,17 +242,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     // ReadChannel streaming (parallelDownload is ignored for this overload).
     try (ReadChannel reader = storage.reader(blobId);
         var channel = Channels.newInputStream(reader)) {
-
-      var range =
-          transformer.computeRange(
-              downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
-      if (range.getLeft() != null) {
-        reader.seek(range.getLeft());
-      }
-      if (range.getRight() != null) {
-        reader.limit(range.getRight());
-      }
-
+      applyRange(reader, downloadRequest, blob);
       ByteStreams.copy(channel, outputStream);
       return transformer.toDownloadResponse(blob);
     } catch (IOException e) {
@@ -279,19 +270,41 @@ public class GcpBlobStore extends AbstractBlobStore {
     Blob blob = getRequiredBlobForDownload(downloadRequest);
     try {
       ReadChannel reader = blob.reader();
-      var range =
-          transformer.computeRange(
-              downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
-      if (range.getLeft() != null) {
-        reader.seek(range.getLeft());
-      }
-      if (range.getRight() != null) {
-        reader.limit(range.getRight());
-      }
+      applyRange(reader, downloadRequest, blob);
       InputStream inputStream = Channels.newInputStream(reader);
       return transformer.toDownloadResponse(blob, inputStream);
     } catch (IOException e) {
       throw new SubstrateSdkException("Failed to create input stream for download", e);
+    }
+  }
+
+  /**
+   * Applies the requested byte range to a {@link ReadChannel} before streaming.
+   *
+   * <p>Full-object downloads skip range setup entirely: with no start or end, {@code computeRange}
+   * would return {@code (null, null)} and neither {@code seek} nor {@code limit} would be applied,
+   * so the emitted GCS GET is identical either way. Short-circuiting here avoids a needless
+   * transformer call and keeps the request byte-for-byte the same as a plain full-object read.
+   *
+   * @param reader the channel to position/limit
+   * @param downloadRequest the request carrying the optional start/end offsets
+   * @param blob the resolved blob, used for its size when resolving a suffix range
+   * @throws IOException if positioning the channel fails
+   */
+  private void applyRange(ReadChannel reader, DownloadRequest downloadRequest, Blob blob)
+      throws IOException {
+    boolean hasRange = downloadRequest.getStart() != null || downloadRequest.getEnd() != null;
+    if (!hasRange) {
+      return;
+    }
+    var range =
+        transformer.computeRange(
+            downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
+    if (range.getLeft() != null) {
+      reader.seek(range.getLeft());
+    }
+    if (range.getRight() != null) {
+      reader.limit(range.getRight());
     }
   }
 
@@ -1500,6 +1513,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Getter
   public static class Builder extends AbstractBlobStore.Builder<GcpBlobStore, Builder> {
+    private static final int DEFAULT_MAX_CONNECTIONS = 50;
 
     private Storage storage;
     private MultipartUploadClient mpuClient;
@@ -1717,10 +1731,10 @@ public class GcpBlobStore extends AbstractBlobStore {
     private static HttpClientConnectionManager buildConnectionManager(Builder builder) {
       PoolingHttpClientConnectionManager connectionManager =
           new PoolingHttpClientConnectionManager();
-      if (builder.getMaxConnections() != null) {
-        connectionManager.setMaxTotal(builder.getMaxConnections());
-        connectionManager.setDefaultMaxPerRoute(builder.getMaxConnections());
-      }
+      int maxConns = builder.getMaxConnections() != null
+          ? builder.getMaxConnections() : DEFAULT_MAX_CONNECTIONS;
+      connectionManager.setMaxTotal(maxConns);
+      connectionManager.setDefaultMaxPerRoute(maxConns);
       return connectionManager;
     }
 
