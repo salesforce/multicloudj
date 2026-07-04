@@ -237,7 +237,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
-    Blob blob = getRequiredBlobForDownload(downloadRequest);
+    Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
     // Parallel download uses Transfer Manager / file paths only; OutputStream downloads always use
     // ReadChannel streaming (parallelDownload is ignored for this overload).
     try (ReadChannel reader = storage.reader(blobId);
@@ -267,9 +267,10 @@ public class GcpBlobStore extends AbstractBlobStore {
   // cannot produce an InputStream directly.
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
-    Blob blob = getRequiredBlobForDownload(downloadRequest);
+    BlobId blobId = transformer.toBlobId(downloadRequest);
+    Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
     try {
-      ReadChannel reader = blob.reader();
+      ReadChannel reader = storage.reader(blobId);
       applyRange(reader, downloadRequest, blob);
       InputStream inputStream = Channels.newInputStream(reader);
       return transformer.toDownloadResponse(blob, inputStream);
@@ -340,7 +341,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    */
   private DownloadResponse doParallelDownload(DownloadRequest downloadRequest, Path destination) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
-    Blob blob = getRequiredBlobForDownload(downloadRequest);
+    Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
     ParallelTmPaths tmPaths = computeParallelTmPaths(downloadRequest, destination);
     if (transferManager == null || tmPaths == null) {
       return downloadBlobToPath(blob, destination);
@@ -816,17 +817,16 @@ public class GcpBlobStore extends AbstractBlobStore {
     return blob;
   }
 
-  private Blob getRequiredBlobForDownload(DownloadRequest downloadRequest) {
-    BlobId getBlob = transformer.toBlobId(downloadRequest);
-    Blob blob = storage.get(getBlob);
+  private Blob getRequiredBlobForDownload(DownloadRequest downloadRequest, BlobId blobId) {
+    Blob blob = storage.get(blobId);
     if (blob != null) {
       return blob;
     }
     if (downloadRequest.isCheckArchived()) {
-      handleArchived(getBlob);
+      handleArchived(blobId);
     }
     throw new ResourceNotFoundException(
-        "Blob not found: " + getBlob.getBucket() + "/" + getBlob.getName());
+        "Blob not found: " + blobId.getBucket() + "/" + blobId.getName());
   }
 
   private void handleArchived(BlobId blobId) {
