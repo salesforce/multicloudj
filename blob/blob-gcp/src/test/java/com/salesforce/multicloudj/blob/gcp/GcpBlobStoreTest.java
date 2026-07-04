@@ -105,6 +105,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URL;
@@ -2322,7 +2323,7 @@ class GcpBlobStoreTest {
   private static PoolingHttpClientConnectionManager extractConnectionManager(
       CloseableHttpClient httpClient) throws Exception {
     // Apache's InternalHttpClient holds the connection manager on a private "connManager" field.
-    java.lang.reflect.Field field = httpClient.getClass().getDeclaredField("connManager");
+    Field field = httpClient.getClass().getDeclaredField("connManager");
     field.setAccessible(true);
     return (PoolingHttpClientConnectionManager) field.get(httpClient);
   }
