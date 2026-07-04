@@ -126,10 +126,8 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1513,7 +1511,6 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Getter
   public static class Builder extends AbstractBlobStore.Builder<GcpBlobStore, Builder> {
-    private static final int DEFAULT_MAX_CONNECTIONS = 50;
 
     private Storage storage;
     private MultipartUploadClient mpuClient;
@@ -1603,6 +1600,18 @@ public class GcpBlobStore extends AbstractBlobStore {
       return endpointStr;
     }
 
+    /**
+     * Determines whether the caller has configured any HTTP-transport option that requires us to
+     * override the GCS SDK's default transport. When this returns {@code false}, the SDK's own
+     * default transport (and its default connection pool) is used.
+     */
+    private static boolean shouldConfigureHttpClient(Builder builder) {
+      return builder.getProxyEndpoint() != null
+          || builder.getMaxConnections() != null
+          || builder.getSocketTimeout() != null
+          || builder.getIdleConnectionTimeout() != null;
+    }
+
     /** Creates HttpTransportOptions with ApacheHttpTransport */
     private static HttpTransportOptions buildTransportOptions(Builder builder) {
       CloseableHttpClient httpClient = buildHttpClient(builder);
@@ -1612,10 +1621,10 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     /** Helper function for generating the Storage client */
     private static Storage buildStorage(Builder builder) {
-      HttpTransportOptions transportOptions = buildTransportOptions(builder);
-
       StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder();
-      storageOptionsBuilder.setTransportOptions(transportOptions);
+      if (shouldConfigureHttpClient(builder)) {
+        storageOptionsBuilder.setTransportOptions(buildTransportOptions(builder));
+      }
 
       String endpoint = normalizeEndpoint(builder.getEndpoint());
       if (endpoint != null) {
@@ -1639,10 +1648,10 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     /** Helper function for generating the MultipartUpload client */
     private static MultipartUploadClient buildMultipartUploadClient(Builder builder) {
-      HttpTransportOptions transportOptions = buildTransportOptions(builder);
-
-      HttpStorageOptions.Builder storageOptionsBuilder =
-          HttpStorageOptions.http().setTransportOptions(transportOptions);
+      HttpStorageOptions.Builder storageOptionsBuilder = HttpStorageOptions.http();
+      if (shouldConfigureHttpClient(builder)) {
+        storageOptionsBuilder.setTransportOptions(buildTransportOptions(builder));
+      }
 
       String endpoint = normalizeEndpoint(builder.getEndpoint());
       if (endpoint != null) {
@@ -1718,24 +1727,23 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     private static CloseableHttpClient buildHttpClient(Builder builder) {
-      HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+      // Start from ApacheHttpTransport.newDefaultHttpClientBuilder() so we inherit GCP's
+      // curated defaults (maxConnTotal=200, maxConnPerRoute=20, useSystemProperties,
+      // SSL socket factory, system-default route planner, redirect/retry disabled) instead
+      // of the raw Apache defaults (maxTotal=20, maxPerRoute=2) that HttpClientBuilder.create()
+      // would give us.
+      HttpClientBuilder httpClientBuilder = ApacheHttpTransport.newDefaultHttpClientBuilder();
       httpClientBuilder.setDefaultRequestConfig(buildRequestConfig(builder));
-      httpClientBuilder.setConnectionManager(buildConnectionManager(builder));
+      if (builder.getMaxConnections() != null) {
+        int maxConns = builder.getMaxConnections();
+        httpClientBuilder.setMaxConnTotal(maxConns);
+        httpClientBuilder.setMaxConnPerRoute(maxConns);
+      }
       if (builder.getIdleConnectionTimeout() != null) {
         httpClientBuilder.evictIdleConnections(
             builder.getIdleConnectionTimeout().toMillis(), TimeUnit.MILLISECONDS);
       }
       return httpClientBuilder.build();
-    }
-
-    private static HttpClientConnectionManager buildConnectionManager(Builder builder) {
-      PoolingHttpClientConnectionManager connectionManager =
-          new PoolingHttpClientConnectionManager();
-      int maxConns = builder.getMaxConnections() != null
-          ? builder.getMaxConnections() : DEFAULT_MAX_CONNECTIONS;
-      connectionManager.setMaxTotal(maxConns);
-      connectionManager.setDefaultMaxPerRoute(maxConns);
-      return connectionManager;
     }
 
     private static RequestConfig buildRequestConfig(Builder builder) {
