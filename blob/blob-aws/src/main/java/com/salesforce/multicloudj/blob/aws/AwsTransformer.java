@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.aws;
 
+import com.google.common.collect.Lists;
 import com.salesforce.multicloudj.blob.aws.async.S3LoggingTransferListener;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
@@ -115,6 +116,13 @@ public class AwsTransformer {
    * the correlation id that appears in the same upload's logs and trace span.
    */
   public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
+
+  /**
+   * Maximum number of keys the S3 DeleteObjects API accepts in a single request. Requests
+   * exceeding this limit are rejected by S3, so bulk deletes are partitioned into batches of at
+   * most this size.
+   */
+  public static final int MAX_DELETE_OBJECTS_PER_REQUEST = 1000;
 
   private final String bucket;
 
@@ -390,8 +398,19 @@ public class AwsTransformer {
     return DeleteObjectRequest.builder().bucket(getBucket()).key(key).versionId(versionId).build();
   }
 
-  public DeleteObjectsRequest toDeleteRequests(Collection<BlobIdentifier> objects) {
-    var objectIds =
+  /**
+   * Builds the {@link DeleteObjectsRequest}s needed to delete the supplied objects.
+   *
+   * <p>The S3 DeleteObjects API rejects any request that carries more than {@value
+   * #MAX_DELETE_OBJECTS_PER_REQUEST} keys, so the objects are partitioned into batches of at most
+   * that size and one request is returned per batch.
+   *
+   * @param objects the objects to delete
+   * @return one {@link DeleteObjectsRequest} per batch of at most {@value
+   *     #MAX_DELETE_OBJECTS_PER_REQUEST} keys; an empty list when {@code objects} is empty
+   */
+  public List<DeleteObjectsRequest> toDeleteRequests(Collection<BlobIdentifier> objects) {
+    List<ObjectIdentifier> objectIds =
         objects.stream()
             .map(
                 object ->
@@ -401,10 +420,14 @@ public class AwsTransformer {
                         .build())
             .collect(Collectors.toList());
 
-    return DeleteObjectsRequest.builder()
-        .bucket(getBucket())
-        .delete(Delete.builder().objects(objectIds).build())
-        .build();
+    return Lists.partition(objectIds, MAX_DELETE_OBJECTS_PER_REQUEST).stream()
+        .map(
+            batch ->
+                DeleteObjectsRequest.builder()
+                    .bucket(getBucket())
+                    .delete(Delete.builder().objects(batch).build())
+                    .build())
+        .collect(Collectors.toList());
   }
 
   public CopyObjectRequest toRequest(CopyRequest request) {
