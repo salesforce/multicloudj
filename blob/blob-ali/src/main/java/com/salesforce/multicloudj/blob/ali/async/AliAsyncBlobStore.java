@@ -21,10 +21,13 @@ import com.aliyun.sdk.service.oss2.retry.Retryer;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5AsyncHttpClientBuilder;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClientBuilder;
 import com.salesforce.multicloudj.blob.ali.AliSdkService;
 import com.salesforce.multicloudj.blob.ali.AliTransformer;
 import com.salesforce.multicloudj.blob.ali.AliTransformerSupplier;
-import com.salesforce.multicloudj.blob.ali.OSSCredentialsProvider;
+import com.salesforce.multicloudj.blob.ali.OssClientFactory;
+import com.salesforce.multicloudj.blob.ali.OssCredentialsProvider;
 import com.salesforce.multicloudj.blob.async.driver.AbstractAsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
@@ -478,6 +481,7 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   @Override
   protected CompletableFuture<MultipartUpload> doInitiateMultipartUpload(
       MultipartUploadRequest request) {
+    AliTransformer.rejectUnsupportedChecksum(request.getChecksumAlgorithm());
     return asyncClient
         .initiateMultipartUploadAsync(
             transformer.toInitiateMultipartUploadRequest(request),
@@ -502,8 +506,11 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         .completeMultipartUploadAsync(
             transformer.toCompleteMultipartUploadRequest(mpu, parts),
             OperationOptions.defaults())
+        // OSS computes a CRC64 over the assembled object and returns it on the result; surface
+        // it as the cross-cloud composite checksum on MultipartUploadResponse.
         .thenApply(result -> new MultipartUploadResponse(
-            stripQuotes(result.completeMultipartUpload().eTag())));
+            stripQuotes(result.completeMultipartUpload().eTag()),
+            result.hashCRC64()));
   }
 
   @Override
@@ -625,6 +632,10 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
 
     List<BlobInfo> blobInfos = Collections.synchronizedList(new ArrayList<>());
     AtomicLong totalBytes = new AtomicLong(0L);
+    // Accumulated during listing — sum of object sizes for blobs that pass the filter.
+    // Drives the response's totalBytesTransferred on the listener-off success path so
+    // callers can avoid the listener's heap cost while still seeing a useful byte total.
+    AtomicLong totalBytesRequested = new AtomicLong(0L);
     List<FailedBlobDownload> failures =
         Collections.synchronizedList(new ArrayList<>());
 
@@ -637,7 +648,7 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
             "Failed to create destination directory: " + targetDir, e);
       }
     }, executorService)
-        // Stage 2: async paginated listing; consumer collects matching blobs.
+        // Stage 2: async paginated listing; consumer collects matching blobs and sums sizes.
         .thenCompose(v -> doList(
             ListBlobsRequest.builder().withPrefix(prefix).build(),
             batch -> {
@@ -647,6 +658,7 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
                   continue;
                 }
                 blobInfos.add(blob);
+                totalBytesRequested.addAndGet(blob.getObjectSize());
               }
             }))
         // Stage 3: create all destination directories upfront, then fan out downloads.
@@ -718,9 +730,35 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         .thenApply(v -> DirectoryDownloadResponse.builder()
             .failedTransfers(new ArrayList<>(failures))
             .totalBytesTransferred(
-                directoryDownloadRequest.isTransferStatusLoggingEnabled()
-                    ? totalBytes.get() : null)
+                resolveDirectoryTotalBytes(
+                    directoryDownloadRequest.isTransferStatusLoggingEnabled(),
+                    failures.isEmpty(),
+                    totalBytes,
+                    totalBytesRequested))
             .build());
+  }
+
+  /**
+   * Picks the value to populate {@code totalBytesTransferred} in the directory response.
+   *
+   * <p>When transfer-status logging is enabled, the per-file listener has accumulated actual
+   * bytes — use that. When disabled, fall back to the requested total (sum of object sizes
+   * for downloads, sum of file sizes for uploads) on full success, or 0 if any per-file
+   * transfer failed. The shared listener has significant heap cost on large directory
+   * operations, so callers leaving it off still get a usable byte total without paying that
+   * cost.
+   */
+  private static Long resolveDirectoryTotalBytes(
+      boolean loggingEnabled,
+      boolean allTransfersSucceeded,
+      AtomicLong totalBytesTransferred,
+      AtomicLong totalBytesRequested) {
+    if (loggingEnabled) {
+      return totalBytesTransferred.get();
+    }
+    // Partial failure → null (rather than 0L) so callers can't confuse it with an empty
+    // directory that succeeded. failedTransfers carries the actual error detail.
+    return allTransfersSucceeded ? totalBytesRequested.get() : null;
   }
 
   private boolean isFolderMarker(BlobInfo blob) {
@@ -749,6 +787,9 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
     Map<String, String> tags = directoryUploadRequest.getTags();
     var objectLock = directoryUploadRequest.getObjectLock();
     AtomicLong totalBytes = new AtomicLong(0L);
+    // Sum of source-file sizes from the stage-1 stat pass. Drives the response's
+    // totalBytesTransferred on the listener-off success path; see resolveDirectoryTotalBytes.
+    AtomicLong totalBytesRequested = new AtomicLong(0L);
     List<FailedBlobUpload> failures =
         Collections.synchronizedList(new ArrayList<>());
 
@@ -759,6 +800,8 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
           // Compute file sizes upfront so Stage 2 avoids I/O on completion threads.
           Map<Path, Long> fileSizes = paths.stream()
               .collect(Collectors.toMap(p -> p, p -> p.toFile().length()));
+          totalBytesRequested.addAndGet(
+              fileSizes.values().stream().mapToLong(Long::longValue).sum());
           return fileSizes;
         },
         executorService)
@@ -817,8 +860,11 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         .thenApply(v -> DirectoryUploadResponse.builder()
             .failedTransfers(new ArrayList<>(failures))
             .totalBytesTransferred(
-                directoryUploadRequest.isTransferStatusLoggingEnabled()
-                    ? totalBytes.get() : null)
+                resolveDirectoryTotalBytes(
+                    directoryUploadRequest.isTransferStatusLoggingEnabled(),
+                    failures.isEmpty(),
+                    totalBytes,
+                    totalBytesRequested))
             .build());
   }
 
@@ -907,70 +953,41 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
 
     @Override
     public AsyncBlobStore build() {
-      CredentialsProvider creds =
-          OSSCredentialsProvider.getCredentialsProvider(
-              getCredentialsOverrider(), getRegion());
-
-      Retryer retryer =
-          getRetryConfig() != null ? AliTransformer.toAliRetryer(getRetryConfig()) : null;
+      CredentialsProvider creds = OssCredentialsProvider.getCredentialsProvider(
+          getCredentialsOverrider(), getRegion());
+      Retryer retryer = getRetryConfig() != null
+          ? AliTransformer.toAliRetryer(getRetryConfig())
+          : null;
 
       OSSAsyncClient async = this.asyncClient;
       if (async == null && creds != null) {
-        var asyncBuilder = OSSAsyncClient.newBuilder()
-            .region(getRegion())
-            .credentialsProvider(creds);
-        if (getEndpoint() != null) {
-          asyncBuilder.endpoint(getEndpoint().toString());
-        }
-        if (getProxyEndpoint() != null) {
-          asyncBuilder.proxyHost(
-              getProxyEndpoint().getHost()
-                  + ":" + getProxyEndpoint().getPort());
-        }
-        if (retryer != null) {
-          asyncBuilder.retryer(retryer);
-        }
-        // socketTimeout and RetryConfig.attemptTimeout both map to the Ali SDK's
-        // single readWriteTimeout setting. When both are set, attemptTimeout (the
-        // more specific per-attempt deadline) takes precedence over the
-        // transport-level socketTimeout.
-        if (getRetryConfig() != null
-            && getRetryConfig().getAttemptTimeout() != null) {
-          asyncBuilder.readWriteTimeout(
-              java.time.Duration.ofMillis(getRetryConfig().getAttemptTimeout()));
-        } else if (getSocketTimeout() != null) {
-          asyncBuilder.readWriteTimeout(getSocketTimeout());
-        }
+        var asyncBuilder = OSSAsyncClient.newBuilder();
+        OssClientFactory.configure(
+            asyncBuilder,
+            this,
+            creds,
+            retryer,
+            (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) ->
+                Apache5AsyncHttpClientBuilder.create()
+                    .options(AliTransformer.toHttpClientOptions(
+                        proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout))
+                    .build());
         async = asyncBuilder.build();
       }
 
       OSSClient sync = this.syncClient;
       if (sync == null && creds != null) {
-        var syncBuilder = OSSClient.newBuilder()
-            .region(getRegion())
-            .credentialsProvider(creds);
-        if (getEndpoint() != null) {
-          syncBuilder.endpoint(getEndpoint().toString());
-        }
-        if (getProxyEndpoint() != null) {
-          syncBuilder.proxyHost(
-              getProxyEndpoint().getHost()
-                  + ":" + getProxyEndpoint().getPort());
-        }
-        if (retryer != null) {
-          syncBuilder.retryer(retryer);
-        }
-        // socketTimeout and RetryConfig.attemptTimeout both map to the Ali SDK's
-        // single readWriteTimeout setting. When both are set, attemptTimeout (the
-        // more specific per-attempt deadline) takes precedence over the
-        // transport-level socketTimeout.
-        if (getRetryConfig() != null
-            && getRetryConfig().getAttemptTimeout() != null) {
-          syncBuilder.readWriteTimeout(
-              java.time.Duration.ofMillis(getRetryConfig().getAttemptTimeout()));
-        } else if (getSocketTimeout() != null) {
-          syncBuilder.readWriteTimeout(getSocketTimeout());
-        }
+        var syncBuilder = OSSClient.newBuilder();
+        OssClientFactory.configure(
+            syncBuilder,
+            this,
+            creds,
+            retryer,
+            (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) ->
+                Apache5HttpClientBuilder.create()
+                    .options(AliTransformer.toHttpClientOptions(
+                        proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout))
+                    .build());
         sync = syncBuilder.build();
       }
 

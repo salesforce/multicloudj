@@ -16,11 +16,31 @@ public interface SdkService {
   String getProviderId();
 
   /**
-   * Maps a given Throwable from the provider implementation to a specific SubstrateSdkException.
-   * This is used for exception handling abstraction.
+   * Maps a provider-specific {@link Throwable} to a fully-built {@link SubstrateSdkException} the
+   * caller can throw directly. The returned exception carries both the typed mapping (e.g. {@code
+   * ResourceNotFoundException} for HTTP 404) and an authoritative retryable flag derived from the
+   * native cloud SDK signal (e.g. AWS throttling, GCP {@code ApiException.isRetryable()}, status
+   * codes), or the type's default retryability when the SDK exposes no native signal.
    *
-   * @param t The Throwable to be mapped.
-   * @return The Class of the corresponding SubstrateSdkException.
+   * <p>Callers throw the result; they do not inspect or transform it further:
+   *
+   * <pre>{@code
+   * try {
+   *   ...
+   * } catch (Throwable t) {
+   *   throw provider.mapException(t);
+   * }
+   * }</pre>
+   *
+   * <p><b>Implementation contract:</b> implementations should compute a typed exception class
+   * (typically via their per-service {@code ErrorCodeMapping}) and a retryable hint, then return
+   * {@code ExceptionHandler.build(exceptionClass, t, retryableHint)}. Implementations do
+   * <i>not</i> need to short-circuit when {@code t} is already a {@link SubstrateSdkException}:
+   * {@code ExceptionHandler.build} preserves an already-mapped exception's concrete subtype and
+   * retryable flag.
+   *
+   * @param t the original throwable from the provider SDK
+   * @return a built {@link SubstrateSdkException} ready to throw
    */
-  Class<? extends SubstrateSdkException> getException(Throwable t);
+  SubstrateSdkException mapException(Throwable t);
 }

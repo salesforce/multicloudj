@@ -1,5 +1,5 @@
 {
-  "id" : "2e48f45f-4ef9-453d-bcb1-47c3cedf3fff",
+  "id" : "7e234b82-dd27-4f9b-9bfd-879516c1fe62",
   "name" : "AliBlobStoreIT_testUploadWithKmsKey_happyPath-GET-1",
   "request" : {
     "url" : "/conformance-tests/kms/upload-happy-path",
@@ -14,21 +14,23 @@
     "status" : 200,
     "base64Body" : "VGVzdCBkYXRhIHdpdGggS01TIGVuY3J5cHRpb24=",
     "headers" : {
-      "x-oss-request-id" : "6A0F7F123E95CC32310CDFEA",
-      "x-oss-server-time" : "20",
+      "x-oss-request-id" : "6A32E19C387017303270B394",
+      "x-oss-server-time" : "204",
       "Server" : "AliyunOSS",
       "x-oss-object-type" : "Normal",
-      "Last-Modified" : "Thu, 21 May 2026 21:54:26 GMT",
-      "Date" : "Thu, 21 May 2026 21:54:26 GMT",
+      "x-oss-server-side-encryption" : "KMS",
+      "Last-Modified" : "Wed, 17 Jun 2026 18:04:11 GMT",
+      "Date" : "Wed, 17 Jun 2026 18:04:12 GMT",
       "Content-MD5" : "H9lgtieDqK4r0a/+cewbhw==",
       "Accept-Ranges" : "bytes",
       "x-oss-storage-class" : "Standard",
       "x-oss-hash-crc64ecma" : "17362283864712615466",
       "ETag" : "\"1FD960B62783A8AE2BD1AFFE71EC1B87\"",
+      "x-oss-server-side-encryption-key-id" : "key-shh6a32d9fajtygsv4msy",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "2e48f45f-4ef9-453d-bcb1-47c3cedf3fff",
+  "uuid" : "7e234b82-dd27-4f9b-9bfd-879516c1fe62",
   "persistent" : true,
-  "insertionIndex" : 194
+  "insertionIndex" : 96
 }

@@ -13,12 +13,14 @@ import com.google.cloud.storage.StorageOptions;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobClient;
 import com.salesforce.multicloudj.blob.driver.BucketInfo;
 import com.salesforce.multicloudj.blob.driver.ListBucketsResponse;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
+import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -134,21 +136,20 @@ public class GcpBlobClient extends AbstractBlobClient<GcpBlobClient> {
     return new Builder();
   }
 
-  /** Returns the appropriate exception class based on the given throwable. */
+  /** Maps the given throwable to a built {@link SubstrateSdkException}. */
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    if (t instanceof SubstrateSdkException) {
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (t instanceof ApiException) {
-      ApiException exception = (ApiException) t;
-      StatusCode statusCode = exception.getStatusCode();
-      return CommonErrorCodeMapping.getException(statusCode.getCode());
+  public SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass;
+    if (t instanceof ApiException) {
+      exceptionClass = CommonErrorCodeMapping.getException((ApiException) t);
     } else if (t instanceof StorageException) {
-      return CommonErrorCodeMapping.getException(((StorageException) t).getCode());
+      exceptionClass = CommonErrorCodeMapping.getException(((StorageException) t).getCode());
     } else if (t instanceof IllegalArgumentException) {
-      return InvalidArgumentException.class;
+      exceptionClass = InvalidArgumentException.class;
+    } else {
+      exceptionClass = UnknownException.class;
     }
-    return UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, GcpRetryClassifier.classify(t));
   }
 
   /** Closes the underlying GCP Storage client and releases any resources. */

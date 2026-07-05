@@ -48,6 +48,7 @@ import com.aliyun.sdk.service.oss2.retry.FixedDelayBackoff;
 import com.aliyun.sdk.service.oss2.retry.Retryer;
 import com.aliyun.sdk.service.oss2.retry.StandardRetryer;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
+import com.aliyun.sdk.service.oss2.transport.HttpClientOptions;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -71,6 +72,7 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.InputStream;
@@ -126,10 +128,18 @@ public class AliTransformer {
     if (StringUtils.isNotEmpty(uploadRequest.getKmsKeyId())) {
       builder.serverSideEncryption(SERVER_SIDE_ENCRYPTION_KMS);
       builder.serverSideEncryptionKeyId(uploadRequest.getKmsKeyId());
+    } else if (uploadRequest.isUseKmsManagedKey()) {
+      // SSE-KMS with no caller-supplied CMK: OSS encrypts with its default managed CMK.
+      builder.serverSideEncryption(SERVER_SIDE_ENCRYPTION_KMS);
     }
 
     if (StringUtils.isNotEmpty(uploadRequest.getChecksumValue())) {
-      if (uploadRequest.getChecksumAlgorithm() == ChecksumMethod.SHA256) {
+      if (uploadRequest.getChecksumAlgorithm() == ChecksumMethod.MD5) {
+        // Content-MD5 is the only caller-supplied digest OSS server-validates (mismatch ->
+        // 400 InvalidDigest). The other algorithms below are routed to request headers OSS does
+        // not validate (it computes CRC64 itself); MD5 is therefore the integrity-checked option.
+        builder.contentMd5(uploadRequest.getChecksumValue());
+      } else if (uploadRequest.getChecksumAlgorithm() == ChecksumMethod.SHA256) {
         builder.header("x-oss-content-sha256", uploadRequest.getChecksumValue());
       } else {
         builder.header("x-oss-hash-crc64ecma", uploadRequest.getChecksumValue());
@@ -468,6 +478,9 @@ public class AliTransformer {
     if (StringUtils.isNotEmpty(request.getKmsKeyId())) {
       builder.serverSideEncryption(SERVER_SIDE_ENCRYPTION_KMS);
       builder.serverSideEncryptionKeyId(request.getKmsKeyId());
+    } else if (request.isUseKmsManagedKey()) {
+      // SSE-KMS with no caller-supplied CMK: OSS encrypts with its default managed CMK.
+      builder.serverSideEncryption(SERVER_SIDE_ENCRYPTION_KMS);
     }
 
     if (StringUtils.isNotEmpty(request.getContentType())) {
@@ -481,11 +494,32 @@ public class AliTransformer {
     return builder.build();
   }
 
+  /**
+   * OSS computes a CRC64-ECMA checksum over uploaded objects and exposes no CRC32C or SHA256
+   * object checksum. A {@code null} algorithm means "use the substrate-native default" (CRC64 on
+   * OSS) and is allowed; any other explicit algorithm is rejected up front so callers receive a
+   * clear failure rather than a checksum value labeled with an algorithm OSS did not produce.
+   */
+  public static void rejectUnsupportedChecksum(ChecksumMethod algorithm) {
+    if (algorithm != null && algorithm != ChecksumMethod.CRC64) {
+      throw new UnSupportedOperationException(
+          algorithm + " checksum is not supported by Ali OSS. Use CRC64.");
+    }
+  }
+
   public MultipartUpload toMultipartUpload(
       InitiateMultipartUploadResult result,
       MultipartUploadRequest request) {
     InitiateMultipartUpload upload =
         result.initiateMultipartUpload();
+    // OSS's native object checksum is CRC64-ECMA. When checksumming is enabled without an explicit
+    // algorithm, resolve the substrate-native default (CRC64) so the stored algorithm honestly
+    // reflects what OSS will return on completion. Unsupported explicit algorithms are rejected
+    // upstream at doInitiateMultipartUpload.
+    ChecksumMethod algorithm = request.getChecksumAlgorithm();
+    if (algorithm == null && request.isChecksumEnabled()) {
+      algorithm = ChecksumMethod.CRC64;
+    }
     return MultipartUpload.builder()
         .bucket(upload.bucket())
         .key(upload.key())
@@ -493,7 +527,7 @@ public class AliTransformer {
         .metadata(request.getMetadata())
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
-        .checksumAlgorithm(request.getChecksumAlgorithm())
+        .checksumAlgorithm(algorithm)
         .contentType(request.getContentType())
         .objectLock(request.getObjectLock())
         .build();
@@ -608,7 +642,12 @@ public class AliTransformer {
     if (StringUtils.isNotEmpty(request.getChecksumValue())) {
       ChecksumMethod algo = request.getChecksumAlgorithm() != null
           ? request.getChecksumAlgorithm() : ChecksumMethod.CRC32C;
-      if (algo == ChecksumMethod.SHA256) {
+      if (algo == ChecksumMethod.MD5) {
+        // Content-MD5 is signed into the presigned URL and server-validated against the uploaded
+        // body (mismatch -> 400 InvalidDigest). The other algorithms below are signed but inert
+        // (OSS does not content-validate them on the presigned PUT).
+        builder.contentMd5(request.getChecksumValue());
+      } else if (algo == ChecksumMethod.SHA256) {
         builder.header("x-oss-content-sha256", request.getChecksumValue());
       } else {
         builder.header("x-oss-hash-crc64ecma", request.getChecksumValue());
@@ -620,10 +659,18 @@ public class AliTransformer {
 
   public GetObjectRequest toPresignedGetObjectRequest(
       PresignedUrlRequest request) {
-    return GetObjectRequest.newBuilder()
-        .bucket(bucket)
-        .key(request.getKey())
-        .build();
+    GetObjectRequest.Builder builder =
+        GetObjectRequest.newBuilder()
+            .bucket(bucket)
+            .key(request.getKey());
+
+    // OSS treats responseContentDisposition as a response-header override that is folded into the
+    // signed presigned URL; on download OSS returns it as the Content-Disposition response header.
+    if (StringUtils.isNotEmpty(request.getContentDisposition())) {
+      builder.responseContentDisposition(request.getContentDisposition());
+    }
+
+    return builder.build();
   }
 
   public PresignOptions toPresignOptions(
@@ -764,6 +811,48 @@ public class AliTransformer {
       builder.backoffDelayer(backoff);
     }
 
+    return builder.build();
+  }
+
+  /**
+   * Builds {@link HttpClientOptions} carrying the transport settings MultiCloudJ exposes that map
+   * onto the OSS SDK's HTTP client. Only non-null inputs are applied; any option left unset keeps
+   * the SDK's own default, so a client built from these options behaves identically to the SDK
+   * default client for the unset fields.
+   *
+   * <p>The OSS SDK's {@code OSSClient}/{@code OSSAsyncClient} builders expose no connection-pool or
+   * idle-timeout setters directly; those live only on {@code HttpClientOptions}. Callers therefore
+   * build a transport client (sync {@code Apache5HttpClientBuilder} or async
+   * {@code Apache5AsyncHttpClientBuilder}) from these options and supply it via
+   * {@code .httpClient(...)}. Because supplying a client bypasses the SDK's own
+   * {@code toHttpClientOptions} derivation, the two transport fields the driver otherwise sets on
+   * the client builder ({@code proxyHost}, {@code readWriteTimeout}) must be passed in here so they
+   * are preserved. Reconciled against {@code alibabacloud-oss-v2:0.4.0}.
+   *
+   * @param proxyHost host:port proxy string, or null to leave unset
+   * @param readWriteTimeout resolved read/write timeout, or null to leave unset
+   * @param maxConnections max connection-pool size, or null to leave unset
+   * @param idleConnectionTimeout idle-connection (keep-alive) timeout, or null to leave unset
+   * @return the assembled {@link HttpClientOptions}
+   */
+  public static HttpClientOptions toHttpClientOptions(
+      String proxyHost,
+      Duration readWriteTimeout,
+      Integer maxConnections,
+      Duration idleConnectionTimeout) {
+    HttpClientOptions.Builder builder = HttpClientOptions.custom();
+    if (proxyHost != null) {
+      builder.proxyHost(proxyHost);
+    }
+    if (readWriteTimeout != null) {
+      builder.readWriteTimeout(readWriteTimeout);
+    }
+    if (maxConnections != null) {
+      builder.maxConnections(maxConnections);
+    }
+    if (idleConnectionTimeout != null) {
+      builder.keepAliveTimeout(idleConnectionTimeout);
+    }
     return builder.build();
   }
 

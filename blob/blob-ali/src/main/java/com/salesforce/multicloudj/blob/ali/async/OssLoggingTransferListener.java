@@ -88,7 +88,7 @@ final class OssLoggingTransferListener implements ProgressListener {
   public void onFinish() {
     if (loggingEnabled) {
       Duration elapsed = Duration.between(startTime, Instant.now());
-      logger.info(
+      logger.debug(
           "substrate SDK transferListener: direction={}, key={}, fileBytes={},"
               + " directoryCumulativeBytes={}, elapsed={}. transfer complete.",
           direction, key, bytesThisFile, cumulativeTotal.get(), elapsed);

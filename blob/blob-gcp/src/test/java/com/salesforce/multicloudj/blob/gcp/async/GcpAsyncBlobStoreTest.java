@@ -46,6 +46,7 @@ import com.salesforce.multicloudj.blob.gcp.GcpBlobStore;
 import com.salesforce.multicloudj.blob.gcp.GcpTransformer;
 import com.salesforce.multicloudj.blob.gcp.GcpTransformerSupplier;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -524,19 +525,15 @@ class GcpAsyncBlobStoreTest {
   }
 
   @Test
-  void testGetException() {
-    // Given
+  void testMapException() {
     Throwable testException = new RuntimeException("Test exception");
-    Class<? extends SubstrateSdkException> expectedExceptionClass = SubstrateSdkException.class;
-    doReturn(expectedExceptionClass).when(mockBlobStore).getException(testException);
+    SubstrateSdkException expected = new UnknownException(testException);
+    doReturn(expected).when(mockBlobStore).mapException(testException);
 
-    // When
-    Class<? extends SubstrateSdkException> actualExceptionClass =
-        gcpAsyncBlobStore.getException(testException);
+    SubstrateSdkException actual = gcpAsyncBlobStore.mapException(testException);
 
-    // Then
-    assertEquals(expectedExceptionClass, actualExceptionClass);
-    verify(mockBlobStore).getException(testException);
+    assertEquals(expected, actual);
+    verify(mockBlobStore).mapException(testException);
   }
 
   @Test

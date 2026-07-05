@@ -2,8 +2,10 @@ package com.salesforce.multicloudj.registry.aws;
 
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
+import com.salesforce.multicloudj.common.aws.AwsRetryClassifier;
 import com.salesforce.multicloudj.common.aws.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -126,19 +128,20 @@ public class AwsRegistry extends AbstractRegistry {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    if (t instanceof SubstrateSdkException) {
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (t instanceof AwsServiceException) {
+  public SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass;
+    if (t instanceof AwsServiceException) {
       AwsServiceException awsException = (AwsServiceException) t;
       String errorCode = awsException.awsErrorDetails().errorCode();
       Class<? extends SubstrateSdkException> mappedException =
           CommonErrorCodeMapping.get().get(errorCode);
-      return mappedException != null ? mappedException : UnknownException.class;
+      exceptionClass = mappedException != null ? mappedException : UnknownException.class;
     } else if (t instanceof IllegalArgumentException) {
-      return InvalidArgumentException.class;
+      exceptionClass = InvalidArgumentException.class;
+    } else {
+      exceptionClass = UnknownException.class;
     }
-    return UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, AwsRetryClassifier.classify(t));
   }
 
   @Override

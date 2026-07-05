@@ -7,6 +7,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -31,6 +32,7 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -45,8 +47,11 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -102,13 +107,12 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    if (t instanceof SubstrateSdkException) {
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (t instanceof IllegalArgumentException) {
-      return InvalidArgumentException.class;
-    }
-    return UnknownException.class;
+  public SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass =
+        t instanceof IllegalArgumentException
+            ? InvalidArgumentException.class
+            : UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, null);
   }
 
   @Override
@@ -923,13 +927,27 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   private void validateChecksum(UploadRequest uploadRequest, byte[] content) {
-    if (uploadRequest.getChecksumValue() != null && !uploadRequest.getChecksumValue().isEmpty()) {
-      String actual = computeCrc32cChecksum(content);
-      if (!actual.equals(uploadRequest.getChecksumValue())) {
-        throw new InvalidArgumentException(
-            "Checksum mismatch: expected " + uploadRequest.getChecksumValue()
-                + " but computed " + actual);
-      }
+    if (uploadRequest.getChecksumValue() == null || uploadRequest.getChecksumValue().isEmpty()) {
+      return;
+    }
+    ChecksumMethod algorithm = uploadRequest.getChecksumAlgorithm();
+    String actual;
+    if (algorithm == ChecksumMethod.MD5) {
+      actual = computeMd5Checksum(content);
+    } else if (algorithm == ChecksumMethod.SHA256) {
+      actual = computeSha256Checksum(content);
+    } else if (algorithm == ChecksumMethod.CRC64) {
+      actual = computeCrc64Checksum(content);
+    } else {
+      // CRC32C is the in-memory provider's default, and the cloud-agnostic default when no
+      // algorithm is set. The in-memory provider validates every algorithm because it computes
+      // them locally and depends on no cloud SDK.
+      actual = computeCrc32cChecksum(content);
+    }
+    if (!actual.equals(uploadRequest.getChecksumValue())) {
+      throw new InvalidArgumentException(
+          "Checksum mismatch: expected " + uploadRequest.getChecksumValue()
+              + " but computed " + actual);
     }
   }
 
@@ -950,7 +968,36 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     checksumBytes[1] = (byte) (value >> 16);
     checksumBytes[2] = (byte) (value >> 8);
     checksumBytes[3] = (byte) value;
-    return java.util.Base64.getEncoder().encodeToString(checksumBytes);
+    return Base64.getEncoder().encodeToString(checksumBytes);
+  }
+
+  private String computeMd5Checksum(byte[] data) {
+    try {
+      byte[] digest = MessageDigest.getInstance("MD5").digest(data);
+      return Base64.getEncoder().encodeToString(digest);
+    } catch (NoSuchAlgorithmException e) {
+      // MD5 is a standard algorithm guaranteed by the JDK; this should never happen.
+      throw new IllegalStateException("MD5 algorithm not available", e);
+    }
+  }
+
+  private String computeSha256Checksum(byte[] data) {
+    try {
+      byte[] digest = MessageDigest.getInstance("SHA-256").digest(data);
+      return Base64.getEncoder().encodeToString(digest);
+    } catch (NoSuchAlgorithmException e) {
+      // SHA-256 is a standard algorithm guaranteed by the JDK; this should never happen.
+      throw new IllegalStateException("SHA-256 algorithm not available", e);
+    }
+  }
+
+  private String computeCrc64Checksum(byte[] data) {
+    long value = Crc64.compute(data);
+    byte[] checksumBytes = new byte[8];
+    for (int i = 0; i < 8; i++) {
+      checksumBytes[i] = (byte) (value >>> (56 - 8 * i));
+    }
+    return Base64.getEncoder().encodeToString(checksumBytes);
   }
 
   private byte[] extractRange(byte[] data, Long start, Long end) {

@@ -791,8 +791,7 @@ public class BucketClient implements AutoCloseable {
     try {
       blobStore.updateObjectRetention(key, versionId, config);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
+      throw blobStore.mapException(t);
     }
   }
 
@@ -826,16 +825,13 @@ public class BucketClient implements AutoCloseable {
     }
   }
 
-  // ---- helpers ------------------------------------------------------------
-
   private Map<String, String> bucketAttrs() {
     String b = blobStore.getBucket();
     return b != null ? Map.of("bucket", b) : null;
   }
 
   private void propagate(Throwable t) {
-    Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-    ExceptionHandler.handleAndPropagate(exception, t);
+    throw blobStore.mapException(t);
   }
 
   private static UploadResponse withCorrelationId(UploadResponse r, OperationContext ctx) {

@@ -723,8 +723,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     }
   }
 
-  public abstract Class<? extends SubstrateSdkException> getException(Throwable t);
-
   public Duration getNackVisibilityTimeout() {
     return nackVisibilityTimeout;
   }

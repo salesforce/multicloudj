@@ -113,38 +113,34 @@ public class FSDocStoreTest {
   }
 
   @Test
-  void testGetException() {
-    // Test handling of SDK exceptions
-    Class<?> clazz = docStore.getException(new InvalidArgumentException("Test"));
-    Assertions.assertEquals(InvalidArgumentException.class, clazz);
+  void testMapException() {
+    Assertions.assertInstanceOf(
+        InvalidArgumentException.class,
+        docStore.mapException(new InvalidArgumentException("Test")));
 
-    // Test handling of IllegalArgumentException
-    clazz = docStore.getException(new IllegalArgumentException("Test"));
-    Assertions.assertEquals(InvalidArgumentException.class, clazz);
+    Assertions.assertInstanceOf(
+        InvalidArgumentException.class,
+        docStore.mapException(new IllegalArgumentException("Test")));
 
-    // Test handling of ApiException with INVALID_ARGUMENT status
     ApiException apiException = mock(ApiException.class);
     StatusCode statusCode = mock(StatusCode.class);
     when(statusCode.getCode()).thenReturn(StatusCode.Code.INVALID_ARGUMENT);
     when(apiException.getStatusCode()).thenReturn(statusCode);
-    clazz = docStore.getException(apiException);
-    Assertions.assertEquals(InvalidArgumentException.class, clazz);
+    Assertions.assertInstanceOf(
+        InvalidArgumentException.class, docStore.mapException(apiException));
 
-    // Test handling of ApiException with NOT_FOUND status
     reset(statusCode);
     when(statusCode.getCode()).thenReturn(StatusCode.Code.NOT_FOUND);
-    clazz = docStore.getException(apiException);
-    Assertions.assertEquals(ResourceNotFoundException.class, clazz);
+    Assertions.assertInstanceOf(
+        ResourceNotFoundException.class, docStore.mapException(apiException));
 
-    // Test handling of ApiException with ALREADY_EXISTS status
     reset(statusCode);
     when(statusCode.getCode()).thenReturn(StatusCode.Code.ALREADY_EXISTS);
-    clazz = docStore.getException(apiException);
-    Assertions.assertEquals(ResourceAlreadyExistsException.class, clazz);
+    Assertions.assertInstanceOf(
+        ResourceAlreadyExistsException.class, docStore.mapException(apiException));
 
-    // Test handling of unknown exceptions
-    clazz = docStore.getException(new RuntimeException("Test"));
-    Assertions.assertEquals(UnknownException.class, clazz);
+    Assertions.assertInstanceOf(
+        UnknownException.class, docStore.mapException(new RuntimeException("Test")));
   }
 
   @Test
