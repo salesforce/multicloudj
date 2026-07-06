@@ -38,6 +38,7 @@ import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartResult;
 import com.aliyun.sdk.service.oss2.retry.Retryer;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClient;
 import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClientBuilder;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
@@ -998,11 +999,19 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
           builder,
           creds,
           retryer,
-          (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) ->
-              Apache5HttpClientBuilder.create()
-                  .options(AliTransformer.toHttpClientOptions(
-                      proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout))
-                  .build());
+          (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) -> {
+            Apache5HttpClient httpClient =
+                Apache5HttpClientBuilder.create()
+                    .options(AliTransformer.toHttpClientOptions(
+                        proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout))
+                    .build();
+            // When a metrics publisher is configured, wrap the SDK-built transport so its
+            // connection pool is sampled per request; otherwise use it directly.
+            return builder.getMetricsPublisher() != null
+                ? AliInstrumentedHttpClientFactory.instrument(
+                    builder.getMetricsPublisher(), httpClient)
+                : httpClient;
+          });
       return clientBuilder.build();
     }
 

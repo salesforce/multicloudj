@@ -720,20 +720,28 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
       if (shouldConfigureHttpClient(builder)) {
         b.httpClient(generateHttpClient(builder));
       }
-      if (builder.getRetryConfig() != null) {
+      // A single overrideConfiguration call is used for both retry and metrics because the
+      // AWS SDK replaces (rather than merges) the override configuration on each call.
+      if (builder.getRetryConfig() != null || builder.getMetricsPublisher() != null) {
         // Create a temporary transformer instance for retry strategy conversion
         AwsTransformer transformer = builder.getTransformerSupplier().get(builder.getBucket());
         b.overrideConfiguration(
             config -> {
-              config.retryStrategy(transformer.toAwsRetryStrategy(builder.getRetryConfig()));
-              // Set API call timeouts if provided
-              if (builder.getRetryConfig().getAttemptTimeout() != null) {
-                config.apiCallAttemptTimeout(
-                    Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout()));
+              if (builder.getRetryConfig() != null) {
+                config.retryStrategy(transformer.toAwsRetryStrategy(builder.getRetryConfig()));
+                // Set API call timeouts if provided
+                if (builder.getRetryConfig().getAttemptTimeout() != null) {
+                  config.apiCallAttemptTimeout(
+                      Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout()));
+                }
+                if (builder.getRetryConfig().getTotalTimeout() != null) {
+                  config.apiCallTimeout(
+                      Duration.ofMillis(builder.getRetryConfig().getTotalTimeout()));
+                }
               }
-              if (builder.getRetryConfig().getTotalTimeout() != null) {
-                config.apiCallTimeout(
-                    Duration.ofMillis(builder.getRetryConfig().getTotalTimeout()));
+              if (builder.getMetricsPublisher() != null) {
+                config.addMetricPublisher(
+                    new AwsMetricsPublisherAdapter(builder.getMetricsPublisher()));
               }
             });
       }

@@ -126,7 +126,6 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
@@ -1720,7 +1719,13 @@ public class GcpBlobStore extends AbstractBlobStore {
     private static CloseableHttpClient buildHttpClient(Builder builder) {
       HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
       httpClientBuilder.setDefaultRequestConfig(buildRequestConfig(builder));
-      httpClientBuilder.setConnectionManager(buildConnectionManager(builder));
+      PoolingHttpClientConnectionManager connectionManager = buildConnectionManager(builder);
+      httpClientBuilder.setConnectionManager(connectionManager);
+      if (builder.getMetricsPublisher() != null) {
+        httpClientBuilder.addInterceptorLast(
+            new GcpConnectionPoolMetricsInterceptor(
+                connectionManager::getTotalStats, builder.getMetricsPublisher()));
+      }
       if (builder.getIdleConnectionTimeout() != null) {
         httpClientBuilder.evictIdleConnections(
             builder.getIdleConnectionTimeout().toMillis(), TimeUnit.MILLISECONDS);
@@ -1728,7 +1733,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       return httpClientBuilder.build();
     }
 
-    private static HttpClientConnectionManager buildConnectionManager(Builder builder) {
+    private static PoolingHttpClientConnectionManager buildConnectionManager(Builder builder) {
       PoolingHttpClientConnectionManager connectionManager =
           new PoolingHttpClientConnectionManager();
       int maxConns = builder.getMaxConnections() != null

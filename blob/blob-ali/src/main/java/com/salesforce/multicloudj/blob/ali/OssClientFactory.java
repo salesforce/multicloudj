@@ -92,9 +92,13 @@ public final class OssClientFactory {
     // Connection-pool size and idle-connection timeout are only settable via HttpClientOptions,
     // not on the OSS client builder. When the caller sets either, build an explicit transport
     // client from those options (carrying proxyHost + readWriteTimeout forward so nothing the
-    // builder would otherwise set is lost). When neither is set, leave the SDK to construct its
-    // own default client and set readWriteTimeout directly, preserving the prior behavior.
-    if (mcjBuilder.getMaxConnections() != null || mcjBuilder.getIdleConnectionTimeout() != null) {
+    // builder would otherwise set is lost). A configured metrics publisher also requires an
+    // explicit transport client so it can be wrapped for connection-pool sampling. When none of
+    // these are set, leave the SDK to construct its own default client and set readWriteTimeout
+    // directly, preserving the prior behavior.
+    if (mcjBuilder.getMaxConnections() != null
+        || mcjBuilder.getIdleConnectionTimeout() != null
+        || mcjBuilder.getMetricsPublisher() != null) {
       clientBuilder.httpClient(
           httpClientFactory.create(
               proxyHost,
