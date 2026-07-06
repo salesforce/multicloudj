@@ -140,9 +140,9 @@ public class AbstractTopicTest {
   }
 
   @Test
-  void testGetExceptionMethod() {
+  void testMapExceptionMethod() {
     RuntimeException error = new RuntimeException("test");
-    assertNull(topic.getException(error)); // Default implementation returns null
+    assertNull(topic.mapException(error));
   }
 
   @Test
@@ -225,7 +225,7 @@ public class AbstractTopicTest {
     }
 
     @Override
-    public Class<? extends SubstrateSdkException> getException(Throwable t) {
+    public SubstrateSdkException mapException(Throwable t) {
       return null;
     }
 

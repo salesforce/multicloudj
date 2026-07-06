@@ -4,17 +4,20 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.aliyun.sdk.service.oss2.transport.HttpClient;
+import com.aliyun.sdk.service.oss2.transport.HttpClientOptions;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5AsyncHttpClient;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5AsyncHttpClientBuilder;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClient;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClientBuilder;
 import com.salesforce.multicloudj.common.observability.Metric;
 import com.salesforce.multicloudj.common.observability.MetricsPublisher;
-import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * Verifies that the factory produces an instrumented transport backed by the SDK's own Apache 5
- * clients, and that the extracted pool suppliers return real statistics. This guards the assumption
- * that the SDK-built clients expose Apache pooling managers whose {@code getTotalStats()} can be
- * sampled.
+ * Verifies that the factory wraps the SDK's own Apache 5 transport clients so their connection-pool
+ * statistics can be sampled. This guards the assumption that the SDK-built clients expose Apache
+ * pooling managers whose {@code getTotalStats()} is readable.
  */
 class AliInstrumentedHttpClientFactoryTest {
 
@@ -24,26 +27,24 @@ class AliInstrumentedHttpClientFactoryTest {
   }
 
   @Test
-  void createProducesInstrumentedClientOverSdkTransport() {
-    HttpClient client =
-        AliInstrumentedHttpClientFactory.create(
-            new NoopPublisher(), null, Duration.ofSeconds(10));
+  void instrumentWrapsSyncTransport() {
+    Apache5HttpClient sync =
+        Apache5HttpClientBuilder.create().options(HttpClientOptions.custom().build()).build();
+
+    HttpClient client = AliInstrumentedHttpClientFactory.instrument(new NoopPublisher(), sync);
 
     assertNotNull(client);
     assertTrue(client instanceof AliConnectionPoolMetricsHttpClient);
   }
 
   @Test
-  void createToleratesNullProxyAndTimeout() {
-    HttpClient client = AliInstrumentedHttpClientFactory.create(new NoopPublisher(), null, null);
-    assertNotNull(client);
-  }
+  void instrumentWrapsAsyncTransport() {
+    Apache5AsyncHttpClient async =
+        Apache5AsyncHttpClientBuilder.create().options(HttpClientOptions.custom().build()).build();
 
-  @Test
-  void createAppliesProxyHostWithoutThrowing() {
-    HttpClient client =
-        AliInstrumentedHttpClientFactory.create(
-            new NoopPublisher(), "proxy.example.com:8080", Duration.ofSeconds(5));
+    HttpClient client = AliInstrumentedHttpClientFactory.instrument(new NoopPublisher(), async);
+
     assertNotNull(client);
+    assertTrue(client instanceof AliConnectionPoolMetricsHttpClient);
   }
 }

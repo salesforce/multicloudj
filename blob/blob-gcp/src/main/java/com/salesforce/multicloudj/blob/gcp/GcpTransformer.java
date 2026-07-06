@@ -10,6 +10,7 @@ import com.google.cloud.storage.StorageClass;
 import com.google.common.collect.ImmutableMap;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -98,6 +99,7 @@ public class GcpTransformer {
         metadata,
         uploadRequest.getStorageClass(),
         uploadRequest.getChecksumValue(),
+        uploadRequest.getChecksumAlgorithm(),
         uploadRequest.getObjectLock(),
         uploadRequest.getContentType());
   }
@@ -283,11 +285,19 @@ public class GcpTransformer {
           .forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
     }
 
+    // Thread the checksum through so an MD5 digest lands on the BlobInfo as Content-MD5, which
+    // SignUrlOption.withMd5() folds into the V4 signature. CRC32C is bound separately via the
+    // x-goog-hash signed header in doPresign, so only MD5 needs to be on the BlobInfo here.
+    String checksumValue = null;
+    if (presignedUrlRequest.getChecksumAlgorithm() == ChecksumMethod.MD5) {
+      checksumValue = presignedUrlRequest.getChecksumValue();
+    }
     return toBlobInfo(
         presignedUrlRequest.getKey(),
         metadata,
         null,
-        null,
+        checksumValue,
+        presignedUrlRequest.getChecksumAlgorithm(),
         null,
         presignedUrlRequest.getContentType());
   }
@@ -306,7 +316,8 @@ public class GcpTransformer {
     }
 
     return toBlobInfo(
-        request.getKey(), metadata, null, null, request.getObjectLock(), request.getContentType());
+        request.getKey(), metadata, null, null, null, request.getObjectLock(),
+        request.getContentType());
   }
 
   public Storage.BlobListOption[] toBlobListOptions(ListBlobsPageRequest request) {
@@ -332,11 +343,11 @@ public class GcpTransformer {
   }
 
   protected BlobInfo toBlobInfo(String key, Map<String, String> metadata) {
-    return toBlobInfo(key, metadata, null, null, null, null);
+    return toBlobInfo(key, metadata, null, null, null, null, null);
   }
 
   protected BlobInfo toBlobInfo(String key, Map<String, String> metadata, String storageClass) {
-    return toBlobInfo(key, metadata, storageClass, null, null, null);
+    return toBlobInfo(key, metadata, storageClass, null, null, null, null);
   }
 
   protected BlobInfo toBlobInfo(
@@ -344,6 +355,7 @@ public class GcpTransformer {
       Map<String, String> metadata,
       String storageClass,
       String checksumValue,
+      ChecksumMethod checksumAlgorithm,
       ObjectLockConfiguration objectLock,
       String contentType) {
     metadata = metadata != null ? ImmutableMap.copyOf(metadata) : Collections.emptyMap();
@@ -359,9 +371,14 @@ public class GcpTransformer {
       }
     }
 
-    // Set CRC32C checksum if provided (GCP's native checksum algorithm)
+    // Set the caller-supplied checksum if provided. MD5 is the RFC 1864 Content-MD5 digest; any
+    // other algorithm uses GCS's native CRC32C. (Unsupported algorithms are rejected upstream.)
     if (StringUtils.isNotEmpty(checksumValue)) {
-      builder.setCrc32c(checksumValue);
+      if (checksumAlgorithm == ChecksumMethod.MD5) {
+        builder.setMd5(checksumValue);
+      } else {
+        builder.setCrc32c(checksumValue);
+      }
     }
 
     // Set object retention and holds if object lock is configured
@@ -415,7 +432,11 @@ public class GcpTransformer {
       options.add(Storage.BlobWriteOption.kmsKeyName(uploadRequest.getKmsKeyId()));
     }
     if (StringUtils.isNotEmpty(uploadRequest.getChecksumValue())) {
-      options.add(Storage.BlobWriteOption.crc32cMatch());
+      if (uploadRequest.getChecksumAlgorithm() == ChecksumMethod.MD5) {
+        options.add(Storage.BlobWriteOption.md5Match());
+      } else {
+        options.add(Storage.BlobWriteOption.crc32cMatch());
+      }
     }
     return options.toArray(new Storage.BlobWriteOption[0]);
   }

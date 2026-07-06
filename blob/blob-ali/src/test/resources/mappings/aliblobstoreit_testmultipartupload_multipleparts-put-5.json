@@ -1,0 +1,44 @@
+{
+  "id" : "cfc6dc64-fcb5-4dba-9f4c-d5791dcce396",
+  "name" : "AliBlobStoreIT_testMultipartUpload_multipleParts-PUT-5",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-multipleParts",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "1193F808DD6D40DFAE9259A34AE86870"
+        } ]
+      },
+      "partNumber" : {
+        "hasExactly" : [ {
+          "equalTo" : "4"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A330423933F913131B92B89",
+      "x-oss-server-time" : "112",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "1273867173178489956",
+      "ETag" : "\"00AD619297CCD041956FE69BE4251D30\"",
+      "Date" : "Wed, 17 Jun 2026 20:31:33 GMT",
+      "Content-MD5" : "AK1hkpfM0EGVb+ab5CUdMA=="
+    }
+  },
+  "uuid" : "cfc6dc64-fcb5-4dba-9f4c-d5791dcce396",
+  "persistent" : true,
+  "insertionIndex" : 171
+}

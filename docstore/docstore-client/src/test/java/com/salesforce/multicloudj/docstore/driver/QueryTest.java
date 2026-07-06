@@ -3,7 +3,7 @@ package com.salesforce.multicloudj.docstore.driver;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.docstore.client.Query;
 import java.util.ArrayList;

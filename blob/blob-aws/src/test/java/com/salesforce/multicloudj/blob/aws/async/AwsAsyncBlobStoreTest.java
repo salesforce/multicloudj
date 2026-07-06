@@ -453,15 +453,15 @@ public class AwsAsyncBlobStoreTest {
         AwsErrorDetails.builder().errorCode("IncompleteSignature").build();
     AwsServiceException awsServiceException =
         AwsServiceException.builder().awsErrorDetails(errorDetails).build();
-    Class<?> cls = aws.getException(awsServiceException);
-    assertEquals(cls, UnAuthorizedException.class);
+    assertInstanceOf(
+        UnAuthorizedException.class, aws.mapException(awsServiceException));
 
     SdkClientException sdkClientException = SdkClientException.builder().build();
-    cls = aws.getException(sdkClientException);
-    assertEquals(cls, InvalidArgumentException.class);
+    assertInstanceOf(
+        InvalidArgumentException.class, aws.mapException(sdkClientException));
 
-    cls = aws.getException(new IOException("Channel is closed"));
-    assertEquals(cls, UnknownException.class);
+    assertInstanceOf(
+        UnknownException.class, aws.mapException(new IOException("Channel is closed")));
   }
 
   private UploadRequest generateTestUploadRequest() {
@@ -490,6 +490,29 @@ public class AwsAsyncBlobStoreTest {
         .putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
     verifyUploadTestResults(
         aws.doUpload(generateTestUploadRequest(), mock(InputStream.class)).get());
+  }
+
+  @Test
+  void testDoUploadInputStreamWithoutContentLength()
+      throws ExecutionException, InterruptedException {
+    // contentLength is optional. When omitted the AsyncRequestBody must report unknown length,
+    // otherwise the SDK will interpret the primitive default (0) as a zero-length upload.
+    doReturn(CompletableFuture.completedFuture(buildMockPutObjectResponse()))
+        .when(mockS3Client)
+        .putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
+
+    UploadRequest uploadRequest =
+        new UploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(java.util.Map.of("key-1", "value-1"))
+            .withTags(java.util.Map.of("tag-1", "value-1"))
+            .build();
+
+    aws.doUpload(uploadRequest, mock(InputStream.class)).get();
+
+    ArgumentCaptor<AsyncRequestBody> bodyCaptor = ArgumentCaptor.forClass(AsyncRequestBody.class);
+    verify(mockS3Client).putObject(any(PutObjectRequest.class), bodyCaptor.capture());
+    assertFalse(bodyCaptor.getValue().contentLength().isPresent());
   }
 
   @Test
@@ -1515,6 +1538,197 @@ public class AwsAsyncBlobStoreTest {
           awsWithTransferListener.doUploadDirectory(uploadRequest).get();
       assertNotNull(response);
       assertEquals(11L, response.getTotalBytesTransferred());
+    } finally {
+      Files.deleteIfExists(tempFile);
+      Files.deleteIfExists(tempDir);
+    }
+  }
+
+  @Test
+  void doDownloadDirectory_LoggingDisabled_SuccessReportsRequestedBytes()
+      throws ExecutionException, InterruptedException {
+    DirectoryDownload awsResponseFuture = mock(DirectoryDownload.class);
+    CompletedDirectoryDownload awsResponse = mock(CompletedDirectoryDownload.class);
+    doAnswer(
+            invocation -> {
+              DownloadDirectoryRequest request = invocation.getArgument(0);
+              // Filter chains exclusion -> size accumulation. With no exclusions, every passing
+              // object's size is summed into totalBytesRequested by the transformer.
+              request.filter().test(S3Object.builder().key("files/a.txt").size(123L).build());
+              request.filter().test(S3Object.builder().key("files/b.txt").size(77L).build());
+              return awsResponseFuture;
+            })
+        .when(mockS3TransferManager)
+        .downloadDirectory(any(DownloadDirectoryRequest.class));
+    doReturn(future(awsResponse)).when(awsResponseFuture).completionFuture();
+    doReturn(List.of()).when(awsResponse).failedTransfers();
+
+    // transferStatusLoggingEnabled defaults to false — listener-off path.
+    DirectoryDownloadRequest downloadRequest =
+        DirectoryDownloadRequest.builder()
+            .prefixToDownload("files/")
+            .localDestinationDirectory("/home/documents")
+            .build();
+
+    DirectoryDownloadResponse response = aws.doDownloadDirectory(downloadRequest).get();
+    assertNotNull(response);
+    // Listener off + zero failures → response carries the filter-accumulated requested total.
+    assertEquals(200L, response.getTotalBytesTransferred());
+  }
+
+  @Test
+  void doDownloadDirectory_LoggingDisabled_PartialFailureReportsZero()
+      throws ExecutionException, InterruptedException {
+    DirectoryDownload awsResponseFuture = mock(DirectoryDownload.class);
+    CompletedDirectoryDownload awsResponse = mock(CompletedDirectoryDownload.class);
+    doAnswer(
+            invocation -> {
+              DownloadDirectoryRequest request = invocation.getArgument(0);
+              request.filter().test(S3Object.builder().key("files/a.txt").size(123L).build());
+              request.filter().test(S3Object.builder().key("files/b.txt").size(77L).build());
+              return awsResponseFuture;
+            })
+        .when(mockS3TransferManager)
+        .downloadDirectory(any(DownloadDirectoryRequest.class));
+    doReturn(future(awsResponse)).when(awsResponseFuture).completionFuture();
+    // At least one failed transfer pushes the response into the partial-failure branch.
+    DownloadFileRequest failedReq =
+        DownloadFileRequest.builder()
+            .destination(Paths.get("/tmp/b.txt"))
+            .getObjectRequest(GetObjectRequest.builder().bucket(BUCKET).key("files/b.txt").build())
+            .build();
+    doReturn(
+            List.of(
+                FailedFileDownload.builder()
+                    .request(failedReq)
+                    .exception(new RuntimeException("download boom"))
+                    .build()))
+        .when(awsResponse)
+        .failedTransfers();
+
+    DirectoryDownloadRequest downloadRequest =
+        DirectoryDownloadRequest.builder()
+            .prefixToDownload("files/")
+            .localDestinationDirectory("/home/documents")
+            .build();
+
+    DirectoryDownloadResponse response = aws.doDownloadDirectory(downloadRequest).get();
+    assertNotNull(response);
+    assertEquals(1, response.getFailedTransfers().size());
+    // Listener off + any failure → null so callers can't confuse it with an empty directory
+    // that succeeded. failedTransfers carries the actual error detail.
+    assertNull(response.getTotalBytesTransferred());
+  }
+
+  @Test
+  void doUploadDirectory_LoggingDisabled_SuccessReportsRequestedBytes()
+      throws ExecutionException, InterruptedException, IOException {
+    DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
+    CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
+    Path tempDir = Files.createTempDirectory("aws-async-upload-dir-listener-off");
+    Path tempFile = tempDir.resolve("a.txt");
+    Files.write(tempFile, "hello world".getBytes(StandardCharsets.UTF_8)); // 11 bytes
+
+    try {
+      doAnswer(
+              invocation -> {
+                UploadDirectoryRequest request = invocation.getArgument(0);
+                // Drive the per-file transformer so Files.size(source) runs and the requested
+                // total is accumulated by the production code under test.
+                software.amazon.awssdk.transfer.s3.model.UploadFileRequest.Builder
+                    uploadFileRequestBuilder =
+                        software.amazon.awssdk.transfer.s3.model.UploadFileRequest.builder()
+                            .source(tempFile)
+                            .putObjectRequest(
+                                PutObjectRequest.builder()
+                                    .bucket(BUCKET)
+                                    .key("files/a.txt")
+                                    .build());
+                request.uploadFileRequestTransformer().accept(uploadFileRequestBuilder);
+                return mockDirectoryUpload;
+              })
+          .when(mockS3TransferManager)
+          .uploadDirectory(any(UploadDirectoryRequest.class));
+      doReturn(CompletableFuture.completedFuture(mockCompletedUpload))
+          .when(mockDirectoryUpload)
+          .completionFuture();
+      doReturn(List.of()).when(mockCompletedUpload).failedTransfers();
+
+      DirectoryUploadRequest uploadRequest =
+          DirectoryUploadRequest.builder()
+              .localSourceDirectory(tempDir.toString())
+              .prefix("files/")
+              .includeSubFolders(true)
+              .build();
+
+      DirectoryUploadResponse response = aws.doUploadDirectory(uploadRequest).get();
+      assertNotNull(response);
+      // Listener off + zero failures → response carries the per-file Files.size() total.
+      assertEquals(11L, response.getTotalBytesTransferred());
+    } finally {
+      Files.deleteIfExists(tempFile);
+      Files.deleteIfExists(tempDir);
+    }
+  }
+
+  @Test
+  void doUploadDirectory_LoggingDisabled_PartialFailureReportsZero()
+      throws ExecutionException, InterruptedException, IOException {
+    DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
+    CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
+    Path tempDir = Files.createTempDirectory("aws-async-upload-dir-partial-fail");
+    Path tempFile = tempDir.resolve("a.txt");
+    Files.write(tempFile, "hello world".getBytes(StandardCharsets.UTF_8)); // 11 bytes
+
+    try {
+      doAnswer(
+              invocation -> {
+                UploadDirectoryRequest request = invocation.getArgument(0);
+                software.amazon.awssdk.transfer.s3.model.UploadFileRequest.Builder
+                    uploadFileRequestBuilder =
+                        software.amazon.awssdk.transfer.s3.model.UploadFileRequest.builder()
+                            .source(tempFile)
+                            .putObjectRequest(
+                                PutObjectRequest.builder()
+                                    .bucket(BUCKET)
+                                    .key("files/a.txt")
+                                    .build());
+                request.uploadFileRequestTransformer().accept(uploadFileRequestBuilder);
+                return mockDirectoryUpload;
+              })
+          .when(mockS3TransferManager)
+          .uploadDirectory(any(UploadDirectoryRequest.class));
+      doReturn(CompletableFuture.completedFuture(mockCompletedUpload))
+          .when(mockDirectoryUpload)
+          .completionFuture();
+      software.amazon.awssdk.transfer.s3.model.UploadFileRequest failedUploadReq =
+          software.amazon.awssdk.transfer.s3.model.UploadFileRequest.builder()
+              .source(tempFile)
+              .putObjectRequest(
+                  PutObjectRequest.builder().bucket(BUCKET).key("files/a.txt").build())
+              .build();
+      doReturn(
+              List.of(
+                  software.amazon.awssdk.transfer.s3.model.FailedFileUpload.builder()
+                      .request(failedUploadReq)
+                      .exception(new RuntimeException("upload boom"))
+                      .build()))
+          .when(mockCompletedUpload)
+          .failedTransfers();
+
+      DirectoryUploadRequest uploadRequest =
+          DirectoryUploadRequest.builder()
+              .localSourceDirectory(tempDir.toString())
+              .prefix("files/")
+              .includeSubFolders(true)
+              .build();
+
+      DirectoryUploadResponse response = aws.doUploadDirectory(uploadRequest).get();
+      assertNotNull(response);
+      assertEquals(1, response.getFailedTransfers().size());
+      // Listener off + any failure → null so callers can't confuse it with an empty directory
+      // that succeeded. failedTransfers carries the actual error detail.
+      assertNull(response.getTotalBytesTransferred());
     } finally {
       Files.deleteIfExists(tempFile);
       Files.deleteIfExists(tempDir);

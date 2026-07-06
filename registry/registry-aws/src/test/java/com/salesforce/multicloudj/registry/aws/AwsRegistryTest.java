@@ -342,8 +342,11 @@ class AwsRegistryTest {
 
   @ParameterizedTest
   @MethodSource("exceptionMappingProvider")
-  void testGetException(Throwable input, Class<? extends SubstrateSdkException> expected)
+  void testMapException(Throwable input, Class<? extends SubstrateSdkException> expected)
       throws Exception {
-    withMockedRegistry(registry -> assertEquals(expected, registry.getException(input)));
+    withMockedRegistry(
+        registry ->
+            assertInstanceOf(
+                expected, registry.mapException(input)));
   }
 }

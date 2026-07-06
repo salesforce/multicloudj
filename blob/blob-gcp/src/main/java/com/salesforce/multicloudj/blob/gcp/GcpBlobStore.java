@@ -7,7 +7,6 @@ import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.Credentials;
 import com.google.auto.service.AutoService;
 import com.google.cloud.ReadChannel;
-import com.google.cloud.WriteChannel;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
@@ -81,6 +80,7 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
@@ -90,6 +90,7 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
+import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
 import com.salesforce.multicloudj.common.provider.Provider;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -166,32 +167,38 @@ public class GcpBlobStore extends AbstractBlobStore {
     return new Builder();
   }
 
-  private void rejectSha256(ChecksumMethod algorithm) {
-    if (algorithm == ChecksumMethod.SHA256) {
+  private void rejectUnsupportedChecksum(ChecksumMethod algorithm) {
+    // GCS validates CRC32C and MD5 as caller-supplied object checksums, but not SHA256 or CRC64.
+    // A null algorithm means "use the substrate default" (CRC32C) and is allowed.
+    if (algorithm != null
+        && algorithm != ChecksumMethod.CRC32C
+        && algorithm != ChecksumMethod.MD5) {
       throw new UnsupportedOperationException(
-          "SHA256 checksum is not supported by GCP Cloud Storage. Use CRC32C instead.");
+          algorithm + " checksum is not supported by GCP Cloud Storage. Use CRC32C or MD5.");
     }
   }
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
-    rejectSha256(uploadRequest.getChecksumAlgorithm());
-    try (WriteChannel writer =
-            storage.writer(
-                transformer.toBlobInfo(uploadRequest),
-                transformer.getBlobWriteOptions(uploadRequest));
-         var channel = Channels.newOutputStream(writer)) {
-      ByteStreams.copy(inputStream, channel);
+    rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
+    try {
+      storage.createFrom(
+          transformer.toBlobInfo(uploadRequest),
+          inputStream,
+          transformer.getBlobWriteOptions(uploadRequest));
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from input stream", e);
     }
+    // Fetch the committed object so the response carries the fully-populated server-side
+    // metadata (generation, retention, hold flags, etag) rather than relying on the
+    // upload-response fields, which some GCS API paths do not fully populate.
     Blob blob = getRequiredBlob(BlobId.of(getBucket(), uploadRequest.getKey()));
     return transformer.toUploadResponse(blob);
   }
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
-    rejectSha256(uploadRequest.getChecksumAlgorithm());
+    rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
     try {
       Blob blob =
           storage.createFrom(
@@ -206,13 +213,13 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, File file) {
-    rejectSha256(uploadRequest.getChecksumAlgorithm());
+    rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
     return doUpload(uploadRequest, file.toPath());
   }
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, Path path) {
-    rejectSha256(uploadRequest.getChecksumAlgorithm());
+    rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
     try {
       Blob blob =
           storage.createFrom(
@@ -234,17 +241,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     // ReadChannel streaming (parallelDownload is ignored for this overload).
     try (ReadChannel reader = storage.reader(blobId);
         var channel = Channels.newInputStream(reader)) {
-
-      var range =
-          transformer.computeRange(
-              downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
-      if (range.getLeft() != null) {
-        reader.seek(range.getLeft());
-      }
-      if (range.getRight() != null) {
-        reader.limit(range.getRight());
-      }
-
+      applyRange(reader, downloadRequest, blob);
       ByteStreams.copy(channel, outputStream);
       return transformer.toDownloadResponse(blob);
     } catch (IOException e) {
@@ -272,19 +269,41 @@ public class GcpBlobStore extends AbstractBlobStore {
     Blob blob = getRequiredBlobForDownload(downloadRequest);
     try {
       ReadChannel reader = blob.reader();
-      var range =
-          transformer.computeRange(
-              downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
-      if (range.getLeft() != null) {
-        reader.seek(range.getLeft());
-      }
-      if (range.getRight() != null) {
-        reader.limit(range.getRight());
-      }
+      applyRange(reader, downloadRequest, blob);
       InputStream inputStream = Channels.newInputStream(reader);
       return transformer.toDownloadResponse(blob, inputStream);
     } catch (IOException e) {
       throw new SubstrateSdkException("Failed to create input stream for download", e);
+    }
+  }
+
+  /**
+   * Applies the requested byte range to a {@link ReadChannel} before streaming.
+   *
+   * <p>Full-object downloads skip range setup entirely: with no start or end, {@code computeRange}
+   * would return {@code (null, null)} and neither {@code seek} nor {@code limit} would be applied,
+   * so the emitted GCS GET is identical either way. Short-circuiting here avoids a needless
+   * transformer call and keeps the request byte-for-byte the same as a plain full-object read.
+   *
+   * @param reader the channel to position/limit
+   * @param downloadRequest the request carrying the optional start/end offsets
+   * @param blob the resolved blob, used for its size when resolving a suffix range
+   * @throws IOException if positioning the channel fails
+   */
+  private void applyRange(ReadChannel reader, DownloadRequest downloadRequest, Blob blob)
+      throws IOException {
+    boolean hasRange = downloadRequest.getStart() != null || downloadRequest.getEnd() != null;
+    if (!hasRange) {
+      return;
+    }
+    var range =
+        transformer.computeRange(
+            downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
+    if (range.getLeft() != null) {
+      reader.seek(range.getLeft());
+    }
+    if (range.getRight() != null) {
+      reader.limit(range.getRight());
     }
   }
 
@@ -607,7 +626,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request) {
-    rejectSha256(request.getChecksumAlgorithm());
+    rejectUnsupportedChecksum(request.getChecksumAlgorithm());
     validateBucketExists(request.getKey());
 
     CreateMultipartUploadRequest.Builder createRequestBuilder =
@@ -637,6 +656,14 @@ public class GcpBlobStore extends AbstractBlobStore {
     CreateMultipartUploadResponse gcpMultipartUpload =
         multipartUploadClient.createMultipartUpload(createRequestBuilder.build());
 
+    // GCS's native object checksum is CRC32C. When checksumming is enabled without an explicit
+    // algorithm, resolve the substrate-native default (CRC32C) so the stored algorithm honestly
+    // reflects what GCS produces. Unsupported algorithms were rejected above.
+    ChecksumMethod algorithm = request.getChecksumAlgorithm();
+    if (algorithm == null && request.isChecksumEnabled()) {
+      algorithm = ChecksumMethod.CRC32C;
+    }
+
     return MultipartUpload.builder()
         .bucket(getBucket())
         .key(request.getKey())
@@ -645,7 +672,7 @@ public class GcpBlobStore extends AbstractBlobStore {
         .tags(request.getTags())
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
-        .checksumAlgorithm(request.getChecksumAlgorithm())
+        .checksumAlgorithm(algorithm)
         .objectLock(request.getObjectLock())
         .contentType(request.getContentType())
         .build();
@@ -949,13 +976,20 @@ public class GcpBlobStore extends AbstractBlobStore {
       if (request.getChecksumValue() != null) {
         ChecksumMethod algo = request.getChecksumAlgorithm() != null
             ? request.getChecksumAlgorithm() : ChecksumMethod.CRC32C;
-        if (algo == ChecksumMethod.SHA256) {
+        if (algo == ChecksumMethod.MD5) {
+          // Content-MD5 is folded into the V4 signature via withMd5() (the value is read from the
+          // BlobInfo, which toPresignBlobInfo populates). The uploader must send a matching
+          // Content-MD5, and GCS validates the body against it.
+          options.add(Storage.SignUrlOption.withMd5());
+          signedHeaders.put("Content-MD5", request.getChecksumValue());
+        } else if (algo == ChecksumMethod.SHA256) {
           throw new UnSupportedOperationException(
-              "SHA256 presigned-URL upload integrity is not supported on GCS; use CRC32C");
+              "SHA256 presigned-URL upload integrity is not supported on GCS; use CRC32C or MD5");
+        } else {
+          String hashHeader = "crc32c=" + request.getChecksumValue();
+          extHeaders.put("x-goog-hash", hashHeader);
+          signedHeaders.put("x-goog-hash", hashHeader);
         }
-        String hashHeader = "crc32c=" + request.getChecksumValue();
-        extHeaders.put("x-goog-hash", hashHeader);
-        signedHeaders.put("x-goog-hash", hashHeader);
       }
     }
 
@@ -1080,7 +1114,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       String blobKey = transformer.toBlobKey(sourceDir, filePath, prefix);
       keyToSource.put(blobKey, filePath);
       if (objectLock != null) {
-        return transformer.toBlobInfo(blobKey, metadata, null, null, objectLock, null);
+        return transformer.toBlobInfo(blobKey, metadata, null, null, null, objectLock, null);
       }
       BlobInfo.Builder b = BlobInfo.newBuilder(bucketName, blobKey);
       if (!metadata.isEmpty()) {
@@ -1447,19 +1481,18 @@ public class GcpBlobStore extends AbstractBlobStore {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    if (t instanceof SubstrateSdkException) {
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (t instanceof ApiException) {
-      ApiException exception = (ApiException) t;
-      StatusCode statusCode = exception.getStatusCode();
-      return CommonErrorCodeMapping.getException(statusCode.getCode());
+  public SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass;
+    if (t instanceof ApiException) {
+      exceptionClass = CommonErrorCodeMapping.getException((ApiException) t);
     } else if (t instanceof StorageException) {
-      return CommonErrorCodeMapping.getException(((StorageException) t).getCode());
+      exceptionClass = CommonErrorCodeMapping.getException(((StorageException) t).getCode());
     } else if (t instanceof IllegalArgumentException) {
-      return InvalidArgumentException.class;
+      exceptionClass = InvalidArgumentException.class;
+    } else {
+      exceptionClass = UnknownException.class;
     }
-    return UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, GcpRetryClassifier.classify(t));
   }
 
   /** Closes the underlying GCP Storage clients and releases any resources. */
@@ -1479,6 +1512,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Getter
   public static class Builder extends AbstractBlobStore.Builder<GcpBlobStore, Builder> {
+    private static final int DEFAULT_MAX_CONNECTIONS = 50;
 
     private Storage storage;
     private MultipartUploadClient mpuClient;
@@ -1702,10 +1736,10 @@ public class GcpBlobStore extends AbstractBlobStore {
     private static PoolingHttpClientConnectionManager buildConnectionManager(Builder builder) {
       PoolingHttpClientConnectionManager connectionManager =
           new PoolingHttpClientConnectionManager();
-      if (builder.getMaxConnections() != null) {
-        connectionManager.setMaxTotal(builder.getMaxConnections());
-        connectionManager.setDefaultMaxPerRoute(builder.getMaxConnections());
-      }
+      int maxConns = builder.getMaxConnections() != null
+          ? builder.getMaxConnections() : DEFAULT_MAX_CONNECTIONS;
+      connectionManager.setMaxTotal(maxConns);
+      connectionManager.setDefaultMaxPerRoute(maxConns);
       return connectionManager;
     }
 

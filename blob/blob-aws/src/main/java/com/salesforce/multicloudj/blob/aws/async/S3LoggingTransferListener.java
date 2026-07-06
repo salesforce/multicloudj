@@ -50,7 +50,7 @@ public final class S3LoggingTransferListener implements TransferListener {
     long oldValue = totalBytesTransferred.getAndAdd(transferred);
     Duration transferTime =
         startTime == null ? Duration.ZERO : Duration.between(startTime, Instant.now());
-    logger.info(
+    logger.debug(
         "substrate SDK transferListener: oldValue={}, newValue={},"
             + " transferTime={}, progressSnapshot={}. transfer complete.",
         oldValue,

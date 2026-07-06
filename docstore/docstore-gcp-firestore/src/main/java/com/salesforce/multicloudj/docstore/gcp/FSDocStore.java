@@ -18,12 +18,14 @@ import com.google.firestore.v1.StructuredQuery;
 import com.google.firestore.v1.Value;
 import com.google.firestore.v1.Write;
 import com.google.protobuf.Timestamp;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.Action;
@@ -141,36 +143,27 @@ public class FSDocStore extends AbstractDocStore {
    * @return The appropriate SubstrateSdkException class
    */
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    // Check if exception is already an SDK exception
-    if (t instanceof SubstrateSdkException) {
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    }
-
-    // Check full exception chain for known exception types
+  public SubstrateSdkException mapException(Throwable t) {
     Set<Throwable> exceptions =
         ExceptionUtils.getThrowableList(t).stream().limit(5).collect(Collectors.toSet());
 
-    // Handle client-side validation exceptions
+    Class<? extends SubstrateSdkException> exceptionClass;
     if (exceptions.stream().anyMatch(IllegalArgumentException.class::isInstance)) {
-      return InvalidArgumentException.class;
+      exceptionClass = InvalidArgumentException.class;
+    } else {
+      ApiException apiException =
+          exceptions.stream()
+              .filter(ApiException.class::isInstance)
+              .map(ApiException.class::cast)
+              .findFirst()
+              .orElse(null);
+      if (apiException != null && apiException.getStatusCode() != null) {
+        exceptionClass = ErrorCodeMapping.getException(apiException.getStatusCode().getCode());
+      } else {
+        exceptionClass = UnknownException.class;
+      }
     }
-
-    // Handle GAX/API exceptions
-    ApiException apiException =
-        exceptions.stream()
-            .filter(ApiException.class::isInstance)
-            .map(ApiException.class::cast)
-            .findFirst()
-            .orElse(null);
-
-    if (apiException != null) {
-      StatusCode.Code code = apiException.getStatusCode().getCode();
-      return ErrorCodeMapping.getException(code);
-    }
-
-    // Default fallback
-    return UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, GcpRetryClassifier.classify(t));
   }
 
   /**

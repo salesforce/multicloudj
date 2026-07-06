@@ -9,6 +9,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
+import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
+import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
+import com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload;
+import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult;
+import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
+import com.aliyun.sdk.service.oss2.models.ListPartsResult;
+import com.aliyun.sdk.service.oss2.models.Part;
+import com.aliyun.sdk.service.oss2.models.PutObjectResult;
+import com.aliyun.sdk.service.oss2.models.UploadPartResult;
+import com.aliyun.sdk.service.oss2.transport.BinaryData;
+import com.aliyun.sdk.service.oss2.transport.HttpClientOptions;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
@@ -19,11 +30,14 @@ import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -52,8 +66,8 @@ public class AliTransformerTest {
 
     var request =
         UploadRequest.builder().withKey(key).withMetadata(metadata).withTags(tags).build();
-    com.aliyun.sdk.service.oss2.transport.BinaryData body =
-        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
+    BinaryData body =
+        BinaryData.fromBytes("data".getBytes());
 
     var actual = transformer.toPutObjectRequest(request, body);
     assertEquals(BUCKET, actual.bucket());
@@ -70,8 +84,8 @@ public class AliTransformerTest {
 
     var request =
         UploadRequest.builder().withKey(key).withMetadata(metadata).withKmsKeyId(kmsKeyId).build();
-    com.aliyun.sdk.service.oss2.transport.BinaryData body =
-        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
+    BinaryData body =
+        BinaryData.fromBytes("data".getBytes());
 
     var actual = transformer.toPutObjectRequest(request, body);
     assertEquals(BUCKET, actual.bucket());
@@ -87,8 +101,8 @@ public class AliTransformerTest {
     var metadata = Map.of("some-key", "some-value");
 
     var request = UploadRequest.builder().withKey(key).withMetadata(metadata).build();
-    com.aliyun.sdk.service.oss2.transport.BinaryData body =
-        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
+    BinaryData body =
+        BinaryData.fromBytes("data".getBytes());
 
     var actual = transformer.toPutObjectRequest(request, body);
     assertEquals(BUCKET, actual.bucket());
@@ -98,14 +112,45 @@ public class AliTransformerTest {
   }
 
   @Test
+  void testToPutObjectRequest_useKmsManagedKey_setsKmsWithoutKeyId() {
+    var request =
+        UploadRequest.builder().withKey("some-key").withUseKmsManagedKey(true).build();
+    BinaryData body =
+        BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals("KMS", actual.serverSideEncryption());
+    assertNull(actual.serverSideEncryptionKeyId());
+  }
+
+  @Test
+  void testToPutObjectRequest_explicitKmsKeyIdTakesPrecedenceOverManagedKey() {
+    var kmsKeyId = "alias/my-kms-key";
+    var request =
+        UploadRequest.builder()
+            .withKey("some-key")
+            .withKmsKeyId(kmsKeyId)
+            .withUseKmsManagedKey(true)
+            .build();
+    BinaryData body =
+        BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals("KMS", actual.serverSideEncryption());
+    assertEquals(kmsKeyId, actual.serverSideEncryptionKeyId());
+  }
+
+  @Test
   void testToUploadResponse() {
     UploadRequest request =
         UploadRequest.builder()
             .withKey("some-key")
             .withMetadata(Map.of("some-key", "some-value"))
             .build();
-    com.aliyun.sdk.service.oss2.models.PutObjectResult result =
-        mock(com.aliyun.sdk.service.oss2.models.PutObjectResult.class);
+    PutObjectResult result =
+        mock(PutObjectResult.class);
     doReturn("\"etag\"").when(result).eTag();
     doReturn("version-1").when(result).versionId();
 
@@ -173,8 +218,8 @@ public class AliTransformerTest {
 
   @Test
   void testToCopyResponse_withLastModifiedHeader() {
-    com.aliyun.sdk.service.oss2.models.CopyObjectResult result =
-        mock(com.aliyun.sdk.service.oss2.models.CopyObjectResult.class);
+    CopyObjectResult result =
+        mock(CopyObjectResult.class);
     doReturn("v2").when(result).versionId();
     doReturn("\"etag\"").when(result).eTag();
     doReturn("Fri, 15 May 2026 10:30:00 GMT").when(result).lastModified();
@@ -189,8 +234,8 @@ public class AliTransformerTest {
 
   @Test
   void testToCopyResponse_withNullLastModifiedHeader() {
-    com.aliyun.sdk.service.oss2.models.CopyObjectResult result =
-        mock(com.aliyun.sdk.service.oss2.models.CopyObjectResult.class);
+    CopyObjectResult result =
+        mock(CopyObjectResult.class);
     doReturn("v2").when(result).versionId();
     doReturn("\"etag\"").when(result).eTag();
     doReturn(null).when(result).lastModified();
@@ -217,11 +262,38 @@ public class AliTransformerTest {
   }
 
   @Test
+  void testToInitiateMultipartUploadRequest_useKmsManagedKey_setsKmsWithoutKeyId() {
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey("key").withUseKmsManagedKey(true).build();
+
+    var actual = transformer.toInitiateMultipartUploadRequest(request);
+
+    assertEquals("KMS", actual.serverSideEncryption());
+    assertNull(actual.serverSideEncryptionKeyId());
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_explicitKmsKeyIdTakesPrecedenceOverManagedKey() {
+    String kmsKeyId = "alias/my-kms-key";
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey("key")
+            .withKmsKeyId(kmsKeyId)
+            .withUseKmsManagedKey(true)
+            .build();
+
+    var actual = transformer.toInitiateMultipartUploadRequest(request);
+
+    assertEquals("KMS", actual.serverSideEncryption());
+    assertEquals(kmsKeyId, actual.serverSideEncryptionKeyId());
+  }
+
+  @Test
   void testToMultipartUpload() {
-    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult result =
-        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult.class);
-    com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload upload =
-        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload.class);
+    InitiateMultipartUploadResult result =
+        mock(InitiateMultipartUploadResult.class);
+    InitiateMultipartUpload upload =
+        mock(InitiateMultipartUpload.class);
     doReturn(upload).when(result).initiateMultipartUpload();
     doReturn(BUCKET).when(upload).bucket();
     doReturn("key").when(upload).key();
@@ -241,10 +313,10 @@ public class AliTransformerTest {
 
   @Test
   void testToMultipartUploadWithKms() {
-    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult result =
-        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult.class);
-    com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload upload =
-        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload.class);
+    InitiateMultipartUploadResult result =
+        mock(InitiateMultipartUploadResult.class);
+    InitiateMultipartUpload upload =
+        mock(InitiateMultipartUpload.class);
     doReturn(upload).when(result).initiateMultipartUpload();
     doReturn(BUCKET).when(upload).bucket();
     doReturn("key").when(upload).key();
@@ -261,6 +333,81 @@ public class AliTransformerTest {
     assertEquals("uploadId", actual.getId());
     assertEquals(metadata, actual.getMetadata());
     assertEquals(kmsKeyId, actual.getKmsKeyId());
+  }
+
+  @Test
+  void testToMultipartUpload_checksumEnabledNoAlgorithm_defaultsToCrc64() {
+    // OSS's native object checksum is CRC64-ECMA. When checksumming is enabled without an explicit
+    // algorithm, the stored MultipartUpload should reflect CRC64 so the value surfaced at
+    // completion is honestly labeled.
+    InitiateMultipartUploadResult result =
+        mock(InitiateMultipartUploadResult.class);
+    InitiateMultipartUpload upload =
+        mock(InitiateMultipartUpload.class);
+    doReturn(upload).when(result).initiateMultipartUpload();
+    doReturn(BUCKET).when(upload).bucket();
+    doReturn("key").when(upload).key();
+    doReturn("uploadId").when(upload).uploadId();
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("key").withChecksumEnabled(true).build();
+
+    var actual = transformer.toMultipartUpload(result, request);
+
+    assertTrue(actual.isChecksumEnabled());
+    assertEquals(ChecksumMethod.CRC64, actual.getChecksumAlgorithm());
+  }
+
+  @Test
+  void testToMultipartUpload_explicitCrc64_preserved() {
+    InitiateMultipartUploadResult result =
+        mock(InitiateMultipartUploadResult.class);
+    InitiateMultipartUpload upload =
+        mock(InitiateMultipartUpload.class);
+    doReturn(upload).when(result).initiateMultipartUpload();
+    doReturn(BUCKET).when(upload).bucket();
+    doReturn("key").when(upload).key();
+    doReturn("uploadId").when(upload).uploadId();
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("key").withChecksumAlgorithm(ChecksumMethod.CRC64).build();
+
+    var actual = transformer.toMultipartUpload(result, request);
+
+    assertTrue(actual.isChecksumEnabled());
+    assertEquals(ChecksumMethod.CRC64, actual.getChecksumAlgorithm());
+  }
+
+  @Test
+  void testToMultipartUpload_checksumDisabled_algorithmStaysNull() {
+    InitiateMultipartUploadResult result =
+        mock(InitiateMultipartUploadResult.class);
+    InitiateMultipartUpload upload =
+        mock(InitiateMultipartUpload.class);
+    doReturn(upload).when(result).initiateMultipartUpload();
+    doReturn(BUCKET).when(upload).bucket();
+    doReturn("key").when(upload).key();
+    doReturn("uploadId").when(upload).uploadId();
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("key").build();
+
+    var actual = transformer.toMultipartUpload(result, request);
+
+    assertFalse(actual.isChecksumEnabled());
+    assertNull(actual.getChecksumAlgorithm());
+  }
+
+  @Test
+  void testRejectUnsupportedChecksum_allowsCrc64AndNull() {
+    // CRC64 is OSS's native algorithm; null means "use the substrate default" — both allowed.
+    AliTransformer.rejectUnsupportedChecksum(ChecksumMethod.CRC64);
+    AliTransformer.rejectUnsupportedChecksum(null);
+  }
+
+  @Test
+  void testRejectUnsupportedChecksum_rejectsCrc32cAndSha256() {
+    assertThrows(UnSupportedOperationException.class,
+        () -> AliTransformer.rejectUnsupportedChecksum(ChecksumMethod.CRC32C));
+    assertThrows(UnSupportedOperationException.class,
+        () -> AliTransformer.rejectUnsupportedChecksum(ChecksumMethod.SHA256));
   }
 
   @Test
@@ -289,8 +436,8 @@ public class AliTransformerTest {
     byte[] content = "Test data".getBytes();
     InputStream inputStream = new ByteArrayInputStream(content);
     MultipartPart mpp = new MultipartPart(1, inputStream, content.length);
-    com.aliyun.sdk.service.oss2.models.UploadPartResult result =
-        mock(com.aliyun.sdk.service.oss2.models.UploadPartResult.class);
+    UploadPartResult result =
+        mock(UploadPartResult.class);
     doReturn("\"etag\"").when(result).eTag();
 
     var actual = transformer.toUploadPartResponse(mpp, result);
@@ -333,13 +480,13 @@ public class AliTransformerTest {
 
   @Test
   void testToListUploadPartResponse() {
-    com.aliyun.sdk.service.oss2.models.ListPartsResult result =
-        mock(com.aliyun.sdk.service.oss2.models.ListPartsResult.class);
-    com.aliyun.sdk.service.oss2.models.Part part2 =
-        com.aliyun.sdk.service.oss2.models.Part.newBuilder()
+    ListPartsResult result =
+        mock(ListPartsResult.class);
+    Part part2 =
+        Part.newBuilder()
             .partNumber(2L).eTag("\"etag2\"").size(50L).build();
-    com.aliyun.sdk.service.oss2.models.Part part1 =
-        com.aliyun.sdk.service.oss2.models.Part.newBuilder()
+    Part part1 =
+        Part.newBuilder()
             .partNumber(1L).eTag("\"etag1\"").size(100L).build();
     doReturn(List.of(part2, part1)).when(result).parts();
 
@@ -513,6 +660,42 @@ public class AliTransformerTest {
 
     assertEquals(BUCKET, actual.bucket());
     assertEquals("object-1", actual.key());
+    assertNull(actual.responseContentDisposition());
+  }
+
+  @Test
+  void testToPresignedGetObjectRequest_withContentDisposition() {
+    PresignedUrlRequest presignedDownloadRequest =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.DOWNLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(12))
+            .contentDisposition("attachment; filename=\"report.pdf\"")
+            .build();
+
+    var actual = transformer.toPresignedGetObjectRequest(presignedDownloadRequest);
+
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertEquals(
+        "attachment; filename=\"report.pdf\"", actual.responseContentDisposition());
+  }
+
+  @Test
+  void testToPresignedPutObjectRequest_ignoresContentDisposition() {
+    PresignedUrlRequest presignedUploadRequest =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(12))
+            .contentDisposition("attachment; filename=\"report.pdf\"")
+            .build();
+
+    var actual = transformer.toPresignedPutObjectRequest(presignedUploadRequest);
+
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertNull(actual.contentDisposition());
   }
 
   @Test
@@ -540,7 +723,7 @@ public class AliTransformerTest {
             .withMaxResults(100)
             .build();
 
-    com.aliyun.sdk.service.oss2.models.ListObjectsV2Request actual =
+    ListObjectsV2Request actual =
         transformer.toListObjectsRequest(request);
     assertEquals(BUCKET, actual.bucket());
     assertEquals(request.getDelimiter(), actual.delimiter());
@@ -554,7 +737,7 @@ public class AliTransformerTest {
     ListBlobsRequest request =
         new ListBlobsRequest.Builder().withPrefix("abc").withDelimiter("/").build();
 
-    com.aliyun.sdk.service.oss2.models.ListObjectsV2Request actual =
+    ListObjectsV2Request actual =
         transformer.toListObjectsRequest(request, "cont-token");
     assertEquals(BUCKET, actual.bucket());
     assertEquals("abc", actual.prefix());
@@ -567,7 +750,7 @@ public class AliTransformerTest {
     ListBlobsRequest request =
         new ListBlobsRequest.Builder().withPrefix("xyz").build();
 
-    com.aliyun.sdk.service.oss2.models.ListObjectsV2Request actual =
+    ListObjectsV2Request actual =
         transformer.toListObjectsRequest(request, null);
     assertEquals(BUCKET, actual.bucket());
     assertEquals("xyz", actual.prefix());
@@ -593,8 +776,8 @@ public class AliTransformerTest {
     UploadRequest uploadRequest =
         UploadRequest.builder().withKey("test-key").withStorageClass("IA").build();
 
-    com.aliyun.sdk.service.oss2.transport.BinaryData body =
-        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("test data".getBytes());
+    BinaryData body =
+        BinaryData.fromBytes("test data".getBytes());
     var result = transformer.toPutObjectRequest(uploadRequest, body);
 
     assertEquals(BUCKET, result.bucket());
@@ -611,8 +794,8 @@ public class AliTransformerTest {
             .withChecksumAlgorithm(ChecksumMethod.SHA256)
             .build();
 
-    com.aliyun.sdk.service.oss2.transport.BinaryData body =
-        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
+    BinaryData body =
+        BinaryData.fromBytes("data".getBytes());
     var result = transformer.toPutObjectRequest(uploadRequest, body);
 
     assertEquals("abc123sha256value", result.headers().get("x-oss-content-sha256"));
@@ -627,8 +810,8 @@ public class AliTransformerTest {
             .withChecksumValue("12345678901234")
             .build();
 
-    com.aliyun.sdk.service.oss2.transport.BinaryData body =
-        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
+    BinaryData body =
+        BinaryData.fromBytes("data".getBytes());
     var result = transformer.toPutObjectRequest(uploadRequest, body);
 
     assertEquals("12345678901234", result.headers().get("x-oss-hash-crc64ecma"));
@@ -637,10 +820,10 @@ public class AliTransformerTest {
 
   @Test
   void testToMultipartUpload_WithChecksumAlgorithm() {
-    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult result =
-        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult.class);
-    com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload upload =
-        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload.class);
+    InitiateMultipartUploadResult result =
+        mock(InitiateMultipartUploadResult.class);
+    InitiateMultipartUpload upload =
+        mock(InitiateMultipartUpload.class);
     doReturn(upload).when(result).initiateMultipartUpload();
     doReturn(BUCKET).when(upload).bucket();
     doReturn("key").when(upload).key();
@@ -663,8 +846,8 @@ public class AliTransformerTest {
     UploadRequest uploadRequest =
         UploadRequest.builder().withKey("test-key").withContentType("text/plain").build();
 
-    com.aliyun.sdk.service.oss2.transport.BinaryData body =
-        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
+    BinaryData body =
+        BinaryData.fromBytes("data".getBytes());
     var result = transformer.toPutObjectRequest(uploadRequest, body);
 
     assertEquals(BUCKET, result.bucket());
@@ -819,17 +1002,17 @@ public class AliTransformerTest {
             "x-oss-object-worm-mode", "GOVERNANCE",
             "x-oss-object-worm-retain-until-date", "2026-06-10T23:49:51.000Z",
             "x-oss-object-worm-legal-hold", "ON");
-    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
-        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+    HeadObjectResult result =
+        HeadObjectResult.newBuilder()
             .headers(headers)
             .build();
 
     BlobMetadata metadata = transformer.toBlobMetadata("k", result);
 
-    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info = metadata.getObjectLockInfo();
+    ObjectLockInfo info = metadata.getObjectLockInfo();
     assertNotNull(info, "objectLockInfo should be populated when worm headers are present");
     assertEquals(
-        com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE, info.getMode());
+        RetentionMode.GOVERNANCE, info.getMode());
     assertEquals(Instant.parse("2026-06-10T23:49:51.000Z"), info.getRetainUntilDate());
     assertTrue(info.isLegalHold());
     // OSS has no event-based-hold concept; AWS leaves it null too.
@@ -843,17 +1026,17 @@ public class AliTransformerTest {
         Map.of(
             "x-oss-object-worm-mode", "COMPLIANCE",
             "x-oss-object-worm-retain-until-date", "2030-01-01T00:00:00.000Z");
-    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
-        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+    HeadObjectResult result =
+        HeadObjectResult.newBuilder()
             .headers(headers)
             .build();
 
-    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+    ObjectLockInfo info =
         transformer.toBlobMetadata("k", result).getObjectLockInfo();
 
     assertNotNull(info);
     assertEquals(
-        com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE, info.getMode());
+        RetentionMode.COMPLIANCE, info.getMode());
     assertEquals(Instant.parse("2030-01-01T00:00:00.000Z"), info.getRetainUntilDate());
     assertFalse(info.isLegalHold());
   }
@@ -863,12 +1046,12 @@ public class AliTransformerTest {
     // OSS allows legal hold without retention. The transformer must still surface
     // objectLockInfo with mode=null and legalHold=true so callers can act on the hold.
     Map<String, String> headers = Map.of("x-oss-object-worm-legal-hold", "ON");
-    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
-        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+    HeadObjectResult result =
+        HeadObjectResult.newBuilder()
             .headers(headers)
             .build();
 
-    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+    ObjectLockInfo info =
         transformer.toBlobMetadata("k", result).getObjectLockInfo();
 
     assertNotNull(info,
@@ -887,8 +1070,8 @@ public class AliTransformerTest {
             "Content-Type", "application/octet-stream",
             "ETag", "\"abc\"",
             "x-oss-storage-class", "Standard");
-    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
-        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+    HeadObjectResult result =
+        HeadObjectResult.newBuilder()
             .headers(headers)
             .build();
 
@@ -907,17 +1090,17 @@ public class AliTransformerTest {
             "X-OSS-Object-Worm-Mode", "GOVERNANCE",
             "X-OSS-Object-Worm-Retain-Until-Date", "2026-06-10T23:49:51.000Z",
             "X-OSS-Object-Worm-Legal-Hold", "on");
-    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
-        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+    HeadObjectResult result =
+        HeadObjectResult.newBuilder()
             .headers(headers)
             .build();
 
-    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+    ObjectLockInfo info =
         transformer.toBlobMetadata("k", result).getObjectLockInfo();
 
     assertNotNull(info);
     assertEquals(
-        com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE, info.getMode());
+        RetentionMode.GOVERNANCE, info.getMode());
     assertTrue(info.isLegalHold(),
         "legal-hold value comparison should be case-insensitive (\"on\" -> true)");
   }
@@ -932,12 +1115,12 @@ public class AliTransformerTest {
             "x-oss-object-worm-mode", "UNKNOWN_MODE",
             "x-oss-object-worm-retain-until-date", "2026-06-10T23:49:51.000Z",
             "x-oss-object-worm-legal-hold", "ON");
-    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
-        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+    HeadObjectResult result =
+        HeadObjectResult.newBuilder()
             .headers(headers)
             .build();
 
-    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+    ObjectLockInfo info =
         transformer.toBlobMetadata("k", result).getObjectLockInfo();
 
     assertNotNull(info,
@@ -958,19 +1141,121 @@ public class AliTransformerTest {
             "x-oss-object-worm-mode", "GOVERNANCE",
             "x-oss-object-worm-retain-until-date", "not-a-valid-date",
             "x-oss-object-worm-legal-hold", "ON");
-    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
-        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+    HeadObjectResult result =
+        HeadObjectResult.newBuilder()
             .headers(headers)
             .build();
 
-    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+    ObjectLockInfo info =
         transformer.toBlobMetadata("k", result).getObjectLockInfo();
 
     assertNotNull(info);
     assertEquals(
-        com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE, info.getMode());
+        RetentionMode.GOVERNANCE, info.getMode());
     assertNull(info.getRetainUntilDate(),
         "an unparseable retain-until-date must fall back to null rather than throw");
     assertTrue(info.isLegalHold());
+  }
+
+  @Test
+  void testToHttpClientOptionsAllNullKeepsSdkDefaults() {
+    // When no inputs are supplied, the produced options must match the OSS SDK defaults so a
+    // client built from them behaves identically to the SDK's own default client.
+    var defaults = HttpClientOptions.custom().build();
+
+    var options = AliTransformer.toHttpClientOptions(null, null, null, null);
+
+    assertNotNull(options);
+    assertEquals(defaults.maxConnections(), options.maxConnections());
+    assertEquals(defaults.keepAliveTimeout(), options.keepAliveTimeout());
+    assertEquals(defaults.readWriteTimeout(), options.readWriteTimeout());
+    assertEquals(defaults.connectTimeout(), options.connectTimeout());
+    assertNull(options.proxyHost());
+  }
+
+  @Test
+  void testToHttpClientOptionsAppliesMaxConnectionsAndIdleTimeout() {
+    var options = AliTransformer.toHttpClientOptions(
+        null, null, 42, Duration.ofSeconds(75));
+
+    assertEquals(42, options.maxConnections());
+    assertEquals(Duration.ofSeconds(75), options.keepAliveTimeout());
+  }
+
+  @Test
+  void testToHttpClientOptionsPreservesProxyHostAndReadWriteTimeout() {
+    // Supplying a custom client bypasses the SDK's own option derivation, so the transport
+    // fields the driver otherwise sets (proxyHost, readWriteTimeout) must survive.
+    var options = AliTransformer.toHttpClientOptions(
+        "proxy.example.com:8080", Duration.ofSeconds(20), 10, Duration.ofSeconds(50));
+
+    assertEquals("proxy.example.com:8080", options.proxyHost());
+    assertEquals(Duration.ofSeconds(20), options.readWriteTimeout());
+    assertEquals(10, options.maxConnections());
+    assertEquals(Duration.ofSeconds(50), options.keepAliveTimeout());
+  }
+
+  @Test
+  void testToHttpClientOptionsOnlyIdleTimeoutLeavesMaxConnectionsDefault() {
+    var defaults = HttpClientOptions.custom().build();
+
+    var options = AliTransformer.toHttpClientOptions(
+        null, null, null, Duration.ofSeconds(90));
+
+    assertEquals(Duration.ofSeconds(90), options.keepAliveTimeout());
+    assertEquals(defaults.maxConnections(), options.maxConnections(),
+        "maxConnections must keep the SDK default when only idle timeout is set");
+  }
+
+  @Test
+  void testToPutObjectRequest_md5_routesToContentMd5() {
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withChecksumValue("rL0Y20zC+Fzt72VPzMSk2A==")
+        .withChecksumAlgorithm(ChecksumMethod.MD5)
+        .build();
+    com.aliyun.sdk.service.oss2.transport.BinaryData body =
+        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", actual.contentMd5());
+    // MD5 must NOT also be written to the inert OSS hash headers.
+    assertNull(actual.headers().get("x-oss-hash-crc64ecma"));
+    assertNull(actual.headers().get("x-oss-content-sha256"));
+  }
+
+  @Test
+  void testToPutObjectRequest_crc64_stillUsesInertHeaderNotContentMd5() {
+    // Option B: non-MD5 algorithms are unchanged (routed to the OSS hash header, not Content-MD5).
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withChecksumValue("12345")
+        .withChecksumAlgorithm(ChecksumMethod.CRC64)
+        .build();
+    com.aliyun.sdk.service.oss2.transport.BinaryData body =
+        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertNull(actual.contentMd5());
+    assertEquals("12345", actual.headers().get("x-oss-hash-crc64ecma"));
+  }
+
+  @Test
+  void testToPresignedPutObjectRequest_md5_routesToContentMd5() {
+    PresignedUrlRequest request = PresignedUrlRequest.builder()
+        .type(PresignedOperation.UPLOAD)
+        .key("object-1")
+        .duration(Duration.ofHours(1))
+        .checksumValue("rL0Y20zC+Fzt72VPzMSk2A==")
+        .checksumAlgorithm(ChecksumMethod.MD5)
+        .build();
+
+    var actual = transformer.toPresignedPutObjectRequest(request);
+
+    assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", actual.contentMd5());
+    assertNull(actual.headers().get("x-oss-hash-crc64ecma"));
+    assertNull(actual.headers().get("x-oss-content-sha256"));
   }
 }

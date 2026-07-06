@@ -222,8 +222,6 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable {
     return new LayerExtractor(layers).extract();
   }
 
-  public abstract Class<? extends SubstrateSdkException> getException(Throwable t);
-
   @Override
   public abstract void close() throws Exception;
 

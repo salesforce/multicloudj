@@ -35,7 +35,9 @@ import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -51,8 +53,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
+import software.amazon.awssdk.awscore.presigner.PresignedRequest;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.http.ContentStreamProvider;
 import software.amazon.awssdk.retries.StandardRetryStrategy;
 import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.retries.api.RetryStrategy;
@@ -115,6 +120,9 @@ public class AwsTransformer {
    * the correlation id that appears in the same upload's logs and trace span.
    */
   public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
+
+  /** Default MIME type used for the request body when the caller does not provide one. */
+  private static final String OCTET_STREAM_MIME = "application/octet-stream";
 
   private final String bucket;
 
@@ -183,8 +191,24 @@ public class AwsTransformer {
   }
 
   public AsyncRequestBody toAsyncRequestBody(UploadRequest uploadRequest, InputStream inputStream) {
+    Long contentLength =
+        uploadRequest.getContentLength() > 0 ? uploadRequest.getContentLength() : null;
     return AsyncRequestBody.fromInputStream(
-        inputStream, uploadRequest.getContentLength(), Executors.newSingleThreadExecutor());
+        inputStream, contentLength, Executors.newSingleThreadExecutor());
+  }
+
+  /**
+   * Builds a sync {@link RequestBody} for an {@link InputStream} upload, honouring the optional
+   * {@code contentLength} on {@link UploadRequest}. When {@code contentLength} is unspecified
+   * (i.e. not positive), an unknown-length {@link ContentStreamProvider}-based body is returned;
+   * the AWS SDK will buffer chunks internally to support retries.
+   */
+  public RequestBody toRequestBody(UploadRequest uploadRequest, InputStream inputStream) {
+    if (uploadRequest.getContentLength() > 0) {
+      return RequestBody.fromInputStream(inputStream, uploadRequest.getContentLength());
+    }
+    return RequestBody.fromContentProvider(
+        ContentStreamProvider.fromInputStream(inputStream), OCTET_STREAM_MIME);
   }
 
   public PutObjectRequest toRequest(UploadRequest request) {
@@ -243,10 +267,16 @@ public class AwsTransformer {
     if (StringUtils.isNotEmpty(request.getChecksumValue())
         && request.getChecksumAlgorithm() != null) {
       ChecksumMethod algo = request.getChecksumAlgorithm();
-      builder.checksumAlgorithm(toAwsChecksumAlgorithm(algo));
-      if (algo == ChecksumMethod.SHA256) {
+      if (algo == ChecksumMethod.MD5) {
+        // MD5 is sent as the classic RFC 1864 Content-MD5 header (server-validated; mismatch ->
+        // BadDigest), not via the x-amz-checksum-* "additional checksum" path. The two mechanisms
+        // are mutually exclusive, so checksumAlgorithm() is intentionally not set here.
+        builder.contentMD5(request.getChecksumValue());
+      } else if (algo == ChecksumMethod.SHA256) {
+        builder.checksumAlgorithm(toAwsChecksumAlgorithm(algo));
         builder.checksumSHA256(request.getChecksumValue());
       } else {
+        builder.checksumAlgorithm(toAwsChecksumAlgorithm(algo));
         builder.checksumCRC32C(request.getChecksumValue());
       }
     }
@@ -259,7 +289,9 @@ public class AwsTransformer {
     return builder.build();
   }
 
-  /** Converts SDK RetentionMode to provider SDK ObjectLockMode */
+  /**
+   * Converts SDK RetentionMode to provider SDK ObjectLockMode
+   */
   private ObjectLockMode toAwsObjectLockMode(RetentionMode mode) {
     switch (mode) {
       case GOVERNANCE:
@@ -284,7 +316,9 @@ public class AwsTransformer {
     }
   }
 
-  /** Converts provider SDK ObjectLockMode to SDK RetentionMode */
+  /**
+   * Converts provider SDK ObjectLockMode to SDK RetentionMode
+   */
   private RetentionMode toDriverRetentionMode(ObjectLockMode awsMode) {
     if (awsMode == null) {
       return null;
@@ -299,7 +333,9 @@ public class AwsTransformer {
     }
   }
 
-  /** Converts provider SDK ObjectLockRetentionMode to SDK RetentionMode */
+  /**
+   * Converts provider SDK ObjectLockRetentionMode to SDK RetentionMode
+   */
   private RetentionMode toDriverRetentionMode(ObjectLockRetentionMode awsMode) {
     if (awsMode == null) {
       return null;
@@ -327,7 +363,9 @@ public class AwsTransformer {
     return builder.build();
   }
 
-  /** Builds a {@link DownloadFileRequest} for use with {@code S3TransferManager.downloadFile}. */
+  /**
+   * Builds a {@link DownloadFileRequest} for use with {@code S3TransferManager.downloadFile}.
+   */
   public DownloadFileRequest toRequest(DownloadRequest request, Path destinationPath) {
     return DownloadFileRequest.builder()
         .getObjectRequest(toRequest(request))
@@ -658,7 +696,7 @@ public class AwsTransformer {
   }
 
   public PresignedUrlResponse toPresignedUrlResponse(
-      software.amazon.awssdk.awscore.presigner.PresignedRequest presigned) {
+      PresignedRequest presigned) {
     Map<String, String> flatHeaders = new LinkedHashMap<>();
     presigned.signedHeaders().forEach((k, values) ->
         flatHeaders.put(k, String.join(",", values)));
@@ -669,46 +707,77 @@ public class AwsTransformer {
         .build();
   }
 
-  public DownloadDirectoryRequest toDownloadDirectoryRequest(DirectoryDownloadRequest request) {
-    var downloadDirectoryRequestBuilder =
+  /**
+   * Builds the S3 Transfer Manager download-directory request. When non-null counters are
+   * supplied, {@code totalBytesRequested} is summed inside the filter (post-exclusion) and
+   * {@code totalBytesTransferred} drives a per-file logging listener — but only if
+   * {@code transferStatusLoggingEnabled} is set on the request. The two counters together let
+   * the caller report bytes-transferred without paying the listener's heap cost: on success it
+   * can fall back to the requested total.
+   */
+  public DownloadDirectoryRequest toDownloadDirectoryRequest(
+      DirectoryDownloadRequest request,
+      AtomicLong totalBytesTransferred,
+      AtomicLong totalBytesRequested) {
+    DownloadDirectoryRequest.Builder builder =
         DownloadDirectoryRequest.builder()
             .bucket(getBucket())
             .destination(Paths.get(request.getLocalDestinationDirectory()));
 
     // Download every blob that starts with this prefix
     if (StringUtils.isNotEmpty(request.getPrefixToDownload())) {
-      downloadDirectoryRequestBuilder.listObjectsV2RequestTransformer(
-          builder -> builder.prefix(request.getPrefixToDownload()));
+      builder.listObjectsV2RequestTransformer(
+          b -> b.prefix(request.getPrefixToDownload()));
     }
 
-    // If we have prefixes to exclude from the download, then add in a filter here
-    if (request.getPrefixesToExclude() != null && !request.getPrefixesToExclude().isEmpty()) {
-      downloadDirectoryRequestBuilder.filter(
-          getPrefixExclusionsFilter(request.getPrefixesToExclude()));
+    // Only install a filter when we actually have work for it (exclusion or byte counting).
+    // S3 Transfer Manager may take a fast path internally when no filter is set, and there's
+    // no point allocating a pass-through lambda that returns true for every object.
+    boolean hasExclusions =
+        request.getPrefixesToExclude() != null && !request.getPrefixesToExclude().isEmpty();
+    if (hasExclusions || totalBytesRequested != null) {
+      builder.filter(getPrefixExclusionsFilter(
+          request.getPrefixesToExclude(),
+          totalBytesRequested));
     }
-    return downloadDirectoryRequestBuilder.build();
-  }
 
-  public DownloadDirectoryRequest toDownloadDirectoryRequest(
-      DirectoryDownloadRequest request, AtomicLong totalBytesTransferred) {
-    DownloadDirectoryRequest.Builder downloadDirectoryRequestBuilder =
-        toDownloadDirectoryRequest(request).toBuilder();
-    if (request.isTransferStatusLoggingEnabled()) {
+    // Symmetric to toUploadDirectoryRequest: only attach the listener when the caller
+    // supplied a counter to drive — a null counter signals "don't bother counting", and
+    // attaching the listener anyway would NPE inside its constructor.
+    if (request.isTransferStatusLoggingEnabled() && totalBytesTransferred != null) {
       S3LoggingTransferListener transferListener =
           S3LoggingTransferListener.create(totalBytesTransferred);
-      downloadDirectoryRequestBuilder.downloadFileRequestTransformer(
-          builder -> builder.addTransferListener(transferListener));
+      builder.downloadFileRequestTransformer(b -> b.addTransferListener(transferListener));
     }
-    return downloadDirectoryRequestBuilder.build();
+    return builder.build();
   }
 
-  // Return false if we want to exclude this blob from the download
+  // Return false if we want to exclude this blob from the download.
   protected DownloadFilter getPrefixExclusionsFilter(List<String> prefixesToExclude) {
+    return getPrefixExclusionsFilter(prefixesToExclude, null);
+  }
+
+  /**
+   * Same filter contract as the single-arg overload — return {@code false} to exclude. When
+   * {@code totalBytesRequested} is non-null, each retained object's size is added to it, so
+   * the count reflects only objects S3 Transfer Manager will actually download.
+   *
+   * <p>Counting relies on the SDK calling this filter exactly once per listed object during
+   * the listing phase — the {@link DownloadFilter} contract today. A future SDK change that
+   * re-invoked the filter (e.g. on internal page retry) would over-count, but the alternative
+   * of deduplicating by key would re-introduce the heap pressure this PR exists to avoid.
+   */
+  protected DownloadFilter getPrefixExclusionsFilter(
+      List<String> prefixesToExclude, AtomicLong totalBytesRequested) {
+    List<String> excludes = prefixesToExclude != null ? prefixesToExclude : List.of();
     return s3Object -> {
-      for (String prefixToExclude : prefixesToExclude) {
+      for (String prefixToExclude : excludes) {
         if (s3Object.key().startsWith(prefixToExclude)) {
           return false;
         }
+      }
+      if (totalBytesRequested != null) {
+        totalBytesRequested.addAndGet(s3Object.size());
       }
       return true;
     };
@@ -730,7 +799,18 @@ public class AwsTransformer {
         .build();
   }
 
-  public UploadDirectoryRequest toUploadDirectoryRequest(DirectoryUploadRequest request) {
+  /**
+   * Builds the S3 Transfer Manager upload-directory request. When non-null counters are
+   * supplied, the per-file transformer stats each source into {@code totalBytesRequested} and
+   * (if {@code transferStatusLoggingEnabled}) attaches a logging listener that drives
+   * {@code totalBytesTransferred}. Together they let the caller report bytes-transferred
+   * without paying the listener's heap cost: on success it can fall back to the requested
+   * total.
+   */
+  public UploadDirectoryRequest toUploadDirectoryRequest(
+      DirectoryUploadRequest request,
+      AtomicLong totalBytesTransferred,
+      AtomicLong totalBytesRequested) {
     UploadDirectoryRequest.Builder builder =
         UploadDirectoryRequest.builder()
             .bucket(getBucket())
@@ -741,19 +821,35 @@ public class AwsTransformer {
 
     boolean hasTags = request.getTags() != null && !request.getTags().isEmpty();
     boolean hasObjectLock = request.getObjectLock() != null;
+    boolean transferStatusLoggingEnabled =
+        request.isTransferStatusLoggingEnabled() && totalBytesTransferred != null;
+    boolean countRequested = totalBytesRequested != null;
 
+    if (!hasTags && !hasObjectLock && !transferStatusLoggingEnabled && !countRequested) {
+      return builder.build();
+    }
+
+    List<Tag> tagSet =
+        hasTags
+            ? request.getTags().entrySet().stream()
+              .map(e -> Tag.builder().key(e.getKey()).value(e.getValue()).build())
+              .collect(Collectors.toList())
+            : null;
+    ObjectLockConfiguration lockConfig = request.getObjectLock();
+    S3LoggingTransferListener transferListener =
+        transferStatusLoggingEnabled
+            ? S3LoggingTransferListener.create(totalBytesTransferred)
+            : null;
     // Merge tags / object lock into the existing PutObjectRequest per file;
     // putObjectRequest(Consumer) would replace it and drop bucket/key.
-    if (hasTags || hasObjectLock) {
-      List<Tag> tagSet =
-          hasTags
-              ? request.getTags().entrySet().stream()
-                  .map(e -> Tag.builder().key(e.getKey()).value(e.getValue()).build())
-                  .collect(Collectors.toList())
-              : null;
-      ObjectLockConfiguration lockConfig = request.getObjectLock();
-      builder.uploadFileRequestTransformer(
-          fileRequestBuilder -> {
+    // S3 Transfer Manager doesn't expose a directory-listing filter for uploads, so this
+    // per-file hook is also where we stat each source's planned size into
+    // totalBytesRequested. This relies on the SDK invoking the transformer exactly once per
+    // file (its current contract). A future SDK change that re-invoked on retry could
+    // over-count; the same trade-off applies as the download filter above.
+    builder.uploadFileRequestTransformer(
+        fileRequestBuilder -> {
+          if (hasTags || hasObjectLock) {
             PutObjectRequest existing = fileRequestBuilder.build().putObjectRequest();
             PutObjectRequest.Builder putBuilder = existing.toBuilder();
             if (hasTags) {
@@ -763,52 +859,26 @@ public class AwsTransformer {
               applyObjectLockToPutObjectBuilder(putBuilder, lockConfig);
             }
             fileRequestBuilder.putObjectRequest(putBuilder.build());
-          });
-    }
-
-    return builder.build();
-  }
-
-  public UploadDirectoryRequest toUploadDirectoryRequest(
-      DirectoryUploadRequest request, AtomicLong totalBytesTransferred) {
-    UploadDirectoryRequest.Builder builder =
-        UploadDirectoryRequest.builder()
-            .bucket(getBucket())
-            .source(Paths.get(request.getLocalSourceDirectory()))
-            .maxDepth(request.isIncludeSubFolders() ? Integer.MAX_VALUE : 1)
-            .followSymbolicLinks(request.isFollowSymbolicLinks())
-            .s3Prefix(request.getPrefix());
-    boolean hasTags = request.getTags() != null && !request.getTags().isEmpty();
-    boolean hasObjectLock = request.getObjectLock() != null;
-    boolean transferStatusLoggingEnabled = request.isTransferStatusLoggingEnabled();
-    if (hasTags || hasObjectLock || transferStatusLoggingEnabled) {
-      S3LoggingTransferListener transferListener =
-          transferStatusLoggingEnabled
-              ? S3LoggingTransferListener.create(totalBytesTransferred)
-              : null;
-      List<Tag> tagSet =
-          hasTags
-              ? request.getTags().entrySet().stream()
-                  .map(e -> Tag.builder().key(e.getKey()).value(e.getValue()).build())
-                  .collect(Collectors.toList())
-              : null;
-      ObjectLockConfiguration lockConfig = request.getObjectLock();
-      builder.uploadFileRequestTransformer(
-          fileRequestBuilder -> {
-            PutObjectRequest existing = fileRequestBuilder.build().putObjectRequest();
-            PutObjectRequest.Builder putBuilder = existing.toBuilder();
-            if (hasTags) {
-              putBuilder.tagging(Tagging.builder().tagSet(tagSet).build());
+          }
+          if (transferListener != null) {
+            fileRequestBuilder.addTransferListener(transferListener);
+          }
+          if (countRequested) {
+            // Best-effort stat, evaluated independently per file. A file that throws here is
+            // also a file the SDK can't upload, so it'll appear in failedTransfers and the
+            // response will already report 0 via resolveDirectoryTotalBytes — the under-counted
+            // requested total is never the value handed back to the caller in that case.
+            Path source = fileRequestBuilder.build().source();
+            if (source != null) {
+              try {
+                totalBytesRequested.addAndGet(Files.size(source));
+              } catch (IOException ignored) {
+                // Skip this file's contribution; other files in the same directory op are
+                // unaffected and still get counted.
+              }
             }
-            if (hasObjectLock) {
-              applyObjectLockToPutObjectBuilder(putBuilder, lockConfig);
-            }
-            fileRequestBuilder.putObjectRequest(putBuilder.build());
-            if (transferListener != null) {
-              fileRequestBuilder.addTransferListener(transferListener);
-            }
-          });
-    }
+          }
+        });
     return builder.build();
   }
 
@@ -869,6 +939,13 @@ public class AwsTransformer {
 
   public MultipartUpload toMultipartUpload(MultipartUploadRequest request,
                                            CreateMultipartUploadResponse response) {
+    // S3's default object checksum is CRC32C. When checksumming is enabled without an explicit
+    // algorithm, resolve the substrate-native default (CRC32C) so the stored algorithm honestly
+    // reflects what S3 uses — matching the algorithm forwarded on the create request.
+    ChecksumMethod algorithm = request.getChecksumAlgorithm();
+    if (algorithm == null && request.isChecksumEnabled()) {
+      algorithm = ChecksumMethod.CRC32C;
+    }
     return MultipartUpload.builder()
         .bucket(response.bucket())
         .key(response.key())
@@ -877,7 +954,7 @@ public class AwsTransformer {
         .tags(request.getTags())
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
-        .checksumAlgorithm(request.getChecksumAlgorithm())
+        .checksumAlgorithm(algorithm)
         .objectLock(request.getObjectLock())
         .contentType(request.getContentType())
         .build();
@@ -960,7 +1037,9 @@ public class AwsTransformer {
     return strategyBuilder.build();
   }
 
-  /** Creates a GetObjectRetentionRequest for retrieving object retention */
+  /**
+   * Creates a GetObjectRetentionRequest for retrieving object retention
+   */
   public GetObjectRetentionRequest toGetObjectRetentionRequest(String key, String versionId) {
     return GetObjectRetentionRequest.builder()
         .bucket(getBucket())
@@ -969,7 +1048,9 @@ public class AwsTransformer {
         .build();
   }
 
-  /** Creates a GetObjectLegalHoldRequest for retrieving legal hold status */
+  /**
+   * Creates a GetObjectLegalHoldRequest for retrieving legal hold status
+   */
   public GetObjectLegalHoldRequest toGetObjectLegalHoldRequest(String key, String versionId) {
     return GetObjectLegalHoldRequest.builder()
         .bucket(getBucket())
@@ -978,7 +1059,9 @@ public class AwsTransformer {
         .build();
   }
 
-  /** Creates a PutObjectRetentionRequest for updating object retention */
+  /**
+   * Creates a PutObjectRetentionRequest for updating object retention
+   */
   public PutObjectRetentionRequest toPutObjectRetentionRequest(
       String key,
       String versionId,
@@ -1015,7 +1098,9 @@ public class AwsTransformer {
     return builder.build();
   }
 
-  /** Creates a PutObjectLegalHoldRequest for updating legal hold status */
+  /**
+   * Creates a PutObjectLegalHoldRequest for updating legal hold status
+   */
   public PutObjectLegalHoldRequest toPutObjectLegalHoldRequest(
       String key, String versionId, boolean legalHold) {
     return PutObjectLegalHoldRequest.builder()
@@ -1029,7 +1114,9 @@ public class AwsTransformer {
         .build();
   }
 
-  /** Converts GetObjectRetentionResponse and GetObjectLegalHoldResponse to ObjectLockInfo */
+  /**
+   * Converts GetObjectRetentionResponse and GetObjectLegalHoldResponse to ObjectLockInfo
+   */
   public ObjectLockInfo toObjectLockInfo(
       GetObjectRetentionResponse retentionResponse, GetObjectLegalHoldResponse legalHoldResponse) {
     if (retentionResponse == null || retentionResponse.retention() == null) {

@@ -1,0 +1,31 @@
+{
+  "id" : "e4e64daf-cdd5-4bb1-a9a7-5badc9b0234f",
+  "name" : "AliBlobStoreIT_testUploadWithInvalidMd5Checksum_InputStream-PUT-1",
+  "request" : {
+    "url" : "/conformance-tests/checksum/upload-inputstream-invalid-md5",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGVzdCBpbnZhbGlkIE1ENSBjaGVja3N1bQ=="
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>InvalidDigest</Code>\n  <Message>The Content-MD5 you specified was invalid.</Message>\n  <RequestId>6A39CCCAEB205738345F4B91</RequestId>\n  <HostId>chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Content-MD5>AAAAAAAAAAAAAAAAAAAAAA==</Content-MD5>\n  <EC>0017-00000503</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0017-00000503</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A39CCCAEB205738345F4B91",
+      "x-oss-server-time" : "47",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0017-00000503",
+      "Date" : "Tue, 23 Jun 2026 00:01:14 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "e4e64daf-cdd5-4bb1-a9a7-5badc9b0234f",
+  "persistent" : true,
+  "insertionIndex" : 158
+}

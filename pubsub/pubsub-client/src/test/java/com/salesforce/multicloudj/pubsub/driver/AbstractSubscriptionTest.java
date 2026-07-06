@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import java.net.URI;
@@ -163,8 +164,8 @@ public class AbstractSubscriptionTest {
     }
 
     @Override
-    public Class<? extends SubstrateSdkException> getException(Throwable t) {
-      return SubstrateSdkException.class;
+    public SubstrateSdkException mapException(Throwable t) {
+      return new UnknownException(t);
     }
 
     @Override
@@ -246,7 +247,7 @@ public class AbstractSubscriptionTest {
     assertFalse(sub.canNack());
     assertNotNull(sub.getAttributes());
     assertFalse(sub.isRetryable(new RuntimeException()));
-    assertNotNull(sub.getException(new RuntimeException()));
+    assertNotNull(sub.mapException(new RuntimeException()));
   }
 
   @Test

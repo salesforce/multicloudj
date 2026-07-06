@@ -12,7 +12,6 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
@@ -229,144 +228,86 @@ public class SubscriptionClientTest {
 
   @Test
   public void testReceiveWithException() {
-    // Arrange
     RuntimeException originalException = new RuntimeException("test error");
     when(mockSubscription.receive()).thenThrow(originalException);
-    when(mockSubscription.getException(originalException))
-        .thenReturn((Class) UnknownException.class);
+    when(mockSubscription.mapException(any(Throwable.class)))
+        .thenReturn(new UnknownException(originalException));
 
-    try (MockedStatic<ExceptionHandler> mockedHandler = mockStatic(ExceptionHandler.class)) {
-      mockedHandler
-          .when(
-              () -> ExceptionHandler.handleAndPropagate(UnknownException.class, originalException))
-          .thenThrow(new UnknownException(originalException));
-
-      // Act & Assert
-      assertThrows(UnknownException.class, () -> subscriptionClient.receive());
-      mockedHandler.verify(
-          () -> ExceptionHandler.handleAndPropagate(UnknownException.class, originalException));
-    }
+    assertThrows(UnknownException.class, () -> subscriptionClient.receive());
+    verify(mockSubscription).mapException(originalException);
   }
 
   @Test
   public void testSendAckWithException() {
-    // Arrange
     AckID ackID = new TestAckID("test-ack-id");
     RuntimeException originalException = new RuntimeException("ack error");
     doThrow(originalException).when(mockSubscription).sendAck(ackID);
-    when(mockSubscription.getException(originalException))
-        .thenReturn((Class) UnknownException.class);
+    when(mockSubscription.mapException(any(Throwable.class)))
+        .thenReturn(new UnknownException(originalException));
 
-    try (MockedStatic<ExceptionHandler> mockedHandler = mockStatic(ExceptionHandler.class)) {
-      mockedHandler
-          .when(
-              () -> ExceptionHandler.handleAndPropagate(UnknownException.class, originalException))
-          .thenThrow(new UnknownException(originalException));
-
-      // Act & Assert
-      assertThrows(UnknownException.class, () -> subscriptionClient.sendAck(ackID));
-    }
+    assertThrows(UnknownException.class, () -> subscriptionClient.sendAck(ackID));
+    verify(mockSubscription).mapException(originalException);
   }
 
   @Test
   public void testSendAcksWithException() {
-    // Arrange
     List<AckID> ackIDs = Arrays.asList(new TestAckID("test-ack-id-1"));
     RuntimeException originalException = new RuntimeException("acks error");
     when(mockSubscription.sendAcks(ackIDs)).thenThrow(originalException);
-    when(mockSubscription.getException(originalException))
-        .thenReturn((Class) UnknownException.class);
+    when(mockSubscription.mapException(any(Throwable.class)))
+        .thenReturn(new UnknownException(originalException));
 
-    try (MockedStatic<ExceptionHandler> mockedHandler = mockStatic(ExceptionHandler.class)) {
-      mockedHandler
-          .when(
-              () -> ExceptionHandler.handleAndPropagate(UnknownException.class, originalException))
-          .thenThrow(new UnknownException(originalException));
-
-      // Act & Assert
-      assertThrows(UnknownException.class, () -> subscriptionClient.sendAcks(ackIDs));
-    }
+    assertThrows(UnknownException.class, () -> subscriptionClient.sendAcks(ackIDs));
+    verify(mockSubscription).mapException(originalException);
   }
 
   @Test
   public void testSendNackWithException() {
-    // Arrange
     AckID ackID = new TestAckID("test-ack-id");
     RuntimeException originalException = new RuntimeException("nack error");
     doThrow(originalException).when(mockSubscription).sendNack(ackID);
-    when(mockSubscription.getException(originalException))
-        .thenReturn((Class) UnknownException.class);
+    when(mockSubscription.mapException(any(Throwable.class)))
+        .thenReturn(new UnknownException(originalException));
 
-    try (MockedStatic<ExceptionHandler> mockedHandler = mockStatic(ExceptionHandler.class)) {
-      mockedHandler
-          .when(
-              () -> ExceptionHandler.handleAndPropagate(UnknownException.class, originalException))
-          .thenThrow(new UnknownException(originalException));
-
-      // Act & Assert
-      assertThrows(UnknownException.class, () -> subscriptionClient.sendNack(ackID));
-    }
+    assertThrows(UnknownException.class, () -> subscriptionClient.sendNack(ackID));
+    verify(mockSubscription).mapException(originalException);
   }
 
   @Test
   public void testSendNacksWithException() {
-    // Arrange
     List<AckID> ackIDs = Arrays.asList(new TestAckID("test-ack-id-1"));
     RuntimeException originalException = new RuntimeException("nacks error");
     when(mockSubscription.sendNacks(ackIDs)).thenThrow(originalException);
-    when(mockSubscription.getException(originalException))
-        .thenReturn((Class) UnknownException.class);
+    when(mockSubscription.mapException(any(Throwable.class)))
+        .thenReturn(new UnknownException(originalException));
 
-    try (MockedStatic<ExceptionHandler> mockedHandler = mockStatic(ExceptionHandler.class)) {
-      mockedHandler
-          .when(
-              () -> ExceptionHandler.handleAndPropagate(UnknownException.class, originalException))
-          .thenThrow(new UnknownException(originalException));
-
-      // Act & Assert
-      assertThrows(UnknownException.class, () -> subscriptionClient.sendNacks(ackIDs));
-    }
+    assertThrows(UnknownException.class, () -> subscriptionClient.sendNacks(ackIDs));
+    verify(mockSubscription).mapException(originalException);
   }
 
   @Test
   public void testGetAttributesWithException() {
-    // Arrange
     RuntimeException originalException = new RuntimeException("attributes error");
     when(mockSubscription.getAttributes()).thenThrow(originalException);
-    when(mockSubscription.getException(originalException))
-        .thenReturn((Class) UnknownException.class);
+    when(mockSubscription.mapException(any(Throwable.class)))
+        .thenReturn(new UnknownException(originalException));
 
-    try (MockedStatic<ExceptionHandler> mockedHandler = mockStatic(ExceptionHandler.class)) {
-      mockedHandler
-          .when(
-              () -> ExceptionHandler.handleAndPropagate(UnknownException.class, originalException))
-          .thenThrow(new UnknownException(originalException));
-
-      // Act & Assert
-      assertThrows(UnknownException.class, () -> subscriptionClient.getAttributes());
-    }
+    assertThrows(UnknownException.class, () -> subscriptionClient.getAttributes());
+    verify(mockSubscription).mapException(originalException);
   }
 
   @Test
   public void testCloseWithException() {
-    // Arrange
     RuntimeException originalException = new RuntimeException("close error");
     try {
       doThrow(originalException).when(mockSubscription).close();
     } catch (Exception e) {
       // This should not happen in the test setup
     }
-    when(mockSubscription.getException(originalException))
-        .thenReturn((Class) UnknownException.class);
+    when(mockSubscription.mapException(any(Throwable.class)))
+        .thenReturn(new UnknownException(originalException));
 
-    try (MockedStatic<ExceptionHandler> mockedHandler = mockStatic(ExceptionHandler.class)) {
-      mockedHandler
-          .when(
-              () -> ExceptionHandler.handleAndPropagate(UnknownException.class, originalException))
-          .thenThrow(new UnknownException(originalException));
-
-      // Act & Assert
-      assertThrows(UnknownException.class, () -> subscriptionClient.close());
-    }
+    assertThrows(UnknownException.class, () -> subscriptionClient.close());
+    verify(mockSubscription).mapException(originalException);
   }
 }

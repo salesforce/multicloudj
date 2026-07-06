@@ -34,6 +34,7 @@ public class ErrorCodeMapping {
     ERROR_MAPPING.put("BucketAlreadyExists", InvalidArgumentException.class);
     ERROR_MAPPING.put("InvalidBucketName", InvalidArgumentException.class);
     ERROR_MAPPING.put("MissingArgument", InvalidArgumentException.class);
+    ERROR_MAPPING.put("InvalidDigest", InvalidArgumentException.class);
   }
 
   static Class<? extends SubstrateSdkException> getException(String errorCode) {

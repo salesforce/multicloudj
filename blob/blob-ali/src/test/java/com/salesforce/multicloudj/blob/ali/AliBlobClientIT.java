@@ -91,7 +91,7 @@ public class AliBlobClientIT extends AbstractBlobClientIT {
       ossClient = OSSClient.newBuilder()
           .region(region)
           .credentialsProvider(
-              OSSCredentialsProvider.getCredentialsProvider(credentialsOverrider, region))
+              OssCredentialsProvider.getCredentialsProvider(credentialsOverrider, region))
           .endpoint(endpoint)
           .httpClient(httpClient)
           .build();

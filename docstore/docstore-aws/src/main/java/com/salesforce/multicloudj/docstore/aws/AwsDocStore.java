@@ -4,7 +4,9 @@ import static com.salesforce.multicloudj.docstore.aws.AwsCodec.decodeDoc;
 import static com.salesforce.multicloudj.docstore.aws.AwsCodec.encodeValue;
 
 import com.google.auto.service.AutoService;
+import com.salesforce.multicloudj.common.aws.AwsRetryClassifier;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
@@ -105,29 +107,32 @@ public class AwsDocStore extends AbstractDocStore {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    // It's best to scan the stack list to some reasonable depth to find exceptions
-    // we look for in certain order.
-    // First check, if the exception being thrown is SubstrateSdkException, this means
-    // the exception has already been converted to our Sdk exception.
-    // Secondly, check the SdkClient exception and finally the exceptions from the server.
-    Set<Throwable> exceptions =
-        ExceptionUtils.getThrowableList(t).stream().limit(5).collect(Collectors.toSet());
-    if (exceptions.stream().anyMatch(SubstrateSdkException.class::isInstance)) {
-      // the exception is already mapped to internal, just let it flow
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (exceptions.stream().anyMatch(SdkClientException.class::isInstance)
-        || exceptions.stream().anyMatch(IllegalArgumentException.class::isInstance)) {
-      return InvalidArgumentException.class;
-    } else if (exceptions.stream().anyMatch(AwsServiceException.class::isInstance)) {
-      AwsServiceException serviceException = (AwsServiceException) t;
-      if (serviceException.awsErrorDetails() == null) {
-        return UnknownException.class;
+  public SubstrateSdkException mapException(Throwable t) {
+    // Scan the cause chain to a reasonable depth, in priority order:
+    // 1) already a SubstrateSdkException -> handled by ExceptionHandler.build
+    // 2) SdkClient/IllegalArgumentException -> InvalidArgumentException
+    // 3) AwsServiceException -> map by error code on the matching cause
+    List<Throwable> causeChain =
+        ExceptionUtils.getThrowableList(t).stream().limit(5).collect(Collectors.toList());
+    Class<? extends SubstrateSdkException> exceptionClass;
+    if (causeChain.stream().anyMatch(SdkClientException.class::isInstance)
+        || causeChain.stream().anyMatch(IllegalArgumentException.class::isInstance)) {
+      exceptionClass = InvalidArgumentException.class;
+    } else {
+      AwsServiceException serviceException =
+          causeChain.stream()
+              .filter(AwsServiceException.class::isInstance)
+              .map(AwsServiceException.class::cast)
+              .findFirst()
+              .orElse(null);
+      if (serviceException == null || serviceException.awsErrorDetails() == null) {
+        exceptionClass = UnknownException.class;
+      } else {
+        String errorCode = serviceException.awsErrorDetails().errorCode();
+        exceptionClass = ErrorCodeMapping.getException(errorCode);
       }
-      String errorCode = serviceException.awsErrorDetails().errorCode();
-      return ErrorCodeMapping.getException(errorCode);
     }
-    return UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, AwsRetryClassifier.classify(t));
   }
 
   protected TableDescription getTableDescription() {

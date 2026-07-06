@@ -79,7 +79,7 @@ public class ActionList {
       toDriverActions();
       docStore.runActions(actions, beforeDo);
     } catch (Throwable e) {
-      ExceptionHandler.handleAndPropagate(docStore.getException(e), e);
+      throw docStore.mapException(e);
     }
   }
 

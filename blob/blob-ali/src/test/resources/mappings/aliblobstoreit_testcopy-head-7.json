@@ -1,0 +1,38 @@
+{
+  "id" : "22200392-84e5-423c-bcc4-aa3d1be94c93",
+  "name" : "AliBlobStoreIT_testCopy-HEAD-7",
+  "request" : {
+    "url" : "/conformance-tests/clobbered-blob",
+    "method" : "HEAD",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A31BA036AC38838392B403B",
+      "x-oss-server-time" : "36",
+      "Server" : "AliyunOSS",
+      "x-oss-object-type" : "Normal",
+      "Last-Modified" : "Tue, 16 Jun 2026 21:02:58 GMT",
+      "Date" : "Tue, 16 Jun 2026 21:02:59 GMT",
+      "Content-MD5" : "cKK4lX0Hr2ZqrWCAxXanTQ==",
+      "x-oss-meta-key1" : "value1",
+      "Accept-Ranges" : "bytes",
+      "x-oss-storage-class" : "Standard",
+      "x-oss-hash-crc64ecma" : "456912294384585950",
+      "ETag" : "\"70A2B8957D07AF666AAD6080C576A74D\"",
+      "x-oss-meta-key2" : "value2",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "22200392-84e5-423c-bcc4-aa3d1be94c93",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-conformance-tests-clobbered-blob",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-conformance-tests-clobbered-blob-2",
+  "insertionIndex" : 51
+}

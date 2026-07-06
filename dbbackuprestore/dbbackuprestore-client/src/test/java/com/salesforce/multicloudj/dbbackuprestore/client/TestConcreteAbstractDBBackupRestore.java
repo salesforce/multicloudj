@@ -39,7 +39,7 @@ public class TestConcreteAbstractDBBackupRestore extends AbstractDBBackupRestore
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
+  public SubstrateSdkException mapException(Throwable t) {
     return null;
   }
 

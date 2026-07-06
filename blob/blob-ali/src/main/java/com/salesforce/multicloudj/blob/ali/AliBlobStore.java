@@ -38,6 +38,8 @@ import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartResult;
 import com.aliyun.sdk.service.oss2.retry.Retryer;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClient;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClientBuilder;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
@@ -83,7 +85,6 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -92,7 +93,12 @@ import lombok.Getter;
 
 /** Alibaba implementation of BlobStore */
 @AutoService(AbstractBlobStore.class)
-public class AliBlobStore extends AbstractBlobStore {
+public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
+
+  private static final int COPY_BUFFER_SIZE = 16 * 1024;
+
+  // Largest array the JVM can reliably allocate; some VMs reserve a few header words.
+  private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
   private final OSSClient ossClient;
   private final AliTransformer transformer;
@@ -110,28 +116,6 @@ public class AliBlobStore extends AbstractBlobStore {
   @Override
   public Provider.Builder builder() {
     return new Builder();
-  }
-
-  @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    if (t instanceof SubstrateSdkException) {
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (t instanceof OperationException) {
-      Throwable cause = t.getCause();
-      if (cause instanceof ServiceException) {
-        String errorCode =
-            ((ServiceException) cause).errorCode();
-        return ErrorCodeMapping.getException(errorCode);
-      }
-      return UnknownException.class;
-    } else if (t instanceof ServiceException) {
-      String errorCode =
-          ((ServiceException) t).errorCode();
-      return ErrorCodeMapping.getException(errorCode);
-    } else if (t instanceof IllegalArgumentException) {
-      return InvalidArgumentException.class;
-    }
-    return UnknownException.class;
   }
 
   /**
@@ -244,23 +228,7 @@ public class AliBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
-    GetObjectRequest request =
-        transformer.toGetObjectRequest(downloadRequest);
-    try (GetObjectResult result =
-        ossClient.getObject(request,
-            OperationOptions.defaults())) {
-      validateRangeResponse(downloadRequest, result);
-      copyStream(result.body(), outputStream);
-      return transformer.toDownloadResponse(downloadRequest.getKey(), result);
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
-    } catch (Exception e) {
-      handleArchivedObjects(downloadRequest, e);
-      if (e instanceof RuntimeException) {
-        throw (RuntimeException) e;
-      }
-      throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
-    }
+    return download(downloadRequest, result -> copyStream(result.body(), outputStream));
   }
 
   /**
@@ -272,10 +240,7 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, ByteArray byteArray) {
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    DownloadResponse downloadResponse = doDownload(downloadRequest, outputStream);
-    byteArray.setBytes(outputStream.toByteArray());
-    return downloadResponse;
+    return download(downloadRequest, result -> byteArray.setBytes(readBody(result)));
   }
 
   /**
@@ -299,15 +264,36 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
-    Path destinationPath =
-        createDownloadDestinationPath(downloadRequest, path);
-    GetObjectRequest request =
-        transformer.toGetObjectRequest(downloadRequest);
+    Path destinationPath = createDownloadDestinationPath(downloadRequest, path);
+    return download(downloadRequest, result -> Files.copy(result.body(), destinationPath));
+  }
+
+  /**
+   * Consumes the body of a {@link GetObjectResult} into a download destination.
+   */
+  @FunctionalInterface
+  private interface BodyConsumer {
+    void accept(GetObjectResult result) throws IOException;
+  }
+
+  /**
+   * Shared GET-object download flow for the destination-based overloads (OutputStream, byte array,
+   * and file/path). It issues the GET, validates any requested range, hands the open result to the
+   * supplied {@link BodyConsumer} to drain the body, and closes the result via try-with-resources.
+   * The error contract is uniform across every destination: archived/delete-marker detection runs
+   * through {@link #handleArchivedObjects}, and other failures are wrapped in
+   * {@code RuntimeException} so the framework's exception-translation layer maps them consistently.
+   *
+   * <p>The InputStream overload is intentionally not routed through here: it returns the body
+   * stream to the caller without consuming or closing it, so it cannot share this
+   * try-with-resources flow.
+   */
+  private DownloadResponse download(DownloadRequest downloadRequest, BodyConsumer consumer) {
+    GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
     try (GetObjectResult result =
-        ossClient.getObject(request,
-            OperationOptions.defaults())) {
+        ossClient.getObject(request, OperationOptions.defaults())) {
       validateRangeResponse(downloadRequest, result);
-      Files.copy(result.body(), destinationPath);
+      consumer.accept(result);
       return transformer.toDownloadResponse(downloadRequest.getKey(), result);
     } catch (IOException e) {
       throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
@@ -318,6 +304,34 @@ public class AliBlobStore extends AbstractBlobStore {
       }
       throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
     }
+  }
+
+  /**
+   * Reads the object body into a single right-sized {@code byte[]}, avoiding the double buffering
+   * of draining into a {@link ByteArrayOutputStream} and then copying out through
+   * {@code toByteArray()}.
+   * When the content length is known and addressable as one array, the body is read into an exactly
+   * sized buffer; if the stream turns out to hold more bytes than the reported length, the read is
+   * rejected rather than silently truncating the payload ({@code readNBytes} already truncates if
+   * the stream ends early, which is harmless). Otherwise — unknown, zero, or oversized length — it
+   * falls back to draining the full stream.
+   */
+  private byte[] readBody(GetObjectResult result) throws IOException {
+    Long reported = result.contentLength();
+    long contentLength = reported != null ? reported : 0L;
+    if (contentLength > 0 && contentLength <= MAX_ARRAY_SIZE) {
+      InputStream body = result.body();
+      byte[] bytes = body.readNBytes((int) contentLength);
+      if (body.read() != -1) {
+        throw new IOException(
+            "Object stream exceeded the reported content length of " + contentLength + " bytes");
+      }
+      return bytes;
+    }
+    // Fallback: drain the entire stream when the length is unknown, zero, or too large to allocate.
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    copyStream(result.body(), outputStream);
+    return outputStream.toByteArray();
   }
 
   /**
@@ -484,15 +498,11 @@ public class AliBlobStore extends AbstractBlobStore {
     }
   }
 
-  private void copyStream(InputStream in, OutputStream out) {
-    try {
-      byte[] buffer = new byte[1024];
-      int bytesRead;
-      while ((bytesRead = in.read(buffer)) != -1) {
-        out.write(buffer, 0, bytesRead);
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+  private void copyStream(InputStream in, OutputStream out) throws IOException {
+    byte[] buffer = new byte[COPY_BUFFER_SIZE];
+    int bytesRead;
+    while ((bytesRead = in.read(buffer)) != -1) {
+      out.write(buffer, 0, bytesRead);
     }
   }
 
@@ -635,6 +645,7 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request) {
+    AliTransformer.rejectUnsupportedChecksum(request.getChecksumAlgorithm());
     InitiateMultipartUploadRequest ossRequest =
         transformer.toInitiateMultipartUploadRequest(request);
     InitiateMultipartUploadResult result =
@@ -679,8 +690,11 @@ public class AliBlobStore extends AbstractBlobStore {
     // OSS does not support object lock headers on multipart initiation, so apply retention
     // and legal hold after the object is assembled.
     applyObjectLockAfterUpload(mpu.getKey(), result.versionId(), mpu.getObjectLock());
+    // OSS computes a CRC64 over the assembled object and returns it on the result; surface it
+    // as the cross-cloud composite checksum on MultipartUploadResponse.
     return new MultipartUploadResponse(
-        stripQuotes(result.completeMultipartUpload().eTag()));
+        stripQuotes(result.completeMultipartUpload().eTag()),
+        result.hashCRC64());
   }
 
   /**
@@ -970,45 +984,34 @@ public class AliBlobStore extends AbstractBlobStore {
     }
 
     private static OSSClient buildOSSClient(Builder builder) {
-      CredentialsProvider creds =
-          OSSCredentialsProvider.getCredentialsProvider(
-              builder.getCredentialsOverrider(), builder.getRegion());
+      CredentialsProvider creds = OssCredentialsProvider.getCredentialsProvider(
+          builder.getCredentialsOverrider(), builder.getRegion());
       if (creds == null) {
         return null;
       }
+      Retryer retryer = builder.getRetryConfig() != null
+          ? AliTransformer.toAliRetryer(builder.getRetryConfig())
+          : null;
 
-      var clientBuilder = OSSClient.newBuilder()
-          .region(builder.getRegion())
-          .credentialsProvider(creds);
-
-      if (builder.getEndpoint() != null) {
-        clientBuilder.endpoint(builder.getEndpoint().toString());
-      }
-      String proxyHost = null;
-      if (builder.getProxyEndpoint() != null) {
-        proxyHost =
-            builder.getProxyEndpoint().getHost()
-                + ":" + builder.getProxyEndpoint().getPort();
-        clientBuilder.proxyHost(proxyHost);
-      }
-      Duration readWriteTimeout = null;
-      if (builder.getRetryConfig() != null) {
-        Retryer retryer = AliTransformer.toAliRetryer(builder.getRetryConfig());
-        if (retryer != null) {
-          clientBuilder.retryer(retryer);
-        }
-        if (builder.getRetryConfig().getAttemptTimeout() != null) {
-          readWriteTimeout = Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout());
-          clientBuilder.readWriteTimeout(readWriteTimeout);
-        }
-      }
-
-      if (builder.getMetricsPublisher() != null) {
-        clientBuilder.httpClient(
-            AliInstrumentedHttpClientFactory.create(
-                builder.getMetricsPublisher(), proxyHost, readWriteTimeout));
-      }
-
+      var clientBuilder = OSSClient.newBuilder();
+      OssClientFactory.configure(
+          clientBuilder,
+          builder,
+          creds,
+          retryer,
+          (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) -> {
+            Apache5HttpClient httpClient =
+                Apache5HttpClientBuilder.create()
+                    .options(AliTransformer.toHttpClientOptions(
+                        proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout))
+                    .build();
+            // When a metrics publisher is configured, wrap the SDK-built transport so its
+            // connection pool is sampled per request; otherwise use it directly.
+            return builder.getMetricsPublisher() != null
+                ? AliInstrumentedHttpClientFactory.instrument(
+                    builder.getMetricsPublisher(), httpClient)
+                : httpClient;
+          });
       return clientBuilder.build();
     }
 

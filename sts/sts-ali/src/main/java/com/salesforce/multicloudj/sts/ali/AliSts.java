@@ -9,14 +9,16 @@ import com.aliyuncs.http.HttpClientConfig;
 import com.aliyuncs.profile.DefaultProfile;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleRequest;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleResponse;
+import com.aliyuncs.sts.model.v20150401.AssumeRoleWithOIDCRequest;
+import com.aliyuncs.sts.model.v20150401.AssumeRoleWithOIDCResponse;
 import com.aliyuncs.sts.model.v20150401.GetCallerIdentityRequest;
 import com.aliyuncs.sts.model.v20150401.GetCallerIdentityResponse;
 import com.aliyuncs.utils.EnvironmentUtils;
 import com.google.auto.service.AutoService;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
@@ -209,20 +211,57 @@ public class AliSts extends AbstractSts {
     }
   }
 
+  // Env var the Aliyun SDK's own OIDCCredentialsProvider reads for the OIDC provider ARN when one
+  // is not supplied explicitly; mirrored here so callers can configure it out-of-band.
+  static final String OIDC_PROVIDER_ARN_ENV = "ALIBABA_CLOUD_OIDC_PROVIDER_ARN";
+
   @Override
   protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(
       AssumeRoleWebIdentityRequest request) {
-    throw new UnSupportedOperationException("Not supported yet.");
+    // AssumeRoleWithOIDC requires the OIDC provider ARN to be named explicitly on the request; it
+    // cannot be derived from the token. Take it from the request, else fall back to the env var the
+    // Aliyun SDK itself uses, else reject.
+    String providerArn = request.getWebIdentityProviderArn();
+    if (providerArn == null || providerArn.isEmpty()) {
+      providerArn = System.getenv(OIDC_PROVIDER_ARN_ENV);
+    }
+    if (providerArn == null || providerArn.isEmpty()) {
+      throw new InvalidArgumentException(
+          "webIdentityProviderArn is required for AssumeRoleWithOIDC; set it on the request or via "
+              + "the " + OIDC_PROVIDER_ARN_ENV + " environment variable");
+    }
+
+    AssumeRoleWithOIDCRequest oidcRequest = new AssumeRoleWithOIDCRequest();
+    oidcRequest.setRoleArn(request.getRole());
+    oidcRequest.setOIDCProviderArn(providerArn);
+    oidcRequest.setOIDCToken(request.getWebIdentityToken());
+    oidcRequest.setRoleSessionName(request.getSessionName());
+    if (request.getExpiration() > 0) {
+      oidcRequest.setDurationSeconds((long) request.getExpiration());
+    }
+
+    try {
+      AssumeRoleWithOIDCResponse response = stsClient.getAcsResponse(oidcRequest);
+      AssumeRoleWithOIDCResponse.Credentials credentials = response.getCredentials();
+      return new StsCredentials(
+          credentials.getAccessKeyId(),
+          credentials.getAccessKeySecret(),
+          credentials.getSecurityToken());
+    } catch (ClientException e) {
+      throw mapException(e);
+    }
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
+  public SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass = UnknownException.class;
     // ali-yun has a wierd chain where ServerException extends the ClientException
     if (t instanceof ClientException) {
       String errorCode = ((ClientException) t).getErrCode();
-      return ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
+      exceptionClass = ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
     }
-    return UnknownException.class;
+    // aliyuncs ClientException has no status/retry signal; rely on type-default retryability.
+    return ExceptionHandler.build(exceptionClass, t, null);
   }
 
   // The common error codes as source of truth is here:

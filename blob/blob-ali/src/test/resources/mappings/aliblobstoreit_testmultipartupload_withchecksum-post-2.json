@@ -1,0 +1,47 @@
+{
+  "id" : "2de55ffe-49db-4cb1-a4a9-69812c9905fa",
+  "name" : "AliBlobStoreIT_testMultipartUpload_withChecksum-POST-2",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-withChecksum",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "C8D1D2277364418BA918C54246038A4C"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>2B5C91AD399409EC9B409B66F5BB00FB</ETag></Part><Part><PartNumber>2</PartNumber><ETag>267C038CC2EC32FFD0EE2512FF5DA5A5</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CompleteMultipartUploadResult>\n  <EncodingType>url</EncodingType>\n  <Location>https://chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com/conformance-tests/multipart-withChecksum</Location>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests%2Fmultipart-withChecksum</Key>\n  <ETag>\"8C11B624ED7D61A26D45D7A28FE98349-2\"</ETag>\n</CompleteMultipartUploadResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A2B267A0265793438312395",
+      "x-oss-server-time" : "74",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "16941702395769382088",
+      "ETag" : "\"8C11B624ED7D61A26D45D7A28FE98349-2\"",
+      "Date" : "Thu, 11 Jun 2026 21:19:54 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "2de55ffe-49db-4cb1-a4a9-69812c9905fa",
+  "persistent" : true,
+  "insertionIndex" : 9
+}
