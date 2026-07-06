@@ -58,6 +58,7 @@ import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.http.ContentStreamProvider;
+import software.amazon.awssdk.retries.AdaptiveRetryStrategy;
 import software.amazon.awssdk.retries.StandardRetryStrategy;
 import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.retries.api.RetryStrategy;
@@ -980,7 +981,10 @@ public class AwsTransformer {
   }
 
   /**
-   * Converts MultiCloudJ RetryConfig to AWS SDK RetryStrategy
+   * Converts MultiCloudJ RetryConfig to AWS SDK RetryStrategy. EXPONENTIAL and FIXED modes produce
+   * a {@link StandardRetryStrategy} with the corresponding backoff; ADAPTIVE mode produces an
+   * {@link AdaptiveRetryStrategy} that throttles the client request rate under server-side
+   * throttling. A null mode uses the SDK default backoff.
    *
    * @param retryConfig The retry configuration to convert
    * @return AWS SDK RetryStrategy
@@ -1005,6 +1009,14 @@ public class AwsTransformer {
     // If mode is not set, use AWS SDK's default backoff strategy
     if (retryConfig.getMode() == null) {
       return strategyBuilder.build();
+    }
+
+    if (retryConfig.getMode() == RetryConfig.Mode.ADAPTIVE) {
+      AdaptiveRetryStrategy.Builder adaptiveBuilder = AdaptiveRetryStrategy.builder();
+      if (retryConfig.getMaxAttempts() != null) {
+        adaptiveBuilder.maxAttempts(retryConfig.getMaxAttempts());
+      }
+      return adaptiveBuilder.build();
     }
 
     // Configure backoff strategy based on mode

@@ -32,6 +32,7 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.File;
@@ -2099,6 +2100,34 @@ class GcpTransformerTest {
     assertEquals(Duration.ofMillis(1000), settings.getInitialRetryDelayDuration());
     assertEquals(1.0, settings.getRetryDelayMultiplier());
     assertEquals(Duration.ofMillis(1000), settings.getMaxRetryDelayDuration());
+  }
+
+  @Test
+  public void testToGcpRetrySettings_Adaptive() {
+    RetryConfig retryConfig =
+        RetryConfig.builder().mode(RetryConfig.Mode.ADAPTIVE).maxAttempts(4).build();
+
+    RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
+
+    assertNotNull(settings);
+    assertEquals(4, settings.getMaxAttempts());
+    assertEquals(1.0, settings.getRetryDelayMultiplier());
+  }
+
+  @Test
+  public void testToGcpRetrySettings_AdaptiveRequiredFailsFast() {
+    // requireAdaptive=true must reject the silent fallback on a provider with no native adaptive
+    // controller, so a config that assumes adaptive protection can never run without it.
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.ADAPTIVE)
+            .requireAdaptive(true)
+            .maxAttempts(4)
+            .build();
+
+    assertThrows(
+        UnSupportedOperationException.class,
+        () -> transformer.toGcpRetrySettings(retryConfig));
   }
 
   @Test

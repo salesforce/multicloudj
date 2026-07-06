@@ -10,12 +10,15 @@ import lombok.Getter;
  * cloud providers and services. It abstracts provider-specific retry mechanisms into a common model
  * that can be translated to native retry configurations for each cloud provider.
  *
- * <p>Supports two retry modes:
+ * <p>Supports three retry modes:
  *
  * <ul>
  *   <li><b>EXPONENTIAL</b>: Delay between retries grows exponentially using the formula: {@code
  *       delay = min(maxDelayMillis, initialDelayMillis * multiplier^(attempt-1))}
  *   <li><b>FIXED</b>: Constant delay between retries using {@code fixedDelayMillis}
+ *   <li><b>ADAPTIVE</b>: Rate-limit-aware backoff that dynamically throttles the client request
+ *       rate based on observed throttling, gracefully recovering from server-side rate limiting.
+ *       Provider support varies (see {@link Mode#ADAPTIVE}).
  * </ul>
  *
  * <p>Example usage:
@@ -59,6 +62,24 @@ public final class RetryConfig {
      * <p>Requires: {@code fixedDelayMillis}
      */
     FIXED,
+
+    /**
+     * Adaptive mode: rate-limit-aware backoff. Instead of a fixed delay curve, the client
+     * dynamically throttles its own request rate based on observed server-side throttling
+     * (e.g. HTTP 503 SlowDown), smoothing recovery and avoiding client-side retry storms that
+     * amplify congestion under sustained rate limiting.
+     *
+     * <p>The delay-shaping fields ({@code initialDelayMillis}, {@code multiplier},
+     * {@code maxDelayMillis}, {@code fixedDelayMillis}) do not apply; the adaptive controller
+     * manages timing internally. {@code maxAttempts} is still honored when set.
+     *
+     * <p>Provider support: honored natively where the provider SDK offers an adaptive/token-bucket
+     * retry controller. Where a provider SDK has no adaptive equivalent, this value degrades to the
+     * provider's default backoff. By default the degrade is silent; set {@code requireAdaptive} to
+     * turn it into a fail-fast so a config that assumes adaptive protection cannot run without it
+     * (see {@link RetryConfig#isRequireAdaptive()}).
+     */
+    ADAPTIVE,
   }
 
   /** The retry mode determining delay calculation strategy. */
@@ -108,4 +129,13 @@ public final class RetryConfig {
    * reached. If null, no total timeout limit is applied.
    */
   private final Long totalTimeout;
+
+  /**
+   * When {@code true}, requires that {@link Mode#ADAPTIVE} is honored by a native adaptive retry
+   * controller. Providers whose SDK has no adaptive equivalent throw instead of silently degrading
+   * to their default backoff. Set this when adaptive rate-limiting is a hard requirement and a
+   * silent fallback would be a regression. Ignored for {@code EXPONENTIAL}, {@code FIXED}, and null
+   * modes. Defaults to {@code false} (silent fallback with a warning log).
+   */
+  private final boolean requireAdaptive;
 }

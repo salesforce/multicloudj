@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.blob.aws;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -50,6 +51,8 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.retries.AdaptiveRetryStrategy;
+import software.amazon.awssdk.retries.StandardRetryStrategy;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
@@ -1426,6 +1429,63 @@ public class AwsTransformerTest {
     RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
 
     assertNotNull(strategy);
+  }
+
+  @Test
+  void testToAwsRetryStrategyWithAdaptiveMode() {
+    RetryConfig config =
+        RetryConfig.builder().mode(RetryConfig.Mode.ADAPTIVE).maxAttempts(4).build();
+
+    RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
+
+    assertNotNull(strategy);
+    assertInstanceOf(
+        AdaptiveRetryStrategy.class,
+        strategy,
+        "REGRESSION GUARD: downstream consumers rely on AWS adaptive rate-limiting. ADAPTIVE mode "
+            + "must map to AdaptiveRetryStrategy — do not downgrade it to StandardRetryStrategy.");
+  }
+
+  @Test
+  void testToAwsRetryStrategyAdaptiveRequiredStillAdaptive() {
+    RetryConfig config =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.ADAPTIVE)
+            .requireAdaptive(true)
+            .maxAttempts(4)
+            .build();
+
+    RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
+
+    assertInstanceOf(
+        AdaptiveRetryStrategy.class,
+        strategy,
+        "REGRESSION GUARD: requireAdaptive=true must be honored natively on AWS, not rejected.");
+  }
+
+  @Test
+  void testToAwsRetryStrategyAdaptiveWithoutMaxAttempts() {
+    RetryConfig config = RetryConfig.builder().mode(RetryConfig.Mode.ADAPTIVE).build();
+
+    RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
+
+    assertInstanceOf(AdaptiveRetryStrategy.class, strategy);
+  }
+
+  @Test
+  void testToAwsRetryStrategyExponentialIsStandardNotAdaptive() {
+    RetryConfig config =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .maxAttempts(3)
+            .initialDelayMillis(100L)
+            .multiplier(2.0)
+            .maxDelayMillis(5000L)
+            .build();
+
+    RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
+
+    assertInstanceOf(StandardRetryStrategy.class, strategy);
   }
 
   @Test

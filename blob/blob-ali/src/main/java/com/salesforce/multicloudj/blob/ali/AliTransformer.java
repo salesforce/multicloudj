@@ -42,9 +42,8 @@ import com.aliyun.sdk.service.oss2.models.TagSet;
 import com.aliyun.sdk.service.oss2.models.Tagging;
 import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartResult;
-import com.aliyun.sdk.service.oss2.retry.BackoffDelayer;
-import com.aliyun.sdk.service.oss2.retry.EqualJitterBackoff;
 import com.aliyun.sdk.service.oss2.retry.FixedDelayBackoff;
+import com.aliyun.sdk.service.oss2.retry.FullJitterBackoff;
 import com.aliyun.sdk.service.oss2.retry.Retryer;
 import com.aliyun.sdk.service.oss2.retry.StandardRetryer;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
@@ -88,9 +87,13 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Getter
 public class AliTransformer {
+
+  private static final Logger logger = LoggerFactory.getLogger(AliTransformer.class);
 
   private static final String SERVER_SIDE_ENCRYPTION_KMS = "KMS";
 
@@ -757,15 +760,17 @@ public class AliTransformer {
    *
    * <p>Mapping:
    * <ul>
-   *   <li>EXPONENTIAL mode → {@link EqualJitterBackoff} with baseDelay and maxBackoff</li>
+   *   <li>EXPONENTIAL mode → {@link FullJitterBackoff} with baseDelay and maxBackoff</li>
    *   <li>FIXED mode → {@link FixedDelayBackoff} with constant delay</li>
+   *   <li>ADAPTIVE mode → no native equivalent in the OSS v2 SDK; the StandardRetryer default
+   *       backoff is left in place (safe no-op, never throws)</li>
    *   <li>maxAttempts → {@link StandardRetryer.Builder#maxAttempts(Integer)}</li>
    * </ul>
    *
    * <p>Note: The Ali OSS v2 SDK does not support a totalTimeout equivalent (a hard deadline
    * across all retry attempts combined). This field from RetryConfig is not applied. The
    * attemptTimeout is handled separately via readWriteTimeout on the client builder.
-   * The multiplier field is not directly configurable — EqualJitterBackoff uses 2x internally.
+   * The multiplier field is not directly configurable — FullJitterBackoff uses 2x internally.
    */
   public static Retryer toAliRetryer(RetryConfig config) {
     if (config == null) {
@@ -783,33 +788,45 @@ public class AliTransformer {
       builder.maxAttempts(config.getMaxAttempts());
     }
 
-    if (config.getMode() != null) {
-      BackoffDelayer backoff;
-      if (config.getMode() == RetryConfig.Mode.EXPONENTIAL) {
-        if (config.getInitialDelayMillis() <= 0) {
-          throw new InvalidArgumentException(
-              "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
-                  + config.getInitialDelayMillis());
-        }
-        if (config.getMaxDelayMillis() <= 0) {
-          throw new InvalidArgumentException(
-              "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
-                  + config.getMaxDelayMillis());
-        }
-        backoff = new EqualJitterBackoff(
-            Duration.ofMillis(config.getInitialDelayMillis()),
-            Duration.ofMillis(config.getMaxDelayMillis()));
-      } else {
-        if (config.getFixedDelayMillis() <= 0) {
-          throw new InvalidArgumentException(
-              "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: "
-                  + config.getFixedDelayMillis());
-        }
-        backoff = new FixedDelayBackoff(
-            Duration.ofMillis(config.getFixedDelayMillis()));
+    if (config.getMode() == RetryConfig.Mode.EXPONENTIAL) {
+      if (config.getInitialDelayMillis() <= 0) {
+        throw new InvalidArgumentException(
+            "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
+                + config.getInitialDelayMillis());
       }
-      builder.backoffDelayer(backoff);
+      if (config.getMaxDelayMillis() <= 0) {
+        throw new InvalidArgumentException(
+            "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
+                + config.getMaxDelayMillis());
+      }
+      builder.backoffDelayer(new FullJitterBackoff(
+          Duration.ofMillis(config.getInitialDelayMillis()),
+          Duration.ofMillis(config.getMaxDelayMillis())));
+    } else if (config.getMode() == RetryConfig.Mode.FIXED) {
+      if (config.getFixedDelayMillis() <= 0) {
+        throw new InvalidArgumentException(
+            "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: "
+                + config.getFixedDelayMillis());
+      }
+      builder.backoffDelayer(new FixedDelayBackoff(
+          Duration.ofMillis(config.getFixedDelayMillis())));
+    } else if (config.getMode() == RetryConfig.Mode.ADAPTIVE) {
+      // ADAPTIVE mode has no native equivalent in the Ali OSS v2 SDK, which offers only static
+      // backoff delayers and no client-side rate-limiting controller. Leave the StandardRetryer's
+      // default backoff in place rather than approximate it. maxAttempts above still applies.
+      if (config.isRequireAdaptive()) {
+        throw new UnSupportedOperationException(
+            "RetryConfig.mode=ADAPTIVE with requireAdaptive=true is not supported by the Ali OSS "
+                + "v2 SDK, which has no native adaptive/token-bucket retry controller. Either "
+                + "clear requireAdaptive to allow the default-backoff fallback, or use EXPONENTIAL "
+                + "or FIXED mode for this provider.");
+      }
+      logger.warn(
+          "RetryConfig.mode=ADAPTIVE has no native equivalent in the Ali OSS v2 SDK; falling back "
+              + "to the default backoff. Client-side adaptive rate-limiting is NOT in effect. Set "
+              + "requireAdaptive=true to fail fast instead of degrading silently.");
     }
+    // A null mode keeps the StandardRetryer default backoff.
 
     return builder.build();
   }

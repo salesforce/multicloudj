@@ -868,10 +868,10 @@ public class AliTransformerTest {
 
     assertNotNull(retryer);
     assertEquals(5, retryer.maxAttempts());
-    // Verify delay is within expected range (EqualJitterBackoff adds jitter)
+    // Verify delay is within expected range (FullJitterBackoff draws uniformly from [0, cap))
     Duration delay = retryer.retryDelay(1, new RuntimeException("test"));
     assertNotNull(delay);
-    assertTrue(delay.toMillis() >= 100);
+    assertTrue(delay.toMillis() >= 0);
     assertTrue(delay.toMillis() <= 10000);
   }
 
@@ -913,6 +913,36 @@ public class AliTransformerTest {
     assertNotNull(delay);
     assertTrue(delay.toMillis() > 0,
         "Default backoff should produce a positive delay, got: " + delay.toMillis());
+  }
+
+  @Test
+  void testToAliRetryerAdaptiveModeUsesDefaults() {
+    RetryConfig config = RetryConfig.builder()
+        .mode(RetryConfig.Mode.ADAPTIVE)
+        .maxAttempts(4)
+        .build();
+
+    var retryer = AliTransformer.toAliRetryer(config);
+
+    assertNotNull(retryer);
+    assertEquals(4, retryer.maxAttempts());
+    Duration delay = retryer.retryDelay(1, new RuntimeException("test"));
+    assertNotNull(delay);
+    assertTrue(delay.toMillis() > 0,
+        "Default backoff should produce a positive delay, got: " + delay.toMillis());
+  }
+
+  @Test
+  void testToAliRetryerAdaptiveRequiredFailsFast() {
+    // requireAdaptive=true must reject the silent fallback on a provider with no native adaptive
+    // controller, so a config that assumes adaptive protection can never run without it.
+    RetryConfig config = RetryConfig.builder()
+        .mode(RetryConfig.Mode.ADAPTIVE)
+        .requireAdaptive(true)
+        .maxAttempts(4)
+        .build();
+
+    assertThrows(UnSupportedOperationException.class, () -> AliTransformer.toAliRetryer(config));
   }
 
   @Test

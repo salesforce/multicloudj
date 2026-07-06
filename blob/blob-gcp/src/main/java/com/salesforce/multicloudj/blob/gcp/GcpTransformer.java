@@ -27,6 +27,7 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.IOException;
@@ -50,9 +51,13 @@ import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Getter
 public class GcpTransformer {
+
+  private static final Logger logger = LoggerFactory.getLogger(GcpTransformer.class);
 
   private final String bucket;
   private static final String TAG_PREFIX = "gcp-tag-";
@@ -582,6 +587,22 @@ public class GcpTransformer {
           .setInitialRetryDelayDuration(Duration.ofMillis(retryConfig.getFixedDelayMillis()))
           .setRetryDelayMultiplier(1.0)
           .setMaxRetryDelayDuration(Duration.ofMillis(retryConfig.getFixedDelayMillis()));
+    } else if (retryConfig.getMode() == RetryConfig.Mode.ADAPTIVE) {
+      // ADAPTIVE mode has no native equivalent in the GCP RetrySettings model, which exposes only
+      // a static exponential-backoff curve and no client-side rate-limiting controller. Rather than
+      // approximate it (which would misrepresent the requested behavior), leave the SDK's default
+      // backoff in place. maxAttempts, totalTimeout and attemptTimeout below still apply.
+      if (retryConfig.isRequireAdaptive()) {
+        throw new UnSupportedOperationException(
+            "RetryConfig.mode=ADAPTIVE with requireAdaptive=true is not supported by the GCP "
+                + "storage SDK, which has no native adaptive/token-bucket retry controller. Either "
+                + "clear requireAdaptive to allow the default-backoff fallback, or use EXPONENTIAL "
+                + "or FIXED mode for this provider.");
+      }
+      logger.warn(
+          "RetryConfig.mode=ADAPTIVE has no native equivalent in the GCP storage SDK; falling back "
+              + "to the default backoff. Client-side adaptive rate-limiting is NOT in effect. Set "
+              + "requireAdaptive=true to fail fast instead of degrading silently.");
     }
 
     // Set total timeout if provided

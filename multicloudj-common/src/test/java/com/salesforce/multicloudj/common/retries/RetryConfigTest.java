@@ -99,8 +99,9 @@ class RetryConfigTest {
 
   @Test
   void testModeEnum() {
-    assertEquals(2, RetryConfig.Mode.values().length);
+    assertEquals(3, RetryConfig.Mode.values().length);
     assertEquals(RetryConfig.Mode.EXPONENTIAL, RetryConfig.Mode.valueOf("EXPONENTIAL"));
     assertEquals(RetryConfig.Mode.FIXED, RetryConfig.Mode.valueOf("FIXED"));
+    assertEquals(RetryConfig.Mode.ADAPTIVE, RetryConfig.Mode.valueOf("ADAPTIVE"));
   }
 }
