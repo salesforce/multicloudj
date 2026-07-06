@@ -41,6 +41,8 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   private Boolean useEnvironmentVariableProxyValues;
   private String quotaProjectId;
   private TracingPolicy tracingPolicy;
+  private Boolean disableConnectionReaper;
+  private Boolean tcpKeepAlive;
 
   public BlobStoreBuilder<T> providerId(String providerId) {
     this.providerId = providerId;
@@ -129,6 +131,45 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   public BlobStoreBuilder<T> withIdleConnectionTimeout(Duration idleConnectionTimeout) {
     validator.validateDuration(idleConnectionTimeout);
     this.idleConnectionTimeout = idleConnectionTimeout;
+    return this;
+  }
+
+  /**
+   * Method to disable the HTTP client's background idle-connection reaper. Under bursty workloads
+   * the reaper can close pooled connections just before a traffic spike, forcing fresh TCP/TLS
+   * handshakes that add tail latency; disabling it keeps connections warm and available.
+   *
+   * <p>When left unset, the underlying SDK default is retained and client behavior is unchanged.
+   *
+   * <p>Provider support: AWS, GCP, and Alibaba Cloud. This maps to each provider's HTTP client
+   * idle-connection-reaper setting for both the synchronous and asynchronous connection pools.
+   *
+   * @param disable {@code true} to disable the idle-connection reaper
+   * @return An instance of self
+   */
+  public BlobStoreBuilder<T> withDisableConnectionReaper(boolean disable) {
+    this.disableConnectionReaper = disable;
+    return this;
+  }
+
+  /**
+   * Method to enable TCP keep-alive on pooled connections. When enabled, the OS periodically probes
+   * idle connections so dead peers are detected and evicted before they are handed to a request,
+   * reducing sporadic failures on long-lived pools behind load balancers or NAT gateways.
+   *
+   * <p>When left unset, the underlying SDK default is retained and client behavior is unchanged.
+   * The actual keep-alive interval is governed by OS-level TCP settings.
+   *
+   * <p>Provider support: AWS and GCP. This maps to the HTTP client's TCP keep-alive socket setting
+   * for both the synchronous and asynchronous connection pools. The Alibaba Cloud SDK does not
+   * expose a TCP keep-alive setting, so it ignores this value; supplying it is a safe no-op and
+   * never throws.
+   *
+   * @param enable {@code true} to enable TCP keep-alive
+   * @return An instance of self
+   */
+  public BlobStoreBuilder<T> withTcpKeepAlive(boolean enable) {
+    this.tcpKeepAlive = enable;
     return this;
   }
 

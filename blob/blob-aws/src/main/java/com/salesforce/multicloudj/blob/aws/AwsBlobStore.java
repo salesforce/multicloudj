@@ -115,7 +115,9 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
         || builder.getSocketTimeout() != null
         || builder.getIdleConnectionTimeout() != null
         || builder.getUseSystemPropertyProxyValues() != null
-        || builder.getUseEnvironmentVariableProxyValues() != null;
+        || builder.getUseEnvironmentVariableProxyValues() != null
+        || builder.getDisableConnectionReaper() != null
+        || builder.getTcpKeepAlive() != null;
   }
 
   @Override
@@ -703,6 +705,16 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
       return this;
     }
 
+    @Override
+    public Boolean getDisableConnectionReaper() {
+      return super.getDisableConnectionReaper();
+    }
+
+    @Override
+    public Boolean getTcpKeepAlive() {
+      return super.getTcpKeepAlive();
+    }
+
     /** Helper function to generate the client */
     private static S3Client buildS3Client(Builder builder) {
       Region regionObj = Region.of(builder.getRegion());
@@ -768,6 +780,12 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
       }
       if (builder.getIdleConnectionTimeout() != null) {
         httpClientBuilder.connectionMaxIdleTime(builder.getIdleConnectionTimeout());
+      }
+      if (builder.getDisableConnectionReaper() != null) {
+        httpClientBuilder.useIdleConnectionReaper(!builder.getDisableConnectionReaper());
+      }
+      if (builder.getTcpKeepAlive() != null) {
+        httpClientBuilder.tcpKeepAlive(builder.getTcpKeepAlive());
       }
       return httpClientBuilder.build();
     }

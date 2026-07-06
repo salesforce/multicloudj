@@ -127,6 +127,8 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.http.config.SocketConfig;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -4586,5 +4588,101 @@ class GcpBlobStoreTest {
             .withKey(key).build());
 
     assertThrows(NoSuchElementException.class, versions::next);
+  }
+
+  @Test
+  void testTcpKeepAliveEnabledSetsSocketConfig() throws Exception {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder()
+                .withBucket(TEST_BUCKET)
+                .withRegion("us-west-2")
+                .withTcpKeepAlive(true);
+
+    PoolingHttpClientConnectionManager manager = invokeBuildConnectionManager(builder);
+
+    SocketConfig socketConfig = manager.getDefaultSocketConfig();
+    assertTrue(socketConfig.isSoKeepAlive());
+  }
+
+  @Test
+  void testTcpKeepAliveDisabledSetsSocketConfigFalse() throws Exception {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder()
+                .withBucket(TEST_BUCKET)
+                .withRegion("us-west-2")
+                .withTcpKeepAlive(false);
+
+    PoolingHttpClientConnectionManager manager = invokeBuildConnectionManager(builder);
+
+    assertFalse(manager.getDefaultSocketConfig().isSoKeepAlive());
+  }
+
+  @Test
+  void testTcpKeepAliveUnsetLeavesSocketConfigDefault() throws Exception {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder()
+                .withBucket(TEST_BUCKET)
+                .withRegion("us-west-2")
+                .withMaxConnections(50);
+
+    PoolingHttpClientConnectionManager manager = invokeBuildConnectionManager(builder);
+
+    assertNull(manager.getDefaultSocketConfig());
+  }
+
+  /**
+   * Invokes the private static {@code buildHttpClient(Builder)} while intercepting
+   * {@code HttpClientBuilder.create()} so the idle-connection eviction wiring can be asserted
+   * without opening real connections.
+   */
+  private HttpClientBuilder captureHttpClientBuilderFor(GcpBlobStore.Builder builder)
+      throws Exception {
+    HttpClientBuilder httpClientBuilder = mock(HttpClientBuilder.class);
+    when(httpClientBuilder.build())
+        .thenReturn(mock(org.apache.http.impl.client.CloseableHttpClient.class));
+
+    Method method =
+        GcpBlobStore.Builder.class.getDeclaredMethod(
+            "buildHttpClient", GcpBlobStore.Builder.class);
+    method.setAccessible(true);
+    try (MockedStatic<HttpClientBuilder> httpStatic = Mockito.mockStatic(HttpClientBuilder.class)) {
+      httpStatic.when(HttpClientBuilder::create).thenReturn(httpClientBuilder);
+      method.invoke(null, builder);
+    }
+    return httpClientBuilder;
+  }
+
+  @Test
+  void testDisableConnectionReaperSuppressesIdleEviction() throws Exception {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder()
+                .withBucket(TEST_BUCKET)
+                .withRegion("us-west-2")
+                .withIdleConnectionTimeout(Duration.ofMinutes(5))
+                .withDisableConnectionReaper(true);
+
+    HttpClientBuilder httpClientBuilder = captureHttpClientBuilderFor(builder);
+
+    verify(httpClientBuilder, never()).evictIdleConnections(anyLong(), any(TimeUnit.class));
+  }
+
+  @Test
+  void testReaperEnabledHonorsIdleConnectionTimeout() throws Exception {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder()
+                .withBucket(TEST_BUCKET)
+                .withRegion("us-west-2")
+                .withIdleConnectionTimeout(Duration.ofMinutes(5))
+                .withDisableConnectionReaper(false);
+
+    HttpClientBuilder httpClientBuilder = captureHttpClientBuilderFor(builder);
+
+    verify(httpClientBuilder)
+        .evictIdleConnections(Duration.ofMinutes(5).toMillis(), TimeUnit.MILLISECONDS);
   }
 }

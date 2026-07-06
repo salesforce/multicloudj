@@ -91,7 +91,9 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
+import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.SdkHttpResponse;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
@@ -289,6 +291,24 @@ public class AwsBlobStoreTest {
         AwsBlobStore.shouldConfigureHttpClient(
             (AwsBlobStore.Builder) builderWithUseEnvVarProxyValues));
 
+    var builderWithDisableReaper =
+        new AwsBlobStore.Builder()
+            .withTransformerSupplier(transformerSupplier)
+            .withBucket("bucket-1")
+            .withRegion("us-east-2")
+            .withDisableConnectionReaper(true);
+    assertTrue(
+        AwsBlobStore.shouldConfigureHttpClient((AwsBlobStore.Builder) builderWithDisableReaper));
+
+    var builderWithTcpKeepAlive =
+        new AwsBlobStore.Builder()
+            .withTransformerSupplier(transformerSupplier)
+            .withBucket("bucket-1")
+            .withRegion("us-east-2")
+            .withTcpKeepAlive(true);
+    assertTrue(
+        AwsBlobStore.shouldConfigureHttpClient((AwsBlobStore.Builder) builderWithTcpKeepAlive));
+
     var builderWithNoOverrides =
         new AwsBlobStore.Builder()
             .withTransformerSupplier(transformerSupplier)
@@ -296,6 +316,77 @@ public class AwsBlobStoreTest {
             .withRegion("us-east-2");
     assertFalse(
         AwsBlobStore.shouldConfigureHttpClient((AwsBlobStore.Builder) builderWithNoOverrides));
+  }
+
+  /**
+   * Builds a sync client with the given builder while intercepting
+   * {@code ApacheHttpClient.builder()} so the pool-hardening flags applied to the Apache HTTP
+   * client builder can be asserted.
+   */
+  private ApacheHttpClient.Builder captureApacheHttpClientFor(AwsBlobStore.Builder builder) {
+    ApacheHttpClient.Builder apacheBuilder = mock(ApacheHttpClient.Builder.class);
+    when(apacheBuilder.useIdleConnectionReaper(any())).thenReturn(apacheBuilder);
+    when(apacheBuilder.tcpKeepAlive(any())).thenReturn(apacheBuilder);
+    when(apacheBuilder.maxConnections(any())).thenReturn(apacheBuilder);
+    when(apacheBuilder.socketTimeout(any())).thenReturn(apacheBuilder);
+    when(apacheBuilder.connectionMaxIdleTime(any())).thenReturn(apacheBuilder);
+    when(apacheBuilder.proxyConfiguration(any())).thenReturn(apacheBuilder);
+    when(apacheBuilder.build()).thenReturn(mock(SdkHttpClient.class));
+
+    try (MockedStatic<ApacheHttpClient> apacheStatic = mockStatic(ApacheHttpClient.class)) {
+      apacheStatic.when(ApacheHttpClient::builder).thenReturn(apacheBuilder);
+      builder.build();
+    }
+    return apacheBuilder;
+  }
+
+  @Test
+  void testDisableConnectionReaperWiredIntoSyncHttpClient() {
+    AwsBlobStore.Builder builder =
+        (AwsBlobStore.Builder)
+            new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1")
+                .withRegion("us-east-2")
+                .withDisableConnectionReaper(true);
+
+    ApacheHttpClient.Builder apacheBuilder = captureApacheHttpClientFor(builder);
+
+    // disable=true must translate to useIdleConnectionReaper(false)
+    verify(apacheBuilder).useIdleConnectionReaper(false);
+    verify(apacheBuilder, times(0)).tcpKeepAlive(any());
+  }
+
+  @Test
+  void testTcpKeepAliveWiredIntoSyncHttpClient() {
+    AwsBlobStore.Builder builder =
+        (AwsBlobStore.Builder)
+            new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1")
+                .withRegion("us-east-2")
+                .withTcpKeepAlive(true);
+
+    ApacheHttpClient.Builder apacheBuilder = captureApacheHttpClientFor(builder);
+
+    verify(apacheBuilder).tcpKeepAlive(true);
+    verify(apacheBuilder, times(0)).useIdleConnectionReaper(any());
+  }
+
+  @Test
+  void testPoolHardeningFlagsUntouchedWhenUnset() {
+    AwsBlobStore.Builder builder =
+        (AwsBlobStore.Builder)
+            new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1")
+                .withRegion("us-east-2")
+                .withMaxConnections(50);
+
+    ApacheHttpClient.Builder apacheBuilder = captureApacheHttpClientFor(builder);
+
+    verify(apacheBuilder, times(0)).useIdleConnectionReaper(any());
+    verify(apacheBuilder, times(0)).tcpKeepAlive(any());
   }
 
   @Test

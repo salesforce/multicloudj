@@ -27,11 +27,15 @@ public final class OssClientFactory {
    * Builds the transport {@link HttpClient} for a specific client kind (sync or async) from the
    * resolved connection options. This is the only part of client construction that differs between
    * the sync and async paths, so it is supplied by the caller as a small strategy.
+   *
+   * <p>{@code disableConnectionReaper} is applied here rather than via {@code HttpClientOptions}
+   * because the idle-connection reaper is a setting on the Apache5 client builder itself, not on
+   * the options object. When {@code null}, the builder's default reaper behavior is retained.
    */
   @FunctionalInterface
   public interface HttpClientFactory {
     HttpClient create(String proxyHost, Duration readWriteTimeout,
-        Integer maxConnections, Duration idleConnectionTimeout);
+        Integer maxConnections, Duration idleConnectionTimeout, Boolean disableConnectionReaper);
   }
 
   /**
@@ -89,18 +93,23 @@ public final class OssClientFactory {
     Duration readWriteTimeout =
         resolveReadWriteTimeout(mcjBuilder.getRetryConfig(), mcjBuilder.getSocketTimeout());
 
-    // Connection-pool size and idle-connection timeout are only settable via HttpClientOptions,
-    // not on the OSS client builder. When the caller sets either, build an explicit transport
-    // client from those options (carrying proxyHost + readWriteTimeout forward so nothing the
-    // builder would otherwise set is lost). When neither is set, leave the SDK to construct its
-    // own default client and set readWriteTimeout directly, preserving the prior behavior.
-    if (mcjBuilder.getMaxConnections() != null || mcjBuilder.getIdleConnectionTimeout() != null) {
+    // Connection-pool size, idle-connection timeout, and the idle-connection reaper are only
+    // reachable by supplying an explicit transport client: the first two live on
+    // HttpClientOptions and the reaper lives on the Apache5 client builder, neither of which the
+    // OSS client builder exposes. When the caller sets any of them, build an explicit transport
+    // client (carrying proxyHost + readWriteTimeout forward so nothing the builder would otherwise
+    // set is lost). When none is set, leave the SDK to construct its own default client and set
+    // readWriteTimeout directly, preserving the prior behavior.
+    if (mcjBuilder.getMaxConnections() != null
+        || mcjBuilder.getIdleConnectionTimeout() != null
+        || mcjBuilder.getDisableConnectionReaper() != null) {
       clientBuilder.httpClient(
           httpClientFactory.create(
               proxyHost,
               readWriteTimeout,
               mcjBuilder.getMaxConnections(),
-              mcjBuilder.getIdleConnectionTimeout()));
+              mcjBuilder.getIdleConnectionTimeout(),
+              mcjBuilder.getDisableConnectionReaper()));
     } else if (readWriteTimeout != null) {
       clientBuilder.readWriteTimeout(readWriteTimeout);
     }

@@ -126,6 +126,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -1721,7 +1722,8 @@ public class GcpBlobStore extends AbstractBlobStore {
       HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
       httpClientBuilder.setDefaultRequestConfig(buildRequestConfig(builder));
       httpClientBuilder.setConnectionManager(buildConnectionManager(builder));
-      if (builder.getIdleConnectionTimeout() != null) {
+      boolean reaperEnabled = !Boolean.TRUE.equals(builder.getDisableConnectionReaper());
+      if (reaperEnabled && builder.getIdleConnectionTimeout() != null) {
         httpClientBuilder.evictIdleConnections(
             builder.getIdleConnectionTimeout().toMillis(), TimeUnit.MILLISECONDS);
       }
@@ -1735,6 +1737,16 @@ public class GcpBlobStore extends AbstractBlobStore {
           ? builder.getMaxConnections() : DEFAULT_MAX_CONNECTIONS;
       connectionManager.setMaxTotal(maxConns);
       connectionManager.setDefaultMaxPerRoute(maxConns);
+      // TCP keep-alive is a socket-level option on the pooled connections. When enabled, the OS
+      // periodically probes idle sockets so dead peers are detected and evicted before a request is
+      // handed a stale connection. Left unset, the connection manager's default socket config is
+      // retained and behavior is unchanged.
+      if (builder.getTcpKeepAlive() != null) {
+        connectionManager.setDefaultSocketConfig(
+            SocketConfig.custom()
+                .setSoKeepAlive(builder.getTcpKeepAlive())
+                .build());
+      }
       return connectionManager;
     }
 

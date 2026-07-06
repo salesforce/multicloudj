@@ -97,6 +97,8 @@ import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.internal.async.ByteArrayAsyncResponseTransformer;
 import software.amazon.awssdk.core.internal.async.InputStreamResponseTransformer;
 import software.amazon.awssdk.http.SdkHttpResponse;
+import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
@@ -2029,6 +2031,77 @@ public class AwsAsyncBlobStoreTest {
     assertNotNull(store);
     assertInstanceOf(AwsAsyncBlobStore.class, store);
     assertEquals(BUCKET, store.getBucket());
+  }
+
+  /**
+   * Builds an async client with the given builder while intercepting
+   * {@code NettyNioAsyncHttpClient.builder()} so the pool-hardening flags applied to the Netty HTTP
+   * client builder can be asserted.
+   */
+  private NettyNioAsyncHttpClient.Builder captureNettyHttpClientFor(
+      AwsAsyncBlobStore.Builder builder) {
+    NettyNioAsyncHttpClient.Builder nettyBuilder = mock(NettyNioAsyncHttpClient.Builder.class);
+    when(nettyBuilder.useIdleConnectionReaper(any())).thenReturn(nettyBuilder);
+    when(nettyBuilder.tcpKeepAlive(any())).thenReturn(nettyBuilder);
+    when(nettyBuilder.maxConcurrency(any())).thenReturn(nettyBuilder);
+    when(nettyBuilder.writeTimeout(any())).thenReturn(nettyBuilder);
+    when(nettyBuilder.readTimeout(any())).thenReturn(nettyBuilder);
+    when(nettyBuilder.connectionMaxIdleTime(any())).thenReturn(nettyBuilder);
+    when(nettyBuilder.proxyConfiguration(any())).thenReturn(nettyBuilder);
+    when(nettyBuilder.build()).thenReturn(mock(SdkAsyncHttpClient.class));
+
+    try (MockedStatic<NettyNioAsyncHttpClient> nettyStatic =
+        mockStatic(NettyNioAsyncHttpClient.class)) {
+      nettyStatic.when(NettyNioAsyncHttpClient::builder).thenReturn(nettyBuilder);
+      builder.build();
+    }
+    return nettyBuilder;
+  }
+
+  @Test
+  void testDisableConnectionReaperWiredIntoAsyncHttpClient() {
+    AwsAsyncBlobStore.Builder builder =
+        (AwsAsyncBlobStore.Builder)
+            new AwsAsyncBlobStore.Builder()
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withDisableConnectionReaper(true);
+
+    NettyNioAsyncHttpClient.Builder nettyBuilder = captureNettyHttpClientFor(builder);
+
+    // disable=true must translate to useIdleConnectionReaper(false)
+    verify(nettyBuilder).useIdleConnectionReaper(false);
+    verify(nettyBuilder, times(0)).tcpKeepAlive(any());
+  }
+
+  @Test
+  void testTcpKeepAliveWiredIntoAsyncHttpClient() {
+    AwsAsyncBlobStore.Builder builder =
+        (AwsAsyncBlobStore.Builder)
+            new AwsAsyncBlobStore.Builder()
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withTcpKeepAlive(true);
+
+    NettyNioAsyncHttpClient.Builder nettyBuilder = captureNettyHttpClientFor(builder);
+
+    verify(nettyBuilder).tcpKeepAlive(true);
+    verify(nettyBuilder, times(0)).useIdleConnectionReaper(any());
+  }
+
+  @Test
+  void testPoolHardeningFlagsUntouchedWhenUnsetAsync() {
+    AwsAsyncBlobStore.Builder builder =
+        (AwsAsyncBlobStore.Builder)
+            new AwsAsyncBlobStore.Builder()
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withMaxConnections(50);
+
+    NettyNioAsyncHttpClient.Builder nettyBuilder = captureNettyHttpClientFor(builder);
+
+    verify(nettyBuilder, times(0)).useIdleConnectionReaper(any());
+    verify(nettyBuilder, times(0)).tcpKeepAlive(any());
   }
 
   @Test
