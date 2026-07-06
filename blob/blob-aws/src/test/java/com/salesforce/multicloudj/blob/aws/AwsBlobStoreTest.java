@@ -230,6 +230,105 @@ public class AwsBlobStoreTest {
     assertEquals("aws", aws.getProviderId());
   }
 
+  /**
+   * Captures the override-configuration builder produced when a client is built, so wiring tests
+   * can assert what was applied to it. Re-stubs the already-open static S3Client mock.
+   */
+  private ClientOverrideConfiguration.Builder captureOverrideConfigFor(
+      AwsBlobStore.Builder builder) {
+    ClientOverrideConfiguration.Builder configBuilder =
+        mock(ClientOverrideConfiguration.Builder.class);
+    when(configBuilder.retryStrategy(any(RetryStrategy.class))).thenReturn(configBuilder);
+    when(configBuilder.apiCallAttemptTimeout(any(Duration.class))).thenReturn(configBuilder);
+    when(configBuilder.apiCallTimeout(any(Duration.class))).thenReturn(configBuilder);
+    when(configBuilder.addMetricPublisher(any())).thenReturn(configBuilder);
+
+    S3ClientBuilder mockBuilder = mock(S3ClientBuilder.class);
+    when(mockBuilder.region(any())).thenReturn(mockBuilder);
+    when(mockBuilder.credentialsProvider(any())).thenReturn(mockBuilder);
+    doAnswer(
+            invocation -> {
+              Consumer<ClientOverrideConfiguration.Builder> consumer = invocation.getArgument(0);
+              consumer.accept(configBuilder);
+              return mockBuilder;
+            })
+        .when(mockBuilder)
+        .overrideConfiguration(any(Consumer.class));
+    when(mockBuilder.build()).thenReturn(mock(S3Client.class));
+
+    s3Client.when(S3Client::builder).thenReturn(mockBuilder);
+    builder.build();
+    return configBuilder;
+  }
+
+  @Test
+  void testMetricsPublisherIsWiredWhenConfigured() {
+    RecordingMetricsPublisher publisher = new RecordingMetricsPublisher();
+    AwsBlobStore.Builder builder =
+        (AwsBlobStore.Builder)
+            new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1")
+                .withRegion("us-east-2")
+                .withMetricsPublisher(publisher);
+
+    ClientOverrideConfiguration.Builder configBuilder = captureOverrideConfigFor(builder);
+
+    ArgumentCaptor<software.amazon.awssdk.metrics.MetricPublisher> captor =
+        ArgumentCaptor.forClass(software.amazon.awssdk.metrics.MetricPublisher.class);
+    verify(configBuilder).addMetricPublisher(captor.capture());
+    Assertions.assertInstanceOf(AwsMetricsPublisherAdapter.class, captor.getValue());
+    verify(configBuilder, times(0)).retryStrategy(any(RetryStrategy.class));
+  }
+
+  @Test
+  void testMetricsPublisherAndRetryCoexistInSingleOverride() {
+    RecordingMetricsPublisher publisher = new RecordingMetricsPublisher();
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .maxAttempts(3)
+            .initialDelayMillis(100L)
+            .multiplier(2.0)
+            .maxDelayMillis(5000L)
+            .build();
+    AwsBlobStore.Builder builder =
+        (AwsBlobStore.Builder)
+            new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1")
+                .withRegion("us-east-2")
+                .withRetryConfig(retryConfig)
+                .withMetricsPublisher(publisher);
+
+    ClientOverrideConfiguration.Builder configBuilder = captureOverrideConfigFor(builder);
+
+    verify(configBuilder).addMetricPublisher(any());
+    verify(configBuilder).retryStrategy(any(RetryStrategy.class));
+  }
+
+  @Test
+  void testNoMetricPublisherWhenUnset() {
+    AwsBlobStore.Builder builder =
+        (AwsBlobStore.Builder)
+            new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1")
+                .withRegion("us-east-2");
+
+    ClientOverrideConfiguration.Builder configBuilder = captureOverrideConfigFor(builder);
+
+    verify(configBuilder, times(0)).addMetricPublisher(any());
+  }
+
+  /** Minimal publisher used to prove wiring without external dependencies. */
+  private static final class RecordingMetricsPublisher
+      implements com.salesforce.multicloudj.common.observability.MetricsPublisher {
+    @Override
+    public void publish(
+        List<com.salesforce.multicloudj.common.observability.Metric> metrics) {}
+  }
+
   @Test
   void testShouldConfigureHttpClient() {
     var builderWithProxy =

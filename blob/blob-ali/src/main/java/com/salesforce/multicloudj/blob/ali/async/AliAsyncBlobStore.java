@@ -21,6 +21,7 @@ import com.aliyun.sdk.service.oss2.retry.Retryer;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
+import com.salesforce.multicloudj.blob.ali.AliInstrumentedHttpClientFactory;
 import com.salesforce.multicloudj.blob.ali.AliSdkService;
 import com.salesforce.multicloudj.blob.ali.AliTransformer;
 import com.salesforce.multicloudj.blob.ali.AliTransformerSupplier;
@@ -922,10 +923,12 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         if (getEndpoint() != null) {
           asyncBuilder.endpoint(getEndpoint().toString());
         }
+        String asyncProxyHost = null;
         if (getProxyEndpoint() != null) {
-          asyncBuilder.proxyHost(
+          asyncProxyHost =
               getProxyEndpoint().getHost()
-                  + ":" + getProxyEndpoint().getPort());
+                  + ":" + getProxyEndpoint().getPort();
+          asyncBuilder.proxyHost(asyncProxyHost);
         }
         if (retryer != null) {
           asyncBuilder.retryer(retryer);
@@ -934,12 +937,20 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         // single readWriteTimeout setting. When both are set, attemptTimeout (the
         // more specific per-attempt deadline) takes precedence over the
         // transport-level socketTimeout.
+        java.time.Duration asyncReadWriteTimeout = null;
         if (getRetryConfig() != null
             && getRetryConfig().getAttemptTimeout() != null) {
-          asyncBuilder.readWriteTimeout(
-              java.time.Duration.ofMillis(getRetryConfig().getAttemptTimeout()));
+          asyncReadWriteTimeout =
+              java.time.Duration.ofMillis(getRetryConfig().getAttemptTimeout());
+          asyncBuilder.readWriteTimeout(asyncReadWriteTimeout);
         } else if (getSocketTimeout() != null) {
-          asyncBuilder.readWriteTimeout(getSocketTimeout());
+          asyncReadWriteTimeout = getSocketTimeout();
+          asyncBuilder.readWriteTimeout(asyncReadWriteTimeout);
+        }
+        if (getMetricsPublisher() != null) {
+          asyncBuilder.httpClient(
+              AliInstrumentedHttpClientFactory.create(
+                  getMetricsPublisher(), asyncProxyHost, asyncReadWriteTimeout));
         }
         async = asyncBuilder.build();
       }
@@ -952,10 +963,12 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         if (getEndpoint() != null) {
           syncBuilder.endpoint(getEndpoint().toString());
         }
+        String syncProxyHost = null;
         if (getProxyEndpoint() != null) {
-          syncBuilder.proxyHost(
+          syncProxyHost =
               getProxyEndpoint().getHost()
-                  + ":" + getProxyEndpoint().getPort());
+                  + ":" + getProxyEndpoint().getPort();
+          syncBuilder.proxyHost(syncProxyHost);
         }
         if (retryer != null) {
           syncBuilder.retryer(retryer);
@@ -964,12 +977,20 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         // single readWriteTimeout setting. When both are set, attemptTimeout (the
         // more specific per-attempt deadline) takes precedence over the
         // transport-level socketTimeout.
+        java.time.Duration syncReadWriteTimeout = null;
         if (getRetryConfig() != null
             && getRetryConfig().getAttemptTimeout() != null) {
-          syncBuilder.readWriteTimeout(
-              java.time.Duration.ofMillis(getRetryConfig().getAttemptTimeout()));
+          syncReadWriteTimeout =
+              java.time.Duration.ofMillis(getRetryConfig().getAttemptTimeout());
+          syncBuilder.readWriteTimeout(syncReadWriteTimeout);
         } else if (getSocketTimeout() != null) {
-          syncBuilder.readWriteTimeout(getSocketTimeout());
+          syncReadWriteTimeout = getSocketTimeout();
+          syncBuilder.readWriteTimeout(syncReadWriteTimeout);
+        }
+        if (getMetricsPublisher() != null) {
+          syncBuilder.httpClient(
+              AliInstrumentedHttpClientFactory.create(
+                  getMetricsPublisher(), syncProxyHost, syncReadWriteTimeout));
         }
         sync = syncBuilder.build();
       }

@@ -984,20 +984,29 @@ public class AliBlobStore extends AbstractBlobStore {
       if (builder.getEndpoint() != null) {
         clientBuilder.endpoint(builder.getEndpoint().toString());
       }
+      String proxyHost = null;
       if (builder.getProxyEndpoint() != null) {
-        clientBuilder.proxyHost(
+        proxyHost =
             builder.getProxyEndpoint().getHost()
-                + ":" + builder.getProxyEndpoint().getPort());
+                + ":" + builder.getProxyEndpoint().getPort();
+        clientBuilder.proxyHost(proxyHost);
       }
+      Duration readWriteTimeout = null;
       if (builder.getRetryConfig() != null) {
         Retryer retryer = AliTransformer.toAliRetryer(builder.getRetryConfig());
         if (retryer != null) {
           clientBuilder.retryer(retryer);
         }
         if (builder.getRetryConfig().getAttemptTimeout() != null) {
-          clientBuilder.readWriteTimeout(
-              Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout()));
+          readWriteTimeout = Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout());
+          clientBuilder.readWriteTimeout(readWriteTimeout);
         }
+      }
+
+      if (builder.getMetricsPublisher() != null) {
+        clientBuilder.httpClient(
+            AliInstrumentedHttpClientFactory.create(
+                builder.getMetricsPublisher(), proxyHost, readWriteTimeout));
       }
 
       return clientBuilder.build();
