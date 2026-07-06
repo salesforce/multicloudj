@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -61,6 +62,10 @@ import com.aliyun.sdk.service.oss2.progress.ProgressListener;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadResult;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5AsyncHttpClient;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5AsyncHttpClientBuilder;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClient;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClientBuilder;
 import com.salesforce.multicloudj.blob.ali.AliTransformerSupplier;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
@@ -109,6 +114,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 
 public class AliAsyncBlobStoreTest {
 
@@ -1874,5 +1880,80 @@ public class AliAsyncBlobStoreTest {
     AliAsyncBlobStore.Builder builder = newRealClientBuilder();
     builder.withIdleConnectionTimeout(Duration.ofSeconds(45));
     assertNotNull(builder.build());
+  }
+
+  private static CredentialsOverrider sessionCredentialsOverrider() {
+    StsCredentials creds = new StsCredentials("key-1", "secret-1", "token-1");
+    return new CredentialsOverrider.Builder(CredentialsType.SESSION)
+        .withSessionCredentials(creds)
+        .build();
+  }
+
+  @Test
+  void testDisableConnectionReaperWiredIntoAsyncAndSyncClients() {
+    AliAsyncBlobStore.Builder builder = new AliAsyncBlobStore.Builder();
+    builder.withBucket("bucket-1");
+    builder.withRegion("cn-shanghai");
+    builder.withCredentialsOverrider(sessionCredentialsOverrider());
+    builder.withDisableConnectionReaper(true);
+
+    Apache5AsyncHttpClientBuilder asyncApache = mock(Apache5AsyncHttpClientBuilder.class);
+    when(asyncApache.options(any())).thenReturn(asyncApache);
+    when(asyncApache.useReaper(true)).thenReturn(asyncApache);
+    when(asyncApache.useReaper(false)).thenReturn(asyncApache);
+    when(asyncApache.build()).thenReturn(mock(Apache5AsyncHttpClient.class));
+
+    Apache5HttpClientBuilder syncApache = mock(Apache5HttpClientBuilder.class);
+    when(syncApache.options(any())).thenReturn(syncApache);
+    when(syncApache.useReaper(true)).thenReturn(syncApache);
+    when(syncApache.useReaper(false)).thenReturn(syncApache);
+    when(syncApache.build()).thenReturn(mock(Apache5HttpClient.class));
+
+    try (MockedStatic<Apache5AsyncHttpClientBuilder> asyncStatic =
+            mockStatic(Apache5AsyncHttpClientBuilder.class);
+        MockedStatic<Apache5HttpClientBuilder> syncStatic =
+            mockStatic(Apache5HttpClientBuilder.class)) {
+      asyncStatic.when(Apache5AsyncHttpClientBuilder::create).thenReturn(asyncApache);
+      syncStatic.when(Apache5HttpClientBuilder::create).thenReturn(syncApache);
+      builder.build();
+    }
+
+    // disable=true must translate to useReaper(false) on both the async and sync pools.
+    verify(asyncApache).useReaper(false);
+    verify(syncApache).useReaper(false);
+  }
+
+  @Test
+  void testReaperUntouchedWhenUnsetAsyncAndSyncClients() {
+    AliAsyncBlobStore.Builder builder = new AliAsyncBlobStore.Builder();
+    builder.withBucket("bucket-1");
+    builder.withRegion("cn-shanghai");
+    builder.withCredentialsOverrider(sessionCredentialsOverrider());
+
+    Apache5AsyncHttpClientBuilder asyncApache = mock(Apache5AsyncHttpClientBuilder.class);
+    when(asyncApache.options(any())).thenReturn(asyncApache);
+    when(asyncApache.useReaper(true)).thenReturn(asyncApache);
+    when(asyncApache.useReaper(false)).thenReturn(asyncApache);
+    when(asyncApache.build()).thenReturn(mock(Apache5AsyncHttpClient.class));
+
+    Apache5HttpClientBuilder syncApache = mock(Apache5HttpClientBuilder.class);
+    when(syncApache.options(any())).thenReturn(syncApache);
+    when(syncApache.useReaper(true)).thenReturn(syncApache);
+    when(syncApache.useReaper(false)).thenReturn(syncApache);
+    when(syncApache.build()).thenReturn(mock(Apache5HttpClient.class));
+
+    try (MockedStatic<Apache5AsyncHttpClientBuilder> asyncStatic =
+            mockStatic(Apache5AsyncHttpClientBuilder.class);
+        MockedStatic<Apache5HttpClientBuilder> syncStatic =
+            mockStatic(Apache5HttpClientBuilder.class)) {
+      asyncStatic.when(Apache5AsyncHttpClientBuilder::create).thenReturn(asyncApache);
+      syncStatic.when(Apache5HttpClientBuilder::create).thenReturn(syncApache);
+      builder.build();
+    }
+
+    verify(asyncApache, never()).useReaper(true);
+    verify(asyncApache, never()).useReaper(false);
+    verify(syncApache, never()).useReaper(true);
+    verify(syncApache, never()).useReaper(false);
   }
 }

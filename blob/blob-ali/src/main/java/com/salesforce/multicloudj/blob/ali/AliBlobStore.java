@@ -998,11 +998,19 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
           builder,
           creds,
           retryer,
-          (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) ->
-              Apache5HttpClientBuilder.create()
-                  .options(AliTransformer.toHttpClientOptions(
-                      proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout))
-                  .build());
+          (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout,
+              disableConnectionReaper) -> {
+            Apache5HttpClientBuilder httpClientBuilder =
+                Apache5HttpClientBuilder.create()
+                    .options(AliTransformer.toHttpClientOptions(
+                        proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout));
+            // The idle-connection reaper is a setting on the Apache5 client builder itself. Leave
+            // it at the builder default unless the caller explicitly set the flag.
+            if (disableConnectionReaper != null) {
+              httpClientBuilder.useReaper(!disableConnectionReaper);
+            }
+            return httpClientBuilder.build();
+          });
       return clientBuilder.build();
     }
 

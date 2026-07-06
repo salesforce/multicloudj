@@ -589,6 +589,16 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       providerId(AwsConstants.PROVIDER_ID);
     }
 
+    @Override
+    public Boolean getDisableConnectionReaper() {
+      return super.getDisableConnectionReaper();
+    }
+
+    @Override
+    public Boolean getTcpKeepAlive() {
+      return super.getTcpKeepAlive();
+    }
+
     private static S3AsyncClient buildS3Client(Builder builder) {
       Region regionObj = Region.of(builder.getRegion());
 
@@ -659,7 +669,9 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           || config.getSocketTimeout() != null
           || config.getIdleConnectionTimeout() != null
           || config.getUseSystemPropertyProxyValues() != null
-          || config.getUseEnvironmentVariableProxyValues() != null) {
+          || config.getUseEnvironmentVariableProxyValues() != null
+          || config.getDisableConnectionReaper() != null
+          || config.getTcpKeepAlive() != null) {
 
         NettyNioAsyncHttpClient.Builder httpClientBuilder = NettyNioAsyncHttpClient.builder();
 
@@ -698,6 +710,14 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
         // Configure idle connection timeout if specified
         if (config.getIdleConnectionTimeout() != null) {
           httpClientBuilder.connectionMaxIdleTime(config.getIdleConnectionTimeout());
+        }
+
+        if (config.getDisableConnectionReaper() != null) {
+          httpClientBuilder.useIdleConnectionReaper(!config.getDisableConnectionReaper());
+        }
+
+        if (config.getTcpKeepAlive() != null) {
+          httpClientBuilder.tcpKeepAlive(config.getTcpKeepAlive());
         }
 
         builder.httpClient(httpClientBuilder.build());

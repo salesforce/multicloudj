@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -68,6 +69,8 @@ import com.aliyun.sdk.service.oss2.models.Tagging;
 import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartResult;
 import com.aliyun.sdk.service.oss2.paginator.ListObjectVersionsIterable;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClient;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClientBuilder;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -134,6 +137,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 
 public class AliBlobStoreTest {
 
@@ -2272,5 +2276,89 @@ public class AliBlobStoreTest {
     AliBlobStore.Builder builder = newRealClientBuilder();
     builder.withSocketTimeout(Duration.ofSeconds(30));
     assertNotNull(builder.build());
+  }
+
+  private static CredentialsOverrider sessionCredentialsOverrider() {
+    StsCredentials creds = new StsCredentials("key-1", "secret-1", "token-1");
+    return new CredentialsOverrider.Builder(CredentialsType.SESSION)
+        .withSessionCredentials(creds)
+        .build();
+  }
+
+  /**
+   * Builds a sync store (without injecting a client) while intercepting
+   * {@code Apache5HttpClientBuilder.create()} so the reaper flag applied to the OSS SDK's Apache5
+   * HTTP client can be asserted.
+   */
+  private Apache5HttpClientBuilder captureApache5BuilderFor(AliBlobStore.Builder builder) {
+    Apache5HttpClientBuilder apacheBuilder = mock(Apache5HttpClientBuilder.class);
+    when(apacheBuilder.options(any())).thenReturn(apacheBuilder);
+    when(apacheBuilder.useReaper(true)).thenReturn(apacheBuilder);
+    when(apacheBuilder.useReaper(false)).thenReturn(apacheBuilder);
+    when(apacheBuilder.build()).thenReturn(mock(Apache5HttpClient.class));
+
+    try (MockedStatic<Apache5HttpClientBuilder> apacheStatic =
+        mockStatic(Apache5HttpClientBuilder.class)) {
+      apacheStatic.when(Apache5HttpClientBuilder::create).thenReturn(apacheBuilder);
+      builder.build();
+    }
+    return apacheBuilder;
+  }
+
+  @Test
+  void testDisableConnectionReaperWiredIntoSyncClient() {
+    AliBlobStore.Builder builder =
+        (AliBlobStore.Builder)
+            new AliBlobStore.Builder()
+                .withBucket("bucket-1")
+                .withRegion("cn-shanghai")
+                .withCredentialsOverrider(sessionCredentialsOverrider())
+                .withDisableConnectionReaper(true);
+
+    Apache5HttpClientBuilder apacheBuilder = captureApache5BuilderFor(builder);
+
+    // disable=true must translate to useReaper(false)
+    verify(apacheBuilder).useReaper(false);
+  }
+
+  @Test
+  void testEnableConnectionReaperWiredIntoSyncClient() {
+    AliBlobStore.Builder builder =
+        (AliBlobStore.Builder)
+            new AliBlobStore.Builder()
+                .withBucket("bucket-1")
+                .withRegion("cn-shanghai")
+                .withCredentialsOverrider(sessionCredentialsOverrider())
+                .withDisableConnectionReaper(false);
+
+    Apache5HttpClientBuilder apacheBuilder = captureApache5BuilderFor(builder);
+
+    // disable=false must translate to useReaper(true)
+    verify(apacheBuilder).useReaper(true);
+  }
+
+  @Test
+  void testReaperUntouchedWhenUnsetSyncClient() {
+    AliBlobStore.Builder builder =
+        (AliBlobStore.Builder)
+            new AliBlobStore.Builder()
+                .withBucket("bucket-1")
+                .withRegion("cn-shanghai")
+                .withCredentialsOverrider(sessionCredentialsOverrider());
+
+    Apache5HttpClientBuilder apacheBuilder = mock(Apache5HttpClientBuilder.class);
+    when(apacheBuilder.options(any())).thenReturn(apacheBuilder);
+    when(apacheBuilder.useReaper(true)).thenReturn(apacheBuilder);
+    when(apacheBuilder.useReaper(false)).thenReturn(apacheBuilder);
+    when(apacheBuilder.build()).thenReturn(mock(Apache5HttpClient.class));
+
+    try (MockedStatic<Apache5HttpClientBuilder> apacheStatic =
+        mockStatic(Apache5HttpClientBuilder.class)) {
+      apacheStatic.when(Apache5HttpClientBuilder::create).thenReturn(apacheBuilder);
+      builder.build();
+    }
+
+    verify(apacheBuilder, never()).useReaper(true);
+    verify(apacheBuilder, never()).useReaper(false);
   }
 }
