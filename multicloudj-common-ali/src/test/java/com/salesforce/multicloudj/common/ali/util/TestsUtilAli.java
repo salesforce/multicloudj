@@ -1,4 +1,4 @@
-package com.salesforce.multicloudj.common.util.ali;
+package com.salesforce.multicloudj.common.ali.util;
 
 import java.security.cert.X509Certificate;
 import javax.net.ssl.X509TrustManager;
