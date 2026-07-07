@@ -1,4 +1,4 @@
-package com.salesforce.multicloudj.common.util.common;
+package com.salesforce.multicloudj.common.gcp.util;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
 import static org.wiremock.grpc.dsl.WireMockGrpc.json;
