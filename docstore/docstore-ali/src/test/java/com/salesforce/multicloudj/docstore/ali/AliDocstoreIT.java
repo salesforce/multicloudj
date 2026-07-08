@@ -2,7 +2,6 @@ package com.salesforce.multicloudj.docstore.ali;
 
 import com.alicloud.openservices.tablestore.ClientConfiguration;
 import com.alicloud.openservices.tablestore.SyncClient;
-import com.alicloud.openservices.tablestore.core.auth.EnvironmentVariableCredentialsProvider;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.docstore.client.AbstractDocstoreIT;
 import com.salesforce.multicloudj.docstore.client.CollectionKind;
@@ -35,25 +34,43 @@ public class AliDocstoreIT extends AbstractDocstoreIT {
       ClientConfiguration configuration = new ClientConfiguration();
       configuration.setProxyHost(TestsUtil.WIREMOCK_HOST);
       configuration.setProxyPort(port + 1);
+      // The Tablestore SDK validates the HMAC signature of every response against the
+      // access-key secret (enabled by default). In replay mode the recorded responses were
+      // signed with the real secret while the client uses dummy credentials, so validation
+      // fails with "cannot find signature". Disable response validation for the test harness;
+      // it only checks client-side response integrity and is meaningless against WireMock stubs.
+      configuration.setEnableResponseValidation(false);
+
+      // In record mode the TABLESTORE_* env vars carry real credentials. In replay mode
+      // (no creds) fall back to dummy values so the SyncClient still constructs -- otherwise
+      // the Tablestore SDK's client-side credential validation throws InvalidCredentialsException
+      // before any request reaches WireMock. Mirrors the blob-ali IT harness.
+      String accessKeyId =
+          System.getenv().getOrDefault("TABLESTORE_ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
+      String accessKeySecret =
+          System.getenv().getOrDefault("TABLESTORE_ACCESS_KEY_SECRET", "FAKE_SECRET_ACCESS_KEY");
+      String sessionToken =
+          System.getenv().getOrDefault("TABLESTORE_SESSION_TOKEN", "FAKE_SESSION_TOKEN");
 
       client =
           new SyncClient(
               END_POINT,
-              new EnvironmentVariableCredentialsProvider(),
+              accessKeyId,
+              accessKeySecret,
               INSTANCE_NAME,
               configuration,
-              null);
+              sessionToken);
       CollectionOptions collectionOptions = null;
       if (kind == CollectionKind.SINGLE_KEY) {
         collectionOptions =
             new CollectionOptions.CollectionOptionsBuilder()
-                .withTableName("docstore-test-1")
+                .withTableName("docstore_test_1")
                 .withPartitionKey("pName")
                 .build();
       } else if (kind == CollectionKind.TWO_KEYS) {
         collectionOptions =
             new CollectionOptions.CollectionOptionsBuilder()
-                .withTableName("docstore-test-2")
+                .withTableName("docstore_test_2")
                 .withPartitionKey("Game")
                 .withSortKey("Player")
                 .withAllowScans(true)
