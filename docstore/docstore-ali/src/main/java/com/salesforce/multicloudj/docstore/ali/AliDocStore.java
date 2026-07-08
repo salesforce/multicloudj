@@ -345,6 +345,11 @@ public class AliDocStore extends AbstractDocStore {
     SingleColumnValueCondition singleColumnValueCondition =
         new SingleColumnValueCondition(
             revField, SingleColumnValueCondition.CompareOperator.EQUAL, ColumnValue.fromString(v));
+    // A revision precondition must FAIL when the target row/column doesn't exist, so a
+    // revision-guarded write against a missing row is rejected (NotFound), matching the
+    // cross-cloud contract. The SDK default is passIfMissing=true (pass when the column is
+    // absent), which would let such a write through; force it off.
+    singleColumnValueCondition.setPassIfMissing(false);
     condition.setColumnCondition(singleColumnValueCondition);
     return condition;
   }
