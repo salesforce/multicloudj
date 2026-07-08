@@ -10,8 +10,8 @@ import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
-@Disabled
 public class AliDocstoreIT extends AbstractDocstoreIT {
   // Switch it to https after table store can support https proxy and
   // method to override the SSL context to trust all certs for wiremock test up.
@@ -19,6 +19,26 @@ public class AliDocstoreIT extends AbstractDocstoreIT {
   // either both connection should be http or https in order for wiremock setup to work.
   private static final String END_POINT = "http://chameleon-java.cn-shanghai.ots.aliyuncs.com";
   private static final String INSTANCE_NAME = "chameleon-java";
+
+  // The two-key (composite primary key) query scenario and the atomic-write scenarios are not yet
+  // enabled for Tablestore: testGetQuery needs the docstore_test_2 composite-key table, and the
+  // atomic-write tests exercise cross-partition local transactions that Tablestore does not support
+  // as written. These are tracked separately; disable them individually so the single-primary-key
+  // scenarios (create/get/put/delete/replace) can run.
+  @Test
+  @Disabled("Composite-key query scenario not yet enabled for Tablestore")
+  @Override
+  public void testGetQuery() {}
+
+  @Test
+  @Disabled("Atomic writes across partitions not supported by Tablestore local transactions")
+  @Override
+  public void testAtomicWrites() {}
+
+  @Test
+  @Disabled("Atomic writes across partitions not supported by Tablestore local transactions")
+  @Override
+  public void testAtomicWritesFail() {}
 
   @Override
   protected Harness createHarness() {
