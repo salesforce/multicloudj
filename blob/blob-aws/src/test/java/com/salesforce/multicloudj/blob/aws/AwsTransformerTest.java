@@ -228,7 +228,8 @@ public class AwsTransformerTest {
     assertEquals(
         "user-supplied",
         actual.metadata().get("sdk-logging-correlation-id"),
-        "application's explicit sdk-logging-correlation-id metadata value must take precedence over the SDK's");
+        "application's explicit sdk-logging-correlation-id metadata value"
+            + " must take precedence over the SDK's");
   }
 
   @Test
