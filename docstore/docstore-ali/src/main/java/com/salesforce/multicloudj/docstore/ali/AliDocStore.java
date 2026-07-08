@@ -363,8 +363,15 @@ public class AliDocStore extends AbstractDocStore {
         return;
       case ACTION_KIND_DELETE:
       case ACTION_KIND_PUT:
-        // Precondition: the revision matches, if any.
-        rowPutChange.setCondition(buildRevisionPrecondition(a.getDocument(), getRevisionField()));
+        // Precondition: the revision matches, if any. When no revision is present
+        // buildRevisionPrecondition returns null; leave the RowChange's default
+        // condition untouched rather than clobbering it with null (the Tablestore
+        // driver decides the default existence expectation, not us).
+        Condition revisionCondition =
+            buildRevisionPrecondition(a.getDocument(), getRevisionField());
+        if (revisionCondition != null) {
+          rowPutChange.setCondition(revisionCondition);
+        }
         return;
       case ACTION_KIND_GET:
         // No preconditions on a Get.
