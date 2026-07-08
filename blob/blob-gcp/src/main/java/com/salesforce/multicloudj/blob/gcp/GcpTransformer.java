@@ -62,7 +62,7 @@ public class GcpTransformer {
    * so the value is stored on the blob in GCS and matches the correlation id that appears in the
    * same upload's logs and trace span.
    */
-  public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
+  public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
 
   public GcpTransformer(String bucket) {
     this.bucket = bucket;
