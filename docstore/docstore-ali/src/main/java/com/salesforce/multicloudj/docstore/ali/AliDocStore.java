@@ -361,10 +361,14 @@ public class AliDocStore extends AbstractDocStore {
         return;
       case ACTION_KIND_UPDATE:
       case ACTION_KIND_REPLACE:
+        // REPLACE/UPDATE target an existing row: if a revision is present, match it; otherwise the
+        // row must already exist. The no-revision fallback must be EXPECT_EXIST (not
+        // EXPECT_NOT_EXIST) -- otherwise replacing an existing row is rejected with
+        // OTSConditionCheckFail ("Row exists which is expected nonexistent").
         Condition condition = buildRevisionPrecondition(a.getDocument(), getRevisionField());
         rowPutChange.setCondition(
             Objects.requireNonNullElseGet(
-                condition, () -> new Condition(RowExistenceExpectation.EXPECT_NOT_EXIST)));
+                condition, () -> new Condition(RowExistenceExpectation.EXPECT_EXIST)));
         return;
       case ACTION_KIND_DELETE:
       case ACTION_KIND_PUT:
