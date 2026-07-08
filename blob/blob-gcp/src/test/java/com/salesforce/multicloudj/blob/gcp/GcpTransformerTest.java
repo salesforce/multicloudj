@@ -251,7 +251,7 @@ class GcpTransformerTest {
     assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
     assertEquals(
         "req-abc-123",
-        blobInfo.getMetadata().get("sdk-logging-correlation-id"),
+        blobInfo.getMetadata().get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
         "transformer must persist the operation correlation_id under the well-known metadata key");
   }
 
@@ -267,7 +267,7 @@ class GcpTransformerTest {
 
     assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
     assertFalse(
-        blobInfo.getMetadata().containsKey("sdk-logging-correlation-id"),
+        blobInfo.getMetadata().containsKey(GcpTransformer.CORRELATION_ID_METADATA_KEY),
         "no injection when the request carries no OperationContext");
   }
 
@@ -277,7 +277,7 @@ class GcpTransformerTest {
     UploadRequest uploadRequest =
         UploadRequest.builder()
             .withKey(TEST_KEY)
-            .withMetadata(Map.of("sdk-logging-correlation-id", "user-supplied"))
+            .withMetadata(Map.of(GcpTransformer.CORRELATION_ID_METADATA_KEY, "user-supplied"))
             .withOperationContext(ctx)
             .build();
 
@@ -285,7 +285,7 @@ class GcpTransformerTest {
 
     assertEquals(
         "user-supplied",
-        blobInfo.getMetadata().get("sdk-logging-correlation-id"),
+        blobInfo.getMetadata().get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
         "application's explicit sdk-logging-correlation-id metadata value must take precedence");
   }
 
