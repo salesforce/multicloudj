@@ -3,9 +3,9 @@ package com.salesforce.multicloudj.docstore.ali;
 import com.alicloud.openservices.tablestore.model.ColumnValue;
 import com.salesforce.multicloudj.docstore.driver.codec.Encoder;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import lombok.Getter;
 
 public class AliEncoder implements Encoder {
@@ -75,7 +75,12 @@ public class AliEncoder implements Encoder {
 
   @Override
   public Encoder encodeMap(int n) {
-    this.map = new HashMap<>(n);
+    // Use a TreeMap so encoded columns serialize in a deterministic (name-sorted) order,
+    // independent of the source document's map iteration order (which is salted per JVM run for
+    // Map.of / HashMap-backed docs). This keeps the serialized row bytes reproducible across runs,
+    // which the record/replay conformance harness relies on. Tablestore treats a row PUT as an
+    // unordered column set, so ordering has no functional effect on the write itself.
+    this.map = new TreeMap<>();
     return new MapEncoder(map);
   }
 
