@@ -345,10 +345,7 @@ public class AliDocStore extends AbstractDocStore {
     SingleColumnValueCondition singleColumnValueCondition =
         new SingleColumnValueCondition(
             revField, SingleColumnValueCondition.CompareOperator.EQUAL, ColumnValue.fromString(v));
-    // A revision precondition must FAIL when the target row/column doesn't exist, so a
-    // revision-guarded write against a missing row is rejected (NotFound), matching the
-    // cross-cloud contract. The SDK default is passIfMissing=true (pass when the column is
-    // absent), which would let such a write through; force it off.
+    // Fail the precondition if revision column is not present in the row
     singleColumnValueCondition.setPassIfMissing(false);
     condition.setColumnCondition(singleColumnValueCondition);
     return condition;
@@ -361,10 +358,6 @@ public class AliDocStore extends AbstractDocStore {
         return;
       case ACTION_KIND_UPDATE:
       case ACTION_KIND_REPLACE:
-        // REPLACE/UPDATE target an existing row: if a revision is present, match it; otherwise the
-        // row must already exist. The no-revision fallback must be EXPECT_EXIST (not
-        // EXPECT_NOT_EXIST) -- otherwise replacing an existing row is rejected with
-        // OTSConditionCheckFail ("Row exists which is expected nonexistent").
         Condition condition = buildRevisionPrecondition(a.getDocument(), getRevisionField());
         rowPutChange.setCondition(
             Objects.requireNonNullElseGet(
@@ -372,10 +365,6 @@ public class AliDocStore extends AbstractDocStore {
         return;
       case ACTION_KIND_DELETE:
       case ACTION_KIND_PUT:
-        // Precondition: the revision matches, if any. When no revision is present
-        // buildRevisionPrecondition returns null; leave the RowChange's default
-        // condition untouched rather than clobbering it with null (the Tablestore
-        // driver decides the default existence expectation, not us).
         Condition revisionCondition =
             buildRevisionPrecondition(a.getDocument(), getRevisionField());
         if (revisionCondition != null) {
