@@ -1,0 +1,27 @@
+{
+  "id" : "7a3f3482-b1c4-45fe-be65-a67afd4599b2",
+  "name" : "AliDocstoreIT_testDelete-POST-14",
+  "request" : {
+    "url" : "/BatchGetRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "\n?\n\u000Fdocstore_test_1\u0012(u\u0000\u0000\u0000\u0001\u0003\u0004\u0005\u0000\u0000\u0000pName\u0005\u000F\u0000\u0000\u0000\u0003\n\u0000\u0000\u0000JohnDelete\nr\t�\u001A\u00000\u0001",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "Ch0KD2RvY3N0b3JlX3Rlc3RfMRIKCAEaBgoECAEQAA==",
+    "headers" : {
+      "x-ots-requestid" : "0006561f-d9f4-9f86-1723-150a7be3c9fc",
+      "Authorization" : "OTS STS.NZhtQgAfWZiiDy4kVfDPmHF3K:/KEurls4IUtohOBcXCPkjuFVzi4=",
+      "x-ots-date" : "2026-07-08T21:04:20.927258Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "8UIfmMlkxRs6uIXJBIRBzw==",
+      "Date" : "Wed, 08 Jul 2026 21:04:20 GMT"
+    }
+  },
+  "uuid" : "7a3f3482-b1c4-45fe-be65-a67afd4599b2",
+  "persistent" : true,
+  "insertionIndex" : 102
+}

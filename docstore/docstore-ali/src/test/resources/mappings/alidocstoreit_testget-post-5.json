@@ -1,0 +1,27 @@
+{
+  "id" : "6d9703a9-aa78-4255-b7c0-d2d9830f81ed",
+  "name" : "AliDocstoreIT_testGet-POST-5",
+  "request" : {
+    "url" : "/BatchGetRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "\nT\n\u000Fdocstore_test_1\u0012&u\u0000\u0000\u0000\u0001\u0003\u0004\u0005\u0000\u0000\u0000pName\u0005\r\u0000\u0000\u0000\u0003\b\u0000\u0000\u0000QueenMap\n*\t,\u001A\u0000\"\u0005Bytes\"\u0001S\"\u0005pName\"\u0001f\"\u0001I0\u0001",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CmYKD2RvY3N0b3JlX3Rlc3RfMRJTCAEaBgoECAEQACJHdQAAAAEDBAUAAABwTmFtZQUNAAAAAwgAAABRdWVlbk1hcAoqAgMEAQAAAGYFCQAAAAEAAACA61EpQAePA4tDnwEAAApVCYk=",
+    "headers" : {
+      "x-ots-requestid" : "0006561f-d712-50b7-2836-200a642ea44f",
+      "Authorization" : "OTS STS.NZhtQgAfWZiiDy4kVfDPmHF3K:5Ms1X0kNm0o8ycDTTznX3C6XFs4=",
+      "x-ots-date" : "2026-07-08T21:03:32.547525Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "IqW8g4wa9MwldrKS7tvxUw==",
+      "Date" : "Wed, 08 Jul 2026 21:03:32 GMT"
+    }
+  },
+  "uuid" : "6d9703a9-aa78-4255-b7c0-d2d9830f81ed",
+  "persistent" : true,
+  "insertionIndex" : 6
+}

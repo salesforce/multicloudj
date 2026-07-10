@@ -1,0 +1,27 @@
+{
+  "id" : "0666cb3e-e385-430c-a1a5-3a97ec6bbd1a",
+  "name" : "AliDocstoreIT_testPut-POST-4",
+  "request" : {
+    "url" : "/PutRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "\n\u000Fdocstore_test_1\u0012�\u0001u\u0000\u0000\u0000\u0001\u0003\u0004\u0005\u0000\u0000\u0000pName\u0005\u000E\u0000\u0000\u0000\u0003\t\u0000\u0000\u0000TaylorPut\n\u0010\u0002\u0003\u0004\u0010\u0000\u0000\u0000DocstoreRevision\u0005)\u0000\u0000\u0000\u0003$\u0000\u0000\u00001a4972ee-0166-fe57-976e-3f241d50efda\n�\u0003\u0004\u0001\u0000\u0000\u0000b\u0005\u0002\u0000\u0000\u0000\u0002\u0001\n>\u0003\u0004\u0005\u0000\u0000\u0000bytes\u0005\u0014\u0000\u0000\u0000\u0007\u000F\u0000\u0000\u0000randomStringMap\n?\u0003\u0004\u0001\u0000\u0000\u0000f\u0005\t\u0000\u0000\u0000\u0001\u0000\u0000\u0000��Q)@\n�\u0003\u0004\u0001\u0000\u0000\u0000i\u0005\t\u0000\u0000\u0000\u0000y\u0000\u0000\u0000\u0000\u0000\u0000\u0000\nJ\u0003\u0004\u0001\u0000\u0000\u0000s\u0005\u0014\u0000\u0000\u0000\u0003\u000F\u0000\u0000\u0000randomStringMap\n]\t\u001E\u001A\u0002\b\u0000\"\u0002\b\u0000",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgAEAE=",
+    "headers" : {
+      "x-ots-requestid" : "0006561f-d7dd-2ac3-a335-200a6ce0b473",
+      "Authorization" : "OTS STS.NZhtQgAfWZiiDy4kVfDPmHF3K:bM6+8g4vYBr76EkWSrFaBDckFzs=",
+      "x-ots-date" : "2026-07-08T21:03:45.848705Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "cGqcInR86zj/8Pah1LWaHg==",
+      "Date" : "Wed, 08 Jul 2026 21:03:45 GMT"
+    }
+  },
+  "uuid" : "0666cb3e-e385-430c-a1a5-3a97ec6bbd1a",
+  "persistent" : true,
+  "insertionIndex" : 29
+}

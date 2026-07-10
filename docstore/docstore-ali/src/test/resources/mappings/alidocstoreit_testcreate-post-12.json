@@ -1,0 +1,27 @@
+{
+  "id" : "75c8d552-3713-451f-8ad2-c41ed3eeb839",
+  "name" : "AliDocstoreIT_testCreate-POST-12",
+  "request" : {
+    "url" : "/DeleteRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "\n\u000Fdocstore_test_1\u0012,u\u0000\u0000\u0000\u0001\u0003\u0004\u0005\u0000\u0000\u0000pName\u0005\u0012\u0000\u0000\u0000\u0003\r\u0000\u0000\u0000EdwardReplace\nh\b\tZ\u001A\u0002\b\u0000\"\u0002\b\u0000",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgAEAE=",
+    "headers" : {
+      "x-ots-requestid" : "0006561f-d933-a74a-5607-fe0a7f4e4126",
+      "Authorization" : "OTS STS.NZhtQgAfWZiiDy4kVfDPmHF3K:mrLtc9soe3JsdViWK0zscoRTMWg=",
+      "x-ots-date" : "2026-07-08T21:04:08.282214Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "cGqcInR86zj/8Pah1LWaHg==",
+      "Date" : "Wed, 08 Jul 2026 21:04:08 GMT"
+    }
+  },
+  "uuid" : "75c8d552-3713-451f-8ad2-c41ed3eeb839",
+  "persistent" : true,
+  "insertionIndex" : 83
+}

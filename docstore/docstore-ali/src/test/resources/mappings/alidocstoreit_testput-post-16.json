@@ -1,0 +1,27 @@
+{
+  "id" : "5c7e487f-0bff-4eca-a715-2fcacbe68bf1",
+  "name" : "AliDocstoreIT_testPut-POST-16",
+  "request" : {
+    "url" : "/DeleteRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "\n\u000Fdocstore_test_1\u0012+u\u0000\u0000\u0000\u0001\u0003\u0004\u0005\u0000\u0000\u0000pName\u0005\u0011\u0000\u0000\u0000\u0003\f\u0000\u0000\u0000BishopPlayer\nA\b\tI\u001A\u0002\b\u0000\"\u0002\b\u0000",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgAEAE=",
+    "headers" : {
+      "x-ots-requestid" : "0006561f-d780-7492-9a6f-0a0a70da5ed9",
+      "Authorization" : "OTS STS.NZhtQgAfWZiiDy4kVfDPmHF3K:jV0U+h0B4ZP+oXMofkSYIYW/E8Y=",
+      "x-ots-date" : "2026-07-08T21:03:39.762117Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "cGqcInR86zj/8Pah1LWaHg==",
+      "Date" : "Wed, 08 Jul 2026 21:03:39 GMT"
+    }
+  },
+  "uuid" : "5c7e487f-0bff-4eca-a715-2fcacbe68bf1",
+  "persistent" : true,
+  "insertionIndex" : 41
+}

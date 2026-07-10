@@ -1,0 +1,27 @@
+{
+  "id" : "73975396-2e89-42df-88ff-d3f103310acf",
+  "name" : "AliDocstoreIT_testDelete-POST-9",
+  "request" : {
+    "url" : "/PutRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "\n\u000Fdocstore_test_1\u0012�\u0001u\u0000\u0000\u0000\u0001\u0003\u0004\u0005\u0000\u0000\u0000pName\u0005\u0013\u0000\u0000\u0000\u0003\u000E\u0000\u0000\u0000TigerMapDelete\n\u0018\u0002\u0003\u0004\u0010\u0000\u0000\u0000DocstoreRevision\u0005)\u0000\u0000\u0000\u0003$\u0000\u0000\u0000a95e4b47-e6b0-2cab-9102-1a1cd2cc0636\n\u0015\u0003\u0004\u0001\u0000\u0000\u0000b\u0005\u0002\u0000\u0000\u0000\u0002\u0001\n>\u0003\u0004\u0005\u0000\u0000\u0000bytes\u0005\u0011\u0000\u0000\u0000\u0007\f\u0000\u0000\u0000randomString\n�\u0003\u0004\u0001\u0000\u0000\u0000f\u0005\t\u0000\u0000\u0000\u0001\u0000\u0000\u0000��Q)@\n�\u0003\u0004\u0001\u0000\u0000\u0000i\u0005\t\u0000\u0000\u0000\u0000y\u0000\u0000\u0000\u0000\u0000\u0000\u0000\nJ\u0003\u0004\u0001\u0000\u0000\u0000s\u0005\u0012\u0000\u0000\u0000\u0003\r\u0000\u0000\u0000random String\nk\tW\u001A\u0002\b\u0002\"\u0002\b\u0000",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgBEAE=",
+    "headers" : {
+      "x-ots-requestid" : "0006561f-da31-fe22-a020-150a76ad74a4",
+      "Authorization" : "OTS STS.NZhtQgAfWZiiDy4kVfDPmHF3K:dvgZxwHWiSIgD8Zs4qphSLk+Bfw=",
+      "x-ots-date" : "2026-07-08T21:04:24.950707Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "bofsTfsxtvymDNQpw96K/Q==",
+      "Date" : "Wed, 08 Jul 2026 21:04:24 GMT"
+    }
+  },
+  "uuid" : "73975396-2e89-42df-88ff-d3f103310acf",
+  "persistent" : true,
+  "insertionIndex" : 97
+}

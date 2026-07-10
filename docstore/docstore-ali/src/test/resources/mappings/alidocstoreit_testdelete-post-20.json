@@ -1,0 +1,27 @@
+{
+  "id" : "2270b2cd-60d4-43d4-a3a7-205c02f94ea4",
+  "name" : "AliDocstoreIT_testDelete-POST-20",
+  "request" : {
+    "url" : "/SQLQuery",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "\n\u001ESELECT * FROM docstore_test_1;\u0010\u0002\u0018\u0001",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CikKD2RvY3N0b3JlX3Rlc3RfMRIMCgQIARAAEgQIJRAAGgYKBAgAEAAgABK4AQwAAAAIABQAEAAEAAgAAAADAAAAAAAAAAAAAAAEAAAAAQAAABAAAAAMABQAEAAPAAgABAAMAAAAIAAAADAAAAAAAAAEBAAAAAUAAABwTmFtZQAAAAQABgAEAAAAAAAOAAwABAAAAAAAAAAIAA4AAAAIAAAADAAAAAMAAAAAAAAAAwAAACgAAAAYAAAABAAAAAkAAABUYXlsb3JNYXAAAAAGAAAATGVvTWFwAAAHAAAASm9obk1hcAAYAiABMAA6AA==",
+    "headers" : {
+      "x-ots-requestid" : "0006561f-d9bd-0e12-c623-150a11a7f35d",
+      "Authorization" : "OTS STS.NZhtQgAfWZiiDy4kVfDPmHF3K:XP2DJXK4GPuyK1IEQVDQz7qi3ec=",
+      "x-ots-date" : "2026-07-08T21:04:17.317450Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "1Fqm4wWE39T5/QAR/kuXeA==",
+      "Date" : "Wed, 08 Jul 2026 21:04:17 GMT"
+    }
+  },
+  "uuid" : "2270b2cd-60d4-43d4-a3a7-205c02f94ea4",
+  "persistent" : true,
+  "insertionIndex" : 108
+}
