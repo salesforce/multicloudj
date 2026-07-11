@@ -10,6 +10,7 @@ import com.google.cloud.storage.StorageClass;
 import com.google.common.collect.ImmutableMap;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -232,7 +233,18 @@ public class GcpTransformer {
         .md5(HexUtil.convertToBytes(blob.getMd5()))
         .contentType(blob.getContentType())
         .objectLockInfo(objectLockInfo)
+        .checksum(toDriverChecksum(blob))
         .build();
+  }
+
+  private Checksum toDriverChecksum(Blob blob) {
+    if (blob.getCrc32c() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.CRC32C)
+          .value(blob.getCrc32c())
+          .build();
+    }
+    return null;
   }
 
   public Storage.CopyRequest toCopyRequest(CopyRequest request) {
