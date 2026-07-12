@@ -841,7 +841,8 @@ public abstract class AbstractBlobStoreIT {
         Assertions.assertEquals(
             blobBytes.length, content.length, testName + ": Content-Length did not match");
         Assertions.assertArrayEquals(blobBytes, content, testName + ": Bytes arrays did not match");
-        Assertions.assertNotNull(response.getMetadata().getChecksum(), testName + ": checksum is not there");
+        Assertions.assertNotNull(response.getMetadata().getChecksum(),
+            testName + ": checksum is not there");
       } catch (SubstrateSdkException e) {
         Assertions.assertTrue(wantError, testName + ": Did not expect error. " + e.getMessage());
         return;
