@@ -2567,6 +2567,7 @@ public abstract class AbstractBlobStoreIT {
             testConfig.testName + ": The metadata does not match the original");
         Assertions.assertNotNull(blobMetadata.getLastModified());
         Assertions.assertNotNull(blobMetadata.getCreatedTime());
+        Assertions.assertNotNull(blobMetadata.getChecksum());
       }
     } finally {
       // Delete our blob to clean up the test
