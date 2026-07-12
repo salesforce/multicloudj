@@ -10,6 +10,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
+import com.aliyun.sdk.service.oss2.models.GetObjectResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult;
@@ -22,6 +23,7 @@ import com.aliyun.sdk.service.oss2.transport.BinaryData;
 import com.aliyun.sdk.service.oss2.transport.HttpClientOptions;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -1257,5 +1259,45 @@ public class AliTransformerTest {
     assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", actual.contentMd5());
     assertNull(actual.headers().get("x-oss-hash-crc64ecma"));
     assertNull(actual.headers().get("x-oss-content-sha256"));
+  }
+
+  // ---- toBlobMetadata / toDownloadResponse: checksum mapping from hashCrc64ecma ----
+
+  @Test
+  void testToBlobMetadata_populatesCrc64ChecksumFromHashCrc64ecma() {
+    HeadObjectResult result = mock(HeadObjectResult.class);
+    doReturn("ali-crc64-value").when(result).hashCrc64ecma();
+
+    Checksum checksum = transformer.toBlobMetadata("k", result).getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC64, checksum.getAlgorithm());
+    assertEquals("ali-crc64-value", checksum.getValue());
+  }
+
+  @Test
+  void testToBlobMetadata_noHashCrc64ecmaReturnsNullChecksum() {
+    HeadObjectResult result = mock(HeadObjectResult.class);
+    doReturn(null).when(result).hashCrc64ecma();
+
+    assertNull(transformer.toBlobMetadata("k", result).getChecksum());
+  }
+
+  @Test
+  void testToDownloadResponse_populatesCrc64ChecksumFromHashCrc64ecma() {
+    GetObjectResult result = mock(GetObjectResult.class);
+    doReturn("ali-crc64-value").when(result).hashCrc64ecma();
+
+    Checksum checksum = transformer.toDownloadResponse("k", result).getMetadata().getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC64, checksum.getAlgorithm());
+    assertEquals("ali-crc64-value", checksum.getValue());
+  }
+
+  @Test
+  void testToDownloadResponse_noHashCrc64ecmaReturnsNullChecksum() {
+    GetObjectResult result = mock(GetObjectResult.class);
+    doReturn(null).when(result).hashCrc64ecma();
+
+    assertNull(transformer.toDownloadResponse("k", result).getMetadata().getChecksum());
   }
 }
