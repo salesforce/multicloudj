@@ -52,6 +52,7 @@ import com.aliyun.sdk.service.oss2.transport.HttpClientOptions;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -217,6 +218,7 @@ public class AliTransformer {
                 .metadata(result.metadata())
                 .objectSize(objectSize)
                 .contentType(result.contentType())
+                .checksum(toDriverChecksum(result))
                 .build())
         .build();
   }
@@ -239,9 +241,30 @@ public class AliTransformer {
                 .metadata(result.metadata())
                 .objectSize(objectSize)
                 .contentType(result.contentType())
+                .checksum(toDriverChecksum(result))
                 .build())
         .inputStream(inputStream)
         .build();
+  }
+
+  private Checksum toDriverChecksum(GetObjectResult result) {
+    if (result.hashCrc64ecma() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.CRC64)
+          .value(result.hashCrc64ecma())
+          .build();
+    }
+    return null;
+  }
+
+  private Checksum toDriverChecksum(HeadObjectResult result) {
+    if (result.hashCrc64ecma() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.CRC64)
+          .value(result.hashCrc64ecma())
+          .build();
+    }
+    return null;
   }
 
   public DeleteObjectRequest toDeleteObjectRequest(
@@ -347,6 +370,7 @@ public class AliTransformer {
         .md5(HexUtil.convertToBytes(result.contentMd5()))
         .contentType(result.contentType())
         .objectLockInfo(extractObjectLockInfo(result.headers()))
+        .checksum(toDriverChecksum(result))
         .build();
   }
 

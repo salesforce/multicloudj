@@ -12,6 +12,7 @@ import static org.mockito.Mockito.mock;
 
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
@@ -53,6 +54,7 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
+import software.amazon.awssdk.services.s3.model.ChecksumMode;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
@@ -493,6 +495,73 @@ public class AwsTransformerTest {
     assertEquals(BUCKET, actual.bucket());
     assertEquals(key, actual.key());
     assertEquals(versionId, actual.versionId());
+    assertEquals(ChecksumMode.ENABLED, actual.checksumMode());
+  }
+
+  @Test
+  void testToRequest_downloadEnablesChecksumMode() {
+    var request = DownloadRequest.builder().withKey("some/key").build();
+    var actual = transformer.toRequest(request);
+    assertEquals(ChecksumMode.ENABLED, actual.checksumMode());
+  }
+
+  @Test
+  void testToDownloadResponse_preferSha256OverCrc32c() {
+    var request = DownloadRequest.builder().withKey("k").build();
+    GetObjectResponse response = mock(GetObjectResponse.class);
+    doReturn("sha256-value").when(response).checksumSHA256();
+    doReturn("crc32c-value").when(response).checksumCRC32C();
+
+    Checksum checksum =
+        transformer.toDownloadResponse(request, response).getMetadata().getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.SHA256, checksum.getAlgorithm());
+    assertEquals("sha256-value", checksum.getValue());
+  }
+
+  @Test
+  void testToDownloadResponse_preferCrc32cOverCrc64() {
+    var request = DownloadRequest.builder().withKey("k").build();
+    GetObjectResponse response = mock(GetObjectResponse.class);
+    doReturn("crc32c-value").when(response).checksumCRC32C();
+    doReturn("crc64-value").when(response).checksumCRC64NVME();
+
+    Checksum checksum =
+        transformer.toDownloadResponse(request, response).getMetadata().getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC32C, checksum.getAlgorithm());
+    assertEquals("crc32c-value", checksum.getValue());
+  }
+
+  @Test
+  void testToDownloadResponse_fallbackToCrc64NvmeMappedAsCrc64() {
+    var request = DownloadRequest.builder().withKey("k").build();
+    GetObjectResponse response = mock(GetObjectResponse.class);
+    doReturn("crc64nvme-value").when(response).checksumCRC64NVME();
+
+    Checksum checksum =
+        transformer.toDownloadResponse(request, response).getMetadata().getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC64, checksum.getAlgorithm());
+    assertEquals("crc64nvme-value", checksum.getValue());
+  }
+
+  @Test
+  void testToDownloadResponse_crc32OnlyReturnsNullChecksum() {
+    // SDK's WHEN_SUPPORTED default auto-attaches CRC32 on some PUTs; we intentionally do NOT
+    // surface it since ChecksumMethod does not expose CRC32.
+    var request = DownloadRequest.builder().withKey("k").build();
+    GetObjectResponse response = mock(GetObjectResponse.class);
+    doReturn("crc32-value").when(response).checksumCRC32();
+
+    assertNull(transformer.toDownloadResponse(request, response).getMetadata().getChecksum());
+  }
+
+  @Test
+  void testToDownloadResponse_noChecksumHeadersReturnsNull() {
+    var request = DownloadRequest.builder().withKey("k").build();
+    GetObjectResponse response = mock(GetObjectResponse.class);
+    assertNull(transformer.toDownloadResponse(request, response).getMetadata().getChecksum());
   }
 
   @Test
@@ -514,6 +583,53 @@ public class AwsTransformerTest {
     assertEquals(metadata, actual.getMetadata());
     assertEquals(1024L, actual.getObjectSize());
     assertEquals(now, actual.getLastModified());
+    assertNull(actual.getChecksum());
+  }
+
+  @Test
+  void testToMetadata_preferSha256() {
+    var response =
+        HeadObjectResponse.builder()
+            .contentLength(0L)
+            .checksumSHA256("sha256-value")
+            .checksumCRC32C("crc32c-value")
+            .checksumCRC64NVME("crc64-value")
+            .build();
+    Checksum checksum = transformer.toMetadata(response, "k").getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.SHA256, checksum.getAlgorithm());
+    assertEquals("sha256-value", checksum.getValue());
+  }
+
+  @Test
+  void testToMetadata_preferCrc32cOverCrc64() {
+    var response =
+        HeadObjectResponse.builder()
+            .contentLength(0L)
+            .checksumCRC32C("crc32c-value")
+            .checksumCRC64NVME("crc64-value")
+            .build();
+    Checksum checksum = transformer.toMetadata(response, "k").getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC32C, checksum.getAlgorithm());
+    assertEquals("crc32c-value", checksum.getValue());
+  }
+
+  @Test
+  void testToMetadata_fallbackToCrc64NvmeMappedAsCrc64() {
+    var response =
+        HeadObjectResponse.builder().contentLength(0L).checksumCRC64NVME("crc64-value").build();
+    Checksum checksum = transformer.toMetadata(response, "k").getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC64, checksum.getAlgorithm());
+    assertEquals("crc64-value", checksum.getValue());
+  }
+
+  @Test
+  void testToMetadata_crc32OnlyReturnsNullChecksum() {
+    var response =
+        HeadObjectResponse.builder().contentLength(0L).checksumCRC32("crc32-value").build();
+    assertNull(transformer.toMetadata(response, "k").getChecksum());
   }
 
   @Test
