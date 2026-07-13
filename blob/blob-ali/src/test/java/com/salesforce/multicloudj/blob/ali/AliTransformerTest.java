@@ -992,8 +992,6 @@ public class AliTransformerTest {
         ex.getMessage());
   }
 
-  // ---- toBlobMetadata: objectLockInfo extraction from x-oss-object-worm-* headers ----
-
   @Test
   void testToBlobMetadata_locked_populatesObjectLockInfoFromHeaders() {
     // OSS surfaces object-lock state on HeadObject as response headers (verified live against
@@ -1260,8 +1258,6 @@ public class AliTransformerTest {
     assertNull(actual.headers().get("x-oss-hash-crc64ecma"));
     assertNull(actual.headers().get("x-oss-content-sha256"));
   }
-
-  // ---- toBlobMetadata / toDownloadResponse: checksum mapping from hashCrc64ecma ----
 
   @Test
   void testToBlobMetadata_populatesCrc64ChecksumFromHashCrc64ecma() {
