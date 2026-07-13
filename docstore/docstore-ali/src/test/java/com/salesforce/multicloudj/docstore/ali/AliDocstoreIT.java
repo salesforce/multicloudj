@@ -120,7 +120,12 @@ public class AliDocstoreIT extends AbstractDocstoreIT {
 
     @Override
     public List<String> getWiremockExtensions() {
-      return List.of();
+      // Canonicalize Tablestore write-request bodies (PutRow/DeleteRow) on both the record and
+      // replay paths so column serialization order (which varies run-to-run because the driver
+      // iterates a HashMap) doesn't break binaryEqualTo matching.
+      return List.of(
+          TablestoreCanonicalRecordTransformer.class.getName(),
+          TablestoreCanonicalReplayFilter.class.getName());
     }
 
     @Override
