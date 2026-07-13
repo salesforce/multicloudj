@@ -1,5 +1,5 @@
 {
-  "id" : "682d9d57-b82b-45a5-8cae-80313f013c7b",
+  "id" : "e3ca0f52-23e1-46a0-968c-f3daa4ae3ef5",
   "name" : "AwsBlobStoreIT_testVersionedDownload_noVersionId-GET-4",
   "request" : {
     "url" : "/chameleon-jcloud-versioned/conformance-tests/versioned_download_no_versionId_versioned",
@@ -7,25 +7,26 @@
   },
   "response" : {
     "status" : 200,
-    "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGFwG71L3h7gTjsFlvY5lOuu",
+    "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGE=",
     "headers" : {
       "Accept-Ranges" : "bytes",
       "Server" : "AmazonS3",
       "ETag" : "\"701bbd4bde1ee04e3b0596f63994ebae\"",
-      "Last-Modified" : "Wed, 04 Mar 2026 20:56:27 GMT",
-      "x-amz-request-id" : "2EESY0Z5BHT3K3SV",
+      "x-amz-checksum-crc64nvme" : "4G16TxxAsWw=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "Last-Modified" : "Sun, 12 Jul 2026 21:11:58 GMT",
+      "x-amz-request-id" : "9FX3T6MRNRZNJRET",
       "x-amz-server-side-encryption" : "AES256",
-      "x-amz-id-2" : "8lpHPQ3Te5WLrIpZsVd4V5lFFTCCOl3Fgk2f206M77GKhli5WXmCjeEfvcpQcgovGPCfYxaxzrhT/rcz3HX24ybgIjifiQHn",
-      "x-amz-transfer-encoding" : "append-md5",
-      "x-amz-version-id" : "8rUxKIEpoiN_l2fvRLrv_twVGT9NF9M0",
-      "Date" : "Wed, 04 Mar 2026 20:56:27 GMT",
+      "x-amz-id-2" : "8eFv/I/ozbf6h8h9hQQ1dWRRjCYsb5t4kTGFZXJ6dsD3xzaWmo6HJQ/uNbtVaGH17vXBkHiVfLoIPog2JCZA9Z6XeI4vn0ei",
+      "x-amz-version-id" : "MC4lz0HNu82J9PSNPa2PZIZ5lmrAo5J_",
+      "Date" : "Sun, 12 Jul 2026 21:11:58 GMT",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "682d9d57-b82b-45a5-8cae-80313f013c7b",
+  "uuid" : "e3ca0f52-23e1-46a0-968c-f3daa4ae3ef5",
   "persistent" : true,
   "scenarioName" : "scenario-2-chameleon-jcloud-versioned-conformance-tests-versioned_download_no_versionId_versioned",
   "requiredScenarioState" : "scenario-2-chameleon-jcloud-versioned-conformance-tests-versioned_download_no_versionId_versioned-3",
   "newScenarioState" : "scenario-2-chameleon-jcloud-versioned-conformance-tests-versioned_download_no_versionId_versioned-4",
-  "insertionIndex" : 62
+  "insertionIndex" : 775
 }
