@@ -1,26 +1,28 @@
 {
-  "id" : "732b2d9a-5f83-4772-9ca3-0b484ce7772f",
+  "id" : "632aa7ab-57aa-45dd-bd35-c52410690ca5",
   "name" : "AliDocstoreIT_testGet-POST-18",
   "request" : {
     "url" : "/PutRow",
     "method" : "POST",
     "bodyPatterns" : [ {
-      "binaryEqualTo" : "UHV0Um93CnRhYmxlPWRvY3N0b3JlX3Rlc3RfMQpwaz1bcE5hbWU9UEs6UHVtYU1hcDtdCmNlbGxzPVtiPUJPT0xFQU46dHJ1ZTtieXRlcz1CSU5BUlk6WzExNCwgOTcsIDExMCwgMTAwLCAxMTEsIDEwOSwgODMsIDExNiwgMTE0LCAxMDUsIDExMCwgMTAzXTtmPURPVUJMRToxMi42NTk5OTk4NDc0MTIxMTtpPUlOVEVHRVI6MTIxO3M9U1RSSU5HOnJhbmRvbSBTdHJpbmc7XQpkZWxldGVNYXJrZXI9ZmFsc2UKY29uZGl0aW9uPTA4MDIK"
+      "equalToJson" : "{\"op\":\"PutRow\",\"table\":\"docstore_test_1\",\"rows\":[{\"pk\":{\"pName\":{\"t\":\"PK:STRING\",\"v\":\"PumaMap\"}},\"cells\":{\"i\":{\"t\":\"INTEGER\",\"v\":\"121\"},\"b\":{\"t\":\"BOOLEAN\",\"v\":\"true\"},\"s\":{\"t\":\"STRING\",\"v\":\"random String\"},\"f\":{\"t\":\"DOUBLE\",\"v\":\"12.65999984741211\"},\"bytes\":{\"t\":\"BINARY\",\"v\":\"[114, 97, 110, 100, 111, 109, 83, 116, 114, 105, 110, 103]\"}},\"deleteMarker\":false}],\"condition\":\"0802\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
     } ]
   },
   "response" : {
     "status" : 200,
     "base64Body" : "CgYKBAgBEAE=",
     "headers" : {
-      "x-ots-requestid" : "00065680-71d7-e4eb-8707-fe0a979f59aa",
-      "Authorization" : "OTS STS.NZ4t1Qj6gdbCPL1YhyAQVemt3:JrDpUJRCiVO8nev9MVOm/uFsC6s=",
-      "x-ots-date" : "2026-07-13T16:18:46.045375Z",
+      "x-ots-requestid" : "00065686-40dc-6686-2322-fe0aa0e464e5",
+      "Authorization" : "OTS STS.NZ4t1Qj6gdbCPL1YhyAQVemt3:Po54w2DpUr0wi8MFCfDRy29rL6A=",
+      "x-ots-date" : "2026-07-13T23:14:34.065040Z",
       "x-ots-contenttype" : "protocol buffer",
       "x-ots-contentmd5" : "bofsTfsxtvymDNQpw96K/Q==",
-      "Date" : "Mon, 13 Jul 2026 16:18:46 GMT"
+      "Date" : "Mon, 13 Jul 2026 23:14:34 GMT"
     }
   },
-  "uuid" : "732b2d9a-5f83-4772-9ca3-0b484ce7772f",
+  "uuid" : "632aa7ab-57aa-45dd-bd35-c52410690ca5",
   "persistent" : true,
   "insertionIndex" : 124
 }
