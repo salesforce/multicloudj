@@ -81,7 +81,9 @@ public abstract class AbstractDocstoreIT {
     Random random = new Random(12345L);
     UUID.setUuidSupplier(() -> new java.util.UUID(random.nextLong(), random.nextLong()).toString());
     harness = createHarness();
-    TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
+    List<String> extensions = harness.getWiremockExtensions();
+    TestsUtil.startWireMockServer(
+        "src/test/resources", harness.getPort(), extensions.toArray(new String[0]));
   }
 
   /** Shuts down the WireMock server after all tests. */

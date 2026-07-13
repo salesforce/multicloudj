@@ -1,0 +1,28 @@
+{
+  "id" : "d1dafff4-22f4-4170-85ad-0769abbd202d",
+  "name" : "AliDocstoreIT_testReplace-POST-1",
+  "request" : {
+    "url" : "/PutRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"op\":\"PutRow\",\"table\":\"docstore_test_1\",\"rows\":[{\"pk\":{\"pName\":{\"t\":\"PK:STRING\",\"v\":\"LeoReplace\"}},\"cells\":{\"DocstoreRevision\":{\"t\":\"STRING\",\"v\":\"6478228d-1f08-7648-ded1-6dae9c8749c1\"},\"b\":{\"t\":\"BOOLEAN\",\"v\":\"true\"},\"s\":{\"t\":\"STRING\",\"v\":\"originalString\"},\"f\":{\"t\":\"DOUBLE\",\"v\":\"12.65999984741211\"},\"bytes\":{\"t\":\"BINARY\",\"v\":\"[111, 114, 105, 103, 105, 110, 97, 108, 83, 116, 114, 105, 110, 103]\"},\"i\":{\"t\":\"INTEGER\",\"v\":\"121\"}},\"deleteMarker\":false}],\"condition\":\"0802\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgBEAE=",
+    "headers" : {
+      "x-ots-requestid" : "00065686-43c7-9dc5-0f26-150a9c94816f",
+      "Authorization" : "OTS STS.NZ4t1Qj6gdbCPL1YhyAQVemt3:68G+ab5Xl1XtVvPyNLuOAG3YCrQ=",
+      "x-ots-date" : "2026-07-13T23:15:23.034047Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "bofsTfsxtvymDNQpw96K/Q==",
+      "Date" : "Mon, 13 Jul 2026 23:15:23 GMT"
+    }
+  },
+  "uuid" : "d1dafff4-22f4-4170-85ad-0769abbd202d",
+  "persistent" : true,
+  "insertionIndex" : 155
+}

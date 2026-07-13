@@ -20,9 +20,17 @@ import com.github.tomakehurst.wiremock.matching.ContentPattern;
 import com.github.tomakehurst.wiremock.matching.RegexPattern;
 import com.github.tomakehurst.wiremock.matching.RequestPattern;
 import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
+import com.github.tomakehurst.wiremock.recording.RecordSpec;
 import com.github.tomakehurst.wiremock.recording.RecordSpecBuilder;
+import com.github.tomakehurst.wiremock.recording.RequestBodyAutomaticPatternFactory;
+import com.github.tomakehurst.wiremock.recording.RequestBodyPatternFactory;
 import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -336,7 +344,26 @@ public class TestsUtil {
     recordSpec = recordSpec.transformers(transformerNames.toArray(new String[0]));
 
     if (isRecordingEnabled) {
-      wireMockServer.startRecording(recordSpec);
+      // Rebuild the spec with a body-pattern factory that records non-text (binary) bodies
+      // losslessly as base64 binaryEqualTo, wrapping WireMock's default automatic factory so text
+      // providers are unaffected. There is no builder setter for a custom factory, so reconstruct
+      // the RecordSpec via its public constructor, swapping only the requestBodyPatternFactory.
+      RecordSpec built = recordSpec.build();
+      RequestBodyPatternFactory losslessFactory =
+          new LosslessBinaryBodyPatternFactory(built.getRequestBodyPatternFactory());
+      RecordSpec losslessSpec =
+          new RecordSpec(
+              built.getTargetBaseUrl(),
+              built.getFilters(),
+              built.getCaptureHeaders(),
+              losslessFactory,
+              built.getExtractBodyCriteria(),
+              built.getOutputFormat(),
+              built.shouldPersist(),
+              built.shouldRecordRepeatsAsScenarios(),
+              built.getTransformers(),
+              built.getTransformerParameters());
+      wireMockServer.startRecording(losslessSpec);
     }
   }
 
@@ -344,6 +371,57 @@ public class TestsUtil {
     boolean isRecordingEnabled = System.getProperty("record") != null;
     if (isRecordingEnabled) {
       wireMockServer.stopRecording();
+    }
+  }
+
+  /**
+   * A recording body-pattern factory that stores non-text request bodies losslessly.
+   *
+   * <p>WireMock's default {@link RequestBodyAutomaticPatternFactory} decides between a text {@code
+   * equalTo} matcher and a binary {@code binaryEqualTo} matcher based on the request's standard
+   * {@code Content-Type}. Some providers (e.g. Alibaba Tablestore, which sends its binary
+   * PlainBuffer protobuf under a custom {@code x-ots-contenttype} header) end up classified as
+   * text, so the raw binary body is UTF-8 decoded into the recorded {@code equalTo} string. That
+   * decode is lossy: every byte that isn't valid UTF-8 collapses to U+FFFD irreversibly, corrupting
+   * the recording and making the stored body impossible to parse or reliably match.
+   *
+   * <p>This factory inspects the actual bytes: if the body is NOT valid UTF-8 (i.e. it is genuinely
+   * binary), it emits a {@link BinaryEqualToPattern} built from the raw bytes, which serializes to
+   * a lossless base64 {@code binaryEqualTo}. Otherwise it delegates to WireMock's default automatic
+   * behavior, so JSON/XML/text providers are entirely unaffected. Scoping by byte content (rather
+   * than by URL or provider) keeps this provider-agnostic and self-limiting.
+   */
+  public static class LosslessBinaryBodyPatternFactory implements RequestBodyPatternFactory {
+
+    private final RequestBodyPatternFactory delegate;
+
+    public LosslessBinaryBodyPatternFactory(RequestBodyPatternFactory delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public ContentPattern<?> forRequest(Request request) {
+      byte[] body = request.getBody();
+      if (body != null && body.length > 0 && !isValidUtf8(body)) {
+        // Genuinely binary body -> store raw bytes losslessly (base64 binaryEqualTo).
+        return new BinaryEqualToPattern(body);
+      }
+      // Text/JSON/XML (or empty) -> keep WireMock's default automatic behavior.
+      return delegate.forRequest(request);
+    }
+
+    private static boolean isValidUtf8(byte[] bytes) {
+      CharsetDecoder decoder =
+          StandardCharsets.UTF_8
+              .newDecoder()
+              .onMalformedInput(CodingErrorAction.REPORT)
+              .onUnmappableCharacter(CodingErrorAction.REPORT);
+      try {
+        decoder.decode(ByteBuffer.wrap(bytes));
+        return true;
+      } catch (CharacterCodingException e) {
+        return false;
+      }
     }
   }
 }
