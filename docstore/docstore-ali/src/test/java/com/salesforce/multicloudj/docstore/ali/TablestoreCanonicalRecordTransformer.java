@@ -5,6 +5,7 @@ import com.github.tomakehurst.wiremock.extension.Parameters;
 import com.github.tomakehurst.wiremock.extension.StubMappingTransformer;
 import com.github.tomakehurst.wiremock.matching.BinaryEqualToPattern;
 import com.github.tomakehurst.wiremock.matching.ContentPattern;
+import com.github.tomakehurst.wiremock.matching.EqualToJsonPattern;
 import com.github.tomakehurst.wiremock.matching.EqualToPattern;
 import com.github.tomakehurst.wiremock.matching.RequestPattern;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
@@ -44,7 +45,10 @@ public class TablestoreCanonicalRecordTransformer extends StubMappingTransformer
       byte[] original = rawBytesOf(pattern);
       if (original != null) {
         byte[] canonical = TablestoreBodyCanonicalizer.canonicalize(url, original);
-        rewritten.add(new BinaryEqualToPattern(canonical));
+        String canonicalJson = new String(canonical, StandardCharsets.UTF_8);
+        // ignoreArrayOrder=true (defensive, in case list-typed cells are ever encoded);
+        // ignoreExtraElements=false so the match stays strict on presence of every column.
+        rewritten.add(new EqualToJsonPattern(canonicalJson, true, false));
         changed = true;
       } else {
         rewritten.add(pattern);

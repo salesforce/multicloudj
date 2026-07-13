@@ -11,7 +11,8 @@ import com.alicloud.openservices.tablestore.model.PrimaryKeyBuilder;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyValue;
 import com.alicloud.openservices.tablestore.model.PutRowRequest;
 import com.alicloud.openservices.tablestore.model.RowPutChange;
-import com.github.tomakehurst.wiremock.matching.BinaryEqualToPattern;
+import com.github.tomakehurst.wiremock.matching.EqualToJsonPattern;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
@@ -67,10 +68,16 @@ class TablestoreBodyCanonicalizerTest {
     // Raw wire bytes differ (this is exactly the flakiness we saw)...
     assertFalse(Arrays.equals(a, b), "raw bodies should differ due to column order");
 
-    // ...but canonical forms are identical.
-    byte[] ca = TablestoreBodyCanonicalizer.canonicalize("/PutRow", a);
-    byte[] cb = TablestoreBodyCanonicalizer.canonicalize("/PutRow", b);
-    assertArrayEquals(ca, cb, "canonical forms must be equal regardless of column order");
+    // ...and the canonical JSON forms match semantically under equalToJson (which ignores object
+    // key order). Note: the raw JSON bytes need NOT be byte-identical -- order-tolerance comes from
+    // the matcher, not from a byte-canonical output.
+    String ca =
+        new String(TablestoreBodyCanonicalizer.canonicalize("/PutRow", a), StandardCharsets.UTF_8);
+    String cb =
+        new String(TablestoreBodyCanonicalizer.canonicalize("/PutRow", b), StandardCharsets.UTF_8);
+    assertTrue(
+        new EqualToJsonPattern(ca, true, false).match(cb).isExactMatch(),
+        "canonical JSON forms must match regardless of column order");
   }
 
   @Test
@@ -104,15 +111,19 @@ class TablestoreBodyCanonicalizerTest {
             "LeoPut",
             new String[] {"i", "bytes", "b", "f", "DocstoreRevision"});
 
-    // Record side: stub matcher is binaryEqualTo(canonical(recorded)).
-    BinaryEqualToPattern stub =
-        new BinaryEqualToPattern(
-            TablestoreBodyCanonicalizer.canonicalize("/PutRow", recordedRaw));
+    // Record side: stub matcher is equalToJson(canonical(recorded)).
+    String recordedCanonicalJson =
+        new String(
+            TablestoreBodyCanonicalizer.canonicalize("/PutRow", recordedRaw),
+            StandardCharsets.UTF_8);
+    EqualToJsonPattern stub = new EqualToJsonPattern(recordedCanonicalJson, true, false);
     // Replay side: incoming request body is canonicalized before matching.
-    byte[] replayCanonical = TablestoreBodyCanonicalizer.canonicalize("/PutRow", replayRaw);
+    String replayCanonicalJson =
+        new String(
+            TablestoreBodyCanonicalizer.canonicalize("/PutRow", replayRaw), StandardCharsets.UTF_8);
 
     assertTrue(
-        stub.match(replayCanonical).isExactMatch(),
+        stub.match(replayCanonicalJson).isExactMatch(),
         "canonicalized replay body must match the canonicalized recorded stub");
   }
 
