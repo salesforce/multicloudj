@@ -1,30 +1,29 @@
 {
-  "id" : "7dd94c7f-31cb-462d-a0b5-4dbd681e0d58",
+  "id" : "17d56de7-b138-4866-b6e5-a92f2ec8ebe1",
   "name" : "AliDocstoreIT_testPut-POST-9",
   "request" : {
     "url" : "/BatchGetRow",
     "method" : "POST",
     "bodyPatterns" : [ {
-      "equalTo" : "\n<\n\u000Fdocstore_test_1\u0012%u\u0000\u0000\u0000\u0001\u0003\u0004\u0005\u0000\u0000\u0000pName\u0005\f\u0000\u0000\u0000\u0003\u0007\u0000\u0000\u0000JohnPut\n�\t`\u001A\u00000\u0001",
-      "caseInsensitive" : false
+      "binaryEqualTo" : "CjwKD2RvY3N0b3JlX3Rlc3RfMRIldQAAAAEDBAUAAABwTmFtZQUMAAAAAwcAAABKb2huUHV0Co4JYBoAMAE="
     } ]
   },
   "response" : {
     "status" : 200,
-    "base64Body" : "CvQBCg9kb2NzdG9yZV90ZXN0XzES4AEIARoGCgQIARAAItMBdQAAAAEDBAUAAABwTmFtZQUMAAAAAwcAAABKb2huUHV0Co4CAwQBAAAAYgUCAAAAAgEHqyaLQ58BAAAK4wMEBQAAAGJ5dGVzBREAAAAHDAAAAHJhbmRvbVN0cmluZwerJotDnwEAAAq3AwQBAAAAZgUJAAAAAQAAAIDrUSlAB6smi0OfAQAACnwDBAEAAABpBQkAAAAAeQAAAAAAAAAHqyaLQ58BAAAKKgMEAQAAAHMFEQAAAAMMAAAAcmFuZG9tU3RyaW5nB6smi0OfAQAACt8J+Q==",
+    "base64Body" : "CvQBCg9kb2NzdG9yZV90ZXN0XzES4AEIARoGCgQIARAAItMBdQAAAAEDBAUAAABwTmFtZQUMAAAAAwcAAABKb2huUHV0Co4CAwQBAAAAYgUCAAAAAgEHHKZGXJ8BAAAKrAMEBQAAAGJ5dGVzBREAAAAHDAAAAHJhbmRvbVN0cmluZwccpkZcnwEAAAr4AwQBAAAAZgUJAAAAAQAAAIDrUSlABxymRlyfAQAACjMDBAEAAABpBQkAAAAAeQAAAAAAAAAHHKZGXJ8BAAAKZQMEAQAAAHMFEQAAAAMMAAAAcmFuZG9tU3RyaW5nBxymRlyfAQAACpAJ9w==",
     "headers" : {
-      "x-ots-requestid" : "0006561f-d79a-90b1-4537-200a6a42e2b6",
-      "Authorization" : "OTS STS.NZhtQgAfWZiiDy4kVfDPmHF3K:MOOmXAtSSU9EGqDxZHA+pns6GTw=",
-      "x-ots-date" : "2026-07-08T21:03:41.471642Z",
+      "x-ots-requestid" : "00065680-7423-6d63-ccdf-c60b1481421d",
+      "Authorization" : "OTS STS.NZ4t1Qj6gdbCPL1YhyAQVemt3:l9UzbZSUvrt41jyUn6hcZZ75948=",
+      "x-ots-date" : "2026-07-13T16:19:24.569671Z",
       "x-ots-contenttype" : "protocol buffer",
-      "x-ots-contentmd5" : "8D7OeVVmoZxF8KuiYOC9hQ==",
-      "Date" : "Wed, 08 Jul 2026 21:03:41 GMT"
+      "x-ots-contentmd5" : "HoMaxxouvS64YChiOAAh0A==",
+      "Date" : "Mon, 13 Jul 2026 16:19:24 GMT"
     }
   },
-  "uuid" : "7dd94c7f-31cb-462d-a0b5-4dbd681e0d58",
+  "uuid" : "17d56de7-b138-4866-b6e5-a92f2ec8ebe1",
   "persistent" : true,
   "scenarioName" : "scenario-2-BatchGetRow",
   "requiredScenarioState" : "Started",
   "newScenarioState" : "scenario-2-BatchGetRow-2",
-  "insertionIndex" : 34
+  "insertionIndex" : 139
 }

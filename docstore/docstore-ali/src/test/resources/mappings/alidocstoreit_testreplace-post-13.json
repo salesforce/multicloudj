@@ -1,27 +1,26 @@
 {
-  "id" : "dd4d9e6c-c67f-4fa0-89a3-62e24a9e944d",
+  "id" : "656bffe5-601a-47a2-abcc-c0eac1e597c5",
   "name" : "AliDocstoreIT_testReplace-POST-13",
   "request" : {
     "url" : "/BatchGetRow",
     "method" : "POST",
     "bodyPatterns" : [ {
-      "equalTo" : "\n@\n\u000Fdocstore_test_1\u0012)u\u0000\u0000\u0000\u0001\u0003\u0004\u0005\u0000\u0000\u0000pName\u0005\u0010\u0000\u0000\u0000\u0003\u000B\u0000\u0000\u0000JohnReplace\n�\t�\u001A\u00000\u0001",
-      "caseInsensitive" : false
+      "binaryEqualTo" : "CkAKD2RvY3N0b3JlX3Rlc3RfMRIpdQAAAAEDBAUAAABwTmFtZQUQAAAAAwsAAABKb2huUmVwbGFjZQrRCa8aADAB"
     } ]
   },
   "response" : {
     "status" : 200,
-    "base64Body" : "CvwBCg9kb2NzdG9yZV90ZXN0XzES6AEIARoGCgQIARAAItsBdQAAAAEDBAUAAABwTmFtZQUQAAAAAwsAAABKb2huUmVwbGFjZQrRAgMEAQAAAGIFAgAAAAIAB5Vai0OfAQAACpkDBAUAAABieXRlcwUTAAAABw4AAAByZXBsYWNlZFN0cmluZweVWotDnwEAAArrAwQBAAAAZgUJAAAAAQAAACCuR0FAB5Vai0OfAQAACuIDBAEAAABpBQkAAAAAXwAAAAAAAAAHlVqLQ58BAAAKZQMEAQAAAHMFEwAAAAMOAAAAcmVwbGFjZWRTdHJpbmcHlVqLQ58BAAAKtgkv",
+    "base64Body" : "CvwBCg9kb2NzdG9yZV90ZXN0XzES6AEIARoGCgQIARAAItsBdQAAAAEDBAUAAABwTmFtZQUQAAAAAwsAAABKb2huUmVwbGFjZQrRAgMEAQAAAGIFAgAAAAIAB7/+RlyfAQAACk0DBAUAAABieXRlcwUTAAAABw4AAAByZXBsYWNlZFN0cmluZwe//kZcnwEAAAo/AwQBAAAAZgUJAAAAAQAAACCuR0FAB7/+RlyfAQAACjYDBAEAAABpBQkAAAAAXwAAAAAAAAAHv/5GXJ8BAAAKsQMEAQAAAHMFEwAAAAMOAAAAcmVwbGFjZWRTdHJpbmcHv/5GXJ8BAAAKYgmS",
     "headers" : {
-      "x-ots-requestid" : "0006561f-d866-55a2-278b-c20b701b4bdc",
-      "Authorization" : "OTS STS.NZhtQgAfWZiiDy4kVfDPmHF3K:LbrUTVcU7ZtRPavCCeI70IDXZt8=",
-      "x-ots-date" : "2026-07-08T21:03:54.826354Z",
+      "x-ots-requestid" : "00065680-756c-77a3-3322-150aa3da67ed",
+      "Authorization" : "OTS STS.NZ4t1Qj6gdbCPL1YhyAQVemt3:3GJ93BRhS7+qQPvDkSxH2brKSho=",
+      "x-ots-date" : "2026-07-13T16:19:46.117665Z",
       "x-ots-contenttype" : "protocol buffer",
-      "x-ots-contentmd5" : "1ubmTLecszAIpsOOP6HpCA==",
-      "Date" : "Wed, 08 Jul 2026 21:03:54 GMT"
+      "x-ots-contentmd5" : "CUc9l8ueXb7DQmdgUwoysQ==",
+      "Date" : "Mon, 13 Jul 2026 16:19:46 GMT"
     }
   },
-  "uuid" : "dd4d9e6c-c67f-4fa0-89a3-62e24a9e944d",
+  "uuid" : "656bffe5-601a-47a2-abcc-c0eac1e597c5",
   "persistent" : true,
-  "insertionIndex" : 62
+  "insertionIndex" : 167
 }
