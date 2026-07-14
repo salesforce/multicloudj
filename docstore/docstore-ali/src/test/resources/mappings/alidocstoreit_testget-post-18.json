@@ -1,0 +1,28 @@
+{
+  "id" : "632aa7ab-57aa-45dd-bd35-c52410690ca5",
+  "name" : "AliDocstoreIT_testGet-POST-18",
+  "request" : {
+    "url" : "/PutRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"op\":\"PutRow\",\"table\":\"docstore_test_1\",\"rows\":[{\"pk\":{\"pName\":{\"t\":\"PK:STRING\",\"v\":\"PumaMap\"}},\"cells\":{\"i\":{\"t\":\"INTEGER\",\"v\":\"121\"},\"b\":{\"t\":\"BOOLEAN\",\"v\":\"true\"},\"s\":{\"t\":\"STRING\",\"v\":\"random String\"},\"f\":{\"t\":\"DOUBLE\",\"v\":\"12.65999984741211\"},\"bytes\":{\"t\":\"BINARY\",\"v\":\"[114, 97, 110, 100, 111, 109, 83, 116, 114, 105, 110, 103]\"}},\"deleteMarker\":false}],\"condition\":\"0802\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgBEAE=",
+    "headers" : {
+      "x-ots-requestid" : "00065686-40dc-6686-2322-fe0aa0e464e5",
+      "Authorization" : "OTS STS.NZ4t1Qj6gdbCPL1YhyAQVemt3:Po54w2DpUr0wi8MFCfDRy29rL6A=",
+      "x-ots-date" : "2026-07-13T23:14:34.065040Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "bofsTfsxtvymDNQpw96K/Q==",
+      "Date" : "Mon, 13 Jul 2026 23:14:34 GMT"
+    }
+  },
+  "uuid" : "632aa7ab-57aa-45dd-bd35-c52410690ca5",
+  "persistent" : true,
+  "insertionIndex" : 124
+}

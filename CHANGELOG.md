@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.2](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.1...multicloudj-v0.4.2) (2026-07-13)
+
+
+### Blob Store
+
+* add the checksum data in the get and metadata ([#540](https://github.com/salesforce/multicloudj/issues/540)) ([8773dd8](https://github.com/salesforce/multicloudj/commit/8773dd851bd9a7af48cd53f7242c5b4d48a01815))
+* gcp: only override HTTP transport when caller configured it ([#530](https://github.com/salesforce/multicloudj/issues/530)) ([c225089](https://github.com/salesforce/multicloudj/commit/c225089192628fe1f27dc2b79196dcffba36e222))
+
+
+### Document Store
+
+* remove explicit flatbuffers-java dependency from all docstore modules ([#538](https://github.com/salesforce/multicloudj/issues/538)) ([f105f35](https://github.com/salesforce/multicloudj/commit/f105f359db668255a0c9eeaf3a83059c19f7a305))
+
 ## [0.4.1](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.0...multicloudj-v0.4.1) (2026-07-04)
 
 

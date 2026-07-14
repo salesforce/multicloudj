@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.blob.aws.async.S3LoggingTransferListener;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -63,6 +64,7 @@ import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
+import software.amazon.awssdk.services.s3.model.ChecksumMode;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
@@ -355,6 +357,7 @@ public class AwsTransformer {
         GetObjectRequest.builder()
             .bucket(getBucket())
             .key(request.getKey())
+            .checksumMode(ChecksumMode.ENABLED)
             .versionId(request.getVersionId());
 
     if (request.getStart() != null || request.getEnd() != null) {
@@ -399,6 +402,7 @@ public class AwsTransformer {
                 .metadata(response.metadata())
                 .objectSize(response.contentLength())
                 .contentType(response.contentType())
+                .checksum(toDriverChecksum(response))
                 .build())
         .build();
   }
@@ -419,9 +423,54 @@ public class AwsTransformer {
                 .metadata(response.metadata())
                 .objectSize(response.contentLength())
                 .contentType(response.contentType())
+                .checksum(toDriverChecksum(response))
                 .build())
         .inputStream(responseInputStream)
         .build();
+  }
+
+  private Checksum toDriverChecksum(GetObjectResponse response) {
+    if (response.checksumSHA256() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.SHA256)
+          .value(response.checksumSHA256())
+          .build();
+    }
+    if (response.checksumCRC32C() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.CRC32C)
+          .value(response.checksumCRC32C())
+          .build();
+    }
+    if (response.checksumCRC64NVME() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.CRC64)
+          .value(response.checksumCRC64NVME())
+          .build();
+    }
+    return null;
+  }
+
+  private Checksum toDriverChecksum(HeadObjectResponse response) {
+    if (response.checksumSHA256() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.SHA256)
+          .value(response.checksumSHA256())
+          .build();
+    }
+    if (response.checksumCRC32C() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.CRC32C)
+          .value(response.checksumCRC32C())
+          .build();
+    }
+    if (response.checksumCRC64NVME() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.CRC64)
+          .value(response.checksumCRC64NVME())
+          .build();
+    }
+    return null;
   }
 
   public DeleteObjectRequest toDeleteRequest(String key, String versionId) {
@@ -466,7 +515,12 @@ public class AwsTransformer {
   }
 
   public HeadObjectRequest toHeadRequest(String key, String versionId) {
-    return HeadObjectRequest.builder().bucket(getBucket()).key(key).versionId(versionId).build();
+    return HeadObjectRequest.builder()
+        .bucket(getBucket())
+        .key(key)
+        .versionId(versionId)
+        .checksumMode(ChecksumMode.ENABLED)
+        .build();
   }
 
   public BlobMetadata toMetadata(HeadObjectResponse response, String key) {
@@ -496,6 +550,7 @@ public class AwsTransformer {
         .md5(eTagToMD5(eTag))
         .contentType(response.contentType())
         .objectLockInfo(objectLockInfo)
+        .checksum(toDriverChecksum(response))
         .build();
   }
 

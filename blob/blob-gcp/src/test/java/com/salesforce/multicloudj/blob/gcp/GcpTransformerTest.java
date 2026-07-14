@@ -16,6 +16,7 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Storage;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -657,6 +658,25 @@ class GcpTransformerTest {
     assertEquals(expectedMetadata, blobMetadata.getMetadata());
 
     assertEquals(updateTime.toInstant(), blobMetadata.getLastModified());
+  }
+
+  @Test
+  void testToBlobMetadata_populatesCrc32cChecksum() {
+    when(mockBlob.getName()).thenReturn(TEST_KEY);
+    when(mockBlob.getCrc32c()).thenReturn("abc123==");
+
+    Checksum checksum = transformer.toBlobMetadata(mockBlob).getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC32C, checksum.getAlgorithm());
+    assertEquals("abc123==", checksum.getValue());
+  }
+
+  @Test
+  void testToBlobMetadata_noCrc32cReturnsNullChecksum() {
+    when(mockBlob.getName()).thenReturn(TEST_KEY);
+    when(mockBlob.getCrc32c()).thenReturn(null);
+
+    assertNull(transformer.toBlobMetadata(mockBlob).getChecksum());
   }
 
   @Test

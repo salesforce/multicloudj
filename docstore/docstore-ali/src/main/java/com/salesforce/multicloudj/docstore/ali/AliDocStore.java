@@ -345,6 +345,8 @@ public class AliDocStore extends AbstractDocStore {
     SingleColumnValueCondition singleColumnValueCondition =
         new SingleColumnValueCondition(
             revField, SingleColumnValueCondition.CompareOperator.EQUAL, ColumnValue.fromString(v));
+    // Fail the precondition if revision column is not present in the row
+    singleColumnValueCondition.setPassIfMissing(false);
     condition.setColumnCondition(singleColumnValueCondition);
     return condition;
   }
@@ -359,12 +361,15 @@ public class AliDocStore extends AbstractDocStore {
         Condition condition = buildRevisionPrecondition(a.getDocument(), getRevisionField());
         rowPutChange.setCondition(
             Objects.requireNonNullElseGet(
-                condition, () -> new Condition(RowExistenceExpectation.EXPECT_NOT_EXIST)));
+                condition, () -> new Condition(RowExistenceExpectation.EXPECT_EXIST)));
         return;
       case ACTION_KIND_DELETE:
       case ACTION_KIND_PUT:
-        // Precondition: the revision matches, if any.
-        rowPutChange.setCondition(buildRevisionPrecondition(a.getDocument(), getRevisionField()));
+        Condition revisionCondition =
+            buildRevisionPrecondition(a.getDocument(), getRevisionField());
+        if (revisionCondition != null) {
+          rowPutChange.setCondition(revisionCondition);
+        }
         return;
       case ACTION_KIND_GET:
         // No preconditions on a Get.

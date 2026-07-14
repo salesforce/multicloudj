@@ -1,0 +1,28 @@
+{
+  "id" : "18e68bff-39db-4c4a-9cd5-37bdb3a03afa",
+  "name" : "AliDocstoreIT_testDelete-POST-15",
+  "request" : {
+    "url" : "/DeleteRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"op\":\"DeleteRow\",\"table\":\"docstore_test_1\",\"rows\":[{\"pk\":{\"pName\":{\"t\":\"PK:STRING\",\"v\":\"JohnDelete\"}},\"cells\":{},\"deleteMarker\":true}],\"condition\":\"0800\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgAEAE=",
+    "headers" : {
+      "x-ots-requestid" : "00065686-44cf-685b-df07-fe0a94b66507",
+      "Authorization" : "OTS STS.NZ4t1Qj6gdbCPL1YhyAQVemt3:Uv4HtE3/AOvOcwVizgZgnqP8iqg=",
+      "x-ots-date" : "2026-07-13T23:15:40.320853Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "cGqcInR86zj/8Pah1LWaHg==",
+      "Date" : "Mon, 13 Jul 2026 23:15:40 GMT"
+    }
+  },
+  "uuid" : "18e68bff-39db-4c4a-9cd5-37bdb3a03afa",
+  "persistent" : true,
+  "insertionIndex" : 208
+}
