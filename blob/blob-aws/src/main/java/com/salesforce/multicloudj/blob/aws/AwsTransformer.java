@@ -118,10 +118,10 @@ public class AwsTransformer {
 
   /**
    * Object-metadata key under which the SDK persists the operation correlation id during upload,
-   * so the value is stored on the blob (as {@code x-amz-meta-correlation-id} in S3) and matches
-   * the correlation id that appears in the same upload's logs and trace span.
+   * so the value is stored on the blob (as {@code x-amz-meta-sdk-logging-correlation-id} in S3)
+   * and matches the correlation id that appears in the same upload's logs and trace span.
    */
-  public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
+  public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
 
   /** Default MIME type used for the request body when the caller does not provide one. */
   private static final String OCTET_STREAM_MIME = "application/octet-stream";

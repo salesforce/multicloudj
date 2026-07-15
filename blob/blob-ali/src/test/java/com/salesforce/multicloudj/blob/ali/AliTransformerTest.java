@@ -40,6 +40,7 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -142,6 +143,70 @@ public class AliTransformerTest {
 
     assertEquals("KMS", actual.serverSideEncryption());
     assertEquals(kmsKeyId, actual.serverSideEncryptionKeyId());
+  }
+
+  @Test
+  void testToPutObjectRequest_correlationIdStamped() {
+    var ctx = OperationContext.builder()
+        .correlationId("req-abc-123").build();
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withMetadata(Map.of("user-key", "user-value"))
+        .withOperationContext(ctx)
+        .build();
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        actual.metadata().get(
+            AliTransformer.CORRELATION_ID_METADATA_KEY),
+        "transformer must persist the correlation_id under"
+            + " the well-known metadata key");
+  }
+
+  @Test
+  void testToPutObjectRequest_correlationIdNotInjectedWhenContextMissing() {
+    var metadata = Map.of("user-key", "user-value");
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withMetadata(metadata)
+        .build();
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals(metadata, actual.metadata());
+    assertFalse(
+        actual.metadata().containsKey(
+            AliTransformer.CORRELATION_ID_METADATA_KEY),
+        "no injection when the request carries no"
+            + " OperationContext");
+  }
+
+  @Test
+  void testToPutObjectRequest_userSuppliedCorrelationIdNotOverwritten() {
+    var ctx = OperationContext.builder()
+        .correlationId("sdk-generated").build();
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withMetadata(Map.of(
+            AliTransformer.CORRELATION_ID_METADATA_KEY,
+            "user-supplied"))
+        .withOperationContext(ctx)
+        .build();
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals(
+        "user-supplied",
+        actual.metadata().get(
+            AliTransformer.CORRELATION_ID_METADATA_KEY),
+        "application's explicit metadata value must take"
+            + " precedence over the SDK's");
   }
 
   @Test

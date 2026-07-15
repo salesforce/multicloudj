@@ -194,7 +194,7 @@ public class AwsTransformerTest {
     assertEquals("user-value", actual.metadata().get("user-key"));
     assertEquals(
         "req-abc-123",
-        actual.metadata().get("correlation-id"),
+        actual.metadata().get("sdk-logging-correlation-id"),
         "transformer must persist the operation correlation_id under the well-known metadata key");
   }
 
@@ -209,7 +209,7 @@ public class AwsTransformerTest {
 
     assertEquals(metadata, actual.metadata());
     assertFalse(
-        actual.metadata().containsKey("correlation-id"),
+        actual.metadata().containsKey("sdk-logging-correlation-id"),
         "no injection when the request carries no OperationContext");
   }
 
@@ -221,7 +221,7 @@ public class AwsTransformerTest {
     var request =
         UploadRequest.builder()
             .withKey(key)
-            .withMetadata(Map.of("correlation-id", "user-supplied"))
+            .withMetadata(Map.of("sdk-logging-correlation-id", "user-supplied"))
             .withOperationContext(ctx)
             .build();
 
@@ -229,8 +229,9 @@ public class AwsTransformerTest {
 
     assertEquals(
         "user-supplied",
-        actual.metadata().get("correlation-id"),
-        "application's explicit correlation-id metadata value must take precedence over the SDK's");
+        actual.metadata().get("sdk-logging-correlation-id"),
+        "application's explicit sdk-logging-correlation-id metadata value"
+            + " must take precedence over the SDK's");
   }
 
   @Test
