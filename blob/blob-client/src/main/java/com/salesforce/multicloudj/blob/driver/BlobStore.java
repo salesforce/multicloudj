@@ -291,8 +291,6 @@ public interface BlobStore extends SdkService, Provider {
    * </ul>
    *
    * @return the bucket's versioning configuration
-   * @throws com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException if the bucket
-   *     does not exist
    * @throws UnsupportedOperationException if the provider does not support bucket versioning
    *     configuration
    */

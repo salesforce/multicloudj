@@ -25,13 +25,4 @@ public class BucketVersioningConfiguration {
   public static BucketVersioningConfiguration of(BucketVersioningStatus status) {
     return BucketVersioningConfiguration.builder().status(status).build();
   }
-
-  /**
-   * Whether versioning is currently enabled.
-   *
-   * @return {@code true} if {@link #getStatus()} is {@link BucketVersioningStatus#ENABLED}
-   */
-  public boolean isEnabled() {
-    return status == BucketVersioningStatus.ENABLED;
-  }
 }

@@ -386,10 +386,9 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
    * merely throws, while still requiring a deliberate decision from any new provider that does
    * support the feature.
    *
-   * <p><strong>Error contract:</strong> When the bucket does not exist, implementations must
-   * throw {@link com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException} so
-   * that callers receive the same exception type regardless of substrate. This matches the
-   * convention established by {@code validateBucketExists()} across existing providers.
+   * <p><strong>Error contract:</strong> When the bucket does not exist, implementations may
+   * propagate the substrate's native exception. The central exception mapper will normalize
+   * these to the appropriate MultiCloudJ exception type for callers.
    */
   protected BucketVersioningConfiguration doGetBucketVersioning() {
     throw new UnsupportedOperationException(

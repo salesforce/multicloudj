@@ -582,15 +582,8 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
 
   @Override
   protected BucketVersioningConfiguration doGetBucketVersioning() {
-    try {
-      return transformer.toBucketVersioningConfiguration(
-          s3Client.getBucketVersioning(transformer.toGetBucketVersioningRequest()));
-    } catch (S3Exception e) {
-      if (e.statusCode() == 404) {
-        throw new ResourceNotFoundException("Bucket does not exist: " + bucket, e);
-      }
-      throw e;
-    }
+    return transformer.toBucketVersioningConfiguration(
+        s3Client.getBucketVersioning(transformer.toGetBucketVersioningRequest()));
   }
 
   /** Gets object lock configuration for a blob. */

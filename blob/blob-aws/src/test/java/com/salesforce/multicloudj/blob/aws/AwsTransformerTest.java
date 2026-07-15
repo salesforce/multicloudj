@@ -1910,7 +1910,6 @@ public class AwsTransformerTest {
     BucketVersioningConfiguration actual = transformer.toBucketVersioningConfiguration(response);
 
     assertEquals(BucketVersioningStatus.ENABLED, actual.getStatus());
-    assertTrue(actual.isEnabled());
   }
 
   @Test
@@ -1923,7 +1922,6 @@ public class AwsTransformerTest {
     BucketVersioningConfiguration actual = transformer.toBucketVersioningConfiguration(response);
 
     assertEquals(BucketVersioningStatus.SUSPENDED, actual.getStatus());
-    assertFalse(actual.isEnabled());
   }
 
   @Test

@@ -2278,14 +2278,14 @@ class GcpTransformerTest {
   public void testToBucketVersioningConfiguration_enabled() {
     BucketVersioningConfiguration config = transformer.toBucketVersioningConfiguration(true);
     assertEquals(BucketVersioningStatus.ENABLED, config.getStatus());
-    assertTrue(config.isEnabled());
+    assertEquals(BucketVersioningStatus.ENABLED, config.getStatus());
   }
 
   @Test
   public void testToBucketVersioningConfiguration_falseMapsToUnversioned() {
     BucketVersioningConfiguration config = transformer.toBucketVersioningConfiguration(false);
     assertEquals(BucketVersioningStatus.UNVERSIONED, config.getStatus());
-    assertFalse(config.isEnabled());
+    assertEquals(BucketVersioningStatus.UNVERSIONED, config.getStatus());
   }
 
   @Test

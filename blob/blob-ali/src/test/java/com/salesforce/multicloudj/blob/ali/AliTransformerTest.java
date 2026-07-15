@@ -1278,7 +1278,6 @@ public class AliTransformerTest {
     var actual = transformer.toBucketVersioningConfiguration(result);
 
     assertEquals(BucketVersioningStatus.ENABLED, actual.getStatus());
-    assertTrue(actual.isEnabled());
   }
 
   @Test
@@ -1291,7 +1290,6 @@ public class AliTransformerTest {
     var actual = transformer.toBucketVersioningConfiguration(result);
 
     assertEquals(BucketVersioningStatus.SUSPENDED, actual.getStatus());
-    assertFalse(actual.isEnabled());
   }
 
   @Test
@@ -1302,7 +1300,6 @@ public class AliTransformerTest {
     var actual = transformer.toBucketVersioningConfiguration(result);
 
     assertEquals(BucketVersioningStatus.UNVERSIONED, actual.getStatus());
-    assertFalse(actual.isEnabled());
   }
 
   @Test

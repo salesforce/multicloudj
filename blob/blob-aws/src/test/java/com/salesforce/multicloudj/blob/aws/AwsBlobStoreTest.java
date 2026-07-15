@@ -2334,7 +2334,6 @@ public class AwsBlobStoreTest {
     BucketVersioningConfiguration result = aws.getBucketVersioning();
 
     assertEquals(BucketVersioningStatus.ENABLED, result.getStatus());
-    assertTrue(result.isEnabled());
 
     ArgumentCaptor<GetBucketVersioningRequest> captor =
         ArgumentCaptor.forClass(GetBucketVersioningRequest.class);
@@ -2353,7 +2352,6 @@ public class AwsBlobStoreTest {
     BucketVersioningConfiguration result = aws.getBucketVersioning();
 
     assertEquals(BucketVersioningStatus.SUSPENDED, result.getStatus());
-    assertFalse(result.isEnabled());
   }
 
   @Test
@@ -2369,14 +2367,14 @@ public class AwsBlobStoreTest {
   }
 
   @Test
-  void testGetBucketVersioning_nonexistentBucketThrowsResourceNotFound() {
+  void testGetBucketVersioning_nonexistentBucketThrowsS3Exception() {
     S3Exception noSuchBucket =
         (S3Exception)
             S3Exception.builder().message("NoSuchBucket").statusCode(404).build();
     when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
         .thenThrow(noSuchBucket);
 
-    assertThrows(ResourceNotFoundException.class, () -> aws.getBucketVersioning());
+    assertThrows(S3Exception.class, () -> aws.getBucketVersioning());
   }
 
   @Test

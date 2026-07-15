@@ -1283,7 +1283,6 @@ public class AliBlobStoreTest {
     verify(mockOssClient, times(1)).getBucketVersioning(captor.capture(), any());
     assertEquals("bucket-1", captor.getValue().bucket());
     assertEquals(BucketVersioningStatus.ENABLED, versioning.getStatus());
-    assertTrue(versioning.isEnabled());
   }
 
   @Test
@@ -1299,7 +1298,6 @@ public class AliBlobStoreTest {
     BucketVersioningConfiguration versioning = ali.doGetBucketVersioning();
 
     assertEquals(BucketVersioningStatus.SUSPENDED, versioning.getStatus());
-    assertFalse(versioning.isEnabled());
   }
 
   @Test
@@ -1315,17 +1313,15 @@ public class AliBlobStoreTest {
     BucketVersioningConfiguration versioning = ali.doGetBucketVersioning();
 
     assertEquals(BucketVersioningStatus.UNVERSIONED, versioning.getStatus());
-    assertFalse(versioning.isEnabled());
   }
 
   @Test
-  void testDoGetBucketVersioning_nonexistentBucket_throwsResourceNotFound() {
-    // OSS returns 404 NoSuchBucket when the bucket does not exist. The default error mapping
-    // would translate NoSuchBucket to InvalidArgumentException, so doGetBucketVersioning detects
-    // the 404 and throws ResourceNotFoundException directly to satisfy the cross-substrate
-    // error contract. A mocked OperationException is used rather than `new OperationException(...)`
-    // because that constructor performs a String.format on the cause, which interacts poorly with
-    // the JaCoCo agent on Mockito-spun ServiceException instances in this build environment.
+  void testDoGetBucketVersioning_nonexistentBucket_propagatesException() {
+    // OSS returns 404 NoSuchBucket when the bucket does not exist. The provider no longer
+    // translates this exception; it propagates to the central exception mapper. A mocked
+    // OperationException is used rather than `new OperationException(...)` because that
+    // constructor performs a String.format on the cause, which interacts poorly with the JaCoCo
+    // agent on Mockito-spun ServiceException instances in this build environment.
     ServiceException service = mock(ServiceException.class);
     when(service.statusCode()).thenReturn(404);
     when(service.errorCode()).thenReturn("NoSuchBucket");
@@ -1335,7 +1331,9 @@ public class AliBlobStoreTest {
             any(GetBucketVersioningRequest.class), any(OperationOptions.class)))
         .thenThrow(op);
 
-    assertThrows(ResourceNotFoundException.class, () -> ali.doGetBucketVersioning());
+    OperationException thrown =
+        assertThrows(OperationException.class, () -> ali.doGetBucketVersioning());
+    assertEquals(op, thrown);
   }
 
   @Test
