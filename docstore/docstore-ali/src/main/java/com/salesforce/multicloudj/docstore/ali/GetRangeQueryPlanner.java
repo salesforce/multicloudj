@@ -405,8 +405,12 @@ public final class GetRangeQueryPlanner {
     }
   }
 
-  // IN -> OR(=v0, =v1, ...). A single-element collection still produces a valid OR of one via a
-  // SingleColumnValueFilter (OR requires >= 2, so collapse to the single filter in that case).
+  // IN -> OR(=v0, =v1, ...). A single-element collection collapses to a bare
+  // SingleColumnValueFilter (the SDK's OR composite requires >= 2 children). An empty
+  // collection is rejected: the Query API
+  // does not validate against it (its element loop simply doesn't run), and there is no meaningful
+  // GetRange filter for "IN ()"/"NOT IN ()", so fail clearly rather than silently mis-scan. The
+  // message is operator-neutral because NOT_IN routes through here too.
   private static ColumnValueFilter inFilter(String field, Object value) {
     List<ColumnValueFilter> equals = new ArrayList<>();
     if (value instanceof Iterable) {
@@ -417,11 +421,8 @@ public final class GetRangeQueryPlanner {
       equals.add(equalFilter(field, value));
     }
     if (equals.isEmpty()) {
-      // Empty IN () matches nothing; model as "column != column" is impossible, so use a filter
-      // that cannot pass: field == field is always true, so instead we rely on an impossible NOT.
-      // Simpler: an empty IN is a degenerate query — return a single equals that will just be one
-      // predicate. Guard against it explicitly.
-      throw new InvalidArgumentException("IN filter requires at least one value");
+      throw new InvalidArgumentException(
+          "IN / NOT_IN filter on '" + field + "' requires at least one value");
     }
     if (equals.size() == 1) {
       return equals.get(0);
