@@ -899,4 +899,117 @@ class AliDocStoreTest {
     // IN cannot narrow the key range, so a column filter must be present to enforce membership.
     Assertions.assertNotNull(captor.getValue().getRangeRowQueryCriteria().getFilter());
   }
+
+  // covering-index selection for all-fields queries
+
+  // Builds a store over base table PK [game, player] + defined columns [score, time, glitch], wired
+  // to a describeTable stub carrying the given global indexes. Mirrors how the conformance table is
+  // provisioned (all attribute columns pre-defined so indexes can reference them).
+  private AliDocStore storeWithSchema(IndexMeta... indexes) {
+    AliDocStore store =
+        new AliDocStore.Builder()
+            .withRegion("cn-shanghai")
+            .withEndpointType("internet")
+            .withInstanceId("something")
+            .withCollectionOptions(
+                new CollectionOptions.CollectionOptionsBuilder()
+                    .withPartitionKey("game")
+                    .withSortKey("player")
+                    .withTableName("scores")
+                    .withRevisionField("docRevision")
+                    .withAllowScans(false)
+                    .build())
+            .withCredentialsOverrider(
+                new CredentialsOverrider.Builder(CredentialsType.SESSION)
+                    .withSessionCredentials(new StsCredentials("k", "s", "t"))
+                    .build())
+            .withTableStoreClient(syncClient)
+            .build();
+
+    TableMeta meta = new TableMeta("scores");
+    meta.addPrimaryKeyColumn(
+        "game", com.alicloud.openservices.tablestore.model.PrimaryKeyType.STRING);
+    meta.addPrimaryKeyColumn(
+        "player", com.alicloud.openservices.tablestore.model.PrimaryKeyType.STRING);
+    meta.addDefinedColumn(
+        "score", com.alicloud.openservices.tablestore.model.DefinedColumnType.INTEGER);
+    meta.addDefinedColumn(
+        "time", com.alicloud.openservices.tablestore.model.DefinedColumnType.STRING);
+    meta.addDefinedColumn(
+        "glitch", com.alicloud.openservices.tablestore.model.DefinedColumnType.BOOLEAN);
+
+    DescribeTableResponse desc = new DescribeTableResponse(new Response());
+    desc.setTableMeta(meta);
+    for (IndexMeta idx : indexes) {
+      desc.addIndexMeta(idx);
+    }
+    when(syncClient.describeTable(any(DescribeTableRequest.class))).thenReturn(desc);
+    return store;
+  }
+
+  private IndexMeta globalIndex(String name, List<String> pk, List<String> defined) {
+    IndexMeta idx = new IndexMeta(name);
+    idx.setIndexType(IndexType.IT_GLOBAL_INDEX);
+    for (String c : pk) {
+      idx.addPrimaryKeyColumn(c);
+    }
+    for (String c : defined) {
+      idx.addDefinedColumn(c);
+    }
+    return idx;
+  }
+
+  @Test
+  void testAllFieldsQueryUsesCoveringGlobalIndex() {
+    // gsi is COVERING: its PK [player, time, game] + defined [score, glitch] == every base column
+    // {game, player, score, time, glitch}. An all-fields query (no setFieldPaths) must select it.
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(gsi);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of()); // all fields
+
+    Assertions.assertEquals(
+        "Index: gsi", store.queryPlan(query), "Covering global index should serve all-fields");
+  }
+
+  @Test
+  void testAllFieldsQueryRejectsNonCoveringGlobalIndex() {
+    // gsiPartial omits base column 'glitch' -> NOT covering. An all-fields query cannot be served
+    // from it, so no queryable is resolved; with order-by present this is rejected (would-be scan).
+    IndexMeta gsiPartial =
+        globalIndex("gsiPartial", List.of("player", "time", "game"), List.of("score"));
+    AliDocStore store = storeWithSchema(gsiPartial);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of()); // all fields
+
+    Assertions.assertThrows(InvalidArgumentException.class, () -> store.runGetQuery(query));
+  }
+
+  @Test
+  void testProjectedQueryUsesNonCoveringIndexWhenItHasTheFields() {
+    // Even a non-covering index serves a query whose EXPLICIT projection it happens to contain.
+    IndexMeta gsiPartial =
+        globalIndex("gsiPartial", List.of("player", "time", "game"), List.of("score"));
+    AliDocStore store = storeWithSchema(gsiPartial);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of("score")); // score is in the index
+
+    Assertions.assertEquals("Index: gsiPartial", store.queryPlan(query));
+  }
 }

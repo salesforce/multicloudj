@@ -13,6 +13,7 @@ import com.alicloud.openservices.tablestore.model.BatchGetRowResponse;
 import com.alicloud.openservices.tablestore.model.ColumnValue;
 import com.alicloud.openservices.tablestore.model.CommitTransactionRequest;
 import com.alicloud.openservices.tablestore.model.Condition;
+import com.alicloud.openservices.tablestore.model.DefinedColumnSchema;
 import com.alicloud.openservices.tablestore.model.DeleteRowRequest;
 import com.alicloud.openservices.tablestore.model.DescribeTableRequest;
 import com.alicloud.openservices.tablestore.model.DescribeTableResponse;
@@ -22,6 +23,7 @@ import com.alicloud.openservices.tablestore.model.MultiRowQueryCriteria;
 import com.alicloud.openservices.tablestore.model.PrimaryKey;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyBuilder;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyColumn;
+import com.alicloud.openservices.tablestore.model.PrimaryKeySchema;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyValue;
 import com.alicloud.openservices.tablestore.model.PutRowRequest;
 import com.alicloud.openservices.tablestore.model.RowDeleteChange;
@@ -29,6 +31,7 @@ import com.alicloud.openservices.tablestore.model.RowExistenceExpectation;
 import com.alicloud.openservices.tablestore.model.RowPutChange;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionRequest;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionResponse;
+import com.alicloud.openservices.tablestore.model.TableMeta;
 import com.alicloud.openservices.tablestore.model.condition.SingleColumnValueCondition;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.ali.AliRetryClassifier;
@@ -712,23 +715,36 @@ public class AliDocStore extends AbstractDocStore {
   }
 
   protected boolean globalFieldIncluded(Query query, IndexMeta gi) {
+    // The set of columns physically available from the index: its own primary-key columns (which
+    // include the base table's primary key, folded in by Tablestore) plus its defined columns.
+    Set<String> indexFields = new HashSet<>(gi.getPrimaryKeyList());
+    indexFields.addAll(gi.getDefinedColumnsList());
+
     if (query.getFieldPaths().isEmpty()) {
-      // The query wants all the fields of the table
-      return false;
+      // The query wants ALL of the document's fields. That can be served from the index only if the
+      // index is COVERING — its columns include every column of the base table (base PK + every
+      // defined attribute column). Tablestore requires columns referenced by an index to be
+      // pre-defined on the base table, so the base table's full column set is knowable and this is
+      // computable (the equivalent of checking that an index fully projects the table).
+      return indexCoversAllBaseColumns(indexFields);
     }
 
-    Key key = keyAttributes(gi.getPrimaryKeyList());
-    Map<String, Boolean> indexFields = new HashMap<>();
-    indexFields.put(key.getPartitionKey(), true);
-    if (key.getSortKey() != null) {
-      indexFields.put(key.getSortKey(), true);
+    // Otherwise the index is usable iff every explicitly requested field is present in it.
+    return indexFields.containsAll(query.getFieldPaths());
+  }
+
+  // True when the index's columns cover every column of the base table (its primary-key columns and
+  // all defined attribute columns), so an all-fields query can be answered entirely from the index
+  // without a per-row base-table lookup.
+  private boolean indexCoversAllBaseColumns(Set<String> indexFields) {
+    TableMeta tableMeta = getTableDescription().getTableMeta();
+    for (PrimaryKeySchema pk : tableMeta.getPrimaryKeyList()) {
+      if (!indexFields.contains(pk.getName())) {
+        return false;
+      }
     }
-    for (String nka : gi.getDefinedColumnsList()) {
-      indexFields.put(nka, true);
-    }
-    // Check every field path in the query must be in the index.
-    for (String fp : query.getFieldPaths()) {
-      if (!indexFields.containsKey(fp)) {
+    for (DefinedColumnSchema col : tableMeta.getDefinedColumnsList()) {
+      if (!indexFields.contains(col.getName())) {
         return false;
       }
     }
