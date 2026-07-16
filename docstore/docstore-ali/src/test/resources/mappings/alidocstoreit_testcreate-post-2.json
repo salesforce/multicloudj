@@ -1,11 +1,11 @@
 {
-  "id" : "40a7e87d-b766-4511-8789-d819820aa071",
+  "id" : "3dffd9ac-0701-4571-a1ce-ae642a458dea",
   "name" : "AliDocstoreIT_testCreate-POST-2",
   "request" : {
     "url" : "/PutRow",
     "method" : "POST",
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"op\":\"PutRow\",\"table\":\"docstore_test_1\",\"rows\":[{\"pk\":{\"pName\":{\"t\":\"PK:STRING\",\"v\":\"TaylorMap\"}},\"cells\":{\"DocstoreRevision\":{\"t\":\"STRING\",\"v\":\"0203716a-a8e7-1be0-0d23-f26d34fff49a\"},\"b\":{\"t\":\"BOOLEAN\",\"v\":\"true\"},\"s\":{\"t\":\"STRING\",\"v\":\"randomString2\"},\"f\":{\"t\":\"DOUBLE\",\"v\":\"12.65999984741211\"},\"bytes\":{\"t\":\"BINARY\",\"v\":\"[114, 97, 110, 100, 111, 109, 83, 116, 114, 105, 110, 103, 50]\"},\"i\":{\"t\":\"INTEGER\",\"v\":\"111\"}},\"deleteMarker\":false}],\"condition\":\"0802\"}",
+      "equalToJson" : "{\"op\":\"PutRow\",\"table\":\"docstore_test_1\",\"rows\":[{\"pk\":{\"pName\":{\"t\":\"PK:STRING\",\"v\":\"TaylorMap\"}},\"cells\":{\"DocstoreRevision\":{\"t\":\"STRING\",\"v\":\"167bb4aa-e5c5-6ffe-af20-8568907e6bda\"},\"b\":{\"t\":\"BOOLEAN\",\"v\":\"true\"},\"s\":{\"t\":\"STRING\",\"v\":\"randomString2\"},\"f\":{\"t\":\"DOUBLE\",\"v\":\"12.65999984741211\"},\"bytes\":{\"t\":\"BINARY\",\"v\":\"[114, 97, 110, 100, 111, 109, 83, 116, 114, 105, 110, 103, 50]\"},\"i\":{\"t\":\"INTEGER\",\"v\":\"111\"}},\"deleteMarker\":false}],\"condition\":\"0802\"}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -14,15 +14,15 @@
     "status" : 403,
     "base64Body" : "ChVPVFNDb25kaXRpb25DaGVja0ZhaWwSKFJvdyBleGlzdHMgd2hpY2ggaXMgZXhwZWN0ZWQgbm9uZXhpc3RlbnQ=",
     "headers" : {
-      "x-ots-requestid" : "00065686-4463-2243-adbe-ca0b9552650e",
-      "Authorization" : "OTS STS.NZ4t1Qj6gdbCPL1YhyAQVemt3:RRbpclz0mLae6cdZg8XBZewt8Fg=",
-      "x-ots-date" : "2026-07-13T23:15:33.226588Z",
+      "x-ots-requestid" : "000656c2-e249-27c2-f408-200aa0f89ba2",
+      "Authorization" : "OTS STS.NZMrJSWwKCLnZ9SeEi7Qzq3yc:zqZ5xwhpZTQs17WOBr4YTXhX3c4=",
+      "x-ots-date" : "2026-07-16T23:34:40.355274Z",
       "x-ots-contenttype" : "protocol buffer",
       "x-ots-contentmd5" : "BzWujtaxMuoeD22eED94CQ==",
-      "Date" : "Mon, 13 Jul 2026 23:15:33 GMT"
+      "Date" : "Thu, 16 Jul 2026 23:34:40 GMT"
     }
   },
-  "uuid" : "40a7e87d-b766-4511-8789-d819820aa071",
+  "uuid" : "3dffd9ac-0701-4571-a1ce-ae642a458dea",
   "persistent" : true,
-  "insertionIndex" : 178
+  "insertionIndex" : 140
 }

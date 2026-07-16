@@ -1,0 +1,28 @@
+{
+  "id" : "acfe881b-7578-4984-860e-6ecea2e6d72d",
+  "name" : "AliDocstoreIT_testGetQuery-POST-29",
+  "request" : {
+    "url" : "/PutRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"op\":\"PutRow\",\"table\":\"docstore_test_2\",\"rows\":[{\"pk\":{\"Game\":{\"t\":\"PK:STRING\",\"v\":\"Praise All Monsters\"},\"Player\":{\"t\":\"PK:STRING\",\"v\":\"mel\"}},\"cells\":{\"WithGlitch\":{\"t\":\"BOOLEAN\",\"v\":\"false\"},\"Score\":{\"t\":\"INTEGER\",\"v\":\"60\"},\"Time\":{\"t\":\"STRING\",\"v\":\"2024-04-10\"}},\"deleteMarker\":false}],\"condition\":\"0800\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgBEAE=",
+    "headers" : {
+      "x-ots-requestid" : "000656c2-dcf5-b5a2-5076-2b1a92e77e4d",
+      "Authorization" : "OTS STS.NZMrJSWwKCLnZ9SeEi7Qzq3yc:Od6KQe7Jc5bYHMA0f9TwewIevRY=",
+      "x-ots-date" : "2026-07-16T23:33:11.001930Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "bofsTfsxtvymDNQpw96K/Q==",
+      "Date" : "Thu, 16 Jul 2026 23:33:11 GMT"
+    }
+  },
+  "uuid" : "acfe881b-7578-4984-860e-6ecea2e6d72d",
+  "persistent" : true,
+  "insertionIndex" : 65
+}
