@@ -10,26 +10,29 @@ import com.alicloud.openservices.tablestore.ClientException;
 import com.alicloud.openservices.tablestore.SyncClient;
 import com.alicloud.openservices.tablestore.TableStoreException;
 import com.alicloud.openservices.tablestore.model.BatchGetRowResponse;
+import com.alicloud.openservices.tablestore.model.CapacityUnit;
 import com.alicloud.openservices.tablestore.model.Column;
 import com.alicloud.openservices.tablestore.model.ColumnValue;
 import com.alicloud.openservices.tablestore.model.CommitTransactionRequest;
+import com.alicloud.openservices.tablestore.model.ConsumedCapacity;
 import com.alicloud.openservices.tablestore.model.DeleteRowResponse;
 import com.alicloud.openservices.tablestore.model.DescribeTableRequest;
 import com.alicloud.openservices.tablestore.model.DescribeTableResponse;
+import com.alicloud.openservices.tablestore.model.GetRangeRequest;
+import com.alicloud.openservices.tablestore.model.GetRangeResponse;
 import com.alicloud.openservices.tablestore.model.IndexMeta;
 import com.alicloud.openservices.tablestore.model.IndexType;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyBuilder;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyValue;
 import com.alicloud.openservices.tablestore.model.PutRowRequest;
 import com.alicloud.openservices.tablestore.model.PutRowResponse;
+import com.alicloud.openservices.tablestore.model.RangeRowQueryCriteria;
 import com.alicloud.openservices.tablestore.model.Response;
 import com.alicloud.openservices.tablestore.model.Row;
 import com.alicloud.openservices.tablestore.model.RowDeleteChange;
 import com.alicloud.openservices.tablestore.model.RowPutChange;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionResponse;
 import com.alicloud.openservices.tablestore.model.TableMeta;
-import com.alicloud.openservices.tablestore.model.sql.SQLQueryRequest;
-import com.alicloud.openservices.tablestore.model.sql.SQLQueryResponse;
 import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
@@ -126,7 +129,6 @@ class AliDocStoreTest {
     when(response.getBatchGetRowResult(any())).thenReturn(List.of());
     when(syncClient.putRow(any())).thenReturn(null);
     when(syncClient.batchGetRow(any())).thenReturn(response);
-    when(syncClient.sqlQuery(any())).thenReturn(null);
     StartLocalTransactionResponse txResponse = mock(StartLocalTransactionResponse.class);
     when(txResponse.getTransactionID()).thenReturn("tx-id");
     when(syncClient.startLocalTransaction(any())).thenReturn(txResponse);
@@ -136,11 +138,6 @@ class AliDocStoreTest {
         new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentials(stsCredentials)
             .build();
-
-    SQLQueryResponse mockQueryResponse = mock(SQLQueryResponse.class);
-    when(mockQueryResponse.getSQLResultSet()).thenReturn(new TestSQLResultSet());
-    when(mockQueryResponse.getNextSearchToken()).thenReturn("testToken");
-    when(syncClient.sqlQuery(any(SQLQueryRequest.class))).thenReturn(mockQueryResponse);
 
     ali =
         new AliDocStore.Builder()
@@ -738,33 +735,45 @@ class AliDocStoreTest {
     Assertions.assertDoesNotThrow(() -> docStore.newDelete(delete, null));
   }
 
-  @Test
-  void testRunGetQueryWithGlobalIndex() {
-    // the equality check is on field which is primary key of global index and non-key attribute
-    // of the base table and the local indexes, therefor the global index should be used here.
-    Query query = new Query(ali).where("author", FilterOperation.EQUAL, "value");
-    query.setFieldPaths(List.of("price"));
-
+  private void wireMockClient() {
     try {
       Field field = ali.getClass().getDeclaredField("tableStoreClient");
       field.setAccessible(true);
       field.set(ali, syncClient);
     } catch (Exception e) {
-      Assertions.fail("Failed to get field.");
+      Assertions.fail("Failed to set tableStoreClient field.", e);
     }
+  }
+
+  // Captures the RangeRowQueryCriteria issued by running the query through the GetRange path.
+  private RangeRowQueryCriteria capturedRangeCriteria(Query query) {
+    wireMockClient();
+    GetRangeResponse resp =
+        new GetRangeResponse(new Response(), new ConsumedCapacity(new CapacityUnit()));
+    resp.setRows(new ArrayList<>());
+    resp.setNextStartPrimaryKey(null);
+    when(syncClient.getRange(any(GetRangeRequest.class))).thenReturn(resp);
 
     DocumentIterator iterator = ali.runGetQuery(query);
-    Map<String, String> testMap = new HashMap<>();
-    iterator.next(new Document(testMap));
-    Assertions.assertEquals(2, testMap.size());
+    iterator.hasNext(); // GetRange fetch is lazy; drive one page
 
-    ArgumentCaptor<SQLQueryRequest> captor = ArgumentCaptor.forClass(SQLQueryRequest.class);
-    verify(syncClient, times(1)).sqlQuery(captor.capture());
-    SQLQueryRequest sqlQueryRequest = captor.getValue();
+    ArgumentCaptor<GetRangeRequest> captor = ArgumentCaptor.forClass(GetRangeRequest.class);
+    verify(syncClient, times(1)).getRange(captor.capture());
+    return captor.getValue().getRangeRowQueryCriteria();
+  }
+
+  @Test
+  void testRunGetQueryWithGlobalIndex() {
+    // the equality check is on field which is primary key of global index and non-key attribute
+    // of the base table and the local indexes, therefore the global index should be used here.
+    Query query = new Query(ali).where("author", FilterOperation.EQUAL, "value");
+    query.setFieldPaths(List.of("price"));
+
+    wireMockClient();
     Assertions.assertEquals(
-        "SELECT price FROM global_index_3 WHERE author = 'value';",
-        sqlQueryRequest.getQuery(),
-        "Global index is not used as expected");
+        "Index: global_index_3", ali.queryPlan(query), "Global index is not used as expected");
+    // And the query executes against that index via GetRange.
+    Assertions.assertEquals("global_index_3", capturedRangeCriteria(query).getTableName());
   }
 
   @Test
@@ -778,26 +787,10 @@ class AliDocStoreTest {
             .orderBy("price", true);
     query.setFieldPaths(List.of("price"));
 
-    try {
-      Field field = ali.getClass().getDeclaredField("tableStoreClient");
-      field.setAccessible(true);
-      field.set(ali, syncClient);
-    } catch (Exception e) {
-      Assertions.fail("Failed to get field.");
-    }
-
-    DocumentIterator iterator = ali.runGetQuery(query);
-    Map<String, String> testMap = new HashMap<>();
-    iterator.next(new Document(testMap));
-    Assertions.assertEquals(2, testMap.size());
-
-    ArgumentCaptor<SQLQueryRequest> captor = ArgumentCaptor.forClass(SQLQueryRequest.class);
-    verify(syncClient, times(1)).sqlQuery(captor.capture());
-    SQLQueryRequest sqlQueryRequest = captor.getValue();
+    wireMockClient();
     Assertions.assertEquals(
-        "SELECT price FROM local_index_1 WHERE title = 'value' AND price = '3.99' ORDER BY price;",
-        sqlQueryRequest.getQuery(),
-        "Local index is not used as expected");
+        "Index: local_index_1", ali.queryPlan(query), "Local index is not used as expected");
+    Assertions.assertEquals("local_index_1", capturedRangeCriteria(query).getTableName());
   }
 
   @Test
@@ -811,26 +804,99 @@ class AliDocStoreTest {
             .orderBy("publisher", true);
     query.setFieldPaths(List.of("price"));
 
-    try {
-      Field field = ali.getClass().getDeclaredField("tableStoreClient");
-      field.setAccessible(true);
-      field.set(ali, syncClient);
-    } catch (Exception e) {
-      Assertions.fail("Failed to get field.");
-    }
-
-    DocumentIterator iterator = ali.runGetQuery(query);
-    Map<String, String> testMap = new HashMap<>();
-    iterator.next(new Document(testMap));
-    Assertions.assertEquals(2, testMap.size());
-
-    ArgumentCaptor<SQLQueryRequest> captor = ArgumentCaptor.forClass(SQLQueryRequest.class);
-    verify(syncClient, times(1)).sqlQuery(captor.capture());
-    SQLQueryRequest sqlQueryRequest = captor.getValue();
+    wireMockClient();
     Assertions.assertEquals(
-        "SELECT price FROM my-table WHERE title = 'value' AND publisher = 'John' ORDER BY"
-            + " publisher;",
-        sqlQueryRequest.getQuery(),
-        "Base index is not used as expected");
+        "Table: my-table", ali.queryPlan(query), "Base table is not used as expected");
+    Assertions.assertEquals("my-table", capturedRangeCriteria(query).getTableName());
+  }
+
+  // Builds a store over "my-table" (PK title+publisher) with the given AllowScans setting, wired to
+  // the mock client and its describeTable stub.
+  private AliDocStore storeWithAllowScans(boolean allowScans) {
+    AliDocStore store =
+        new AliDocStore.Builder()
+            .withRegion("cn-shanghai")
+            .withEndpointType("internet")
+            .withInstanceId("something")
+            .withCollectionOptions(
+                new CollectionOptions.CollectionOptionsBuilder()
+                    .withPartitionKey("title")
+                    .withSortKey("publisher")
+                    .withTableName("my-table")
+                    .withRevisionField("docRevision")
+                    .withAllowScans(allowScans)
+                    .build())
+            .withCredentialsOverrider(
+                new CredentialsOverrider.Builder(CredentialsType.SESSION)
+                    .withSessionCredentials(new StsCredentials("k", "s", "t"))
+                    .build())
+            .withTableStoreClient(syncClient)
+            .build();
+    try {
+      Field field = store.getClass().getDeclaredField("tableStoreClient");
+      field.setAccessible(true);
+      field.set(store, syncClient);
+    } catch (Exception e) {
+      Assertions.fail("Failed to set tableStoreClient field.", e);
+    }
+    return store;
+  }
+
+  @Test
+  void testScanWithOrderByIsRejected() {
+    // No equality on the partition key -> no queryable -> scan; an order-by on a scan is rejected.
+    AliDocStore store = storeWithAllowScans(true);
+    Query query = new Query(store).where("publisher", FilterOperation.EQUAL, "John").orderBy(
+        "publisher", true);
+    Assertions.assertThrows(InvalidArgumentException.class, () -> store.runGetQuery(query));
+  }
+
+  @Test
+  void testScanRejectedWhenAllowScansFalse() {
+    AliDocStore store = storeWithAllowScans(false);
+    // Filter on a non-partition-key field, no order-by -> scan; disallowed.
+    Query query = new Query(store).where("publisher", FilterOperation.EQUAL, "John");
+    Assertions.assertThrows(InvalidArgumentException.class, () -> store.runGetQuery(query));
+  }
+
+  @Test
+  void testScanAllowedWhenAllowScansTrue() {
+    AliDocStore store = storeWithAllowScans(true);
+    GetRangeResponse resp =
+        new GetRangeResponse(new Response(), new ConsumedCapacity(new CapacityUnit()));
+    resp.setRows(new ArrayList<>());
+    resp.setNextStartPrimaryKey(null);
+    when(syncClient.getRange(any(GetRangeRequest.class))).thenReturn(resp);
+
+    Query query = new Query(store).where("publisher", FilterOperation.EQUAL, "John");
+    DocumentIterator iter = store.runGetQuery(query);
+    Assertions.assertInstanceOf(AliDocumentIterator.class, iter);
+    iter.hasNext();
+    ArgumentCaptor<GetRangeRequest> captor = ArgumentCaptor.forClass(GetRangeRequest.class);
+    verify(syncClient, times(1)).getRange(captor.capture());
+    // A scan ranges over the whole base table.
+    RangeRowQueryCriteria criteria = captor.getValue().getRangeRowQueryCriteria();
+    Assertions.assertEquals("my-table", criteria.getTableName());
+  }
+
+  @Test
+  void testInQueryRoutesThroughGetRangeAndPaginates() {
+    // IN on the partition key: no key equality -> scan over base table, IN enforced by column
+    // filter; crucially this now goes through GetRange (so it can paginate), not SQL.
+    AliDocStore store = storeWithAllowScans(true);
+    GetRangeResponse resp =
+        new GetRangeResponse(new Response(), new ConsumedCapacity(new CapacityUnit()));
+    resp.setRows(new ArrayList<>());
+    resp.setNextStartPrimaryKey(null);
+    when(syncClient.getRange(any(GetRangeRequest.class))).thenReturn(resp);
+
+    Query query = new Query(store).where("title", FilterOperation.IN, List.of("a", "b"));
+    DocumentIterator iter = store.runGetQuery(query);
+    Assertions.assertInstanceOf(AliDocumentIterator.class, iter);
+    iter.hasNext();
+    ArgumentCaptor<GetRangeRequest> captor = ArgumentCaptor.forClass(GetRangeRequest.class);
+    verify(syncClient, times(1)).getRange(captor.capture());
+    // IN cannot narrow the key range, so a column filter must be present to enforce membership.
+    Assertions.assertNotNull(captor.getValue().getRangeRowQueryCriteria().getFilter());
   }
 }

@@ -30,7 +30,6 @@ import com.alicloud.openservices.tablestore.model.RowPutChange;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionRequest;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionResponse;
 import com.alicloud.openservices.tablestore.model.condition.SingleColumnValueCondition;
-import com.alicloud.openservices.tablestore.model.sql.SQLQueryRequest;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.ali.AliRetryClassifier;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
@@ -75,6 +74,10 @@ public class AliDocStore extends AbstractDocStore {
   private SyncClient tableStoreClient;
   private final int batchSize = 50;
   DescribeTableResponse tableDescription;
+
+  // Rows scanned per GetRange request while the iterator loop-accumulates. Kept modest so each
+  // request is cheap; the iterator follows the cursor across requests to satisfy the query limit.
+  private static final int GET_RANGE_PER_REQUEST_LIMIT = 100;
 
   public AliDocStore(Builder builder) {
     super(builder);
@@ -567,13 +570,78 @@ public class AliDocStore extends AbstractDocStore {
 
   @Override
   public DocumentIterator runGetQuery(Query query) {
-    QueryRunner qr = planQuery(query);
-    if (qr == null) {
-      throw new SubstrateSdkException("Failed to get a query runner.");
+    Queryable queryable = getBestQueryable(query);
+    checkPlan(query, queryable);
+
+    GetRangeRunner runner = planGetRangeQuery(query, queryable);
+
+    PrimaryKey resumeAfterKey = null;
+    if (query.getPaginationToken() instanceof AliPaginationToken) {
+      resumeAfterKey = ((AliPaginationToken) query.getPaginationToken()).getNextStartPrimaryKey();
     }
-    AliDocumentIterator iter = new AliDocumentIterator(qr, query.getOffset(), query.getLimit());
-    iter.run(AliDocumentIterator.INIT_TOKEN);
-    return iter;
+    return new AliDocumentIterator(runner, query.getOffset(), query.getLimit(), resumeAfterKey);
+  }
+
+  // Rejects query plans that cannot be served: a full-table scan when ordering is requested (a scan
+  // yields primary-key order only), or a scan when Options.AllowScans is disabled.
+  private void checkPlan(Query query, Queryable queryable) {
+    boolean isScan = queryable.getIndexName() == null && queryable.getKey() == null;
+    if (!isScan) {
+      return;
+    }
+    if (query.getOrderByField() != null && !query.getOrderByField().isEmpty()) {
+      throw new InvalidArgumentException(
+          "query requires a table scan, but has an ordering requirement; add an index or provide"
+              + " Options.RunQueryFallback");
+    }
+    if (!collectionOptions.isAllowScans()) {
+      throw new InvalidArgumentException(
+          "query requires a table scan; set Options.AllowScans to true to enable");
+    }
+  }
+
+  // Translates the query into a GetRange runner over the resolved base table or secondary index.
+  private GetRangeRunner planGetRangeQuery(Query query, Queryable queryable) {
+    List<String> pkColumns = getPrimaryKeyColumns(queryable);
+    String targetTable =
+        queryable.getIndexName() != null
+            ? queryable.getIndexName()
+            : collectionOptions.getTableName();
+
+    List<Filter> filters = query.getFilters() != null ? query.getFilters() : List.of();
+    GetRangeQueryPlanner.Plan plan =
+        GetRangeQueryPlanner.plan(pkColumns, filters, query.isOrderAscending());
+
+    return new GetRangeRunner(
+        tableStoreClient,
+        targetTable,
+        plan.getInclusiveStartPrimaryKey(),
+        plan.getExclusiveEndPrimaryKey(),
+        plan.getDirection(),
+        plan.getColumnFilter(),
+        query.getFieldPaths(),
+        GET_RANGE_PER_REQUEST_LIMIT);
+  }
+
+  // Full ordered primary-key column list of the resolved target: the base table's keys from
+  // CollectionOptions, or a secondary index's keys from its IndexMeta. A scan (no resolved
+  // queryable) ranges over the base table, so it also uses the base table's keys.
+  private List<String> getPrimaryKeyColumns(Queryable queryable) {
+    if (queryable.getIndexName() == null) {
+      List<String> cols = new ArrayList<>();
+      cols.add(collectionOptions.getPartitionKey());
+      if (collectionOptions.getSortKey() != null) {
+        cols.add(collectionOptions.getSortKey());
+      }
+      return cols;
+    }
+    for (IndexMeta index : getTableDescription().getIndexMeta()) {
+      if (index.getIndexName().equals(queryable.getIndexName())) {
+        return index.getPrimaryKeyList();
+      }
+    }
+    throw new InvalidArgumentException(
+        "Resolved index not found in table description: " + queryable.getIndexName());
   }
 
   @NoArgsConstructor
@@ -599,30 +667,14 @@ public class AliDocStore extends AbstractDocStore {
 
   @Override
   public String queryPlan(Query query) {
-    QueryRunner qr = planQuery(query);
-    return qr.queryPlan();
-  }
-
-  public QueryRunner planQuery(Query query) {
     Queryable queryable = getBestQueryable(query);
-    boolean isScan = false;
-    if (queryable.indexName == null && queryable.key == null) {
-      // No query can be done: fall back to scanning.
-      if (query.getOrderByField() != null && !query.getOrderByField().isEmpty()) {
-        throw new InvalidArgumentException(
-            "query requires a table scan, but has an ordering requirement; add an index or provide"
-                + " Options.RunQueryFallback");
-      }
-
-      isScan = true;
+    if (queryable.getIndexName() != null) {
+      return "Index: " + queryable.getIndexName();
     }
-
-    // Build the SQL statement
-    String sqlStatement = buildSQLStatement(query, queryable);
-
-    // Execute the SQL query
-    SQLQueryRequest sqlQueryRequest = new SQLQueryRequest(sqlStatement);
-    return new QueryRunner(tableStoreClient, sqlQueryRequest, isScan, query.getBeforeQuery());
+    if (queryable.getKey() != null) {
+      return "Table: " + collectionOptions.getTableName();
+    }
+    return "Scan: " + collectionOptions.getTableName();
   }
 
   // Reports whether query has a filter that checks if the top-level field is equal to something.
@@ -835,72 +887,6 @@ public class AliDocStore extends AbstractDocStore {
     return key != null
         && hasEqualityFilter(query, key.getPartitionKey())
         && globalFieldIncluded(query, index);
-  }
-
-  private String buildSQLStatement(Query query, Queryable queryable) {
-    StringBuilder sql = new StringBuilder();
-    List<String> fields = query.getFieldPaths();
-    if (fields == null || fields.isEmpty()) {
-      fields = List.of("*");
-    }
-
-    sql.append("SELECT ").append(String.join(",", fields));
-    if (queryable.indexName != null) {
-      sql.append(" FROM ").append(queryable.indexName);
-    } else {
-      sql.append(" FROM ").append(collectionOptions.getTableName());
-    }
-    if (query.getFilters() != null && !query.getFilters().isEmpty()) {
-      sql.append(" WHERE ").append(conditionBuilder(query.getFilters()));
-    }
-
-    if (query.getOrderByField() != null) {
-      sql.append(" ORDER BY ").append(query.getOrderByField());
-      // the default ORDER is ASC we don't need to add it explicitly.
-      if (!query.isOrderAscending()) {
-        sql.append(" DESC");
-      }
-    }
-
-    if (query.getLimit() > 0) {
-      sql.append(" LIMIT ").append(query.getLimit());
-    }
-
-    if (query.getOffset() > 0) {
-      sql.append(" OFFSET ").append(query.getOffset());
-    }
-
-    sql.append(";");
-    return sql.toString();
-  }
-
-  private String conditionBuilder(List<Filter> filters) {
-    final Map<FilterOperation, String> filterOperationMapping =
-        Map.of(
-            FilterOperation.EQUAL, "=",
-            FilterOperation.GREATER_THAN, ">",
-            FilterOperation.GREATER_THAN_OR_EQUAL_TO, ">=",
-            FilterOperation.LESS_THAN, "<",
-            FilterOperation.LESS_THAN_OR_EQUAL_TO, "<=",
-            FilterOperation.NOT_IN, "NOT IN",
-            FilterOperation.IN, "IN");
-
-    StringBuilder condition = new StringBuilder();
-    for (int i = 0; i < filters.size(); i++) {
-      Filter filter = filters.get(i);
-      if (i > 0) {
-        condition.append(" AND ");
-      }
-      condition
-          .append(filter.getFieldPath())
-          .append(" ")
-          .append(filterOperationMapping.get(filter.getOp()))
-          .append(" ")
-          .append("'")
-          .append(filter.getValue())
-          .append("'");
-    }
-    return condition.toString();
   }
 
   // Close cleans up any resources used by the Collection.

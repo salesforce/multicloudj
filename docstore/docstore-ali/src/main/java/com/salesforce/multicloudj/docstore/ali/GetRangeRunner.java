@@ -13,9 +13,9 @@ import lombok.Getter;
 
 /**
  * Executes a query against the Tablestore native GetRange API (over the base table or a secondary
- * index by name), producing a resumable {@link PrimaryKey} cursor. This is the pagination-capable
- * counterpart to {@link QueryRunner} (which uses SQLQuery and cannot provide a caller-resumable
- * cursor).
+ * index by name), producing a resumable {@link PrimaryKey} cursor. GetRange is the query engine for
+ * the driver: unlike the Tablestore SQL interface, its {@code nextStartPrimaryKey} is a genuine
+ * positional cursor that supports caller-resumable pagination.
  *
  * <p>The runner is configured once by the planner with the target table/index name, the primary-key
  * range bounds, scan direction, an optional non-key column {@link Filter}, and the columns to
