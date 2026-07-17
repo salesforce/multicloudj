@@ -44,7 +44,7 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 |--------------|-----|-----|-----|----------|
 | **Get Object Lock** | ✅ Supported | ✅ Supported | ✅ Supported | Retrieve lock config (mode, retain-until, legal hold) |
 | **Update Object Retention** | ✅ Supported | ✅ Supported | ✅ Supported | Change retention mode and/or expiration date |
-| **Retention Mode Support** | ✅ Supported | ✅ Supported | ✅ Supported | GOVERNANCE and COMPLIANCE modes with uniform rules |
+| **Retention Mode Support** | ✅ Supported | ✅ Supported | ⚠️ Partial | GOVERNANCE and COMPLIANCE modes supported. AWS/GCP allow a GOVERNANCE→COMPLIANCE upgrade with bypass; on ALI the retention mode is immutable once set, so that upgrade is rejected (see Alibaba OSS limitation note below) |
 | **Bypass Governance Retention** | ✅ Supported | ✅ Supported | ✅ Supported | Shorten or remove GOVERNANCE-mode retention |
 | **Update Legal Hold** | ✅ Supported | ✅ Supported | ✅ Supported | Enable/disable legal hold on objects |
 | **Object Lock on Upload** | ✅ Supported | ✅ Supported | ✅ Supported | Set retention at upload time via ObjectLockConfiguration |
@@ -72,7 +72,7 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 | **Part Buffer Size** | ⚠️ Indirect                          | ✅ Supported | ⚠️ API-level only | Size of each part in multipart upload |
 | **Threshold Bytes** | ⚠️ Indirect through part buffer size | ✅ Supported | ❌ Not supported | File size threshold to trigger multipart upload |
 | **Max Concurrency** | ✅ Supported                          | ✅ Supported | ✅ Supported | Maximum concurrent transfer threads |
-| **Parallel Downloads** | ✅ Supported                          | ✅ Supported | ❌ Not supported | Parallel range-based downloads |
+| **Parallel Downloads** | ✅ Supported                          | ✅ Supported | ✅ Supported | Parallel range-based downloads (ALI: async client only, whole-object downloads) |
 | **Target Throughput (Gbps)** | ❌ Not supported                      | ✅ CRT client only | ❌ Not supported | Network throughput hint |
 | **Max Native Memory Limit** | ❌ Not supported                      | ✅ CRT client only | ❌ Not supported | Caps native memory for CRT client |
 
@@ -95,6 +95,7 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 
 #### Alibaba OSS
 - **Parallel Uploads**: Via `InitiateMultipartUpload` and `UploadPart` APIs
+- **Parallel Downloads**: Uses the OSS SDK transfer-manager `Downloader` (concurrent range GETs) on the async client; activated per-request via `DownloadRequest.withParallelDownload(true)`, and applies to whole-object downloads (no explicit byte range)
 - **Max Concurrency**: Manual thread pool configuration via a thread pool
 - **Part Buffer Size**: Direct part size available in API but not as a builder config
 
