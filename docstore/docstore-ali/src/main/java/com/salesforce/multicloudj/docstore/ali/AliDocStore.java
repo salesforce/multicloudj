@@ -78,10 +78,6 @@ public class AliDocStore extends AbstractDocStore {
   private final int batchSize = 50;
   DescribeTableResponse tableDescription;
 
-  // Rows scanned per GetRange request while the iterator loop-accumulates. Kept modest so each
-  // request is cheap; the iterator follows the cursor across requests to satisfy the query limit.
-  private static final int GET_RANGE_PER_REQUEST_LIMIT = 100;
-
   public AliDocStore(Builder builder) {
     super(builder);
     this.tableStoreClient = builder.tableStoreClient;
@@ -576,7 +572,7 @@ public class AliDocStore extends AbstractDocStore {
     Queryable queryable = getBestQueryable(query);
     checkPlan(query, queryable);
 
-    GetRangeRunner runner = planGetRangeQuery(query, queryable);
+    QueryRunner runner = planGetRangeQuery(query, queryable);
 
     PrimaryKey resumeAfterKey = null;
     if (query.getPaginationToken() instanceof AliPaginationToken) {
@@ -604,7 +600,7 @@ public class AliDocStore extends AbstractDocStore {
   }
 
   // Translates the query into a GetRange runner over the resolved base table or secondary index.
-  private GetRangeRunner planGetRangeQuery(Query query, Queryable queryable) {
+  private QueryRunner planGetRangeQuery(Query query, Queryable queryable) {
     List<String> pkColumns = getPrimaryKeyColumns(queryable);
     String targetTable =
         queryable.getIndexName() != null
@@ -615,15 +611,14 @@ public class AliDocStore extends AbstractDocStore {
     GetRangeQueryPlanner.Plan plan =
         GetRangeQueryPlanner.plan(pkColumns, filters, query.isOrderAscending());
 
-    return new GetRangeRunner(
+    return new QueryRunner(
         tableStoreClient,
         targetTable,
         plan.getInclusiveStartPrimaryKey(),
         plan.getExclusiveEndPrimaryKey(),
         plan.getDirection(),
         plan.getColumnFilter(),
-        query.getFieldPaths(),
-        GET_RANGE_PER_REQUEST_LIMIT);
+        query.getFieldPaths());
   }
 
   // Full ordered primary-key column list of the resolved target: the base table's keys from

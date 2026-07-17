@@ -28,7 +28,7 @@ import lombok.Getter;
  * caller's requested number of results or the cursor is exhausted.
  */
 @Getter
-public class GetRangeRunner {
+public class QueryRunner {
 
   private final SyncClient tableStoreClient;
 
@@ -48,20 +48,14 @@ public class GetRangeRunner {
   // Columns to return; null/empty means all columns of the matched rows.
   private final List<String> columnsToGet;
 
-  // Per-request scanned-row cap. Bounds how much the server scans per page (NOT how many matches
-  // are returned when a filter is set). A small positive value keeps individual requests cheap
-  // while the iterator loops; <= 0 leaves it unset (server default).
-  private final int perRequestLimit;
-
-  public GetRangeRunner(
+  public QueryRunner(
       SyncClient tableStoreClient,
       String tableName,
       PrimaryKey inclusiveStartPrimaryKey,
       PrimaryKey exclusiveEndPrimaryKey,
       Direction direction,
       Filter columnFilter,
-      List<String> columnsToGet,
-      int perRequestLimit) {
+      List<String> columnsToGet) {
     this.tableStoreClient = tableStoreClient;
     this.tableName = tableName;
     this.inclusiveStartPrimaryKey = inclusiveStartPrimaryKey;
@@ -69,7 +63,6 @@ public class GetRangeRunner {
     this.direction = direction;
     this.columnFilter = columnFilter;
     this.columnsToGet = columnsToGet;
-    this.perRequestLimit = perRequestLimit;
   }
 
   public String queryPlan() {
@@ -91,9 +84,9 @@ public class GetRangeRunner {
     criteria.setExclusiveEndPrimaryKey(exclusiveEndPrimaryKey);
     criteria.setDirection(direction);
     criteria.setMaxVersions(1);
-    if (perRequestLimit > 0) {
-      criteria.setLimit(perRequestLimit);
-    }
+    // No explicit per-request limit: Tablestore already caps a GetRange response at 5000 rows /
+    // 4 MB and returns a nextStartPrimaryKey cursor, and the iterator loops that cursor to satisfy
+    // the caller's limit. Setting a smaller cap here would only add round-trips.
     if (columnFilter != null) {
       criteria.setFilter(columnFilter);
     }

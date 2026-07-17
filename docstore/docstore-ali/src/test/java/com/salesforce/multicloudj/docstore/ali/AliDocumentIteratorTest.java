@@ -22,7 +22,7 @@ import org.mockito.Mockito;
 
 /**
  * Behavioral tests for {@link AliDocumentIterator}: page-walking, limit, client-side offset, resume
- * (inclusive-start skip), and pagination-token emptiness. The underlying {@link GetRangeRunner} is
+ * (inclusive-start skip), and pagination-token emptiness. The underlying {@link QueryRunner} is
  * mocked to hand back scripted pages, so no live client is needed.
  */
 class AliDocumentIteratorTest {
@@ -42,8 +42,8 @@ class AliDocumentIteratorTest {
    * Scripts the mocked runner to return {@code pages} in order (appending each page's rows to the
    * caller-supplied list), returning the given next-cursor per page. The last page returns null.
    */
-  private GetRangeRunner runnerReturning(List<List<Row>> pages, List<PrimaryKey> nextCursors) {
-    GetRangeRunner runner = mock(GetRangeRunner.class);
+  private QueryRunner runnerReturning(List<List<Row>> pages, List<PrimaryKey> nextCursors) {
+    QueryRunner runner = mock(QueryRunner.class);
     int[] call = {0};
     when(runner.run(any(), any()))
         .thenAnswer(
@@ -72,7 +72,7 @@ class AliDocumentIteratorTest {
 
   @Test
   void singlePageReturnsAllThenStops() {
-    GetRangeRunner runner =
+    QueryRunner runner =
         runnerReturning(
             List.of(List.of(row("billie", 111), row("fran", 33))),
             java.util.Arrays.asList((PrimaryKey) null));
@@ -84,7 +84,7 @@ class AliDocumentIteratorTest {
 
   @Test
   void loopsAcrossPagesFollowingCursor() {
-    GetRangeRunner runner =
+    QueryRunner runner =
         runnerReturning(
             List.of(List.of(row("billie", 111)), List.of(row("fran", 33))),
             java.util.Arrays.asList(pk("fran"), (PrimaryKey) null));
@@ -97,7 +97,7 @@ class AliDocumentIteratorTest {
   // pages, not stop at the first empty one.
   @Test
   void skipsFilteredEmptyPageThenReturnsLaterMatches() {
-    GetRangeRunner runner =
+    QueryRunner runner =
         runnerReturning(
             java.util.Arrays.asList(
                 java.util.Collections.<Row>emptyList(), // page 1: all scanned rows filtered out
@@ -109,7 +109,7 @@ class AliDocumentIteratorTest {
 
   @Test
   void skipsMultipleConsecutiveFilteredEmptyPages() {
-    GetRangeRunner runner =
+    QueryRunner runner =
         runnerReturning(
             java.util.Arrays.asList(
                 java.util.Collections.<Row>emptyList(),
@@ -123,7 +123,7 @@ class AliDocumentIteratorTest {
   // Offset skipping must also cross filtered-empty pages (same root cause as #1).
   @Test
   void offsetSkipCrossesFilteredEmptyPage() {
-    GetRangeRunner runner =
+    QueryRunner runner =
         runnerReturning(
             java.util.Arrays.asList(
                 List.of(row("billie", 111)), // page 1: 1 match (this is the one we skip)
@@ -136,7 +136,7 @@ class AliDocumentIteratorTest {
 
   @Test
   void limitStopsEarlyWithinPage() {
-    GetRangeRunner runner =
+    QueryRunner runner =
         runnerReturning(
             List.of(List.of(row("billie", 111), row("fran", 33), row("mel", 190))),
             java.util.Arrays.asList((PrimaryKey) null));
@@ -146,7 +146,7 @@ class AliDocumentIteratorTest {
 
   @Test
   void offsetSkipsWithinPage() {
-    GetRangeRunner runner =
+    QueryRunner runner =
         runnerReturning(
             List.of(List.of(row("billie", 111), row("fran", 33), row("mel", 190))),
             java.util.Arrays.asList((PrimaryKey) null));
@@ -157,7 +157,7 @@ class AliDocumentIteratorTest {
 
   @Test
   void offsetPlusLimit() {
-    GetRangeRunner runner =
+    QueryRunner runner =
         runnerReturning(
             List.of(
                 List.of(row("billie", 111), row("fran", 33), row("mel", 190), row("pat", 120))),
@@ -169,7 +169,7 @@ class AliDocumentIteratorTest {
 
   @Test
   void offsetSpansPageBoundary() {
-    GetRangeRunner runner =
+    QueryRunner runner =
         runnerReturning(
             List.of(List.of(row("billie", 111)), List.of(row("fran", 33), row("mel", 190))),
             java.util.Arrays.asList(pk("fran"), (PrimaryKey) null));
@@ -180,7 +180,7 @@ class AliDocumentIteratorTest {
 
   @Test
   void offsetBeyondResultsYieldsNothing() {
-    GetRangeRunner runner =
+    QueryRunner runner =
         runnerReturning(
             List.of(List.of(row("billie", 111), row("fran", 33))),
             java.util.Arrays.asList((PrimaryKey) null));
@@ -192,7 +192,7 @@ class AliDocumentIteratorTest {
   @Test
   void resumeSkipsInclusiveStartRow() {
     // Resuming at 'fran' (inclusive start): server returns fran (already seen) + pat; skip fran.
-    GetRangeRunner runner =
+    QueryRunner runner =
         runnerReturning(
             List.of(List.of(row("fran", 33), row("pat", 120))),
             java.util.Arrays.asList((PrimaryKey) null));
@@ -202,7 +202,7 @@ class AliDocumentIteratorTest {
 
   @Test
   void paginationTokenIsLastConsumedRowKey() {
-    GetRangeRunner runner =
+    QueryRunner runner =
         runnerReturning(
             List.of(List.of(row("billie", 111), row("fran", 33))),
             java.util.Arrays.asList(pk("mel"))); // server cursor exists, but limit stops us first
@@ -218,7 +218,7 @@ class AliDocumentIteratorTest {
 
   @Test
   void emptyResultHasEmptyToken() {
-    GetRangeRunner runner =
+    QueryRunner runner =
         runnerReturning(List.of(List.of()), java.util.Arrays.asList((PrimaryKey) null));
     AliDocumentIterator iter = new AliDocumentIterator(runner, 0, 0, null);
     Assertions.assertFalse(iter.hasNext());
@@ -227,7 +227,7 @@ class AliDocumentIteratorTest {
 
   @Test
   void stopHaltsIteration() {
-    GetRangeRunner runner =
+    QueryRunner runner =
         runnerReturning(
             List.of(List.of(row("billie", 111), row("fran", 33))),
             java.util.Arrays.asList((PrimaryKey) null));

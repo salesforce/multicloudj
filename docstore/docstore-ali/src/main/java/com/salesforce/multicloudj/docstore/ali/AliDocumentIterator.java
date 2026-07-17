@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * DocumentIterator backed by the Tablestore native GetRange API (see {@link GetRangeRunner}).
+ * DocumentIterator backed by the Tablestore native GetRange API (see {@link QueryRunner}).
  *
  * <p>Drives cursor-based pagination: it fetches pages by following the server's
  * {@code nextStartPrimaryKey}, and the caller-facing {@link #getPaginationToken()} returns the
@@ -32,7 +32,7 @@ import java.util.NoSuchElementException;
  */
 public class AliDocumentIterator implements DocumentIterator {
 
-  private final GetRangeRunner runner;
+  private final QueryRunner runner;
   private final int limit;
   private final int offset;
 
@@ -53,7 +53,7 @@ public class AliDocumentIterator implements DocumentIterator {
   private PrimaryKey lastConsumedKey;
 
   public AliDocumentIterator(
-      GetRangeRunner runner, int offset, int limit, PrimaryKey resumeAfterKey) {
+      QueryRunner runner, int offset, int limit, PrimaryKey resumeAfterKey) {
     this.runner = runner;
     this.offset = Math.max(offset, 0);
     this.toSkip = this.offset;
