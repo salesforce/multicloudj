@@ -29,9 +29,9 @@ public class UploadResponse {
 
   /**
    * The correlation ID associated with this upload. Echoes the application-supplied value when
-   * provided via {@code OperationContext}, or the SDK-generated UUID when not. Excluded from
-   * {@code equals}/{@code hashCode}/{@code toString} because it is observability metadata, not
-   * part of the resource's identity.
+   * provided via {@code OperationContext}, or an empty string when not (the correlation ID is
+   * never auto-generated). Excluded from {@code equals}/{@code hashCode}/{@code toString} because
+   * it is observability metadata, not part of the resource's identity.
    */
   @EqualsAndHashCode.Exclude
   @ToString.Exclude
