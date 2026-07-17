@@ -1,0 +1,30 @@
+{
+  "id" : "3cf46715-ee2d-40bb-9f7f-f355a925d65d",
+  "name" : "AwsBlobStoreIT_testUpload_withServiceAndTenantId_stampsObjectMetadata-HEAD-1",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/upload/observabilityMetadata",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-amz-meta-sdk-logging-correlation-id" : "conformance-correlation-id",
+      "Server" : "AmazonS3",
+      "Last-Modified" : "Thu, 16 Jul 2026 23:13:26 GMT",
+      "x-amz-server-side-encryption" : "AES256",
+      "Date" : "Thu, 16 Jul 2026 23:13:27 GMT",
+      "Accept-Ranges" : "bytes",
+      "ETag" : "\"23f2001ceaecde3c9ceb04bceb40a0b5\"",
+      "x-amz-checksum-crc64nvme" : "FlVsXh1/si8=",
+      "x-amz-meta-sdk-logging-service-id" : "conformance-service",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "KX1M5TMAPKJGJ35K",
+      "x-amz-id-2" : "3BoKCqB+cO3InFiZFJYkddxuQZz4uTvq/lVv0fht07i236gfP0fj30ieMFKvB9W6e/QePjuafCo=",
+      "Content-Type" : "application/octet-stream",
+      "x-amz-meta-sdk-logging-tenant-id" : "conformance-tenant"
+    }
+  },
+  "uuid" : "3cf46715-ee2d-40bb-9f7f-f355a925d65d",
+  "persistent" : true,
+  "insertionIndex" : 772
+}

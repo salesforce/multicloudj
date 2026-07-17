@@ -27,6 +27,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -81,6 +82,46 @@ public class Main {
 
     // Log the upload response
     getLogger().info("received upload response {}", response);
+  }
+
+  /**
+   * Uploads an object while attaching an {@link OperationContext} that carries a service ID and
+   * tenant ID. The SDK stamps these identifiers onto the stored object's metadata (under the
+   * {@code sdk-logging-service-id} and {@code sdk-logging-tenant-id} keys) so that cloud audit
+   * logs (e.g. S3 server access logs / GCS data access logs) can be traced back to the calling
+   * service and tenant.
+   *
+   * <p>The {@code correlationId} is optional: if omitted, the SDK auto-generates a UUID and echoes
+   * it back on the {@link UploadResponse}. The {@code serviceId} and {@code tenantId} are supplied
+   * by the caller and are never auto-generated.
+   */
+  public static void uploadWithServiceAndTenantId() {
+    BucketClient client = getBucketClient(getProvider());
+    InputStream content = getInputStream();
+
+    // Build the per-call observability context. serviceId / tenantId identify who is making the
+    // call; correlationId ties this request together across the caller's own logs and traces.
+    OperationContext operationContext =
+        OperationContext.builder()
+            .serviceId("my-service")
+            .tenantId("tenant-1234")
+            .correlationId("request-abc-987") // optional; SDK generates one if omitted
+            .build();
+
+    // Attach the context to the upload request via withOperationContext(...).
+    UploadRequest uploadRequest =
+        new UploadRequest.Builder()
+            .withKey("bucket-path/audited-object.jpg")
+            .withOperationContext(operationContext)
+            .build();
+
+    UploadResponse response = client.upload(uploadRequest, content);
+
+    // The stored object now carries sdk-logging-service-id=my-service,
+    // sdk-logging-tenant-id=tenant-1234 and sdk-logging-correlation-id=request-abc-987
+    // in its object metadata.
+    getLogger().info("received upload response {}", response);
+    getLogger().info("correlation id echoed back: {}", response.getCorrelationId());
   }
 
   /**

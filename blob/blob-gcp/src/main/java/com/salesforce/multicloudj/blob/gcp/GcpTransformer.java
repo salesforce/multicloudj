@@ -28,6 +28,7 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.IOException;
@@ -65,6 +66,20 @@ public class GcpTransformer {
    */
   public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
 
+  /**
+   * Object-metadata key under which the SDK persists the operation service id during upload, so
+   * the value is stored on the blob in GCS and the calling service can be traced from the object's
+   * GCS audit logs.
+   */
+  public static final String SERVICE_ID_METADATA_KEY = "sdk-logging-service-id";
+
+  /**
+   * Object-metadata key under which the SDK persists the operation tenant id during upload, so the
+   * value is stored on the blob in GCS and the tenant can be traced from the object's GCS audit
+   * logs.
+   */
+  public static final String TENANT_ID_METADATA_KEY = "sdk-logging-tenant-id";
+
   public GcpTransformer(String bucket) {
     this.bucket = bucket;
   }
@@ -82,15 +97,24 @@ public class GcpTransformer {
           .forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
     }
 
-    // Stamp the SDK's correlation id onto the stored object so it persists in GCS alongside
-    // the user's metadata. Skipped when the request carries no operation context, or when the
-    // app has supplied the same key explicitly.
-    if (uploadRequest.getOperationContext() != null
-        && StringUtils.isNotBlank(uploadRequest.getOperationContext().getCorrelationId())
-        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-      metadata.put(
-          CORRELATION_ID_METADATA_KEY,
-          uploadRequest.getOperationContext().getCorrelationId());
+    // Stamp the SDK's correlation id, service id and tenant id onto the stored object so they
+    // persist in GCS alongside the user's metadata and can be traced from the object's GCS audit
+    // logs. Each key is skipped when the request carries no operation context, when that context
+    // value is absent, or when the app has supplied the same key explicitly.
+    if (uploadRequest.getOperationContext() != null) {
+      OperationContext ctx = uploadRequest.getOperationContext();
+      if (StringUtils.isNotBlank(ctx.getCorrelationId())
+          && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+        metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
+      }
+      if (StringUtils.isNotBlank(ctx.getServiceId())
+          && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {
+        metadata.put(SERVICE_ID_METADATA_KEY, ctx.getServiceId());
+      }
+      if (StringUtils.isNotBlank(ctx.getTenantId())
+          && !metadata.containsKey(TENANT_ID_METADATA_KEY)) {
+        metadata.put(TENANT_ID_METADATA_KEY, ctx.getTenantId());
+      }
     }
 
     // Delegate to the protected toBlobInfo method which handles storage class, checksum, object

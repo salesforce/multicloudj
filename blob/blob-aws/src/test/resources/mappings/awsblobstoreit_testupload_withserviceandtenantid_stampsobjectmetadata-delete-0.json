@@ -1,0 +1,20 @@
+{
+  "id" : "8be7ec1d-d795-43ae-a66a-44024d6abc70",
+  "name" : "AwsBlobStoreIT_testUpload_withServiceAndTenantId_stampsObjectMetadata-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/upload/observabilityMetadata",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "KX1XMB0E8GX18W6K",
+      "x-amz-id-2" : "dLkswfds9xqawhCalZ92u1HkvozfwWCOL8hYSwpiExktgRbI4FY5qwSBaiW6uybxP1eeWmqH998=",
+      "Date" : "Thu, 16 Jul 2026 23:13:27 GMT"
+    }
+  },
+  "uuid" : "8be7ec1d-d795-43ae-a66a-44024d6abc70",
+  "persistent" : true,
+  "insertionIndex" : 771
+}

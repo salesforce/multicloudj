@@ -34,6 +34,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.IOException;
@@ -122,6 +123,20 @@ public class AwsTransformer {
    * and matches the correlation id that appears in the same upload's logs and trace span.
    */
   public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
+
+  /**
+   * Object-metadata key under which the SDK persists the operation service id during upload, so
+   * the value is stored on the blob (as {@code x-amz-meta-sdk-logging-service-id} in S3) and the
+   * calling service can be traced from the object's S3 access/audit logs.
+   */
+  public static final String SERVICE_ID_METADATA_KEY = "sdk-logging-service-id";
+
+  /**
+   * Object-metadata key under which the SDK persists the operation tenant id during upload, so the
+   * value is stored on the blob (as {@code x-amz-meta-sdk-logging-tenant-id} in S3) and the tenant
+   * can be traced from the object's S3 access/audit logs.
+   */
+  public static final String TENANT_ID_METADATA_KEY = "sdk-logging-tenant-id";
 
   /** Default MIME type used for the request body when the caller does not provide one. */
   private static final String OCTET_STREAM_MIME = "application/octet-stream";
@@ -219,15 +234,26 @@ public class AwsTransformer {
             .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
             .collect(Collectors.toList());
 
-    // Copy the application-supplied metadata and stamp the SDK's correlation id onto the
-    // stored object so it persists in S3 alongside the user's metadata. Skipped when the
-    // request carries no operation context, or when the app has supplied the same key
-    // explicitly.
+    // Copy the application-supplied metadata and stamp the SDK's correlation id, service id and
+    // tenant id onto the stored object so they persist in S3 alongside the user's metadata and can
+    // be traced from the object's S3 access/audit logs. Each key is skipped when the request
+    // carries no operation context, when that context value is absent, or when the app has
+    // supplied the same key explicitly.
     Map<String, String> metadata = new HashMap<>(request.getMetadata());
-    if (request.getOperationContext() != null
-        && StringUtils.isNotBlank(request.getOperationContext().getCorrelationId())
-        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-      metadata.put(CORRELATION_ID_METADATA_KEY, request.getOperationContext().getCorrelationId());
+    if (request.getOperationContext() != null) {
+      OperationContext ctx = request.getOperationContext();
+      if (StringUtils.isNotBlank(ctx.getCorrelationId())
+          && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+        metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
+      }
+      if (StringUtils.isNotBlank(ctx.getServiceId())
+          && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {
+        metadata.put(SERVICE_ID_METADATA_KEY, ctx.getServiceId());
+      }
+      if (StringUtils.isNotBlank(ctx.getTenantId())
+          && !metadata.containsKey(TENANT_ID_METADATA_KEY)) {
+        metadata.put(TENANT_ID_METADATA_KEY, ctx.getTenantId());
+      }
     }
 
     PutObjectRequest.Builder builder =
