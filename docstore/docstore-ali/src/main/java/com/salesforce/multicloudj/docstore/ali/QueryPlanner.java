@@ -51,7 +51,7 @@ import lombok.Getter;
  * backward mirrors) — are widened by one boundary group and the column filter removes the extra
  * rows.
  */
-public final class GetRangeQueryPlanner {
+public final class QueryPlanner {
 
   /** The translated GetRange inputs. {@code columnFilter} may be null (no predicates). */
   @Getter
@@ -94,7 +94,7 @@ public final class GetRangeQueryPlanner {
     }
   }
 
-  private GetRangeQueryPlanner() {}
+  private QueryPlanner() {}
 
   /**
    * Builds the GetRange plan for a query resolved to a table/index with the given ordered

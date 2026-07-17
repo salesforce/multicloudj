@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 /**
- * Correctness tests for {@link GetRangeQueryPlanner}, verified with an in-memory model of
+ * Correctness tests for {@link QueryPlanner}, verified with an in-memory model of
  * Tablestore GetRange semantics.
  *
  * <p>The hard invariant under test: <b>the planner's key range must never exclude a row that
@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Test;
  * positions, equality prefixes, ASC/DESC, and IN/NOT_IN — the cases a conformance-only test set
  * would miss.
  */
-class GetRangeQueryPlannerTest {
+class QueryPlannerTest {
 
   // A test row: its full primary-key tuple plus the raw values (for predicate evaluation).
   private static final class Row {
@@ -70,7 +70,7 @@ class GetRangeQueryPlannerTest {
 
   // in-memory model of GetRange range membership
 
-  private static boolean inRange(Row row, GetRangeQueryPlanner.Plan plan) {
+  private static boolean inRange(Row row, QueryPlanner.Plan plan) {
     PrimaryKey start = plan.getInclusiveStartPrimaryKey();
     PrimaryKey end = plan.getExclusiveEndPrimaryKey();
     if (plan.getDirection() == Direction.FORWARD) {
@@ -136,7 +136,7 @@ class GetRangeQueryPlannerTest {
   /** Asserts every predicate-satisfying row falls within the planner's key range (no exclusion). */
   private void assertNoExclusion(
       List<String> pkCols, List<Row> universe, List<Filter> filters, boolean asc) {
-    GetRangeQueryPlanner.Plan plan = GetRangeQueryPlanner.plan(pkCols, filters, asc);
+    QueryPlanner.Plan plan = QueryPlanner.plan(pkCols, filters, asc);
     for (Row row : universe) {
       if (allPredicatesHold(row, filters)) {
         Assertions.assertTrue(
@@ -346,8 +346,8 @@ class GetRangeQueryPlannerTest {
     // The non-key filter can't be evaluated on rows here (valOf returns null), so restrict the
     // assertion to key predicates by omitting the non-key filter from the universe check but still
     // passing it to the planner to ensure it doesn't corrupt the bounds.
-    GetRangeQueryPlanner.Plan plan =
-        GetRangeQueryPlanner.plan(
+    QueryPlanner.Plan plan =
+        QueryPlanner.plan(
             pk,
             List.of(
                 filter("A", FilterOperation.EQUAL, "a1"),

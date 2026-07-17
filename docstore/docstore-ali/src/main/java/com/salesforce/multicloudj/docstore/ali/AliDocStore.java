@@ -608,8 +608,8 @@ public class AliDocStore extends AbstractDocStore {
             : collectionOptions.getTableName();
 
     List<Filter> filters = query.getFilters() != null ? query.getFilters() : List.of();
-    GetRangeQueryPlanner.Plan plan =
-        GetRangeQueryPlanner.plan(pkColumns, filters, query.isOrderAscending());
+    QueryPlanner.Plan plan =
+        QueryPlanner.plan(pkColumns, filters, query.isOrderAscending());
 
     return new QueryRunner(
         tableStoreClient,
