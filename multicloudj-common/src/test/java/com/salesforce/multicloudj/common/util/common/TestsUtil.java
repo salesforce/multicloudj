@@ -303,6 +303,19 @@ public class TestsUtil {
     wireMockServer.stop();
   }
 
+  /**
+   * In replay mode, resets every WireMock stateful-scenario cursor back to its initial "Started"
+   * state. Recordings are captured per-test from a fresh server, so each test's stub-walk starts at
+   * "Started"; resetting before each test restores that precondition and removes cross-test
+   * scenario-state contamination that otherwise makes replay depend on JUnit method order.
+   * No-op during recording (scenario state is only consumed on replay).
+   */
+  public static void resetWireMockScenarios() {
+    if (wireMockServer != null && System.getProperty("record") == null) {
+      wireMockServer.resetScenarios();
+    }
+  }
+
   public static void startWireMockRecording(
       String targetEndpoint, String testClassName, String testMethodName) {
     startWireMockRecording(
@@ -316,6 +329,12 @@ public class TestsUtil {
       List<String> captureHeaders) {
     currentTestPrefix = testClassName + "_" + testMethodName;
     stubCounter.set(0);
+
+    // Reset every stateful-scenario cursor to its initial "Started" state before each test (replay
+    // only). This runs at the single chokepoint every Abstract*IT @BeforeEach calls, so it applies
+    // uniformly across all services/substrates. Removes cross-test scenario-state contamination
+    // that otherwise makes replay depend on JUnit method execution order.
+    resetWireMockScenarios();
 
     boolean isRecordingEnabled = System.getProperty("record") != null;
     RecordSpecBuilder recordSpec =
