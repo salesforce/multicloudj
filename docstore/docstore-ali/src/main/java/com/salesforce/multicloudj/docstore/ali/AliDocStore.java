@@ -618,7 +618,27 @@ public class AliDocStore extends AbstractDocStore {
         plan.getExclusiveEndPrimaryKey(),
         plan.getDirection(),
         plan.getColumnFilter(),
-        query.getFieldPaths());
+        buildColumnsToGet(query.getFieldPaths(), pkColumns));
+  }
+
+  // Builds the columns_to_get list for a projected query. An empty field-path list means "all
+  // columns", which Tablestore expresses as an empty columns_to_get, so it is returned unchanged.
+  // When the caller projects a subset, the target's primary-key columns are force-added if absent:
+  // Tablestore's GetRange omits a row from the response when none of its requested columns are
+  // present, and both row decoding and the pagination cursor read the primary key, so a missing key
+  // would drop matching rows and break continuation. Uses the resolved target's key columns
+  // (base-table keys, or a secondary index's own key list) so index queries stay correct.
+  private List<String> buildColumnsToGet(List<String> fieldPaths, List<String> pkColumns) {
+    if (fieldPaths == null || fieldPaths.isEmpty()) {
+      return fieldPaths;
+    }
+    List<String> columnsToGet = new ArrayList<>(fieldPaths);
+    for (String pkColumn : pkColumns) {
+      if (!columnsToGet.contains(pkColumn)) {
+        columnsToGet.add(pkColumn);
+      }
+    }
+    return columnsToGet;
   }
 
   // Full ordered primary-key column list of the resolved target: the base table's keys from

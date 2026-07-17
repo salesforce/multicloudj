@@ -55,6 +55,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -808,6 +809,48 @@ class AliDocStoreTest {
     Assertions.assertEquals(
         "Table: my-table", ali.queryPlan(query), "Base table is not used as expected");
     Assertions.assertEquals("my-table", capturedRangeCriteria(query).getTableName());
+  }
+
+  @Test
+  void testProjectedQueryForcesPrimaryKeyColumns() {
+    // A projected query that omits the key columns must still fetch them: Tablestore's GetRange
+    // drops a row whose requested columns are all absent, and both decode and the pagination cursor
+    // read the primary key. So columns_to_get must include the projected field plus both PK cols.
+    Query query = new Query(ali).where("title", FilterOperation.EQUAL, "value");
+    query.setFieldPaths(List.of("price"));
+
+    wireMockClient();
+    Set<String> columns = capturedRangeCriteria(query).getColumnsToGet();
+    Assertions.assertTrue(columns.contains("price"), "projected field should be requested");
+    Assertions.assertTrue(columns.contains("title"), "partition key should be force-added");
+    Assertions.assertTrue(columns.contains("publisher"), "sort key should be force-added");
+    Assertions.assertEquals(3, columns.size(), "only the field + both PK columns, no extras");
+  }
+
+  @Test
+  void testProjectedQueryIncludingKeyDoesNotDuplicate() {
+    // When the projection already names a key column, it must not be added twice.
+    Query query = new Query(ali).where("title", FilterOperation.EQUAL, "value");
+    query.setFieldPaths(List.of("price", "title"));
+
+    wireMockClient();
+    Set<String> columns = capturedRangeCriteria(query).getColumnsToGet();
+    Assertions.assertTrue(columns.contains("price"));
+    Assertions.assertTrue(columns.contains("title"));
+    Assertions.assertTrue(columns.contains("publisher"), "missing sort key still force-added");
+    Assertions.assertEquals(3, columns.size(), "already-projected key not duplicated");
+  }
+
+  @Test
+  void testUnprojectedQueryRequestsAllColumns() {
+    // No field paths means "all columns": columns_to_get must stay empty so Tablestore returns the
+    // full row (adding a subset here would wrongly restrict the projection).
+    Query query = new Query(ali).where("title", FilterOperation.EQUAL, "value");
+
+    wireMockClient();
+    Assertions.assertTrue(
+        capturedRangeCriteria(query).getColumnsToGet().isEmpty(),
+        "an unprojected query must not restrict columns_to_get");
   }
 
   // Builds a store over "my-table" (PK title+publisher) with the given AllowScans setting, wired to
