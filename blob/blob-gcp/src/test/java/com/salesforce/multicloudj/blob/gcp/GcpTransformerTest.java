@@ -18,6 +18,7 @@ import com.google.cloud.storage.Storage;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -253,7 +254,7 @@ class GcpTransformerTest {
     assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
     assertEquals(
         "req-abc-123",
-        blobInfo.getMetadata().get("correlation-id"),
+        blobInfo.getMetadata().get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
         "transformer must persist the operation correlation_id under the well-known metadata key");
   }
 
@@ -269,7 +270,7 @@ class GcpTransformerTest {
 
     assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
     assertFalse(
-        blobInfo.getMetadata().containsKey("correlation-id"),
+        blobInfo.getMetadata().containsKey(GcpTransformer.CORRELATION_ID_METADATA_KEY),
         "no injection when the request carries no OperationContext");
   }
 
@@ -279,7 +280,7 @@ class GcpTransformerTest {
     UploadRequest uploadRequest =
         UploadRequest.builder()
             .withKey(TEST_KEY)
-            .withMetadata(Map.of("correlation-id", "user-supplied"))
+            .withMetadata(Map.of(GcpTransformer.CORRELATION_ID_METADATA_KEY, "user-supplied"))
             .withOperationContext(ctx)
             .build();
 
@@ -287,8 +288,8 @@ class GcpTransformerTest {
 
     assertEquals(
         "user-supplied",
-        blobInfo.getMetadata().get("correlation-id"),
-        "application's explicit correlation-id metadata value must take precedence");
+        blobInfo.getMetadata().get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "application's explicit sdk-logging-correlation-id metadata value must take precedence");
   }
 
   @Test
@@ -659,6 +660,25 @@ class GcpTransformerTest {
     assertEquals(expectedMetadata, blobMetadata.getMetadata());
 
     assertEquals(updateTime.toInstant(), blobMetadata.getLastModified());
+  }
+
+  @Test
+  void testToBlobMetadata_populatesCrc32cChecksum() {
+    when(mockBlob.getName()).thenReturn(TEST_KEY);
+    when(mockBlob.getCrc32c()).thenReturn("abc123==");
+
+    Checksum checksum = transformer.toBlobMetadata(mockBlob).getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC32C, checksum.getAlgorithm());
+    assertEquals("abc123==", checksum.getValue());
+  }
+
+  @Test
+  void testToBlobMetadata_noCrc32cReturnsNullChecksum() {
+    when(mockBlob.getName()).thenReturn(TEST_KEY);
+    when(mockBlob.getCrc32c()).thenReturn(null);
+
+    assertNull(transformer.toBlobMetadata(mockBlob).getChecksum());
   }
 
   @Test

@@ -11,6 +11,7 @@ import static org.mockito.Mockito.mock;
 
 import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
 import com.aliyun.sdk.service.oss2.models.GetBucketVersioningResult;
+import com.aliyun.sdk.service.oss2.models.GetObjectResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult;
@@ -25,6 +26,7 @@ import com.aliyun.sdk.service.oss2.transport.HttpClientOptions;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -41,6 +43,7 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -143,6 +146,70 @@ public class AliTransformerTest {
 
     assertEquals("KMS", actual.serverSideEncryption());
     assertEquals(kmsKeyId, actual.serverSideEncryptionKeyId());
+  }
+
+  @Test
+  void testToPutObjectRequest_correlationIdStamped() {
+    var ctx = OperationContext.builder()
+        .correlationId("req-abc-123").build();
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withMetadata(Map.of("user-key", "user-value"))
+        .withOperationContext(ctx)
+        .build();
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        actual.metadata().get(
+            AliTransformer.CORRELATION_ID_METADATA_KEY),
+        "transformer must persist the correlation_id under"
+            + " the well-known metadata key");
+  }
+
+  @Test
+  void testToPutObjectRequest_correlationIdNotInjectedWhenContextMissing() {
+    var metadata = Map.of("user-key", "user-value");
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withMetadata(metadata)
+        .build();
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals(metadata, actual.metadata());
+    assertFalse(
+        actual.metadata().containsKey(
+            AliTransformer.CORRELATION_ID_METADATA_KEY),
+        "no injection when the request carries no"
+            + " OperationContext");
+  }
+
+  @Test
+  void testToPutObjectRequest_userSuppliedCorrelationIdNotOverwritten() {
+    var ctx = OperationContext.builder()
+        .correlationId("sdk-generated").build();
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withMetadata(Map.of(
+            AliTransformer.CORRELATION_ID_METADATA_KEY,
+            "user-supplied"))
+        .withOperationContext(ctx)
+        .build();
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals(
+        "user-supplied",
+        actual.metadata().get(
+            AliTransformer.CORRELATION_ID_METADATA_KEY),
+        "application's explicit metadata value must take"
+            + " precedence over the SDK's");
   }
 
   @Test
@@ -993,8 +1060,6 @@ public class AliTransformerTest {
         ex.getMessage());
   }
 
-  // ---- toBlobMetadata: objectLockInfo extraction from x-oss-object-worm-* headers ----
-
   @Test
   void testToBlobMetadata_locked_populatesObjectLockInfoFromHeaders() {
     // OSS surfaces object-lock state on HeadObject as response headers (verified live against
@@ -1323,5 +1388,43 @@ public class AliTransformerTest {
     var actual = transformer.toBucketVersioningConfiguration(result);
 
     assertEquals(BucketVersioningStatus.UNVERSIONED, actual.getStatus());
+  }
+
+  @Test
+  void testToBlobMetadata_populatesCrc64ChecksumFromHashCrc64ecma() {
+    HeadObjectResult result = mock(HeadObjectResult.class);
+    doReturn("ali-crc64-value").when(result).hashCrc64ecma();
+
+    Checksum checksum = transformer.toBlobMetadata("k", result).getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC64, checksum.getAlgorithm());
+    assertEquals("ali-crc64-value", checksum.getValue());
+  }
+
+  @Test
+  void testToBlobMetadata_noHashCrc64ecmaReturnsNullChecksum() {
+    HeadObjectResult result = mock(HeadObjectResult.class);
+    doReturn(null).when(result).hashCrc64ecma();
+
+    assertNull(transformer.toBlobMetadata("k", result).getChecksum());
+  }
+
+  @Test
+  void testToDownloadResponse_populatesCrc64ChecksumFromHashCrc64ecma() {
+    GetObjectResult result = mock(GetObjectResult.class);
+    doReturn("ali-crc64-value").when(result).hashCrc64ecma();
+
+    Checksum checksum = transformer.toDownloadResponse("k", result).getMetadata().getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC64, checksum.getAlgorithm());
+    assertEquals("ali-crc64-value", checksum.getValue());
+  }
+
+  @Test
+  void testToDownloadResponse_noHashCrc64ecmaReturnsNullChecksum() {
+    GetObjectResult result = mock(GetObjectResult.class);
+    doReturn(null).when(result).hashCrc64ecma();
+
+    assertNull(transformer.toDownloadResponse("k", result).getMetadata().getChecksum());
   }
 }

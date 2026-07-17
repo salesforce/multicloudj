@@ -793,30 +793,6 @@ public abstract class AbstractBlobStoreIT {
       boolean downloadUsingVersionId,
       boolean useCorrectVersionId,
       boolean wantError,
-      boolean parallelDownload)
-      throws IOException {
-    runDownloadTest(
-        testName,
-        uploadKey,
-        downloadKey,
-        useVersionedBucket,
-        downloadType,
-        downloadUsingVersionId,
-        useCorrectVersionId,
-        wantError,
-        parallelDownload,
-        false);
-  }
-
-  private void runDownloadTest(
-      String testName,
-      String uploadKey,
-      String downloadKey,
-      boolean useVersionedBucket,
-      DownloadType downloadType,
-      boolean downloadUsingVersionId,
-      boolean useCorrectVersionId,
-      boolean wantError,
       boolean parallelDownload,
       boolean createParentPath)
       throws IOException {
@@ -867,6 +843,8 @@ public abstract class AbstractBlobStoreIT {
         Assertions.assertEquals(
             blobBytes.length, content.length, testName + ": Content-Length did not match");
         Assertions.assertArrayEquals(blobBytes, content, testName + ": Bytes arrays did not match");
+        Assertions.assertNotNull(response.getMetadata().getChecksum(),
+            testName + ": checksum is not there");
       } catch (SubstrateSdkException e) {
         Assertions.assertTrue(wantError, testName + ": Did not expect error. " + e.getMessage());
         return;
@@ -2591,6 +2569,7 @@ public abstract class AbstractBlobStoreIT {
             testConfig.testName + ": The metadata does not match the original");
         Assertions.assertNotNull(blobMetadata.getLastModified());
         Assertions.assertNotNull(blobMetadata.getCreatedTime());
+        Assertions.assertNotNull(blobMetadata.getChecksum());
       }
     } finally {
       // Delete our blob to clean up the test
@@ -4438,7 +4417,8 @@ public abstract class AbstractBlobStoreIT {
   /**
    * Asserts that the user-visible portion of {@code actual} blob metadata equals {@code expected},
    * ignoring SDK-internal entries that the blob clients stamp onto uploaded objects. Today that
-   * means the {@code correlation-id} key the SDK persists to tie a stored blob back to the trace
+   * means the {@code sdk-logging-correlation-id} key the SDK persists to tie a stored
+   * blob back to the trace
    * span and logs of the upload that produced it; the value is non-deterministic per upload and is
    * not user content, so it must not participate in user-metadata round-trip equality checks.
    *
@@ -4448,7 +4428,7 @@ public abstract class AbstractBlobStoreIT {
   private static void assertUserMetadataEquals(
       Map<String, String> expected, Map<String, String> actual, String message) {
     Map<String, String> filtered = new HashMap<>(actual);
-    filtered.remove("correlation-id");
+    filtered.remove("sdk-logging-correlation-id");
     Assertions.assertEquals(expected, filtered, message);
   }
 

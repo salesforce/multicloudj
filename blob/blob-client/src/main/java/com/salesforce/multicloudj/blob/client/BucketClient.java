@@ -891,6 +891,7 @@ public class BucketClient implements AutoCloseable {
         .key(m.getKey())
         .versionId(m.getVersionId())
         .eTag(m.getETag())
+        .checksum(m.getChecksum())
         .objectSize(m.getObjectSize())
         .metadata(m.getMetadata())
         .lastModified(m.getLastModified())

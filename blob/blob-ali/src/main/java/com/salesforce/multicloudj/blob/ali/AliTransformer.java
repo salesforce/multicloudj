@@ -57,6 +57,7 @@ import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -88,6 +89,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -98,6 +100,15 @@ import org.apache.commons.lang3.StringUtils;
 public class AliTransformer {
 
   private static final String SERVER_SIDE_ENCRYPTION_KMS = "KMS";
+
+  /**
+   * Object-metadata key under which the SDK persists the operation
+   * correlation id during upload, so the value is stored on the blob in
+   * OSS and matches the correlation id that appears in the same upload's
+   * logs and trace span.
+   */
+  public static final String CORRELATION_ID_METADATA_KEY =
+      "sdk-logging-correlation-id";
 
   private final String bucket;
 
@@ -114,8 +125,23 @@ public class AliTransformer {
             .key(uploadRequest.getKey())
             .body(body);
 
-    if (uploadRequest.getMetadata() != null && !uploadRequest.getMetadata().isEmpty()) {
-      builder.metadata(uploadRequest.getMetadata());
+    // Copy the application-supplied metadata and stamp the SDK's correlation
+    // id onto the stored object so it persists in OSS alongside the user's
+    // metadata. Skipped when the request carries no operation context, or
+    // when the app has supplied the same key explicitly.
+    Map<String, String> metadata = uploadRequest.getMetadata() != null
+        ? new HashMap<>(uploadRequest.getMetadata())
+        : new HashMap<>();
+    if (uploadRequest.getOperationContext() != null
+        && StringUtils.isNotBlank(
+            uploadRequest.getOperationContext().getCorrelationId())
+        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+      metadata.put(
+          CORRELATION_ID_METADATA_KEY,
+          uploadRequest.getOperationContext().getCorrelationId());
+    }
+    if (!metadata.isEmpty()) {
+      builder.metadata(metadata);
     }
 
     if (uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
@@ -222,6 +248,7 @@ public class AliTransformer {
                 .metadata(result.metadata())
                 .objectSize(objectSize)
                 .contentType(result.contentType())
+                .checksum(toDriverChecksum(result))
                 .build())
         .build();
   }
@@ -244,9 +271,30 @@ public class AliTransformer {
                 .metadata(result.metadata())
                 .objectSize(objectSize)
                 .contentType(result.contentType())
+                .checksum(toDriverChecksum(result))
                 .build())
         .inputStream(inputStream)
         .build();
+  }
+
+  private Checksum toDriverChecksum(GetObjectResult result) {
+    if (result.hashCrc64ecma() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.CRC64)
+          .value(result.hashCrc64ecma())
+          .build();
+    }
+    return null;
+  }
+
+  private Checksum toDriverChecksum(HeadObjectResult result) {
+    if (result.hashCrc64ecma() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.CRC64)
+          .value(result.hashCrc64ecma())
+          .build();
+    }
+    return null;
   }
 
   public DeleteObjectRequest toDeleteObjectRequest(
@@ -352,6 +400,7 @@ public class AliTransformer {
         .md5(HexUtil.convertToBytes(result.contentMd5()))
         .contentType(result.contentType())
         .objectLockInfo(extractObjectLockInfo(result.headers()))
+        .checksum(toDriverChecksum(result))
         .build();
   }
 

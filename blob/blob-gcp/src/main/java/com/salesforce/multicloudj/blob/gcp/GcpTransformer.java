@@ -12,6 +12,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -64,7 +65,7 @@ public class GcpTransformer {
    * so the value is stored on the blob in GCS and matches the correlation id that appears in the
    * same upload's logs and trace span.
    */
-  public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
+  public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
 
   public GcpTransformer(String bucket) {
     this.bucket = bucket;
@@ -234,7 +235,18 @@ public class GcpTransformer {
         .md5(HexUtil.convertToBytes(blob.getMd5()))
         .contentType(blob.getContentType())
         .objectLockInfo(objectLockInfo)
+        .checksum(toDriverChecksum(blob))
         .build();
+  }
+
+  private Checksum toDriverChecksum(Blob blob) {
+    if (blob.getCrc32c() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.CRC32C)
+          .value(blob.getCrc32c())
+          .build();
+    }
+    return null;
   }
 
   public Storage.CopyRequest toCopyRequest(CopyRequest request) {

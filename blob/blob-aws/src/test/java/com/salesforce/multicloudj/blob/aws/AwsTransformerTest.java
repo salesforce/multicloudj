@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.aws;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -13,6 +14,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
@@ -50,9 +52,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
+import software.amazon.awssdk.services.s3.model.ChecksumMode;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
@@ -194,7 +198,7 @@ public class AwsTransformerTest {
     assertEquals("user-value", actual.metadata().get("user-key"));
     assertEquals(
         "req-abc-123",
-        actual.metadata().get("correlation-id"),
+        actual.metadata().get("sdk-logging-correlation-id"),
         "transformer must persist the operation correlation_id under the well-known metadata key");
   }
 
@@ -209,7 +213,7 @@ public class AwsTransformerTest {
 
     assertEquals(metadata, actual.metadata());
     assertFalse(
-        actual.metadata().containsKey("correlation-id"),
+        actual.metadata().containsKey("sdk-logging-correlation-id"),
         "no injection when the request carries no OperationContext");
   }
 
@@ -221,7 +225,7 @@ public class AwsTransformerTest {
     var request =
         UploadRequest.builder()
             .withKey(key)
-            .withMetadata(Map.of("correlation-id", "user-supplied"))
+            .withMetadata(Map.of("sdk-logging-correlation-id", "user-supplied"))
             .withOperationContext(ctx)
             .build();
 
@@ -229,8 +233,9 @@ public class AwsTransformerTest {
 
     assertEquals(
         "user-supplied",
-        actual.metadata().get("correlation-id"),
-        "application's explicit correlation-id metadata value must take precedence over the SDK's");
+        actual.metadata().get("sdk-logging-correlation-id"),
+        "application's explicit sdk-logging-correlation-id metadata value"
+            + " must take precedence over the SDK's");
   }
 
   @Test
@@ -334,6 +339,53 @@ public class AwsTransformerTest {
 
     assertTrue(asyncRequestBody.contentLength().isPresent());
     assertEquals(content.length, asyncRequestBody.contentLength().get());
+  }
+
+  @Test
+  void testToAsyncRequestBodyInputStreamWithoutContentLength() {
+    // When the caller omits contentLength (Optional per UploadRequest javadoc), the SDK must
+    // read the stream to EOF instead of interpreting the primitive default 0 as an empty body.
+    byte[] content = "This is test data".getBytes();
+    InputStream inputStream = new ByteArrayInputStream(content);
+    UploadRequest uploadRequest = UploadRequest.builder().withKey("key").build();
+
+    AsyncRequestBody asyncRequestBody = transformer.toAsyncRequestBody(uploadRequest, inputStream);
+
+    assertFalse(asyncRequestBody.contentLength().isPresent());
+  }
+
+  @Test
+  void testToRequestBodyInputStreamWithContentLength() throws Exception {
+    byte[] content = "This is test data".getBytes();
+    InputStream inputStream = new ByteArrayInputStream(content);
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey("key").withContentLength(content.length).build();
+
+    RequestBody requestBody = transformer.toRequestBody(uploadRequest, inputStream);
+
+    assertTrue(requestBody.optionalContentLength().isPresent());
+    assertEquals(content.length, requestBody.optionalContentLength().get());
+    // Bytes streamed through the provider must match the input verbatim.
+    try (InputStream streamed = requestBody.contentStreamProvider().newStream()) {
+      assertArrayEquals(content, streamed.readAllBytes());
+    }
+  }
+
+  @Test
+  void testToRequestBodyInputStreamWithoutContentLength() throws Exception {
+    // Bug reproduction: without withContentLength(...) the previous code called
+    // RequestBody.fromInputStream(stream, 0) which uploads a zero-length body. The fixed
+    // path must produce an unknown-length RequestBody whose bytes still match the input.
+    byte[] content = "This is test data".getBytes();
+    InputStream inputStream = new ByteArrayInputStream(content);
+    UploadRequest uploadRequest = UploadRequest.builder().withKey("key").build();
+
+    RequestBody requestBody = transformer.toRequestBody(uploadRequest, inputStream);
+
+    assertFalse(requestBody.optionalContentLength().isPresent());
+    try (InputStream streamed = requestBody.contentStreamProvider().newStream()) {
+      assertArrayEquals(content, streamed.readAllBytes());
+    }
   }
 
   @Test
@@ -448,6 +500,73 @@ public class AwsTransformerTest {
     assertEquals(BUCKET, actual.bucket());
     assertEquals(key, actual.key());
     assertEquals(versionId, actual.versionId());
+    assertEquals(ChecksumMode.ENABLED, actual.checksumMode());
+  }
+
+  @Test
+  void testToRequest_downloadEnablesChecksumMode() {
+    var request = DownloadRequest.builder().withKey("some/key").build();
+    var actual = transformer.toRequest(request);
+    assertEquals(ChecksumMode.ENABLED, actual.checksumMode());
+  }
+
+  @Test
+  void testToDownloadResponse_preferSha256OverCrc32c() {
+    var request = DownloadRequest.builder().withKey("k").build();
+    GetObjectResponse response = mock(GetObjectResponse.class);
+    doReturn("sha256-value").when(response).checksumSHA256();
+    doReturn("crc32c-value").when(response).checksumCRC32C();
+
+    Checksum checksum =
+        transformer.toDownloadResponse(request, response).getMetadata().getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.SHA256, checksum.getAlgorithm());
+    assertEquals("sha256-value", checksum.getValue());
+  }
+
+  @Test
+  void testToDownloadResponse_preferCrc32cOverCrc64() {
+    var request = DownloadRequest.builder().withKey("k").build();
+    GetObjectResponse response = mock(GetObjectResponse.class);
+    doReturn("crc32c-value").when(response).checksumCRC32C();
+    doReturn("crc64-value").when(response).checksumCRC64NVME();
+
+    Checksum checksum =
+        transformer.toDownloadResponse(request, response).getMetadata().getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC32C, checksum.getAlgorithm());
+    assertEquals("crc32c-value", checksum.getValue());
+  }
+
+  @Test
+  void testToDownloadResponse_fallbackToCrc64NvmeMappedAsCrc64() {
+    var request = DownloadRequest.builder().withKey("k").build();
+    GetObjectResponse response = mock(GetObjectResponse.class);
+    doReturn("crc64nvme-value").when(response).checksumCRC64NVME();
+
+    Checksum checksum =
+        transformer.toDownloadResponse(request, response).getMetadata().getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC64, checksum.getAlgorithm());
+    assertEquals("crc64nvme-value", checksum.getValue());
+  }
+
+  @Test
+  void testToDownloadResponse_crc32OnlyReturnsNullChecksum() {
+    // SDK's WHEN_SUPPORTED default auto-attaches CRC32 on some PUTs; we intentionally do NOT
+    // surface it since ChecksumMethod does not expose CRC32.
+    var request = DownloadRequest.builder().withKey("k").build();
+    GetObjectResponse response = mock(GetObjectResponse.class);
+    doReturn("crc32-value").when(response).checksumCRC32();
+
+    assertNull(transformer.toDownloadResponse(request, response).getMetadata().getChecksum());
+  }
+
+  @Test
+  void testToDownloadResponse_noChecksumHeadersReturnsNull() {
+    var request = DownloadRequest.builder().withKey("k").build();
+    GetObjectResponse response = mock(GetObjectResponse.class);
+    assertNull(transformer.toDownloadResponse(request, response).getMetadata().getChecksum());
   }
 
   @Test
@@ -469,6 +588,53 @@ public class AwsTransformerTest {
     assertEquals(metadata, actual.getMetadata());
     assertEquals(1024L, actual.getObjectSize());
     assertEquals(now, actual.getLastModified());
+    assertNull(actual.getChecksum());
+  }
+
+  @Test
+  void testToMetadata_preferSha256() {
+    var response =
+        HeadObjectResponse.builder()
+            .contentLength(0L)
+            .checksumSHA256("sha256-value")
+            .checksumCRC32C("crc32c-value")
+            .checksumCRC64NVME("crc64-value")
+            .build();
+    Checksum checksum = transformer.toMetadata(response, "k").getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.SHA256, checksum.getAlgorithm());
+    assertEquals("sha256-value", checksum.getValue());
+  }
+
+  @Test
+  void testToMetadata_preferCrc32cOverCrc64() {
+    var response =
+        HeadObjectResponse.builder()
+            .contentLength(0L)
+            .checksumCRC32C("crc32c-value")
+            .checksumCRC64NVME("crc64-value")
+            .build();
+    Checksum checksum = transformer.toMetadata(response, "k").getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC32C, checksum.getAlgorithm());
+    assertEquals("crc32c-value", checksum.getValue());
+  }
+
+  @Test
+  void testToMetadata_fallbackToCrc64NvmeMappedAsCrc64() {
+    var response =
+        HeadObjectResponse.builder().contentLength(0L).checksumCRC64NVME("crc64-value").build();
+    Checksum checksum = transformer.toMetadata(response, "k").getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC64, checksum.getAlgorithm());
+    assertEquals("crc64-value", checksum.getValue());
+  }
+
+  @Test
+  void testToMetadata_crc32OnlyReturnsNullChecksum() {
+    var response =
+        HeadObjectResponse.builder().contentLength(0L).checksumCRC32("crc32-value").build();
+    assertNull(transformer.toMetadata(response, "k").getChecksum());
   }
 
   @Test

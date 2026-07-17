@@ -9,6 +9,7 @@ import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -79,7 +80,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
    * so the value is stored on the blob alongside the user's metadata and matches the correlation
    * id that appears in the same upload's logs and trace span.
    */
-  public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
+  public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
 
   // Shared storage across all instances - key is "bucket:key:versionId"
   private static final Map<String, StoredBlob> STORAGE = new ConcurrentHashMap<>();
@@ -531,6 +532,14 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .createdTime(blob.getLastModified())
         .contentType(blob.getContentType())
         .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
+        .checksum(toDriverChecksum(blob.getData()))
+        .build();
+  }
+
+  private Checksum toDriverChecksum(byte[] data) {
+    return Checksum.builder()
+        .algorithm(ChecksumMethod.CRC32C)
+        .value(computeCrc32cChecksum(data))
         .build();
   }
 
@@ -1083,6 +1092,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .createdTime(blob.getLastModified())
                 .contentType(blob.getContentType())
                 .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
+                .checksum(toDriverChecksum(blob.getData()))
                 .build())
         .build();
   }
@@ -1103,6 +1113,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .createdTime(blob.getLastModified())
                 .contentType(blob.getContentType())
                 .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
+                .checksum(toDriverChecksum(blob.getData()))
                 .build())
         .inputStream(inputStream)
         .build();
