@@ -318,18 +318,6 @@ public class TestsUtil {
     stubCounter.set(0);
 
     boolean isRecordingEnabled = System.getProperty("record") != null;
-
-    // In replay mode, reset every WireMock scenario back to its "Started" state before each test.
-    // Recorded stubs for a single test form a self-contained scenario state machine that begins at
-    // "Started", but scenario state is global to the shared server and is not otherwise reset
-    // between tests. Without this reset, a test that leaves a scenario parked in a non-initial
-    // state can cause a later test's first request to match no stub; because the server is a
-    // browser proxy, that request is then forwarded to the live cloud endpoint and fails. Resetting
-    // scenarios (which leaves stub mappings intact) makes replay deterministic regardless of the
-    // order in which the test framework runs methods.
-    if (!isRecordingEnabled) {
-      wireMockServer.resetScenarios();
-    }
     RecordSpecBuilder recordSpec =
         recordSpec()
             // enforcing the cloud service to be always https
