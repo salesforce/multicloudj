@@ -122,6 +122,14 @@ public class Main {
     // in its object metadata.
     getLogger().info("received upload response {}", response);
     getLogger().info("correlation id echoed back: {}", response.getCorrelationId());
+
+    // Read the object back to demonstrate that the service id, tenant id and correlation id were
+    // stamped onto its metadata. serviceId / tenantId are not echoed on the response (the caller
+    // supplied them), so the object metadata is where their effect is observable.
+    BlobMetadata metadata = client.getMetadata("bucket-path/audited-object.jpg", null);
+    getLogger().info("stamped object metadata: {}", metadata.getMetadata());
+    // -> {sdk-logging-service-id=my-service, sdk-logging-tenant-id=tenant-1234,
+    //     sdk-logging-correlation-id=request-abc-987}
   }
 
   /**
