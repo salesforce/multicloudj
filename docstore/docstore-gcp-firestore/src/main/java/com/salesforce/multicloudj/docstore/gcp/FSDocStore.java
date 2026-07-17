@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -253,15 +254,24 @@ public class FSDocStore extends AbstractDocStore {
     Util.groupActions(actions, beforeGets, getList, writeList, atomicWriteList, afterGets);
 
     try {
-      // Run gets first (can be parallelized if needed)
+      // Sequenced gets that must complete before any writes are issued.
       runGets(beforeGets, beforeDo, batchSize);
+
+      // groupActions guarantees the get/write/atomic-write buckets address disjoint keys,
+      // so the non-atomic commit, the atomic commit, and the getList reads carry no ordering
+      // dependency and can be dispatched concurrently to overlap their Firestore round trips.
+      CompletableFuture<Void> writesTask =
+          CompletableFuture.runAsync(() -> runWritesBatched(writeList, beforeDo));
+      CompletableFuture<Void> atomicWritesTask =
+          CompletableFuture.runAsync(() -> runAtomicWrites(atomicWriteList, beforeDo));
+
+      // Run getList reads on the calling thread while the two commits are in flight.
       runGets(getList, beforeDo, batchSize);
 
-      // Process non-atomic writes in batches
-      runWritesBatched(writeList, beforeDo);
-
-      // Process atomic writes (transactions) - Requires different implementation
-      runAtomicWrites(atomicWriteList, beforeDo);
+      // Join the concurrent commits, surfacing their failures via ExecutionException
+      // so the original commit exception is unwrapped and rethrown below.
+      writesTask.get();
+      atomicWritesTask.get();
 
       // Run after gets
       runGets(afterGets, beforeDo, batchSize);
