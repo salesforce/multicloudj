@@ -17,12 +17,6 @@ import lombok.Setter;
  *
  * <p>A {@code null}/empty key means the previous page reached the end of the range, which the
  * docstore contract treats as "no more results".
- *
- * <p>Note: this is deliberately NOT the SQL {@code nextSearchToken}. That value is an internal,
- * size-driven streaming continuation that Tablestore only emits when a single result set overflows
- * a server response page; it is not a caller-resumable positional bookmark and comes back null for
- * bounded result sets. GetRange's {@code nextStartPrimaryKey} is the correct cursor for cross-call
- * pagination.
  */
 public class AliPaginationToken implements PaginationToken {
 

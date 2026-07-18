@@ -68,6 +68,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
@@ -588,10 +589,10 @@ public class AliDocStore extends AbstractDocStore {
     if (!isScan) {
       return;
     }
-    if (query.getOrderByField() != null && !query.getOrderByField().isEmpty()) {
+    if (StringUtils.isNotEmpty(query.getOrderByField())) {
       throw new InvalidArgumentException(
-          "query requires a table scan, but has an ordering requirement; add an index or provide"
-              + " Options.RunQueryFallback");
+          "query requires a table scan, but has an ordering requirement; add a secondary index"
+              + " whose key matches the order-by field");
     }
     if (!collectionOptions.isAllowScans()) {
       throw new InvalidArgumentException(
@@ -629,7 +630,7 @@ public class AliDocStore extends AbstractDocStore {
   // would drop matching rows and break continuation. Uses the resolved target's key columns
   // (base-table keys, or a secondary index's own key list) so index queries stay correct.
   private List<String> buildColumnsToGet(List<String> fieldPaths, List<String> pkColumns) {
-    if (fieldPaths == null || fieldPaths.isEmpty()) {
+    if (ObjectUtils.isEmpty(fieldPaths)) {
       return fieldPaths;
     }
     List<String> columnsToGet = new ArrayList<>(fieldPaths);

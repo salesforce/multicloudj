@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.Getter;
+import org.apache.commons.lang3.ObjectUtils;
 
 /**
  * Translates a docstore query's filter set into the primitives a Tablestore GetRange request needs:
@@ -81,9 +82,9 @@ public final class QueryPlanner {
 
   // What constrains one primary-key column. equality wins over range if both somehow present.
   private static final class ColumnConstraint {
-    PrimaryKeyValue equality; // null if no equality bound usable as a key value
-    Bound lower; // null if no lower range bound
-    Bound upper; // null if no upper range bound
+    PrimaryKeyValue equality;
+    Bound lower;
+    Bound upper;
 
     boolean hasEquality() {
       return equality != null;
@@ -105,7 +106,7 @@ public final class QueryPlanner {
    * @param orderAscending scan direction: ascending -> FORWARD, descending -> BACKWARD.
    */
   public static Plan plan(List<String> pkColumns, List<Filter> filters, boolean orderAscending) {
-    if (pkColumns == null || pkColumns.isEmpty()) {
+    if (ObjectUtils.isEmpty(pkColumns)) {
       throw new InvalidArgumentException("primary-key column list must not be empty");
     }
 
@@ -128,13 +129,15 @@ public final class QueryPlanner {
     //    start == end == the exact tuple, i.e. the empty half-open range [X, X), which wrongly
     //    excludes the matching row. Demotion routes it through the terminal-range path (inclusive
     //    start at v, end widened open) and the column filter trims back to exactly v.
-    int rc;
-    int eqLen;
-    Bound lower;
-    Bound upper;
+    // Default: no usable range column (e.g. empty filters, or an equality after a gap) -> a fully
+    // open trailing tail from eqPrefixLen onward. The two branches below override when a genuine or
+    // demoted range column exists.
+    int rc = -1;
+    int eqLen = eqPrefixLen;
+    Bound lower = null;
+    Bound upper = null;
     if (eqPrefixLen < n && pkConstraints.get(pkColumns.get(eqPrefixLen)).hasRange()) {
       rc = eqPrefixLen;
-      eqLen = eqPrefixLen;
       ColumnConstraint rangeCol = pkConstraints.get(pkColumns.get(rc));
       lower = rangeCol.lower;
       upper = rangeCol.upper;
@@ -144,13 +147,6 @@ public final class QueryPlanner {
       PrimaryKeyValue v = pkConstraints.get(pkColumns.get(rc)).equality;
       lower = bound(v, true);
       upper = bound(v, true);
-    } else {
-      // No usable range column (e.g. empty filters, or an equality after a gap): a fully open
-      // trailing tail from eqPrefixLen onward.
-      rc = -1;
-      eqLen = eqPrefixLen;
-      lower = null;
-      upper = null;
     }
     boolean terminal = rc == n - 1;
 

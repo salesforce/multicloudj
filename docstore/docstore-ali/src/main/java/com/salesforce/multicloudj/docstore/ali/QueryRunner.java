@@ -10,6 +10,7 @@ import com.alicloud.openservices.tablestore.model.Row;
 import com.alicloud.openservices.tablestore.model.filter.Filter;
 import java.util.List;
 import lombok.Getter;
+import org.apache.commons.lang3.ObjectUtils;
 
 /**
  * Executes a query against the Tablestore native GetRange API (over the base table or a secondary
@@ -90,7 +91,7 @@ public class QueryRunner {
     if (columnFilter != null) {
       criteria.setFilter(columnFilter);
     }
-    if (columnsToGet != null && !columnsToGet.isEmpty()) {
+    if (!ObjectUtils.isEmpty(columnsToGet)) {
       criteria.addColumnsToGet(columnsToGet);
     }
 
