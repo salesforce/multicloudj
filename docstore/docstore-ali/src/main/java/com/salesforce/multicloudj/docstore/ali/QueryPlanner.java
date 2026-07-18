@@ -23,8 +23,8 @@ import org.apache.commons.lang3.ObjectUtils;
  * a primary-key range {@code [inclusiveStart, exclusiveEnd)}, a scan {@link Direction}, and a
  * server-side column {@link ColumnValueFilter}.
  *
- * <p>Generic over primary-key arity (1, 2, 3+ columns): it walks the target table/index's full
- * ordered primary-key column list and never assumes a fixed partition/sort shape.
+ * <p>Walks the target's (base table or secondary index) ordered key-column list rather than
+ * assuming a fixed partition/sort shape.
  *
  * <p><b>Two-layer design.</b>
  *
@@ -44,13 +44,11 @@ import org.apache.commons.lang3.ObjectUtils;
  * into that structure (e.g. {@code IN}/{@code NOT_IN}, or an equality after a gap) still appear in
  * the column filter, so they remain enforced.
  *
- * <p><b>Boundary representation.</b> Tablestore's {@code inclusiveStartPrimaryKey} is always
- * inclusive and {@code exclusiveEndPrimaryKey} always exclusive. For a non-terminal range column we
- * can realize any of {@code >, >=, <, <=} exactly using an {@code INF_MIN}/{@code INF_MAX} tail
- * fill (there is a trailing slot to nudge). For the terminal (last) PK column there is no trailing
- * slot, so the two operators whose exactness needs one — forward {@code >} and {@code <=} (and the
- * backward mirrors) — are widened by one boundary group and the column filter removes the extra
- * rows.
+ * <p><b>Boundary representation.</b> For a non-terminal range column we can realize any of
+ * {@code >, >=, <, <=} exactly using an {@code INF_MIN}/{@code INF_MAX} tail fill (there is a
+ * trailing slot to nudge). For the terminal (last) PK column there is no trailing slot, so the two
+ * operators whose exactness needs one — forward {@code >} and {@code <=} (and the backward mirrors)
+ * — are widened by one boundary group and the column filter removes the extra rows.
  */
 public final class QueryPlanner {
 
