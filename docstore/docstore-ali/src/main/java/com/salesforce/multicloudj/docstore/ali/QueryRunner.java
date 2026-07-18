@@ -66,10 +66,6 @@ public class QueryRunner {
     this.columnsToGet = columnsToGet;
   }
 
-  public String queryPlan() {
-    return "GetRange:" + tableName;
-  }
-
   /**
    * Fetches a single GetRange page.
    *

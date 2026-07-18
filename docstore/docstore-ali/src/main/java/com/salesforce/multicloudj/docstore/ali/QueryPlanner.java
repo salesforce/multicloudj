@@ -315,8 +315,11 @@ public final class QueryPlanner {
       }
       PrimaryKeyValue pkv = toPrimaryKeyValue(f.getValue());
       if (pkv == null) {
-        // Value type not representable as a primary key (e.g. Double/Boolean). Leave this column
-        // unconstrained in the bounds; the column filter still enforces it.
+        // The value's type cannot be a Tablestore primary key (STRING/INTEGER/BINARY) -- e.g. a
+        // Double or Boolean compared against a key column. This is NOT swallowed: the predicate is
+        // still emitted as a column filter (the correctness layer), which enforces it exactly; we
+        // only skip using it as a key range bound (the seek-optimization layer). Bounds must never
+        // over-exclude, so an unrepresentable value simply leaves this column's range open.
         continue;
       }
       switch (f.getOp()) {
