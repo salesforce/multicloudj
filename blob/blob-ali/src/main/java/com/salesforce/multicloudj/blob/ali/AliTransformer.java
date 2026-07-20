@@ -74,6 +74,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.InputStream;
@@ -103,7 +104,7 @@ public class AliTransformer {
    * logs and trace span.
    */
   public static final String CORRELATION_ID_METADATA_KEY =
-      "sdk-logging-correlation-id";
+      SdkLoggingMetadataKeys.CORRELATION_ID;
 
   private final String bucket;
 
