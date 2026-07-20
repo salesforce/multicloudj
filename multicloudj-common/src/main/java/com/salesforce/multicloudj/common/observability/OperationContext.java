@@ -25,11 +25,6 @@ import lombok.Value;
  * additionally stamp all three identifiers onto the stored object's metadata (under {@code
  * sdk-logging-*} keys) so cloud audit logs can be traced back to the originating request, tenant,
  * and service.
- *
- * <p><b>Provider note:</b> the {@code ali} provider currently stamps only {@code correlationId}
- * onto stored objects; {@code serviceId} and {@code tenantId} are not yet persisted there. Callers
- * relying on object-metadata stamping for audit-log attribution should not assume service/tenant
- * ids are present on objects stored via {@code ali} (tracked by W-23517760).
  */
 @Value
 @Builder(toBuilder = true)

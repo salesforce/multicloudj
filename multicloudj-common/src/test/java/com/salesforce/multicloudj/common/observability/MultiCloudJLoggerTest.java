@@ -376,8 +376,6 @@ class MultiCloudJLoggerTest {
     assertNull(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
   }
 
-  // --- tenantId ------------------------------------------------------------
-
   @Test
   void tenantId_provided_setOnSpanAttributeAndMdc() {
     MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
@@ -501,8 +499,6 @@ class MultiCloudJLoggerTest {
     assertNotNull(resolved.get().getCorrelationId(), "correlation_id is always generated");
     assertNull(resolved.get().getTenantId(), "tenant_id must NOT be auto-generated");
   }
-
-  // --- serviceId -----------------------------------------------------------
 
   @Test
   void serviceId_provided_setOnSpanAttributeAndMdc() {
