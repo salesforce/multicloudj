@@ -1,11 +1,11 @@
 {
-  "id" : "73b8e3b6-b6bf-443f-9847-9f46259005eb",
+  "id" : "d793e474-eaaf-4fa2-bfd3-469639584ff2",
   "name" : "AliDocstoreIT_testPut-POST-6",
   "request" : {
     "url" : "/PutRow",
     "method" : "POST",
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"op\":\"PutRow\",\"table\":\"docstore_test_1\",\"rows\":[{\"pk\":{\"pName\":{\"t\":\"PK:STRING\",\"v\":\"TaylorPut\"}},\"cells\":{\"DocstoreRevision\":{\"t\":\"STRING\",\"v\":\"65e491ad-3985-e16e-3b4e-9ad4294c76c2\"},\"b\":{\"t\":\"BOOLEAN\",\"v\":\"true\"},\"s\":{\"t\":\"STRING\",\"v\":\"randomString\"},\"f\":{\"t\":\"DOUBLE\",\"v\":\"12.65999984741211\"},\"bytes\":{\"t\":\"BINARY\",\"v\":\"[114, 97, 110, 100, 111, 109, 83, 116, 114, 105, 110, 103]\"},\"i\":{\"t\":\"INTEGER\",\"v\":\"121\"}},\"deleteMarker\":false}],\"condition\":\"0800\"}",
+      "equalToJson" : "{\"op\":\"PutRow\",\"table\":\"docstore_test_1\",\"rows\":[{\"pk\":{\"pName\":{\"t\":\"PK:STRING\",\"v\":\"TaylorPut\"}},\"cells\":{\"DocstoreRevision\":{\"t\":\"STRING\",\"v\":\"ce07a24b-e938-5968-7bba-a47ed029bf4f\"},\"b\":{\"t\":\"BOOLEAN\",\"v\":\"true\"},\"s\":{\"t\":\"STRING\",\"v\":\"randomString\"},\"f\":{\"t\":\"DOUBLE\",\"v\":\"12.65999984741211\"},\"bytes\":{\"t\":\"BINARY\",\"v\":\"[114, 97, 110, 100, 111, 109, 83, 116, 114, 105, 110, 103]\"},\"i\":{\"t\":\"INTEGER\",\"v\":\"121\"}},\"deleteMarker\":false}],\"condition\":\"0800\"}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -14,15 +14,15 @@
     "status" : 200,
     "base64Body" : "CgYKBAgAEAE=",
     "headers" : {
-      "x-ots-requestid" : "00065686-425f-cccb-04c6-ca0b8f4460d2",
-      "Authorization" : "OTS STS.NZ4t1Qj6gdbCPL1YhyAQVemt3:WjBP1sBNfIWf8lyRA8simFZiftk=",
-      "x-ots-date" : "2026-07-13T23:14:59.452977Z",
+      "x-ots-requestid" : "000656c7-6f5a-a6eb-7276-700b01a8cec1",
+      "Authorization" : "OTS STS.NZMrJSWwKCLnZ9SeEi7Qzq3yc:1NyRtplEERvlx/jhooks0uika4s=",
+      "x-ots-date" : "2026-07-17T05:00:26.973736Z",
       "x-ots-contenttype" : "protocol buffer",
       "x-ots-contentmd5" : "cGqcInR86zj/8Pah1LWaHg==",
-      "Date" : "Mon, 13 Jul 2026 23:14:59 GMT"
+      "Date" : "Fri, 17 Jul 2026 05:00:26 GMT"
     }
   },
-  "uuid" : "73b8e3b6-b6bf-443f-9847-9f46259005eb",
+  "uuid" : "d793e474-eaaf-4fa2-bfd3-469639584ff2",
   "persistent" : true,
-  "insertionIndex" : 136
+  "insertionIndex" : 203
 }

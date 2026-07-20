@@ -69,8 +69,9 @@ public class PresignedUrlRequest {
   private final ChecksumMethod checksumAlgorithm;
 
   /**
-   * (Optional) Per-call observability context carrying the correlation ID. If null or if its
-   * correlation ID is missing, the SDK auto-generates a UUID for log/trace correlation.
+   * (Optional) Per-call observability context carrying the correlation ID. The correlation ID is
+   * never auto-generated; when it is null or missing it defaults to an empty string and tracing is
+   * treated as disabled for log/trace correlation.
    */
   private final OperationContext operationContext;
 }

@@ -1,5 +1,5 @@
 {
-  "id" : "22e6f12d-86aa-4153-8059-9db3247a6430",
+  "id" : "afca187b-6580-4f39-9269-b74d9bbff6cf",
   "name" : "AliDocstoreIT_testDelete-POST-1",
   "request" : {
     "url" : "/BatchGetRow",
@@ -12,15 +12,15 @@
     "status" : 200,
     "base64Body" : "Ch0KD2RvY3N0b3JlX3Rlc3RfMRIKCAEaBgoECAEQAA==",
     "headers" : {
-      "x-ots-requestid" : "00065686-459d-3dba-4e07-fe0aa21c839f",
-      "Authorization" : "OTS STS.NZ4t1Qj6gdbCPL1YhyAQVemt3:GhoTgEjh7P3zvakj/tciKp4Hs5I=",
-      "x-ots-date" : "2026-07-13T23:15:53.803973Z",
+      "x-ots-requestid" : "000656c7-7435-d22d-7276-700b01ab1f18",
+      "Authorization" : "OTS STS.NZMrJSWwKCLnZ9SeEi7Qzq3yc:8pOf8px2uw9/2wIiaNKfu1cZLUk=",
+      "x-ots-date" : "2026-07-17T05:01:48.444179Z",
       "x-ots-contenttype" : "protocol buffer",
       "x-ots-contentmd5" : "8UIfmMlkxRs6uIXJBIRBzw==",
-      "Date" : "Mon, 13 Jul 2026 23:15:53 GMT"
+      "Date" : "Fri, 17 Jul 2026 05:01:48 GMT"
     }
   },
-  "uuid" : "22e6f12d-86aa-4153-8059-9db3247a6430",
+  "uuid" : "afca187b-6580-4f39-9269-b74d9bbff6cf",
   "persistent" : true,
-  "insertionIndex" : 194
+  "insertionIndex" : 261
 }

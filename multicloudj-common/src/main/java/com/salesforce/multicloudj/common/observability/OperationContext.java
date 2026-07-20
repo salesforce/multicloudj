@@ -10,8 +10,10 @@ import lombok.Value;
  * logs, traces, and audit records:
  *
  * <ul>
- *   <li>{@code correlationId} — identifies a single logical request. If not supplied, the SDK
- *       generates a UUID and echoes it back on the response so the caller can correlate.
+ *   <li>{@code correlationId} — identifies a single logical request. Optional and never
+ *       auto-generated; when no context (or no correlation id) is supplied, it defaults to an
+ *       empty string and tracing is treated as disabled for that operation. When provided, it is
+ *       echoed back on the response so the caller can correlate.
  *   <li>{@code tenantId} — identifies the tenant on whose behalf the operation runs. Never
  *       auto-generated; never echoed back.
  *   <li>{@code serviceId} — identifies the calling service. Never auto-generated; never echoed
@@ -27,15 +29,17 @@ import lombok.Value;
  * <p><b>Provider note:</b> the {@code ali} provider currently stamps only {@code correlationId}
  * onto stored objects; {@code serviceId} and {@code tenantId} are not yet persisted there. Callers
  * relying on object-metadata stamping for audit-log attribution should not assume service/tenant
- * ids are present on objects stored via {@code ali}.
+ * ids are present on objects stored via {@code ali} (tracked by W-23517760).
  */
 @Value
 @Builder(toBuilder = true)
 public class OperationContext {
 
   /**
-   * Application-supplied correlation ID. If {@code null} or empty, the SDK generates a UUID and
-   * returns it via the response object so the caller can correlate logs and traces.
+   * Application-supplied correlation ID used to correlate this operation's logs and traces.
+   * Optional; never auto-generated. If {@code null} or empty, it defaults to an empty string and
+   * tracing is treated as disabled for that operation. When provided, it is echoed back via the
+   * response object so the caller can correlate logs and traces.
    */
   String correlationId;
 
