@@ -91,9 +91,9 @@ public class Main {
    * logs (e.g. S3 server access logs / GCS data access logs) can be traced back to the calling
    * service and tenant.
    *
-   * <p>The {@code correlationId} is optional: if omitted, the SDK auto-generates a UUID and echoes
-   * it back on the {@link UploadResponse}. The {@code serviceId} and {@code tenantId} are supplied
-   * by the caller and are never auto-generated.
+   * <p>The {@code correlationId} is optional; when supplied it is echoed back on the {@link
+   * UploadResponse} so the caller can correlate this request across its own logs and traces. The
+   * {@code serviceId} and {@code tenantId} are supplied by the caller and are never auto-generated.
    */
   public static void uploadWithServiceAndTenantId() {
     BucketClient client = getBucketClient(getProvider());
@@ -105,7 +105,7 @@ public class Main {
         OperationContext.builder()
             .serviceId("my-service")
             .tenantId("tenant-1234")
-            .correlationId("request-abc-987") // optional; SDK generates one if omitted
+            .correlationId("request-abc-987") // optional; echoed back on the response
             .build();
 
     // Attach the context to the upload request via withOperationContext(...).

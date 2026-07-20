@@ -35,6 +35,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.IOException;
@@ -119,24 +120,21 @@ public class AwsTransformer {
 
   /**
    * Object-metadata key under which the SDK persists the operation correlation id during upload,
-   * so the value is stored on the blob (as {@code x-amz-meta-sdk-logging-correlation-id} in S3)
-   * and matches the correlation id that appears in the same upload's logs and trace span.
+   * surfacing as {@code x-amz-meta-sdk-logging-correlation-id} in S3.
    */
-  public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
+  public static final String CORRELATION_ID_METADATA_KEY = SdkLoggingMetadataKeys.CORRELATION_ID;
 
   /**
-   * Object-metadata key under which the SDK persists the operation service id during upload, so
-   * the value is stored on the blob (as {@code x-amz-meta-sdk-logging-service-id} in S3) and the
-   * calling service can be traced from the object's S3 access/audit logs.
+   * Object-metadata key under which the SDK persists the operation service id during upload,
+   * surfacing as {@code x-amz-meta-sdk-logging-service-id} in S3.
    */
-  public static final String SERVICE_ID_METADATA_KEY = "sdk-logging-service-id";
+  public static final String SERVICE_ID_METADATA_KEY = SdkLoggingMetadataKeys.SERVICE_ID;
 
   /**
-   * Object-metadata key under which the SDK persists the operation tenant id during upload, so the
-   * value is stored on the blob (as {@code x-amz-meta-sdk-logging-tenant-id} in S3) and the tenant
-   * can be traced from the object's S3 access/audit logs.
+   * Object-metadata key under which the SDK persists the operation tenant id during upload,
+   * surfacing as {@code x-amz-meta-sdk-logging-tenant-id} in S3.
    */
-  public static final String TENANT_ID_METADATA_KEY = "sdk-logging-tenant-id";
+  public static final String TENANT_ID_METADATA_KEY = SdkLoggingMetadataKeys.TENANT_ID;
 
   /** Default MIME type used for the request body when the caller does not provide one. */
   private static final String OCTET_STREAM_MIME = "application/octet-stream";

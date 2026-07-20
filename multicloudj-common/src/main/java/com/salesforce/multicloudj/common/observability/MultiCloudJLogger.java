@@ -255,6 +255,8 @@ public class MultiCloudJLogger {
     spanBuilder.setAttribute(ATTR_CORRELATION_ID, effectiveContext.getCorrelationId());
     spanBuilder.setAttribute(ATTR_SDK_SERVICE, serviceName);
     spanBuilder.setAttribute(ATTR_SDK_PROVIDER, providerId);
+    // Blank (null/empty/whitespace-only) tenant and service ids are treated as absent and not
+    // attached, so downstream consumers never see a blank tenant_id/service_id attribute.
     if (StringUtils.isNotBlank(effectiveContext.getTenantId())) {
       spanBuilder.setAttribute(ATTR_TENANT_ID, effectiveContext.getTenantId());
     }

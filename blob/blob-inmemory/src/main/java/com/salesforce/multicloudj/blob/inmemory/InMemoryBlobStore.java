@@ -39,6 +39,7 @@ import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -76,25 +77,22 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   private static final String PROVIDER_ID = "memory";
 
   /**
-   * Object-metadata key under which the SDK persists the operation correlation id during upload,
-   * so the value is stored on the blob alongside the user's metadata and matches the correlation
-   * id that appears in the same upload's logs and trace span.
+   * Object-metadata key under which the SDK persists the operation correlation id during upload, so
+   * the value is stored on the blob alongside the user's metadata.
    */
-  public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
+  public static final String CORRELATION_ID_METADATA_KEY = SdkLoggingMetadataKeys.CORRELATION_ID;
 
   /**
-   * Object-metadata key under which the SDK persists the operation service id during upload, so
-   * the value is stored on the blob alongside the user's metadata and the calling service can be
-   * traced from the stored object.
+   * Object-metadata key under which the SDK persists the operation service id during upload, so the
+   * value is stored on the blob alongside the user's metadata.
    */
-  public static final String SERVICE_ID_METADATA_KEY = "sdk-logging-service-id";
+  public static final String SERVICE_ID_METADATA_KEY = SdkLoggingMetadataKeys.SERVICE_ID;
 
   /**
    * Object-metadata key under which the SDK persists the operation tenant id during upload, so the
-   * value is stored on the blob alongside the user's metadata and the tenant can be traced from
-   * the stored object.
+   * value is stored on the blob alongside the user's metadata.
    */
-  public static final String TENANT_ID_METADATA_KEY = "sdk-logging-tenant-id";
+  public static final String TENANT_ID_METADATA_KEY = SdkLoggingMetadataKeys.TENANT_ID;
 
   // Shared storage across all instances - key is "bucket:key:versionId"
   private static final Map<String, StoredBlob> STORAGE = new ConcurrentHashMap<>();

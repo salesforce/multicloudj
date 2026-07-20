@@ -29,6 +29,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.IOException;
@@ -60,25 +61,22 @@ public class GcpTransformer {
   private static final String TAG_PREFIX = "gcp-tag-";
 
   /**
-   * Object-metadata key under which the SDK persists the operation correlation id during upload,
-   * so the value is stored on the blob in GCS and matches the correlation id that appears in the
-   * same upload's logs and trace span.
+   * Object-metadata key under which the SDK persists the operation correlation id during upload, so
+   * the value is stored on the blob in GCS.
    */
-  public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
+  public static final String CORRELATION_ID_METADATA_KEY = SdkLoggingMetadataKeys.CORRELATION_ID;
 
   /**
-   * Object-metadata key under which the SDK persists the operation service id during upload, so
-   * the value is stored on the blob in GCS and the calling service can be traced from the object's
-   * GCS audit logs.
+   * Object-metadata key under which the SDK persists the operation service id during upload, so the
+   * value is stored on the blob in GCS.
    */
-  public static final String SERVICE_ID_METADATA_KEY = "sdk-logging-service-id";
+  public static final String SERVICE_ID_METADATA_KEY = SdkLoggingMetadataKeys.SERVICE_ID;
 
   /**
    * Object-metadata key under which the SDK persists the operation tenant id during upload, so the
-   * value is stored on the blob in GCS and the tenant can be traced from the object's GCS audit
-   * logs.
+   * value is stored on the blob in GCS.
    */
-  public static final String TENANT_ID_METADATA_KEY = "sdk-logging-tenant-id";
+  public static final String TENANT_ID_METADATA_KEY = SdkLoggingMetadataKeys.TENANT_ID;
 
   public GcpTransformer(String bucket) {
     this.bucket = bucket;
