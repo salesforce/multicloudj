@@ -1,45 +1,50 @@
 {
-  "id" : "4d20769c-cead-487e-a51a-6db06ef82f19",
+  "id" : "acaef79d-40ea-4a7a-9f79-9aec5ed0c55d",
   "name" : "GcpBlobStoreIT_testVersionedDownload_noVersionId-GET-8",
   "request" : {
-    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "urlPath" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fversioned_download_no_versionId_versioned",
     "method" : "GET",
     "headers" : {
       "X-Query-Param-Count" : {
-        "equalTo" : "2"
+        "equalTo" : "1"
       }
     },
     "queryParameters" : {
-      "maxResults" : {
+      "alt" : {
         "hasExactly" : [ {
-          "equalTo" : "1"
-        } ]
-      },
-      "projection" : {
-        "hasExactly" : [ {
-          "equalTo" : "full"
+          "equalTo" : "media"
         } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"nextPageToken\": \"Cidjb25mb3JtYW5jZS10ZXN0cy9vYmplY3Rsb2NrL2xlZ2FsLWhvbGQ=\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/objectlock/legal-hold/1770354569251017\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Flegal-hold\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Flegal-hold?generation=1770354569251017&alt=media\",\n      \"name\": \"conformance-tests/objectlock/legal-hold\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n      \"generation\": \"1770354569251017\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"27\",\n      \"md5Hash\": \"TRQZ8WSU+pMmjJZKRHoHBw==\",\n      \"crc32c\": \"8r/jMg==\",\n      \"etag\": \"CMmR6NmMxJIDEAE=\",\n      \"temporaryHold\": true,\n      \"timeCreated\": \"2026-02-06T05:09:29.301Z\",\n      \"updated\": \"2026-02-06T05:09:29.301Z\",\n      \"timeStorageClassUpdated\": \"2026-02-06T05:09:29.301Z\",\n      \"timeFinalized\": \"2026-02-06T05:09:29.301Z\"\n    }\n  ]\n}\n",
+    "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGE=",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
-      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
-      "X-GUploader-UploadID" : "AGQBYWyGd4kNy5w6_gvObb0smBgKYf1YLioZYKfNat66ba5tQsvDT1n4ThPK30v6KXUTERVkqcYBYpaEcyGR",
+      "X-Goog-Generation" : "1784554981546458",
+      "Pragma" : "no-cache",
+      "Last-Modified" : "Mon, 20 Jul 2026 13:43:01 GMT",
+      "X-Goog-Metageneration" : "1",
+      "Date" : "Mon, 20 Jul 2026 13:43:02 GMT",
+      "X-Goog-Stored-Content-Encoding" : "identity",
+      "X-Goog-Hash" : "crc32c=E30mnQ==,md5=cBu9S94e4E47BZb2OZTrrg==",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CNqzh66x4ZUDEAE=",
+      "Content-Disposition" : "attachment",
+      "X-Goog-Storage-Class" : "STANDARD",
+      "X-GUploader-UploadID" : "AKhXX7L6pzNh84KZwIBGxaF5HB3D5hq-a5Jw3wvS9H7fxIpBw0iOUKf6lt87Cb4i45jqm-1B",
       "Vary" : [ "Origin", "X-Origin" ],
-      "Expires" : "Wed, 04 Mar 2026 21:03:48 GMT",
-      "Date" : "Wed, 04 Mar 2026 21:03:48 GMT",
-      "Content-Type" : "application/json; charset=UTF-8"
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "X-Goog-Stored-Content-Length" : "17",
+      "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "4d20769c-cead-487e-a51a-6db06ef82f19",
+  "uuid" : "acaef79d-40ea-4a7a-9f79-9aec5ed0c55d",
   "persistent" : true,
-  "scenarioName" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o",
-  "requiredScenarioState" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-3",
-  "newScenarioState" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-4",
-  "insertionIndex" : 109
+  "scenarioName" : "scenario-3-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-versioned_download_no_versionId_versioned",
+  "requiredScenarioState" : "scenario-3-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-versioned_download_no_versionId_versioned-2",
+  "newScenarioState" : "scenario-3-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-versioned_download_no_versionId_versioned-3",
+  "insertionIndex" : 1410
 }
