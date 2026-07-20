@@ -751,6 +751,25 @@
                 </plugins>
             </build>
         </profile>
+
+        <!--
+          Benchmarks run under -DrunBenchmarks=true. The JaCoCo agent instruments every class in
+          the forked JMH JVM, which distorts throughput/latency measurements (observed ~40% lower).
+          Auto-activate on that property to skip coverage instrumentation, so a benchmark run is
+          never silently measured with the agent attached. No effect on normal test/verify runs.
+        -->
+        <profile>
+            <id>benchmark</id>
+            <activation>
+                <property>
+                    <name>runBenchmarks</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <properties>
+                <jacoco.skip>true</jacoco.skip>
+            </properties>
+        </profile>
     </profiles>
 
     <reporting>
