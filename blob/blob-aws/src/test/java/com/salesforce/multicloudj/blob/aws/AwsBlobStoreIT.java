@@ -4,10 +4,12 @@ import com.salesforce.multicloudj.blob.client.AbstractBlobStoreIT;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.common.aws.util.TestsUtilAws;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
@@ -113,6 +115,20 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
     @Override
     public String getMetadataHeader(String key) {
       return "x-amz-meta-" + key;
+    }
+
+    /**
+     * Records the {@code x-amz-meta-sdk-logging-*} request headers as stub match conditions so the
+     * replay-mode upload IT verifies the SDK actually sends the service/tenant/correlation ids on
+     * the PUT (not just that a recorded HEAD response echoes them back). If the SDK stops sending
+     * one of these headers, the recorded PUT stub no longer matches and the IT fails.
+     */
+    @Override
+    public List<String> getRecordingCaptureHeaders() {
+      return List.of(
+          getMetadataHeader(SdkLoggingMetadataKeys.SERVICE_ID),
+          getMetadataHeader(SdkLoggingMetadataKeys.TENANT_ID),
+          getMetadataHeader(SdkLoggingMetadataKeys.CORRELATION_ID));
     }
 
     @Override
