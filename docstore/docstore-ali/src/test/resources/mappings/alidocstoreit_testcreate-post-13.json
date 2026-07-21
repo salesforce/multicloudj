@@ -1,11 +1,11 @@
 {
-  "id" : "4d19241e-b54e-443a-92c6-19be6ae55538",
+  "id" : "caee8993-d0be-41c3-9d0e-d515350d98f7",
   "name" : "AliDocstoreIT_testCreate-POST-13",
   "request" : {
     "url" : "/DeleteRow",
     "method" : "POST",
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"op\":\"DeleteRow\",\"table\":\"docstore_test_1\",\"rows\":[{\"pk\":{\"pName\":{\"t\":\"PK:STRING\",\"v\":\"JohnReplace\"}},\"cells\":{},\"deleteMarker\":true}],\"condition\":\"0800\"}",
+      "equalToJson" : "{\"op\":\"DeleteRow\",\"table\":\"docstore_test_1\",\"rows\":[{\"pk\":{\"pName\":{\"t\":\"PK:STRING\",\"v\":\"KingReplace\"}},\"cells\":{},\"deleteMarker\":true}],\"condition\":\"0800\"}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -14,15 +14,15 @@
     "status" : 200,
     "base64Body" : "CgYKBAgAEAE=",
     "headers" : {
-      "x-ots-requestid" : "00065686-4403-19b6-8a07-fe0a985bd4ea",
-      "Authorization" : "OTS STS.NZ4t1Qj6gdbCPL1YhyAQVemt3:2EOHCwufW3lmZdsB6Q8JckKYVB0=",
-      "x-ots-date" : "2026-07-13T23:15:26.926264Z",
+      "x-ots-requestid" : "000656c7-719b-6cb4-848b-c20b02c17457",
+      "Authorization" : "OTS STS.NZMrJSWwKCLnZ9SeEi7Qzq3yc:zFuZmmpteb+FOR44VDInZWrjyx8=",
+      "x-ots-date" : "2026-07-17T05:01:04.759394Z",
       "x-ots-contenttype" : "protocol buffer",
       "x-ots-contentmd5" : "cGqcInR86zj/8Pah1LWaHg==",
-      "Date" : "Mon, 13 Jul 2026 23:15:26 GMT"
+      "Date" : "Fri, 17 Jul 2026 05:01:04 GMT"
     }
   },
-  "uuid" : "4d19241e-b54e-443a-92c6-19be6ae55538",
+  "uuid" : "caee8993-d0be-41c3-9d0e-d515350d98f7",
   "persistent" : true,
-  "insertionIndex" : 189
+  "insertionIndex" : 256
 }

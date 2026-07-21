@@ -50,6 +50,9 @@ public class AliDecoder implements Decoder {
     if (this.value instanceof Integer) {
       return (int) this.value;
     }
+    if (this.value instanceof Long) {
+      return Math.toIntExact((Long) this.value);
+    }
     return null;
   }
 
