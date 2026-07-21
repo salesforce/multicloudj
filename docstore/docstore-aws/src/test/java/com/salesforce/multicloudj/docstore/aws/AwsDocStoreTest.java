@@ -1076,4 +1076,149 @@ public class AwsDocStoreTest {
     query2.initGet(List.of("SomeAttribute1", "SomeAttribute2"));
     Assertions.assertTrue(docStore.globalFieldIncluded(query2, gsi));
   }
+
+  @Test
+  void testItemSizeValidation_underLimit() {
+    // Create a document that is well under the 400 KB limit
+    Book smallBook =
+        new Book(
+            "SmallBook",
+            person,
+            "WA",
+            Timestamp.newBuilder().setNanos(1000).build(),
+            3.99f,
+            new HashMap<>(Map.of("Chapter 1", 5)),
+            null);
+
+    Document document = new Document(smallBook);
+    TestAction create =
+        new TestAction(ActionKind.ACTION_KIND_CREATE, new Document(smallBook), null, null);
+
+    // Should not throw any exception
+    Assertions.assertDoesNotThrow(() -> docStore.newPut(create, null));
+  }
+
+  @Test
+  void testItemSizeValidation_justUnderLimit() {
+    // Create a document that is safely under the 400 KB limit
+    // Use 395 KB to ensure we're under the limit accounting for overhead
+    int targetSize = DynamoDbItemSizeCalculator.ITEM_SIZE_LIMIT_BYTES - 5000; // 5 KB safety margin
+
+    StringBuilder largeData = new StringBuilder(targetSize);
+    for (int i = 0; i < targetSize; i++) {
+      largeData.append("a");
+    }
+
+    Book largeBook =
+        new Book(
+            largeData.toString(), // Use large string as title
+            null,
+            "WA",
+            Timestamp.newBuilder().setNanos(1000).build(),
+            3.99f,
+            null,
+            null);
+
+    TestAction create =
+        new TestAction(ActionKind.ACTION_KIND_CREATE, new Document(largeBook), null, null);
+
+    // Should succeed - document is under the limit
+    Assertions.assertDoesNotThrow(() -> docStore.newPut(create, null));
+  }
+
+  @Test
+  void testItemSizeValidation_overLimit() {
+    // Create a document that definitely exceeds 400 KB
+    int targetSize = DynamoDbItemSizeCalculator.ITEM_SIZE_LIMIT_BYTES + 10000; // 10 KB over
+
+    StringBuilder largeData = new StringBuilder(targetSize);
+    for (int i = 0; i < targetSize; i++) {
+      largeData.append("a");
+    }
+
+    Book oversizedBook =
+        new Book(
+            largeData.toString(), // Large string as title
+            null,
+            "WA",
+            Timestamp.newBuilder().setNanos(1000).build(),
+            3.99f,
+            null,
+            null);
+
+    TestAction create =
+        new TestAction(ActionKind.ACTION_KIND_CREATE, new Document(oversizedBook), null, null);
+
+    // Should throw InvalidArgumentException
+    InvalidArgumentException exception =
+        Assertions.assertThrows(
+            InvalidArgumentException.class, () -> docStore.newPut(create, null));
+
+    Assertions.assertTrue(exception.getMessage().contains("exceeds DynamoDB item size limit"));
+    Assertions.assertTrue(exception.getMessage().contains("400 KB"));
+  }
+
+  @Test
+  void testItemSizeValidation_replaceAction() {
+    // Test that size validation also applies to REPLACE actions
+    // Make it significantly larger to account for attribute name overhead
+    int targetSize = DynamoDbItemSizeCalculator.ITEM_SIZE_LIMIT_BYTES + 50000;
+
+    StringBuilder largeData = new StringBuilder(targetSize);
+    for (int i = 0; i < targetSize; i++) {
+      largeData.append("a");
+    }
+
+    Book oversizedBook =
+        new Book(
+            largeData.toString(), // Use large string as title
+            null,
+            "WA",
+            Timestamp.newBuilder().setNanos(1000).build(),
+            3.99f,
+            null,
+            UUID.randomUUID().toString());
+
+    TestAction replace =
+        new TestAction(ActionKind.ACTION_KIND_REPLACE, new Document(oversizedBook), null, null);
+
+    // Should throw InvalidArgumentException for REPLACE as well
+    InvalidArgumentException exception =
+        Assertions.assertThrows(
+            InvalidArgumentException.class, () -> docStore.newPut(replace, null));
+
+    Assertions.assertTrue(exception.getMessage().contains("exceeds DynamoDB item size limit"));
+  }
+
+  @Test
+  void testItemSizeValidation_putAction() {
+    // Test that size validation also applies to PUT actions
+    // Make it significantly larger to account for attribute name overhead
+    int targetSize = DynamoDbItemSizeCalculator.ITEM_SIZE_LIMIT_BYTES + 50000;
+
+    StringBuilder largeData = new StringBuilder(targetSize);
+    for (int i = 0; i < targetSize; i++) {
+      largeData.append("b");
+    }
+
+    Book oversizedBook =
+        new Book(
+            largeData.toString(), // Use large string as title
+            null,
+            "CA",
+            Timestamp.newBuilder().setNanos(1000).build(),
+            3.99f,
+            null,
+            null);
+
+    TestAction put =
+        new TestAction(ActionKind.ACTION_KIND_PUT, new Document(oversizedBook), null, null);
+
+    // Should throw InvalidArgumentException for PUT as well
+    InvalidArgumentException exception =
+        Assertions.assertThrows(InvalidArgumentException.class, () -> docStore.newPut(put, null));
+
+    Assertions.assertTrue(exception.getMessage().contains("exceeds DynamoDB item size limit"));
+    Assertions.assertTrue(exception.getMessage().contains("bytes"));
+  }
 }

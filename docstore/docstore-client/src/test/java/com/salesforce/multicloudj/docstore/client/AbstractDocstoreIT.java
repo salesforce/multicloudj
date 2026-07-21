@@ -1425,4 +1425,123 @@ public abstract class AbstractDocstoreIT {
 
     docStoreClient.close();
   }
+
+  /**
+   * Tests that documents within size limits can be created successfully.
+   *
+   * <p>Positive scenario: Small documents should be accepted by all providers.
+   */
+  @Test
+  public void testCreateWithinSizeLimit() {
+    AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.withPK);
+    ActionList actions = docStore.getActions();
+
+    // Create a document well under any provider's size limit
+    Map<String, Object> smallDoc = new HashMap<>();
+    smallDoc.put("pName", "testSizeLimit");
+    smallDoc.put("data", "This is a small document");
+    smallDoc.put("number", 42);
+
+    Document document = new Document(smallDoc);
+
+    // Should succeed for all providers
+    Assertions.assertDoesNotThrow(() -> actions.create(document).run());
+
+    docStore.close();
+  }
+
+  /**
+   * Tests that oversized documents are rejected with a clear error message.
+   *
+   * <p>Negative scenario: AWS DynamoDB enforces a 400 KB item size limit and should throw
+   * InvalidArgumentException before attempting to write. Other providers may have different limits
+   * or no client-side validation.
+   *
+   * <p>This test verifies that AWS DynamoDB provides early fail-fast validation.
+   */
+  @Test
+  public void testCreateOversizedDocument() {
+    AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.withPK);
+    ActionList actions = docStore.getActions();
+
+    // Create a document that exceeds DynamoDB's 400 KB limit but may be under other providers'
+    // limits
+    // DynamoDB limit: 400 KB (409,600 bytes)
+    // Create a document with ~450 KB of data to ensure it exceeds DynamoDB limit
+    int targetSize = 450 * 1024; // 450 KB
+    StringBuilder largeData = new StringBuilder(targetSize);
+    for (int i = 0; i < targetSize; i++) {
+      largeData.append("a");
+    }
+
+    Map<String, Object> oversizedDoc = new HashMap<>();
+    oversizedDoc.put("pName", "testOversized");
+    oversizedDoc.put("largeData", largeData.toString());
+
+    Document document = new Document(oversizedDoc);
+
+    // AWS DynamoDB should throw InvalidArgumentException with a descriptive message
+    // Other providers may have different behavior based on their own limits
+    if ("aws".equals(docStore.getProviderId())) {
+      InvalidArgumentException exception =
+          Assertions.assertThrows(
+              InvalidArgumentException.class, () -> actions.create(document).run());
+
+      // Verify the error message is descriptive
+      Assertions.assertTrue(
+          exception.getMessage().contains("exceeds DynamoDB item size limit"),
+          "Error message should mention DynamoDB limit");
+      Assertions.assertTrue(
+          exception.getMessage().contains("400 KB"), "Error message should mention 400 KB limit");
+    } else {
+      // For non-AWS providers, document the behavior but don't enforce
+      // This test primarily validates AWS behavior
+    }
+
+    docStore.close();
+  }
+
+  /**
+   * Tests that oversized documents are rejected for PUT operations.
+   *
+   * <p>Similar to testCreateOversizedDocument but tests the PUT action path.
+   */
+  @Test
+  public void testPutOversizedDocument() {
+    AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.withPK);
+    ActionList actions = docStore.getActions();
+
+    // First create a small document
+    Map<String, Object> initialDoc = new HashMap<>();
+    initialDoc.put("pName", "testPutOversized");
+    initialDoc.put("data", "initial");
+    Document document = new Document(initialDoc);
+    actions.create(document).run();
+
+    // Now try to PUT an oversized update
+    int targetSize = 450 * 1024; // 450 KB
+    StringBuilder largeData = new StringBuilder(targetSize);
+    for (int i = 0; i < targetSize; i++) {
+      largeData.append("b");
+    }
+
+    Map<String, Object> oversizedDoc = new HashMap<>();
+    oversizedDoc.put("pName", "testPutOversized");
+    oversizedDoc.put("largeData", largeData.toString());
+
+    Document oversizedDocument = new Document(oversizedDoc);
+
+    // AWS DynamoDB should throw InvalidArgumentException
+    if ("aws".equals(docStore.getProviderId())) {
+      InvalidArgumentException exception =
+          Assertions.assertThrows(
+              InvalidArgumentException.class, () -> actions.put(oversizedDocument).run());
+
+      Assertions.assertTrue(
+          exception.getMessage().contains("exceeds DynamoDB item size limit"),
+          "Error message should mention DynamoDB limit");
+    }
+
+    docStore.close();
+  }
 }
