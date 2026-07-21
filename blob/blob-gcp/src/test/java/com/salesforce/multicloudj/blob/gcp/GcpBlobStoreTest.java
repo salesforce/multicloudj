@@ -349,6 +349,8 @@ class GcpBlobStoreTest {
     assertEquals(expectedResponse, response);
     verify(mockStorage).createFrom(
         eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
+    // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
+    verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
@@ -378,6 +380,8 @@ class GcpBlobStoreTest {
     assertEquals(expectedResponse, response);
     verify(mockStorage)
         .createFrom(eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class));
+    // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
+    verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
@@ -407,6 +411,8 @@ class GcpBlobStoreTest {
     assertEquals(expectedResponse, response);
     verify(mockStorage)
         .createFrom(eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class));
+    // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
+    verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
