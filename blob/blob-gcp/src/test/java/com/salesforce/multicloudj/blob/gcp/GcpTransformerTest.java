@@ -293,6 +293,148 @@ class GcpTransformerTest {
   }
 
   @Test
+  void testToBlobInfo_serviceIdAndTenantIdInjectedIntoMetadata() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("keystone-boxoffice")
+            .tenantId("tenant-42")
+            .build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
+    assertEquals(
+        "keystone-boxoffice",
+        blobInfo.getMetadata().get(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "transformer must persist the operation service_id under the well-known metadata key");
+    assertEquals(
+        "tenant-42",
+        blobInfo.getMetadata().get(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "transformer must persist the operation tenant_id under the well-known metadata key");
+  }
+
+  @Test
+  void testToBlobInfo_serviceIdAndTenantIdNotInjectedWhenAbsent() {
+    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertFalse(
+        blobInfo.getMetadata().containsKey(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "no service_id injection when the context has no serviceId");
+    assertFalse(
+        blobInfo.getMetadata().containsKey(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "no tenant_id injection when the context has no tenantId");
+  }
+
+  @Test
+  void testToBlobInfo_blankServiceIdAndTenantIdNotInjected() {
+    // Empty / whitespace-only ids must be treated as absent, not stamped as blank metadata.
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("")
+            .tenantId("   ")
+            .build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertFalse(
+        blobInfo.getMetadata().containsKey(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "blank serviceId must be skipped, not stamped as an empty metadata value");
+    assertFalse(
+        blobInfo.getMetadata().containsKey(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "blank tenantId must be skipped, not stamped as an empty metadata value");
+  }
+
+  @Test
+  void testToBlobInfo_userSuppliedServiceIdAndTenantIdNotOverwritten() {
+    OperationContext ctx =
+        OperationContext.builder().serviceId("sdk-service").tenantId("sdk-tenant").build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(
+                Map.of(
+                    GcpTransformer.SERVICE_ID_METADATA_KEY, "user-service",
+                    GcpTransformer.TENANT_ID_METADATA_KEY, "user-tenant"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals(
+        "user-service",
+        blobInfo.getMetadata().get(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "application's explicit service_id metadata value must take precedence");
+    assertEquals(
+        "user-tenant",
+        blobInfo.getMetadata().get(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "application's explicit tenant_id metadata value must take precedence");
+  }
+
+  @Test
+  void testToBlobInfo_serviceIdStampedWhenTenantIdAbsent() {
+    // Isolates the serviceId branch: serviceId present, tenantId absent.
+    OperationContext ctx = OperationContext.builder().serviceId("keystone-boxoffice").build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals(
+        "keystone-boxoffice",
+        blobInfo.getMetadata().get(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "serviceId must be stamped even when tenantId is absent");
+    assertFalse(
+        blobInfo.getMetadata().containsKey(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "no tenant_id injection when the context has no tenantId");
+  }
+
+  @Test
+  void testToBlobInfo_tenantIdStampedWhenServiceIdAbsent() {
+    // Isolates the tenantId branch: tenantId present, serviceId absent.
+    OperationContext ctx = OperationContext.builder().tenantId("tenant-42").build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals(
+        "tenant-42",
+        blobInfo.getMetadata().get(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "tenantId must be stamped even when serviceId is absent");
+    assertFalse(
+        blobInfo.getMetadata().containsKey(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "no service_id injection when the context has no serviceId");
+  }
+
+  @Test
   void testToBlobInfo_WithTagsOnly() {
     // Given
     Map<String, String> tags = new HashMap<>();

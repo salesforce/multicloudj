@@ -239,6 +239,161 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testUpload_serviceIdAndTenantIdInjectedIntoMetadata() {
+    var key = "some-key";
+    var ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("keystone-boxoffice")
+            .tenantId("tenant-42")
+            .build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "keystone-boxoffice",
+        actual.metadata().get("sdk-logging-service-id"),
+        "transformer must persist the operation service_id under the well-known metadata key");
+    assertEquals(
+        "tenant-42",
+        actual.metadata().get("sdk-logging-tenant-id"),
+        "transformer must persist the operation tenant_id under the well-known metadata key");
+  }
+
+  @Test
+  void testUpload_serviceIdAndTenantIdNotInjectedWhenAbsent() {
+    var key = "some-key";
+    // Context present with only a correlation id: service/tenant keys must not appear.
+    var ctx = OperationContext.builder().correlationId("req-abc-123").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertFalse(
+        actual.metadata().containsKey("sdk-logging-service-id"),
+        "no service_id injection when the context has no serviceId");
+    assertFalse(
+        actual.metadata().containsKey("sdk-logging-tenant-id"),
+        "no tenant_id injection when the context has no tenantId");
+  }
+
+  @Test
+  void testUpload_blankServiceIdAndTenantIdNotInjected() {
+    var key = "some-key";
+    // Empty / whitespace-only ids must be treated as absent, not stamped as blank metadata.
+    var ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("")
+            .tenantId("   ")
+            .build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertFalse(
+        actual.metadata().containsKey("sdk-logging-service-id"),
+        "blank serviceId must be skipped, not stamped as an empty metadata value");
+    assertFalse(
+        actual.metadata().containsKey("sdk-logging-tenant-id"),
+        "blank tenantId must be skipped, not stamped as an empty metadata value");
+  }
+
+  @Test
+  void testUpload_userSuppliedServiceIdAndTenantIdNotOverwritten() {
+    var key = "some-key";
+    var ctx =
+        OperationContext.builder().serviceId("sdk-service").tenantId("sdk-tenant").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(
+                Map.of(
+                    "sdk-logging-service-id", "user-service",
+                    "sdk-logging-tenant-id", "user-tenant"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(
+        "user-service",
+        actual.metadata().get("sdk-logging-service-id"),
+        "application's explicit service_id metadata value must take precedence over the SDK's");
+    assertEquals(
+        "user-tenant",
+        actual.metadata().get("sdk-logging-tenant-id"),
+        "application's explicit tenant_id metadata value must take precedence over the SDK's");
+  }
+
+  @Test
+  void testUpload_serviceIdStampedWhenTenantIdAbsent() {
+    var key = "some-key";
+    // Isolates the serviceId branch: serviceId present, tenantId absent.
+    var ctx = OperationContext.builder().serviceId("keystone-boxoffice").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(
+        "keystone-boxoffice",
+        actual.metadata().get("sdk-logging-service-id"),
+        "serviceId must be stamped even when tenantId is absent");
+    assertFalse(
+        actual.metadata().containsKey("sdk-logging-tenant-id"),
+        "no tenant_id injection when the context has no tenantId");
+  }
+
+  @Test
+  void testUpload_tenantIdStampedWhenServiceIdAbsent() {
+    var key = "some-key";
+    // Isolates the tenantId branch: tenantId present, serviceId absent.
+    var ctx = OperationContext.builder().tenantId("tenant-42").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(
+        "tenant-42",
+        actual.metadata().get("sdk-logging-tenant-id"),
+        "tenantId must be stamped even when serviceId is absent");
+    assertFalse(
+        actual.metadata().containsKey("sdk-logging-service-id"),
+        "no service_id injection when the context has no serviceId");
+  }
+
+  @Test
   void testUploadWithUseKmsManagedKey() {
     var key = "some-key";
     var metadata = Map.of("some-key", "some-value");

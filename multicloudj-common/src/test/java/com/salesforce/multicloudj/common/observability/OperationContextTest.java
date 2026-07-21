@@ -74,4 +74,45 @@ class OperationContextTest {
     assertEquals(a, b);
     assertNotEquals(a, c);
   }
+
+  @Test
+  void builder_setsServiceId() {
+    OperationContext ctx = OperationContext.builder().serviceId("svc-1").build();
+    assertEquals("svc-1", ctx.getServiceId());
+    assertNull(ctx.getCorrelationId());
+    assertNull(ctx.getTenantId());
+  }
+
+  @Test
+  void builder_setsAllThreeIds() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-1")
+            .tenantId("tenant-42")
+            .serviceId("svc-1")
+            .build();
+    assertEquals("req-1", ctx.getCorrelationId());
+    assertEquals("tenant-42", ctx.getTenantId());
+    assertEquals("svc-1", ctx.getServiceId());
+  }
+
+  @Test
+  void toBuilder_preservesServiceId() {
+    OperationContext original =
+        OperationContext.builder().correlationId("req-1").serviceId("svc-1").build();
+    OperationContext updated = original.toBuilder().correlationId("req-2").build();
+
+    assertEquals("req-2", updated.getCorrelationId());
+    assertEquals("svc-1", updated.getServiceId());
+  }
+
+  @Test
+  void valueSemantics_serviceIdParticipatesInEquals() {
+    OperationContext a = OperationContext.builder().correlationId("x").serviceId("s1").build();
+    OperationContext b = OperationContext.builder().correlationId("x").serviceId("s1").build();
+    OperationContext c = OperationContext.builder().correlationId("x").serviceId("s2").build();
+
+    assertEquals(a, b);
+    assertNotEquals(a, c);
+  }
 }

@@ -51,6 +51,17 @@
             </exclusions>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <!-- OpenTelemetry: tracing API + context propagation. -->
         <dependency>
             <groupId>io.opentelemetry</groupId>
