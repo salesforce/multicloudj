@@ -38,6 +38,8 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -66,6 +68,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 
 /** InMemory implementation of BlobStore for testing purposes */
 @AutoService(AbstractBlobStore.class)
@@ -74,11 +77,22 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   private static final String PROVIDER_ID = "memory";
 
   /**
-   * Object-metadata key under which the SDK persists the operation correlation id during upload,
-   * so the value is stored on the blob alongside the user's metadata and matches the correlation
-   * id that appears in the same upload's logs and trace span.
+   * Object-metadata key under which the SDK persists the operation correlation id during upload, so
+   * the value is stored on the blob alongside the user's metadata.
    */
-  public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
+  public static final String CORRELATION_ID_METADATA_KEY = SdkLoggingMetadataKeys.CORRELATION_ID;
+
+  /**
+   * Object-metadata key under which the SDK persists the operation service id during upload, so the
+   * value is stored on the blob alongside the user's metadata.
+   */
+  public static final String SERVICE_ID_METADATA_KEY = SdkLoggingMetadataKeys.SERVICE_ID;
+
+  /**
+   * Object-metadata key under which the SDK persists the operation tenant id during upload, so the
+   * value is stored on the blob alongside the user's metadata.
+   */
+  public static final String TENANT_ID_METADATA_KEY = SdkLoggingMetadataKeys.TENANT_ID;
 
   // Shared storage across all instances - key is "bucket:key:versionId"
   private static final Map<String, StoredBlob> STORAGE = new ConcurrentHashMap<>();
@@ -143,16 +157,25 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     String versionId = UUID.randomUUID().toString();
     String versionedKey = baseKey + ":" + versionId;
 
-    // Copy the application-supplied metadata and stamp the SDK's correlation id on it so
-    // the value persists with the stored blob alongside the user's metadata. Skipped when
-    // the request carries no operation context, or when the app has supplied the same key.
+    // Copy the application-supplied metadata and stamp the SDK's correlation id, service id and
+    // tenant id on it so the values persist with the stored blob alongside the user's metadata.
+    // Each key is skipped when the request carries no operation context, when that context value
+    // is absent, or when the app has supplied the same key.
     Map<String, String> metadata = new HashMap<>(uploadRequest.getMetadata());
-    if (uploadRequest.getOperationContext() != null
-        && uploadRequest.getOperationContext().getCorrelationId() != null
-        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-      metadata.put(
-          CORRELATION_ID_METADATA_KEY,
-          uploadRequest.getOperationContext().getCorrelationId());
+    if (uploadRequest.getOperationContext() != null) {
+      OperationContext ctx = uploadRequest.getOperationContext();
+      if (StringUtils.isNotBlank(ctx.getCorrelationId())
+          && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+        metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
+      }
+      if (StringUtils.isNotBlank(ctx.getServiceId())
+          && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {
+        metadata.put(SERVICE_ID_METADATA_KEY, ctx.getServiceId());
+      }
+      if (StringUtils.isNotBlank(ctx.getTenantId())
+          && !metadata.containsKey(TENANT_ID_METADATA_KEY)) {
+        metadata.put(TENANT_ID_METADATA_KEY, ctx.getTenantId());
+      }
     }
 
     StoredBlob blob =

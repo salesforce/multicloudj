@@ -12,6 +12,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -39,12 +40,14 @@ public class MultiCloudJLogger {
   static final String MDC_SDK_SERVICE = "sdk_service";
   static final String MDC_SDK_PROVIDER = "sdk_provider";
   static final String MDC_TENANT_ID = "tenant_id";
+  static final String MDC_SERVICE_ID = "service_id";
 
   static final String ATTR_BUCKET = "bucket";
   static final String ATTR_CORRELATION_ID = "correlation_id";
   static final String ATTR_SDK_SERVICE = "sdk_service";
   static final String ATTR_SDK_PROVIDER = "sdk_provider";
   static final String ATTR_TENANT_ID = "tenant_id";
+  static final String ATTR_SERVICE_ID = "service_id";
 
   private final TracingPolicy policy;
   private final String serviceName;
@@ -251,8 +254,13 @@ public class MultiCloudJLogger {
     spanBuilder.setAttribute(ATTR_CORRELATION_ID, effectiveContext.getCorrelationId());
     spanBuilder.setAttribute(ATTR_SDK_SERVICE, serviceName);
     spanBuilder.setAttribute(ATTR_SDK_PROVIDER, providerId);
-    if (effectiveContext.getTenantId() != null) {
+    // Blank (null/empty/whitespace-only) tenant and service ids are treated as absent and not
+    // attached, so downstream consumers never see a blank tenant_id/service_id attribute.
+    if (StringUtils.isNotBlank(effectiveContext.getTenantId())) {
       spanBuilder.setAttribute(ATTR_TENANT_ID, effectiveContext.getTenantId());
+    }
+    if (StringUtils.isNotBlank(effectiveContext.getServiceId())) {
+      spanBuilder.setAttribute(ATTR_SERVICE_ID, effectiveContext.getServiceId());
     }
     return spanBuilder.startSpan();
   }
@@ -346,8 +354,11 @@ public class MultiCloudJLogger {
     MDC.put(MDC_CORRELATION_ID, effectiveContext.getCorrelationId());
     MDC.put(MDC_SDK_SERVICE, serviceName);
     MDC.put(MDC_SDK_PROVIDER, providerId);
-    if (effectiveContext.getTenantId() != null) {
+    if (StringUtils.isNotBlank(effectiveContext.getTenantId())) {
       MDC.put(MDC_TENANT_ID, effectiveContext.getTenantId());
+    }
+    if (StringUtils.isNotBlank(effectiveContext.getServiceId())) {
+      MDC.put(MDC_SERVICE_ID, effectiveContext.getServiceId());
     }
   }
 
@@ -355,15 +366,18 @@ public class MultiCloudJLogger {
     MDC.put(MDC_CORRELATION_ID, effectiveContext.getCorrelationId());
     MDC.put(MDC_SDK_SERVICE, serviceName);
     MDC.put(MDC_SDK_PROVIDER, providerId);
-    if (effectiveContext.getTenantId() != null) {
+    if (StringUtils.isNotBlank(effectiveContext.getTenantId())) {
       MDC.put(MDC_TENANT_ID, effectiveContext.getTenantId());
+    }
+    if (StringUtils.isNotBlank(effectiveContext.getServiceId())) {
+      MDC.put(MDC_SERVICE_ID, effectiveContext.getServiceId());
     }
   }
 
   /** MDC keys this class manages. Snapshot/restore touches only these. */
   private static final String[] SDK_MDC_KEYS = {
     MDC_TRACE_ID, MDC_SPAN_ID, MDC_CORRELATION_ID,
-    MDC_SDK_SERVICE, MDC_SDK_PROVIDER, MDC_TENANT_ID
+    MDC_SDK_SERVICE, MDC_SDK_PROVIDER, MDC_TENANT_ID, MDC_SERVICE_ID
   };
 
   /**
