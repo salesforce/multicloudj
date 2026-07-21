@@ -288,7 +288,17 @@ public class AliSts extends AbstractSts {
               + "/'. Found: "
               + condition.getResourcePrefix());
     }
-    return path.substring(bucketSegment.length());
+    String prefix = path.substring(bucketSegment.length());
+    // RAM treats '*' and '?' as wildcards in both the resource ARN and the oss:Prefix StringLike
+    // condition, so a literal-looking prefix such as "priv*" would match every key starting with
+    // "priv" — widening the grant beyond what the caller asked for. Reject them (fail closed)
+    // rather than silently broadening the scope.
+    if (prefix.indexOf('*') >= 0 || prefix.indexOf('?') >= 0) {
+      throw new InvalidArgumentException(
+          "credential scope resourcePrefix must not contain wildcard characters ('*' or '?'); "
+              + "they would widen the grant. Found: " + condition.getResourcePrefix());
+    }
+    return prefix;
   }
 
   // Builds the OSS object resource ARN, encoding the key prefix when one is scoped:

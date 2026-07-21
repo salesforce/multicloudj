@@ -351,6 +351,35 @@ public class AliStsTest {
   }
 
   @Test
+  public void testAssumeRoleWithWildcardPrefixThrows() {
+    // A resourcePrefix containing RAM wildcards ('*'/'?') would widen the grant beyond the literal
+    // prefix (RAM treats them as wildcards in both the ARN and the oss:Prefix StringLike). Reject
+    // it rather than silently broadening the scope.
+    CredentialScope credentialScope =
+        CredentialScope.builder()
+            .rule(
+                CredentialScope.ScopeRule.builder()
+                    .availableResource("storage://my-bucket")
+                    .availablePermission("storage:GetObject")
+                    .availabilityCondition(
+                        CredentialScope.AvailabilityCondition.builder()
+                            .resourcePrefix("storage://my-bucket/priv*")
+                            .build())
+                    .build())
+            .build();
+
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder()
+            .withRole("acs:ram::123456789:role/my-bucket-ro")
+            .withSessionName("my-session")
+            .withCredentialScope(credentialScope)
+            .build();
+
+    AliSts sts = new AliSts().builder().build(mockStsClient);
+    assertThrows(InvalidArgumentException.class, () -> sts.assumeRole(request));
+  }
+
+  @Test
   public void testAssumeRoleWithEmptyCredentialScopeThrows() {
     // A credential scope was supplied but has no rules -> it would downscope to an empty policy.
     // Reject it up front rather than sending a deny-all policy that fails opaquely at request time.
