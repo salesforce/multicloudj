@@ -350,6 +350,22 @@ public class AliStsTest {
     assertThrows(InvalidArgumentException.class, () -> sts.assumeRole(request));
   }
 
+  @Test
+  public void testAssumeRoleWithEmptyCredentialScopeThrows() {
+    // A credential scope was supplied but has no rules -> it would downscope to an empty policy.
+    // Reject it up front rather than sending a deny-all policy that fails opaquely at request time.
+    CredentialScope emptyScope = CredentialScope.builder().build();
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder()
+            .withRole("acs:ram::123456789:role/my-bucket-ro")
+            .withSessionName("my-session")
+            .withCredentialScope(emptyScope)
+            .build();
+
+    AliSts sts = new AliSts().builder().build(mockStsClient);
+    assertThrows(InvalidArgumentException.class, () -> sts.assumeRole(request));
+  }
+
   // Compares two JSON strings for structural equality, ignoring object key ordering.
   private static void assertJsonEquals(String expected, String actual) throws Exception {
     ObjectMapper mapper = new ObjectMapper();

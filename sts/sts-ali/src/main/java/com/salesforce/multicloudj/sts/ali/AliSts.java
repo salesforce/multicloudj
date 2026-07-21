@@ -248,6 +248,14 @@ public class AliSts extends AbstractSts {
       }
     }
 
+    // Throw on a scope with no statements so the caller gets an actionable error instead of an
+    // opaque AccessDenied: OSS treats an empty inline policy as deny-all.
+    if (statements.isEmpty()) {
+      throw new InvalidArgumentException(
+          "credential scope produced no RAM statements; supply at least one rule with a resource "
+              + "and permissions");
+    }
+
     Map<String, Object> policy = new LinkedHashMap<>();
     policy.put("Version", "1");
     policy.put("Statement", statements);
