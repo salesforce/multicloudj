@@ -14,11 +14,13 @@ import com.aliyuncs.sts.model.v20150401.AssumeRoleWithOIDCRequest;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleWithOIDCResponse;
 import com.aliyuncs.sts.model.v20150401.GetCallerIdentityRequest;
 import com.aliyuncs.sts.model.v20150401.GetCallerIdentityResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
+import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
 import org.junit.jupiter.api.Assertions;
@@ -215,5 +217,114 @@ public class AliStsTest {
     String expectedUrl = "http://proxy.example.com:8080";
     Assertions.assertEquals(expectedUrl, config.getHttpProxy());
     Assertions.assertEquals(expectedUrl, config.getHttpsProxy());
+  }
+
+  // Captures the AssumeRoleRequest issued for the given cloud-agnostic request, using a dedicated
+  // mock so the captured request is unambiguous.
+  private static AssumeRoleRequest capturedAssumeRoleRequest(AssumedRoleRequest request)
+      throws ClientException {
+    DefaultAcsClient client = Mockito.mock(DefaultAcsClient.class);
+    AssumeRoleResponse.Credentials creds = new AssumeRoleResponse.Credentials();
+    creds.setAccessKeyId("k");
+    creds.setAccessKeySecret("s");
+    creds.setSecurityToken("t");
+    AssumeRoleResponse response = new AssumeRoleResponse();
+    response.setCredentials(creds);
+    Mockito.when(client.getAcsResponse(any(AssumeRoleRequest.class))).thenReturn(response);
+
+    AliSts sts = new AliSts().builder().build(client);
+    sts.assumeRole(request);
+
+    ArgumentCaptor<AssumeRoleRequest> captor = ArgumentCaptor.forClass(AssumeRoleRequest.class);
+    Mockito.verify(client).getAcsResponse(captor.capture());
+    return captor.getValue();
+  }
+
+  @Test
+  public void testAssumeRoleWithCredentialScope() throws Exception {
+    // The Capstone shape: read-write access downscoped to a bucket + key prefix. Object operations
+    // and the list operation must land in separate RAM statements with different resource forms.
+    CredentialScope credentialScope =
+        CredentialScope.builder()
+            .rule(
+                CredentialScope.ScopeRule.builder()
+                    .availableResource("storage://my-bucket")
+                    .availablePermission("storage:GetObject")
+                    .availablePermission("storage:PutObject")
+                    .availablePermission("storage:ListBucket")
+                    .availabilityCondition(
+                        CredentialScope.AvailabilityCondition.builder()
+                            .resourcePrefix("storage://my-bucket/documents/")
+                            .title("Limit to documents folder")
+                            .description("Only allow access to the documents folder")
+                            .build())
+                    .build())
+            .build();
+
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder()
+            .withRole("acs:ram::123456789:role/my-bucket-ro")
+            .withSessionName("my-session")
+            .withCredentialScope(credentialScope)
+            .build();
+
+    AssumeRoleRequest captured = capturedAssumeRoleRequest(request);
+
+    String expectedPolicy =
+        "{\"Version\":\"1\",\"Statement\":["
+            + "{\"Effect\":\"Allow\",\"Action\":[\"oss:GetObject\",\"oss:PutObject\"],"
+            + "\"Resource\":\"acs:oss:*:*:my-bucket/documents/*\"},"
+            + "{\"Effect\":\"Allow\",\"Action\":[\"oss:ListObjects\"],"
+            + "\"Resource\":\"acs:oss:*:*:my-bucket\","
+            + "\"Condition\":{\"StringLike\":{\"oss:Prefix\":[\"documents/\",\"documents/*\"]}}}]}";
+    assertJsonEquals(expectedPolicy, captured.getPolicy());
+  }
+
+  @Test
+  public void testAssumeRoleWithCredentialScopeNoPrefix() throws Exception {
+    // No availability condition -> object ops cover the whole bucket, list statement has no
+    // prefix condition.
+    CredentialScope credentialScope =
+        CredentialScope.builder()
+            .rule(
+                CredentialScope.ScopeRule.builder()
+                    .availableResource("storage://my-bucket")
+                    .availablePermission("storage:GetObject")
+                    .availablePermission("storage:ListBucket")
+                    .build())
+            .build();
+
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder()
+            .withRole("acs:ram::123456789:role/my-bucket-ro")
+            .withSessionName("my-session")
+            .withCredentialScope(credentialScope)
+            .build();
+
+    AssumeRoleRequest captured = capturedAssumeRoleRequest(request);
+
+    String expectedPolicy =
+        "{\"Version\":\"1\",\"Statement\":["
+            + "{\"Effect\":\"Allow\",\"Action\":[\"oss:GetObject\"],"
+            + "\"Resource\":\"acs:oss:*:*:my-bucket/*\"},"
+            + "{\"Effect\":\"Allow\",\"Action\":[\"oss:ListObjects\"],"
+            + "\"Resource\":\"acs:oss:*:*:my-bucket\"}]}";
+    assertJsonEquals(expectedPolicy, captured.getPolicy());
+  }
+
+  @Test
+  public void testAssumeRoleWithoutCredentialScopeSetsNoPolicy() throws Exception {
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder().withRole("testRole").withSessionName("testSession").build();
+
+    AssumeRoleRequest captured = capturedAssumeRoleRequest(request);
+
+    Assertions.assertNull(captured.getPolicy(), "no credential scope should mean no inline policy");
+  }
+
+  // Compares two JSON strings for structural equality, ignoring object key ordering.
+  private static void assertJsonEquals(String expected, String actual) throws Exception {
+    ObjectMapper mapper = new ObjectMapper();
+    Assertions.assertEquals(mapper.readTree(expected), mapper.readTree(actual));
   }
 }
