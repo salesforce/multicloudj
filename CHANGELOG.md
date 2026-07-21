@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.4.3](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.2...multicloudj-v0.4.3) (2026-07-21)
+
+
+### Blob Store
+
+* onboard service id and tenant id through correlation context for blob in aws and gcp ([#545](https://github.com/salesforce/multicloudj/issues/545)) ([280a88b](https://github.com/salesforce/multicloudj/commit/280a88bce15f8997f7a6757bf68d87533d801e67))
+* rename correlation id key and extend to Ali provider ([#428](https://github.com/salesforce/multicloudj/issues/428)) ([c4a3a06](https://github.com/salesforce/multicloudj/commit/c4a3a0624b98bfe7685305c67e88b0f97d016957))
+* update correlation id javadoc to match no auto-generation behavior ([#548](https://github.com/salesforce/multicloudj/issues/548)) ([9fae387](https://github.com/salesforce/multicloudj/commit/9fae387c42fd48af9fc8a0b2f904a18057150969))
+
+
+### Document Store
+
+* enable single-primary-key conformance tests for Alibaba Tablestore ([#539](https://github.com/salesforce/multicloudj/issues/539)) ([445b038](https://github.com/salesforce/multicloudj/commit/445b038555970e1c1129f9abf8e4c6db3237ff69))
+* implement Alibaba Tablestore query API on GetRange with cross-call pagination ([#543](https://github.com/salesforce/multicloudj/issues/543)) ([65f3927](https://github.com/salesforce/multicloudj/commit/65f39275dedbbf298081f31b888538f5e6e16294))
+* parallelize Firestore runActions commits to cut AtomicWrites latency ([#546](https://github.com/salesforce/multicloudj/issues/546)) ([0aec805](https://github.com/salesforce/multicloudj/commit/0aec8055a86d2fe77760f407b2d6a23d06915279))
+
+
+### STS
+
+* add scoped-credential downscoping for Alibaba STS ([#551](https://github.com/salesforce/multicloudj/issues/551)) ([f11114e](https://github.com/salesforce/multicloudj/commit/f11114e9d89f1e36881b12860353b862d0199f42))
+
+
+### DB Backup Restore
+
+* report backup size as -1 when the provider omits it (GCP + AWS) ([#553](https://github.com/salesforce/multicloudj/issues/553)) ([db4786f](https://github.com/salesforce/multicloudj/commit/db4786f675a0b48deac3ac009aa12b69c40a5771))
+
 ## [0.4.2](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.1...multicloudj-v0.4.2) (2026-07-13)
 
 
