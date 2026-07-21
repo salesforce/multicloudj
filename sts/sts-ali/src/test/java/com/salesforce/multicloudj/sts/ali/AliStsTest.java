@@ -322,6 +322,34 @@ public class AliStsTest {
     Assertions.assertNull(captured.getPolicy(), "no credential scope should mean no inline policy");
   }
 
+  @Test
+  public void testAssumeRoleWithMismatchedPrefixBucketThrows() {
+    // A resourcePrefix that names a different (or missing) bucket than availableResource must be
+    // rejected, not silently ignored -- ignoring it would widen the grant to the whole bucket.
+    CredentialScope credentialScope =
+        CredentialScope.builder()
+            .rule(
+                CredentialScope.ScopeRule.builder()
+                    .availableResource("storage://my-bucket")
+                    .availablePermission("storage:GetObject")
+                    .availabilityCondition(
+                        CredentialScope.AvailabilityCondition.builder()
+                            .resourcePrefix("storage://other-bucket/documents/")
+                            .build())
+                    .build())
+            .build();
+
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder()
+            .withRole("acs:ram::123456789:role/my-bucket-ro")
+            .withSessionName("my-session")
+            .withCredentialScope(credentialScope)
+            .build();
+
+    AliSts sts = new AliSts().builder().build(mockStsClient);
+    assertThrows(InvalidArgumentException.class, () -> sts.assumeRole(request));
+  }
+
   // Compares two JSON strings for structural equality, ignoring object key ordering.
   private static void assertJsonEquals(String expected, String actual) throws Exception {
     ObjectMapper mapper = new ObjectMapper();

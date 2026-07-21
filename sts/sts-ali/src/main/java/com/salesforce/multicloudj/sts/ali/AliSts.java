@@ -263,17 +263,24 @@ public class AliSts extends AbstractSts {
   }
 
   // Extracts the object-key prefix from the availability condition, relative to the bucket, e.g.
-  // "storage://my-bucket/documents/" -> "documents/". Returns null when no prefix is scoped.
+  // "storage://my-bucket/documents/" -> "documents/". Returns null when no prefix is scoped (no
+  // condition or no resourcePrefix). A resourcePrefix that IS present but does not name this rule's
+  // bucket is rejected rather than ignored: silently returning null would widen the grant to the
+  // whole bucket (the unsafe direction), defeating the downscoping.
   private String extractPrefix(CredentialScope.AvailabilityCondition condition, String bucket) {
     if (condition == null || condition.getResourcePrefix() == null) {
       return null;
     }
     String path = condition.getResourcePrefix().substring("storage://".length());
     String bucketSegment = bucket + "/";
-    if (path.startsWith(bucketSegment)) {
-      return path.substring(bucketSegment.length());
+    if (!path.startsWith(bucketSegment)) {
+      throw new InvalidArgumentException(
+          "credential scope resourcePrefix must be under the rule's bucket 'storage://"
+              + bucket
+              + "/'. Found: "
+              + condition.getResourcePrefix());
     }
-    return null;
+    return path.substring(bucketSegment.length());
   }
 
   // Builds the OSS object resource ARN, encoding the key prefix when one is scoped:
