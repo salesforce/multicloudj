@@ -509,6 +509,25 @@ public abstract class AbstractDocstoreIT {
     }
   }
 
+  // Best-effort deletion of the given two-key (Game/Player) docs, used to clear rows a prior
+  // interrupted run may have left behind (these tests use fixed keys, so a leftover row would make
+  // the next run's create fail with already-exists). Deleting a non-existent key is a no-op, and
+  // any error here must not fail the test proper, so it is swallowed.
+  private void deleteTwoKeyDocs(DocStoreClient docStoreClient, List<Map<String, Object>> docs) {
+    try {
+      ActionList cleanup = docStoreClient.getActions();
+      for (Map<String, Object> doc : docs) {
+        Map<String, Object> key = new HashMap<>();
+        key.put("Game", doc.get("Game"));
+        key.put("Player", doc.get("Player"));
+        cleanup.delete(new Document(key));
+      }
+      cleanup.run();
+    } catch (RuntimeException ignore) {
+      // Pre-test cleanup is best-effort; ignore failures (e.g. nothing to delete).
+    }
+  }
+
   @Test
   public void testPut() {
     AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.SINGLE_KEY);
@@ -1257,6 +1276,8 @@ public abstract class AbstractDocstoreIT {
       docs.add(doc);
     }
 
+    deleteTwoKeyDocs(docStoreClient, docs);
+
     // Put the nine docs
     ActionList actions = docStoreClient.getActions();
     for (int i = 0; i < 9; i++) {
@@ -1363,6 +1384,8 @@ public abstract class AbstractDocstoreIT {
       doc.put(revField, null);
       docs.add(doc);
     }
+
+    deleteTwoKeyDocs(docStoreClient, docs);
 
     // Put only the first eight docs (docs[8] doesn't exist)
     ActionList actions = docStoreClient.getActions();
