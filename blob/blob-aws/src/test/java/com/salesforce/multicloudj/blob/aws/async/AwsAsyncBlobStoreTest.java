@@ -2021,6 +2021,91 @@ public class AwsAsyncBlobStoreTest {
     assertEquals(BUCKET, store.getBucket());
   }
 
+  /**
+   * Captures the override-configuration builder produced when an async client is built, so wiring
+   * tests can assert what was applied to it. Re-stubs the already-open static S3AsyncClient mock.
+   */
+  private ClientOverrideConfiguration.Builder captureAsyncOverrideConfigFor(
+      AwsAsyncBlobStore.Builder builder) {
+    ClientOverrideConfiguration.Builder configBuilder =
+        mock(ClientOverrideConfiguration.Builder.class);
+    when(configBuilder.retryStrategy(any(RetryStrategy.class))).thenReturn(configBuilder);
+    when(configBuilder.apiCallAttemptTimeout(any(Duration.class))).thenReturn(configBuilder);
+    when(configBuilder.apiCallTimeout(any(Duration.class))).thenReturn(configBuilder);
+    when(configBuilder.addMetricPublisher(any())).thenReturn(configBuilder);
+
+    S3AsyncClientBuilder mockBuilder = mock(S3AsyncClientBuilder.class);
+    when(mockBuilder.region(any())).thenReturn(mockBuilder);
+    when(mockBuilder.credentialsProvider(any())).thenReturn(mockBuilder);
+    doAnswer(
+            invocation -> {
+              Consumer<ClientOverrideConfiguration.Builder> consumer = invocation.getArgument(0);
+              consumer.accept(configBuilder);
+              return mockBuilder;
+            })
+        .when(mockBuilder)
+        .overrideConfiguration(any(Consumer.class));
+    when(mockBuilder.build()).thenReturn(mock(S3AsyncClient.class));
+
+    s3Client.when(S3AsyncClient::builder).thenReturn(mockBuilder);
+    builder.build();
+    return configBuilder;
+  }
+
+  @Test
+  void testAsyncMetricsPublisherIsWiredWhenConfigured() {
+    AwsAsyncBlobStore.Builder builder =
+        (AwsAsyncBlobStore.Builder)
+            new AwsAsyncBlobStore.Builder()
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withMetricsPublisher(metrics -> {});
+
+    ClientOverrideConfiguration.Builder configBuilder = captureAsyncOverrideConfigFor(builder);
+
+    ArgumentCaptor<software.amazon.awssdk.metrics.MetricPublisher> captor =
+        ArgumentCaptor.forClass(software.amazon.awssdk.metrics.MetricPublisher.class);
+    verify(configBuilder).addMetricPublisher(captor.capture());
+    Assertions.assertInstanceOf(
+        com.salesforce.multicloudj.blob.aws.AwsMetricsPublisherAdapter.class, captor.getValue());
+    verify(configBuilder, times(0)).retryStrategy(any(RetryStrategy.class));
+  }
+
+  @Test
+  void testAsyncMetricsPublisherAndRetryCoexistInSingleOverride() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .maxAttempts(3)
+            .initialDelayMillis(100L)
+            .multiplier(2.0)
+            .maxDelayMillis(5000L)
+            .build();
+    AwsAsyncBlobStore.Builder builder =
+        (AwsAsyncBlobStore.Builder)
+            new AwsAsyncBlobStore.Builder()
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withRetryConfig(retryConfig)
+                .withMetricsPublisher(metrics -> {});
+
+    ClientOverrideConfiguration.Builder configBuilder = captureAsyncOverrideConfigFor(builder);
+
+    verify(configBuilder).addMetricPublisher(any());
+    verify(configBuilder).retryStrategy(any(RetryStrategy.class));
+  }
+
+  @Test
+  void testAsyncNoMetricPublisherWhenUnset() {
+    AwsAsyncBlobStore.Builder builder =
+        (AwsAsyncBlobStore.Builder)
+            new AwsAsyncBlobStore.Builder().withBucket(BUCKET).withRegion(REGION);
+
+    ClientOverrideConfiguration.Builder configBuilder = captureAsyncOverrideConfigFor(builder);
+
+    verify(configBuilder, times(0)).addMetricPublisher(any());
+  }
+
   @Test
   void testBuildS3AsyncClientWithoutRetryConfig() {
     // Test without retry config (default behavior)
