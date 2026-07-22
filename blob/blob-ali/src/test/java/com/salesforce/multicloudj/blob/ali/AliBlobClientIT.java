@@ -16,7 +16,7 @@ import javax.net.ssl.SSLContext;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
-import org.apache.hc.client5.http.ssl.ClientTlsStrategyBuilder;
+import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
 import org.apache.hc.client5.http.ssl.HostnameVerificationPolicy;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
@@ -71,11 +71,14 @@ public class AliBlobClientIT extends AbstractBlobClientIT {
               .build();
 
       SSLContext sslContext = TestsUtil.createTrustAllSSLContext();
-      TlsSocketStrategy tlsStrategy = ClientTlsStrategyBuilder.create()
-          .setSslContext(sslContext)
-          .setHostnameVerifier(NoopHostnameVerifier.INSTANCE)
-          .setHostVerificationPolicy(HostnameVerificationPolicy.CLIENT)
-          .buildClassic();
+      // Construct DefaultClientTlsStrategy directly rather than via ClientTlsStrategyBuilder:
+      // the builder's setHostVerificationPolicy/buildClassic methods only exist in httpclient5
+      // 5.5.x, whereas this constructor (SSLContext, HostnameVerificationPolicy, HostnameVerifier)
+      // is present in both 5.4.x and 5.5.x. DefaultClientTlsStrategy implements TlsSocketStrategy.
+      TlsSocketStrategy tlsStrategy = new DefaultClientTlsStrategy(
+          sslContext,
+          HostnameVerificationPolicy.CLIENT,
+          NoopHostnameVerifier.INSTANCE);
       PoolingHttpClientConnectionManager connManager =
           PoolingHttpClientConnectionManagerBuilder.create()
               .setTlsSocketStrategy(tlsStrategy)
