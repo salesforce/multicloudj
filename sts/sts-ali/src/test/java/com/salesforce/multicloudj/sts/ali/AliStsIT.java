@@ -3,7 +3,7 @@ package com.salesforce.multicloudj.sts.ali;
 import com.aliyuncs.DefaultAcsClient;
 import com.aliyuncs.http.HttpClientConfig;
 import com.aliyuncs.profile.DefaultProfile;
-import com.salesforce.multicloudj.common.util.ali.TestsUtilAli;
+import com.salesforce.multicloudj.common.ali.util.TestsUtilAli;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.sts.client.AbstractStsIT;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;

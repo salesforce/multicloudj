@@ -105,6 +105,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URL;
@@ -127,6 +128,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -285,8 +287,6 @@ class GcpBlobStoreTest {
     when(mockStorage.createFrom(
         eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
         .thenReturn(mockBlob);
-    // After createFrom, doUpload fetches the committed object to get fully-populated metadata.
-    when(mockStorage.get(any(BlobId.class))).thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
     // When
@@ -297,7 +297,8 @@ class GcpBlobStoreTest {
     assertEquals(expectedResponse, response);
     verify(mockStorage).createFrom(
         eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
-    verify(mockStorage).get(any(BlobId.class));
+    // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
+    verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
@@ -348,6 +349,8 @@ class GcpBlobStoreTest {
     assertEquals(expectedResponse, response);
     verify(mockStorage).createFrom(
         eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
+    // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
+    verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
@@ -377,6 +380,8 @@ class GcpBlobStoreTest {
     assertEquals(expectedResponse, response);
     verify(mockStorage)
         .createFrom(eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class));
+    // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
+    verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
@@ -406,6 +411,8 @@ class GcpBlobStoreTest {
     assertEquals(expectedResponse, response);
     verify(mockStorage)
         .createFrom(eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class));
+    // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
+    verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
@@ -2285,33 +2292,91 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testBuildConnectionManager_defaultsPoolWhenMaxConnectionsUnset() throws Exception {
+  void testBuildHttpClient_inheritsGcpDefaultsWhenMaxConnectionsUnset() throws Exception {
     GcpBlobStore.Builder builder = new GcpBlobStore.Builder();
 
-    PoolingHttpClientConnectionManager connectionManager = invokeBuildConnectionManager(builder);
+    PoolingHttpClientConnectionManager connectionManager =
+        extractConnectionManager(invokeBuildHttpClient(builder));
 
-    assertEquals(50, connectionManager.getMaxTotal());
-    assertEquals(50, connectionManager.getDefaultMaxPerRoute());
+    // GCP's ApacheHttpTransport.newDefaultHttpClientBuilder() sets 200/20; we must not
+    // override those when the caller did not set maxConnections.
+    assertEquals(200, connectionManager.getMaxTotal());
+    assertEquals(20, connectionManager.getDefaultMaxPerRoute());
   }
 
   @Test
-  void testBuildConnectionManager_usesExplicitMaxConnections() throws Exception {
+  void testBuildHttpClient_usesExplicitMaxConnections() throws Exception {
     GcpBlobStore.Builder builder =
         (GcpBlobStore.Builder) new GcpBlobStore.Builder().withMaxConnections(123);
 
-    PoolingHttpClientConnectionManager connectionManager = invokeBuildConnectionManager(builder);
+    PoolingHttpClientConnectionManager connectionManager =
+        extractConnectionManager(invokeBuildHttpClient(builder));
 
     assertEquals(123, connectionManager.getMaxTotal());
     assertEquals(123, connectionManager.getDefaultMaxPerRoute());
   }
 
-  private static PoolingHttpClientConnectionManager invokeBuildConnectionManager(
-      GcpBlobStore.Builder builder) throws Exception {
+  private static CloseableHttpClient invokeBuildHttpClient(GcpBlobStore.Builder builder)
+      throws Exception {
     Method method =
         GcpBlobStore.Builder.class.getDeclaredMethod(
-            "buildConnectionManager", GcpBlobStore.Builder.class);
+            "buildHttpClient", GcpBlobStore.Builder.class);
     method.setAccessible(true);
-    return (PoolingHttpClientConnectionManager) method.invoke(null, builder);
+    return (CloseableHttpClient) method.invoke(null, builder);
+  }
+
+  private static PoolingHttpClientConnectionManager extractConnectionManager(
+      CloseableHttpClient httpClient) throws Exception {
+    // Apache's InternalHttpClient holds the connection manager on a private "connManager" field.
+    Field field = httpClient.getClass().getDeclaredField("connManager");
+    field.setAccessible(true);
+    return (PoolingHttpClientConnectionManager) field.get(httpClient);
+  }
+
+  @Test
+  void testShouldConfigureHttpClient_falseWhenNothingSet() throws Exception {
+    GcpBlobStore.Builder builder = new GcpBlobStore.Builder();
+    assertFalse(invokeShouldConfigureHttpClient(builder));
+  }
+
+  @Test
+  void testShouldConfigureHttpClient_trueWhenMaxConnectionsSet() throws Exception {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder) new GcpBlobStore.Builder().withMaxConnections(10);
+    assertTrue(invokeShouldConfigureHttpClient(builder));
+  }
+
+  @Test
+  void testShouldConfigureHttpClient_trueWhenSocketTimeoutSet() throws Exception {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withSocketTimeout(Duration.ofSeconds(5));
+    assertTrue(invokeShouldConfigureHttpClient(builder));
+  }
+
+  @Test
+  void testShouldConfigureHttpClient_trueWhenIdleConnectionTimeoutSet() throws Exception {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withIdleConnectionTimeout(Duration.ofSeconds(5));
+    assertTrue(invokeShouldConfigureHttpClient(builder));
+  }
+
+  @Test
+  void testShouldConfigureHttpClient_trueWhenProxyEndpointSet() throws Exception {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withProxyEndpoint(URI.create("http://proxy.example:3128"));
+    assertTrue(invokeShouldConfigureHttpClient(builder));
+  }
+
+  private static boolean invokeShouldConfigureHttpClient(GcpBlobStore.Builder builder)
+      throws Exception {
+    Method method =
+        GcpBlobStore.Builder.class.getDeclaredMethod(
+            "shouldConfigureHttpClient", GcpBlobStore.Builder.class);
+    method.setAccessible(true);
+    return (Boolean) method.invoke(null, builder);
   }
 
   private static UploadResult makeUploadResult(String key, TransferStatus status, Exception ex) {

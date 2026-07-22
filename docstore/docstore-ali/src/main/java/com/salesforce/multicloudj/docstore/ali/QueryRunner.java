@@ -1,83 +1,98 @@
 package com.salesforce.multicloudj.docstore.ali;
 
-import static com.salesforce.multicloudj.docstore.ali.AliDocumentIterator.INIT_TOKEN;
-
 import com.alicloud.openservices.tablestore.SyncClient;
+import com.alicloud.openservices.tablestore.model.Direction;
+import com.alicloud.openservices.tablestore.model.GetRangeRequest;
+import com.alicloud.openservices.tablestore.model.GetRangeResponse;
+import com.alicloud.openservices.tablestore.model.PrimaryKey;
+import com.alicloud.openservices.tablestore.model.RangeRowQueryCriteria;
 import com.alicloud.openservices.tablestore.model.Row;
-import com.alicloud.openservices.tablestore.model.sql.SQLQueryRequest;
-import com.alicloud.openservices.tablestore.model.sql.SQLQueryResponse;
-import com.alicloud.openservices.tablestore.model.sql.SQLResultSet;
-import com.alicloud.openservices.tablestore.model.sql.SQLRow;
-import com.alicloud.openservices.tablestore.model.sql.SQLTableMeta;
-import java.util.HashMap;
+import com.alicloud.openservices.tablestore.model.filter.Filter;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.ObjectUtils;
 
 /**
- * QueryRunner stores the information about how to query/scan the data from the tablestore. and
- * exposes a run method to execute the query and get the data.
+ * Executes a query against the Tablestore native GetRange API (over the base table or a secondary
+ * index by name), producing a resumable {@link PrimaryKey} cursor. GetRange is the query engine for
+ * the driver: unlike the Tablestore SQL interface, its {@code nextStartPrimaryKey} is a genuine
+ * positional cursor that supports caller-resumable pagination.
+ *
+ * <p>The runner is configured once by the planner with the target table/index name, the primary-key
+ * range bounds, scan direction, an optional non-key column {@link Filter}, and the columns to
+ * fetch. Each {@link #run} call fetches one page starting at a given cursor.
+ *
+ * <p><b>limit semantics:</b> when a column filter is set, Tablestore's {@code limit} caps rows
+ * SCANNED, not rows RETURNED, so a single GetRange request can return fewer than {@code limit}
+ * matches (or zero) while still handing back a continuation cursor. The iterator that drives this
+ * runner is therefore responsible for looping (following the cursor) until it has accumulated the
+ * caller's requested number of results or the cursor is exhausted.
  */
-@AllArgsConstructor
 @Getter
 public class QueryRunner {
 
-  private SyncClient tableStoreClient;
+  private final SyncClient tableStoreClient;
 
-  private SQLQueryRequest sqlQueryRequest;
+  // Name of the base table or the secondary index to range over.
+  private final String tableName;
 
-  private boolean isScan;
+  // Full primary-key range bounds for the target table/index. inclusiveStart is replaced by the
+  // resume cursor on subsequent pages; exclusiveEnd is constant.
+  private final PrimaryKey inclusiveStartPrimaryKey;
+  private final PrimaryKey exclusiveEndPrimaryKey;
 
-  private Consumer<Predicate<Object>> beforeRun;
+  private final Direction direction;
 
-  public String queryPlan() {
-    if (isScan) {
-      return "Scan";
-    }
+  // Optional non-key predicate; null when the query has no attribute filters.
+  private final Filter columnFilter;
 
-    return "Table";
+  // Columns to return; null/empty means all columns of the matched rows.
+  private final List<String> columnsToGet;
+
+  public QueryRunner(
+      SyncClient tableStoreClient,
+      String tableName,
+      PrimaryKey inclusiveStartPrimaryKey,
+      PrimaryKey exclusiveEndPrimaryKey,
+      Direction direction,
+      Filter columnFilter,
+      List<String> columnsToGet) {
+    this.tableStoreClient = tableStoreClient;
+    this.tableName = tableName;
+    this.inclusiveStartPrimaryKey = inclusiveStartPrimaryKey;
+    this.exclusiveEndPrimaryKey = exclusiveEndPrimaryKey;
+    this.direction = direction;
+    this.columnFilter = columnFilter;
+    this.columnsToGet = columnsToGet;
   }
 
   /**
-   * this method is used to execute the query/scan and get the data
+   * Fetches a single GetRange page.
    *
-   * @param searchToken: if the previous query/scan response contains searchToken, include it here
-   *     for next page
-   * @param itemsScan: data from the scan output
-   * @param items: data from the query output
-   * @param asFunc: placeholder for beforeRun function
-   * @return the search token for the next page if any. An empty or null search token means no more
-   *     data.
+   * @param startKey the inclusive start cursor for this page; when null the configured
+   *     {@link #inclusiveStartPrimaryKey} (the range's left boundary) is used.
+   * @param items rows for this page are appended here.
+   * @return the {@code nextStartPrimaryKey} cursor to resume from, or null when the range is
+   *     exhausted (no more pages).
    */
-  public String run(
-      String searchToken,
-      List<Row> itemsScan,
-      List<Map<String, Object>> items,
-      Function<Object, Boolean> asFunc) {
-    if (!StringUtils.isEmpty(searchToken) && !searchToken.equals(INIT_TOKEN)) {
-      sqlQueryRequest.setSearchToken(searchToken);
+  public PrimaryKey run(PrimaryKey startKey, List<Row> items) {
+    RangeRowQueryCriteria criteria = new RangeRowQueryCriteria(tableName);
+    criteria.setInclusiveStartPrimaryKey(startKey != null ? startKey : inclusiveStartPrimaryKey);
+    criteria.setExclusiveEndPrimaryKey(exclusiveEndPrimaryKey);
+    criteria.setDirection(direction);
+    criteria.setMaxVersions(1);
+    // No explicit per-request limit: Tablestore already caps a GetRange response at 5000 rows /
+    // 4 MB and returns a nextStartPrimaryKey cursor, and the iterator loops that cursor to satisfy
+    // the caller's limit. Setting a smaller cap here would only add round-trips.
+    if (columnFilter != null) {
+      criteria.setFilter(columnFilter);
     }
-    SQLQueryResponse response = tableStoreClient.sqlQuery(sqlQueryRequest);
-
-    SQLResultSet resultSet = response.getSQLResultSet();
-    SQLTableMeta meta = resultSet.getSQLTableMeta();
-
-    while (resultSet.hasNext()) {
-      SQLRow row = resultSet.next();
-
-      Map<String, Object> keyMap = new HashMap<>();
-      for (Map.Entry<String, Integer> col : meta.getColumnsMap().entrySet()) {
-        String columnName = col.getKey();
-        Object value = row.get(col.getValue());
-        keyMap.put(columnName, value);
-      }
-      items.add(keyMap);
+    if (!ObjectUtils.isEmpty(columnsToGet)) {
+      criteria.addColumnsToGet(columnsToGet);
     }
-    return response.getNextSearchToken();
+
+    GetRangeResponse response = tableStoreClient.getRange(new GetRangeRequest(criteria));
+    items.addAll(response.getRows());
+    return response.getNextStartPrimaryKey();
   }
 }
