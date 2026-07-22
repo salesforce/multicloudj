@@ -8,6 +8,7 @@ import com.alicloud.openservices.tablestore.SyncClient;
 import com.alicloud.openservices.tablestore.TableStoreException;
 import com.alicloud.openservices.tablestore.core.ResourceManager;
 import com.alicloud.openservices.tablestore.core.auth.CredentialsProvider;
+import com.alicloud.openservices.tablestore.model.AbortTransactionRequest;
 import com.alicloud.openservices.tablestore.model.BatchGetRowRequest;
 import com.alicloud.openservices.tablestore.model.BatchGetRowResponse;
 import com.alicloud.openservices.tablestore.model.ColumnValue;
@@ -40,6 +41,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.util.UUID;
 import com.salesforce.multicloudj.docstore.client.Query;
@@ -542,17 +544,30 @@ public class AliDocStore extends AbstractDocStore {
         tableStoreClient.startLocalTransaction(startTransactionRequest);
     final String transactionId = startTransactionResponse.getTransactionID();
 
-    for (Action w : writes) {
-      WriteOperation op = newWriteOperation(w, beforeDo);
-      if (op != null) {
-        operations.add(op);
-        PutRowRequest putRowRequest = op.getPutRowRequest();
-        putRowRequest.setTransactionId(transactionId);
-        tableStoreClient.putRow(putRowRequest);
+    try {
+      for (Action w : writes) {
+        WriteOperation op = newWriteOperation(w, beforeDo);
+        if (op != null) {
+          operations.add(op);
+          PutRowRequest putRowRequest = op.getPutRowRequest();
+          putRowRequest.setTransactionId(transactionId);
+          tableStoreClient.putRow(putRowRequest);
+        }
       }
+      tableStoreClient.commitTransaction(new CommitTransactionRequest(transactionId));
+    } catch (RuntimeException e) {
+      // Any failure inside the local transaction — a rejected write/commit (TableStoreException,
+      // e.g. OTSConditionCheckFail on a non-existent row) or a transport failure (ClientException,
+      // e.g. a network timeout), both RuntimeExceptions — must fail the whole block: atomic writes
+      // are all-or-nothing. Abort so the transaction is not left dangling, then surface a uniform
+      // TransactionFailedException regardless of the underlying cause.
+      try {
+        tableStoreClient.abortTransaction(new AbortTransactionRequest(transactionId));
+      } catch (RuntimeException abortFailure) {
+        // Best-effort rollback; preserve and surface the original failure below.
+      }
+      throw new TransactionFailedException("Atomic write failed - all operations rolled back", e);
     }
-
-    tableStoreClient.commitTransaction(new CommitTransactionRequest(transactionId));
     updateRevision(operations);
   }
 
