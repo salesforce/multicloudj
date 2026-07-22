@@ -1,0 +1,53 @@
+{
+  "id" : "72037029-64ee-4a51-a26d-15237aae37eb",
+  "name" : "GcpBlobStoreIT_testTagging-PUT-9",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/blob-for-tagging"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      },
+      "upload_id" : {
+        "hasExactly" : [ {
+          "equalTo" : "AKhXX7L8PQHAqArP5IhVaL3m3y27j7OQQu9lK7OclvS1yEXZtSlvLLyuyPRvtPhMxPvCz52Zjqpj-l0rjx8ONuqR6UZyIR5NS8aG07p9MXu2Pw"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "This is tagging test data",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-tagging/1784554969266581\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-tagging\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-tagging?generation=1784554969266581&alt=media\",\n  \"name\": \"conformance-tests/blob-for-tagging\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1784554969266581\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"25\",\n  \"md5Hash\": \"Zpnfq0A50hBb2u8H9NNteQ==\",\n  \"crc32c\": \"gmDBoA==\",\n  \"etag\": \"CJXzmaix4ZUDEAE=\",\n  \"timeCreated\": \"2026-07-20T13:42:49.356Z\",\n  \"updated\": \"2026-07-20T13:42:49.356Z\",\n  \"timeStorageClassUpdated\": \"2026-07-20T13:42:49.356Z\",\n  \"timeFinalized\": \"2026-07-20T13:42:49.356Z\",\n  \"metadata\": {\n    \"gcp-tag-tag1\": \"value1\"\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CJXzmaix4ZUDEAE=",
+      "X-GUploader-UploadID" : "AKhXX7L8PQHAqArP5IhVaL3m3y27j7OQQu9lK7OclvS1yEXZtSlvLLyuyPRvtPhMxPvCz52Zjqpj-l0rjx8ONuqR6UZyIR5NS8aG07p9MXu2Pw",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Mon, 20 Jul 2026 13:42:49 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "72037029-64ee-4a51-a26d-15237aae37eb",
+  "persistent" : true,
+  "insertionIndex" : 1399
+}
