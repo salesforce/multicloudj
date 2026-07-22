@@ -267,7 +267,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     BlobId blobId = transformer.toBlobId(downloadRequest);
     Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
     try {
-      ReadChannel reader = blob.reader();
+      ReadChannel reader = storage.reader(blobId);
       applyRange(reader, downloadRequest, blob);
       InputStream inputStream = Channels.newInputStream(reader);
       return transformer.toDownloadResponse(blob, inputStream);
