@@ -287,8 +287,6 @@ class GcpBlobStoreTest {
     when(mockStorage.createFrom(
         eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
         .thenReturn(mockBlob);
-    // After createFrom, doUpload fetches the committed object to get fully-populated metadata.
-    when(mockStorage.get(any(BlobId.class))).thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
     // When
@@ -299,7 +297,8 @@ class GcpBlobStoreTest {
     assertEquals(expectedResponse, response);
     verify(mockStorage).createFrom(
         eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
-    verify(mockStorage).get(any(BlobId.class));
+    // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
+    verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
@@ -350,6 +349,8 @@ class GcpBlobStoreTest {
     assertEquals(expectedResponse, response);
     verify(mockStorage).createFrom(
         eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
+    // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
+    verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
@@ -379,6 +380,8 @@ class GcpBlobStoreTest {
     assertEquals(expectedResponse, response);
     verify(mockStorage)
         .createFrom(eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class));
+    // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
+    verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
@@ -408,6 +411,8 @@ class GcpBlobStoreTest {
     assertEquals(expectedResponse, response);
     verify(mockStorage)
         .createFrom(eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class));
+    // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
+    verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 

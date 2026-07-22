@@ -181,18 +181,17 @@ public class GcpBlobStore extends AbstractBlobStore {
   protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
     rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
     try {
-      storage.createFrom(
-          transformer.toBlobInfo(uploadRequest),
-          inputStream,
-          transformer.getBlobWriteOptions(uploadRequest));
+      // createFrom returns the committed Blob with server-populated generation, crc32c, and etag
+      // already set, so the response can be built directly from it without a follow-up get().
+      Blob blob =
+          storage.createFrom(
+              transformer.toBlobInfo(uploadRequest),
+              inputStream,
+              transformer.getBlobWriteOptions(uploadRequest));
+      return transformer.toUploadResponse(blob);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from input stream", e);
     }
-    // Fetch the committed object so the response carries the fully-populated server-side
-    // metadata (generation, retention, hold flags, etag) rather than relying on the
-    // upload-response fields, which some GCS API paths do not fully populate.
-    Blob blob = getRequiredBlob(BlobId.of(getBucket(), uploadRequest.getKey()));
-    return transformer.toUploadResponse(blob);
   }
 
   @Override
