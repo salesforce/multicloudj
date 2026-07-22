@@ -2802,11 +2802,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testGetBucketVersioning_enabledBucket() {
-    // Ali bucket-versioning replay mappings are recorded on dedicated machines and are
-    // not yet checked in. AliBlobStore implements and unit-tests the operation; skip only
-    // the shared conformance replay until they land.
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
-
     // The versioned conformance bucket is provisioned with versioning enabled.
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -2823,11 +2818,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testGetBucketVersioning_nonexistentBucket_throws() {
-    // Ali bucket-versioning replay mappings are recorded on dedicated machines and are
-    // not yet checked in. AliBlobStore implements and unit-tests the operation; skip only
-    // the shared conformance replay until they land.
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
-
     AbstractBlobStore blobStore = harness.createBlobStore(false, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
