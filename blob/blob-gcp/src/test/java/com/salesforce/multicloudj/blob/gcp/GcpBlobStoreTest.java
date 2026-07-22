@@ -4376,6 +4376,47 @@ class GcpBlobStoreTest {
     }
   }
 
+  @Test
+  void testDoDownloadDirectory_PathTraversalProtection() {
+    // Given: a malicious blob whose name escapes the target directory after the
+    // prefix is stripped ("test-prefix/" -> relative path "../../../etc/passwd").
+    String prefix = "test-prefix/";
+    String localDir = tempDir.toString();
+    DirectoryDownloadRequest request =
+        DirectoryDownloadRequest.builder()
+            .prefixToDownload(prefix)
+            .localDestinationDirectory(localDir)
+            .build();
+
+    Blob maliciousBlob = mock(Blob.class);
+    when(maliciousBlob.getName()).thenReturn("test-prefix/../../../etc/passwd");
+
+    @SuppressWarnings("unchecked")
+    Page<Blob> mockPage = mock(Page.class);
+    when(mockPage.iterateAll()).thenReturn(List.of(maliciousBlob));
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+
+    // When
+    DirectoryDownloadResponse response = gcpBlobStore.doDownloadDirectory(request);
+
+    // Then: the malicious blob must be filtered out before any download is attempted
+    // and reported as a failed transfer with a SecurityException.
+    assertNotNull(response);
+    assertEquals(1, response.getFailedTransfers().size());
+    FailedBlobDownload failure = response.getFailedTransfers().get(0);
+    assertTrue(
+        failure.getException() instanceof SecurityException,
+        "Expected SecurityException, got: " + failure.getException());
+    Path safeTargetDir = tempDir.toAbsolutePath().normalize();
+    assertFalse(
+        failure.getDestination().startsWith(safeTargetDir),
+        "Reported destination should be outside the target directory");
+    // TransferManager must never see the malicious blob.
+    verify(mockTransferManager, never())
+        .downloadBlobs(anyList(), any(ParallelDownloadConfig.class));
+  }
+
   // ---- New overload: updateObjectRetention(String, String, ObjectRetentionConfig) ----
 
   /** Minimal helper to mock the Blob → Builder → BlobInfo chain consistently for retention. */
