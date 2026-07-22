@@ -5,7 +5,7 @@
     <artifactId>multicloudj-parent</artifactId>
     <packaging>pom</packaging>
     <description>Salesforce Multi-substrate Java SDK</description>
-    <version>0.4.3-SNAPSHOT</version>
+    <version>0.4.4-SNAPSHOT</version>
     <name>multicloudj</name>
     <url>https://github.com/salesforce/multicloudj</url>
 
@@ -750,6 +750,25 @@
                     </plugin>
                 </plugins>
             </build>
+        </profile>
+
+        <!--
+          Benchmarks run under -DrunBenchmarks=true. The JaCoCo agent instruments every class in
+          the forked JMH JVM, which distorts throughput/latency measurements (observed ~40% lower).
+          Auto-activate on that property to skip coverage instrumentation, so a benchmark run is
+          never silently measured with the agent attached. No effect on normal test/verify runs.
+        -->
+        <profile>
+            <id>benchmark</id>
+            <activation>
+                <property>
+                    <name>runBenchmarks</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <properties>
+                <jacoco.skip>true</jacoco.skip>
+            </properties>
         </profile>
     </profiles>
 
