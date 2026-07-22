@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
@@ -55,8 +56,8 @@ import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.results.format.ResultFormatType;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
-import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
+import org.openjdk.jmh.runner.options.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -677,22 +678,95 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   @Test
   @EnabledIfSystemProperty(named = "runBenchmarks", matches = "true")
   public void runBenchmarks() throws RunnerException {
+    OptionsBuilder builder = new OptionsBuilder();
+    builder
+        .include(buildIncludePattern())
+        .forks(Integer.getInteger("bench.forks", 1))
+        .resultFormat(ResultFormatType.JSON)
+        .result(buildResultFilePath())
+        .jvmArgsAppend(collectForwardedProperties().toArray(new String[0]));
+
+    applyTimingOverrides(builder);
+    applyModeOverride(builder);
+
+    new Runner(builder.build()).run();
+  }
+
+  /**
+   * Forwards bucket/region config AND provider tuning toggles (bench.gcp.*) into the forked JMH
+   * JVM. buildStore() runs in the fork, and properties set on the Maven JVM do not otherwise reach
+   * it, so without this a tuned leg would silently run defaults.
+   */
+  private static List<String> collectForwardedProperties() {
     List<String> forwardedArgs = new ArrayList<>();
     for (String key : System.getProperties().stringPropertyNames()) {
-      if (key.startsWith("BLOB_BENCHMARK_")) {
+      if (key.startsWith("BLOB_BENCHMARK_") || key.startsWith("bench.gcp.")) {
         forwardedArgs.add("-D" + key + "=" + System.getProperty(key));
       }
     }
+    return forwardedArgs;
+  }
 
-    Options opt =
-        new OptionsBuilder()
-            .include(".*" + this.getClass().getName() + ".*")
-            .forks(1)
-            .resultFormat(ResultFormatType.JSON)
-            .result("target/jmh-async-results-" + getProviderId() + ".json")
-            .jvmArgsAppend(forwardedArgs.toArray(new String[0]))
-            .build();
+  /**
+   * Builds the JMH include regex, scoped to this class. When -Dbench.method is set, restricts the
+   * run to that single benchmark (e.g. -Dbench.method=benchmarkUploadDirectorySmall). Both the
+   * class name and the method filter are wrapped in Pattern.quote() so their literal characters
+   * (e.g. the dots in the fully-qualified class name) are not interpreted as regex metacharacters.
+   */
+  private String buildIncludePattern() {
+    String classPattern = Pattern.quote(this.getClass().getName());
+    String methodFilter = System.getProperty("bench.method");
+    if (methodFilter != null && !methodFilter.isEmpty()) {
+      return classPattern + "\\." + Pattern.quote(methodFilter);
+    }
+    return classPattern;
+  }
 
-    new Runner(opt).run();
+  /**
+   * Resolves the JSON result path. When -Dbench.tag is set, the tag is appended so a controlled
+   * before/after experiment writes to separate files instead of overwriting one another.
+   */
+  private String buildResultFilePath() {
+    String resultTag = System.getProperty("bench.tag");
+    String base = "target/jmh-async-results-" + getProviderId();
+    return (resultTag != null && !resultTag.isEmpty())
+        ? base + "-" + resultTag + ".json"
+        : base + ".json";
+  }
+
+  /**
+   * Optional timing overrides for slow ops (e.g. directory benchmarks at &lt;1 op/s) so a
+   * measurement iteration captures enough operations for a tight confidence interval. These
+   * override the per-method {@code @Measurement}/{@code @Warmup} annotations when set.
+   */
+  private static void applyTimingOverrides(OptionsBuilder builder) {
+    Integer measIters = Integer.getInteger("bench.measIterations");
+    Integer measSeconds = Integer.getInteger("bench.measSeconds");
+    Integer warmIters = Integer.getInteger("bench.warmIterations");
+    Integer warmSeconds = Integer.getInteger("bench.warmSeconds");
+    if (measIters != null) {
+      builder.measurementIterations(measIters);
+    }
+    if (measSeconds != null) {
+      builder.measurementTime(TimeValue.seconds(measSeconds));
+    }
+    if (warmIters != null) {
+      builder.warmupIterations(warmIters);
+    }
+    if (warmSeconds != null) {
+      builder.warmupTime(TimeValue.seconds(warmSeconds));
+    }
+  }
+
+  /**
+   * Optional benchmark-mode override so a controlled experiment can isolate a single mode
+   * (e.g. -Dbench.mode=thrpt) instead of paying for every mode the class declares. Accepts JMH's
+   * CLI shorthands: thrpt, avgt, sample, ss.
+   */
+  private static void applyModeOverride(OptionsBuilder builder) {
+    String modeName = System.getProperty("bench.mode");
+    if (modeName != null && !modeName.isEmpty()) {
+      builder.mode(Mode.deepValueOf(modeName));
+    }
   }
 }
