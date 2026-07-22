@@ -23,6 +23,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.api.gax.paging.Page;
@@ -1799,7 +1800,7 @@ class GcpBlobStoreTest {
 
       when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
       when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
-      when(mockBlob.reader()).thenReturn(mockReadChannel);
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockTransformer.toDownloadResponse(eq(mockBlob), any(InputStream.class)))
           .thenReturn(expectedResponse);
 
@@ -1808,9 +1809,53 @@ class GcpBlobStoreTest {
       assertEquals(expectedResponse, response);
       verify(mockTransformer).toBlobId(downloadRequest);
       verify(mockStorage).get(mockBlobId);
-      verify(mockBlob).reader();
+      verify(mockStorage).reader(mockBlobId);
+      verify(mockBlob, never()).reader();
       verify(mockTransformer, never()).computeRange(any(), any(), anyLong());
       verify(mockTransformer).toDownloadResponse(eq(mockBlob), any(InputStream.class));
+    }
+  }
+
+  /**
+   * Reproduces the generation-pinning divergence on the InputStream download path.
+   *
+   * <p>{@code storage.get(blobId)} resolves object metadata at a point in time; that {@link Blob}
+   * carries the generation observed by the GET. {@code Blob#reader()} opens a channel pinned to
+   * that captured generation, whereas {@code storage.reader(blobId)} opens a channel on the current
+   * object. When the object is overwritten between the metadata GET and the read, the two diverge:
+   * the pinned reader tracks the older generation while the by-BlobId reader tracks the latest.
+   *
+   * <p>Here the pinned {@code Blob#reader()} is wired to a distinct stale channel; the test asserts
+   * the download streams from the by-BlobId channel and never touches the pinned reader, so the
+   * emitted stream tracks the current object rather than the snapshot taken by the metadata GET.
+   * This also matches the OutputStream download overload, which already reads by BlobId.
+   */
+  @Test
+  void testDoDownloadWithInputStreamReadsCurrentGenerationNotPinned() {
+    try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+      // Given: the metadata GET returns a Blob whose pinned reader() would serve a stale
+      // generation, while storage.reader(blobId) serves the current object.
+      DownloadRequest downloadRequest = DownloadRequest.builder().withKey(TEST_KEY).build();
+      DownloadResponse expectedResponse = DownloadResponse.builder().key(TEST_KEY).build();
+
+      ReadChannel pinnedStaleChannel = Mockito.mock(ReadChannel.class);
+
+      when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
+      when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+      lenient().when(mockBlob.reader()).thenReturn(pinnedStaleChannel);
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
+      when(mockTransformer.toDownloadResponse(eq(mockBlob), any(InputStream.class)))
+          .thenReturn(expectedResponse);
+
+      // When
+      DownloadResponse response = gcpBlobStore.doDownload(downloadRequest);
+
+      // Then: the read must come from storage.reader(blobId) (current object), never from the
+      // generation-pinned Blob#reader().
+      assertEquals(expectedResponse, response);
+      verify(mockStorage).reader(mockBlobId);
+      verify(mockBlob, never()).reader();
+      verifyNoInteractions(pinnedStaleChannel);
     }
   }
 
@@ -1847,7 +1892,7 @@ class GcpBlobStoreTest {
 
       when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
       when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
-      when(mockBlob.reader()).thenReturn(mockReadChannel);
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockBlob.getSize()).thenReturn(100L);
       when(mockTransformer.computeRange(10L, 20L, 100L)).thenReturn(new ImmutablePair<>(10L, 21L));
       when(mockTransformer.toDownloadResponse(eq(mockBlob), any(InputStream.class)))
@@ -1859,7 +1904,8 @@ class GcpBlobStoreTest {
       assertEquals(expectedResponse, response);
       verify(mockTransformer).toBlobId(downloadRequest);
       verify(mockStorage).get(mockBlobId);
-      verify(mockBlob).reader();
+      verify(mockStorage).reader(mockBlobId);
+      verify(mockBlob, never()).reader();
       verify(mockReadChannel).seek(10L);
       verify(mockReadChannel).limit(21L);
       verify(mockTransformer).computeRange(10L, 20L, 100L);
@@ -1877,7 +1923,7 @@ class GcpBlobStoreTest {
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
     when(mockBlob.getSize()).thenReturn(100L);
     when(mockTransformer.computeRange(0L, 0L, 100L)).thenReturn(new ImmutablePair<>(0L, 1L));
-    when(mockBlob.reader()).thenReturn(mockReadChannel);
+    when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
     when(mockTransformer.toDownloadResponse(any(Blob.class), any(InputStream.class)))
         .thenReturn(DownloadResponse.builder().key(TEST_KEY).build());
 
@@ -1897,7 +1943,7 @@ class GcpBlobStoreTest {
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
     when(mockBlob.getSize()).thenReturn(100L);
     when(mockTransformer.computeRange(50L, null, 100L)).thenReturn(new ImmutablePair<>(50L, null));
-    when(mockBlob.reader()).thenReturn(mockReadChannel);
+    when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
     when(mockTransformer.toDownloadResponse(any(Blob.class), any(InputStream.class)))
         .thenReturn(DownloadResponse.builder().key(TEST_KEY).build());
 
@@ -1917,7 +1963,7 @@ class GcpBlobStoreTest {
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
     when(mockBlob.getSize()).thenReturn(100L);
     when(mockTransformer.computeRange(null, 25L, 100L)).thenReturn(new ImmutablePair<>(75L, 101L));
-    when(mockBlob.reader()).thenReturn(mockReadChannel);
+    when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
     when(mockTransformer.toDownloadResponse(any(Blob.class), any(InputStream.class)))
         .thenReturn(DownloadResponse.builder().key(TEST_KEY).build());
 
