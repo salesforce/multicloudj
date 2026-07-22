@@ -202,15 +202,26 @@ public class AliDocStore extends AbstractDocStore {
       // Run preliminary get actions
       runGets(preActions, beforeDo, batchSize);
 
-      // Run write actions asynchronously while proceeding with read actions in parallel
       CompletableFuture<Void> writeTask =
           CompletableFuture.runAsync(() -> runWrites(writeActions, beforeDo));
+
+      // When the action list contains an atomic transaction, the non-atomic writes must COMPLETE
+      // before the transaction starts. A Tablestore local transaction takes an exclusive lock on
+      // its partition; if a non-atomic write targets the same partition (e.g. a delete and an
+      // atomic put under one partition key) running it concurrently with the transaction races that
+      // lock and fails with OTSRowOperationConflict. Reads do not take the lock, so the transaction
+      // still overlaps the read actions below. When there is no atomic transaction, the writes and
+      // reads run concurrently as before (the barrier is unnecessary).
+      if (!atomicWriteActions.isEmpty()) {
+        writeTask.get();
+      }
+
       CompletableFuture<Void> txWriteTask =
           CompletableFuture.runAsync(() -> runTxWrites(atomicWriteActions, beforeDo));
 
       runGets(readActions, beforeDo, batchSize);
 
-      // Await completion of write actions
+      // Await completion of the write actions and the atomic transaction
       writeTask.get();
       txWriteTask.get();
 
