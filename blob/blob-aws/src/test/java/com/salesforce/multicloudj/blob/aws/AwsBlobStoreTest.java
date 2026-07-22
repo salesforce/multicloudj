@@ -68,11 +68,13 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -701,6 +703,34 @@ public class AwsBlobStoreTest {
     for (ObjectIdentifier objectIdentifier : identifiers) {
       assertEquals(objectsMap.get(objectIdentifier.key()), objectIdentifier.versionId());
     }
+  }
+
+  @Test
+  void testDoBulkDeleteChunksAtS3KeyLimit() {
+    int totalObjects = 2050;
+    List<BlobIdentifier> objects = new ArrayList<>(totalObjects);
+    for (int i = 0; i < totalObjects; i++) {
+      objects.add(new BlobIdentifier("object-" + i, "version-" + i));
+    }
+
+    aws.doDelete(objects);
+
+    ArgumentCaptor<DeleteObjectsRequest> requestCaptor =
+        ArgumentCaptor.forClass(DeleteObjectsRequest.class);
+    // 2050 objects => ceil(2050 / 1000) = 3 requests
+    verify(mockS3Client, times(3)).deleteObjects(requestCaptor.capture());
+
+    List<DeleteObjectsRequest> requests = requestCaptor.getAllValues();
+    Set<String> deletedKeys = new HashSet<>();
+    for (DeleteObjectsRequest request : requests) {
+      assertEquals("bucket-1", request.bucket());
+      List<ObjectIdentifier> ids = request.delete().objects();
+      assertTrue(
+          ids.size() <= 1000,
+          "DeleteObjects request exceeded S3's 1000-key limit: " + ids.size());
+      ids.forEach(id -> deletedKeys.add(id.key()));
+    }
+    assertEquals(totalObjects, deletedKeys.size());
   }
 
   @Test

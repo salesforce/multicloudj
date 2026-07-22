@@ -69,6 +69,7 @@ import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.CopyObjectResponse;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
@@ -328,7 +329,9 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
    */
   @Override
   protected void doDelete(Collection<BlobIdentifier> objects) {
-    s3Client.deleteObjects(transformer.toDeleteRequests(objects));
+    for (DeleteObjectsRequest request : transformer.toDeleteRequests(objects)) {
+      s3Client.deleteObjects(request);
+    }
   }
 
   /**

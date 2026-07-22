@@ -43,9 +43,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
@@ -618,11 +620,40 @@ public class AwsTransformerTest {
             new BlobIdentifier("other/key/path.file", null));
     List<String> keys = objects.stream().map(BlobIdentifier::getKey).collect(Collectors.toList());
     var actual = transformer.toDeleteRequests(objects);
-    assertEquals(BUCKET, actual.bucket());
+    assertEquals(1, actual.size());
+    assertEquals(BUCKET, actual.get(0).bucket());
     var awsKeys =
-        actual.delete().objects().stream().map(ObjectIdentifier::key).collect(Collectors.toList());
+        actual.get(0).delete().objects().stream()
+            .map(ObjectIdentifier::key)
+            .collect(Collectors.toList());
 
     assertTrue(awsKeys.containsAll(keys));
+  }
+
+  @Test
+  void testToDeleteRequestsPartitionsAtKeyLimit() {
+    int total = 2 * AwsTransformer.MAX_DELETE_OBJECTS_PER_REQUEST + 1;
+    List<BlobIdentifier> objects = new ArrayList<>(total);
+    for (int i = 0; i < total; i++) {
+      objects.add(new BlobIdentifier("key-" + i, null));
+    }
+
+    var requests = transformer.toDeleteRequests(objects);
+
+    assertEquals(3, requests.size());
+    Set<String> allKeys = new HashSet<>();
+    for (var request : requests) {
+      assertEquals(BUCKET, request.bucket());
+      int batchSize = request.delete().objects().size();
+      assertTrue(batchSize <= AwsTransformer.MAX_DELETE_OBJECTS_PER_REQUEST);
+      request.delete().objects().forEach(id -> allKeys.add(id.key()));
+    }
+    assertEquals(total, allKeys.size());
+  }
+
+  @Test
+  void testToDeleteRequestsEmpty() {
+    assertTrue(transformer.toDeleteRequests(java.util.Collections.emptyList()).isEmpty());
   }
 
   @Test
