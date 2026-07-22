@@ -12,10 +12,11 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
  *
  * <p>DynamoDB item size calculation rules (per AWS documentation): - Attribute name: UTF-8 encoded
  * byte length - Strings: UTF-8 encoded byte length - Numbers: Variable length (approximately 1 byte
- * per 2 significant digits, minimum 1 byte, maximum 38 bytes) - Binary: Raw byte length - Boolean:
- * 1 byte - Null: 1 byte - Lists: Sum of element sizes - Maps: Sum of (attribute name size +
- * attribute value size) for each entry - String sets, number sets, binary sets: Sum of element
- * sizes
+ * per 2 significant digits plus 1 byte, minimum 2 bytes, maximum 39 bytes) - Binary: Raw byte
+ * length - Boolean: 1 byte - Null: 1 byte - Lists: 3 bytes container overhead plus 1 byte per
+ * element plus element sizes - Maps: 3 bytes container overhead plus 1 byte per entry plus
+ * (attribute name size + attribute value size) for each entry - String sets, number sets, binary
+ * sets: Sum of element sizes
  *
  * <p>Reference: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/CapacityUnitCalculations.html
  */
@@ -82,7 +83,7 @@ public class DynamoDbItemSizeCalculator {
 
     // List
     if (value.l() != null && !value.l().isEmpty()) {
-      long size = 0;
+      long size = 3 + value.l().size();
       for (AttributeValue element : value.l()) {
         size += calculateAttributeValueSize(element);
       }
@@ -91,7 +92,7 @@ public class DynamoDbItemSizeCalculator {
 
     // Map
     if (value.m() != null && !value.m().isEmpty()) {
-      long size = 0;
+      long size = 3 + value.m().size();
       for (Map.Entry<String, AttributeValue> entry : value.m().entrySet()) {
         size += getUtf8ByteLength(entry.getKey());
         size += calculateAttributeValueSize(entry.getValue());
@@ -132,15 +133,15 @@ public class DynamoDbItemSizeCalculator {
   /**
    * Calculates the size of a DynamoDB number in bytes.
    *
-   * <p>DynamoDB numbers are variable-length: approximately 1 byte per 2 significant digits, with a
-   * minimum of 1 byte and maximum of 38 bytes.
+   * <p>DynamoDB numbers are variable-length: approximately 1 byte per 2 significant digits plus 1
+   * byte, with a minimum of 2 bytes and maximum of 39 bytes.
    *
    * @param numberString The number as a string
    * @return The size in bytes
    */
   private static long calculateNumberSize(String numberString) {
     if (numberString == null || numberString.isEmpty()) {
-      return 1;
+      return 2;
     }
 
     try {
@@ -153,13 +154,13 @@ public class DynamoDbItemSizeCalculator {
 
       // DynamoDB uses approximately 1 byte per 2 significant digits
       long size = (significantDigits + 1) / 2;
-      // Minimum 1 byte, maximum 38 bytes
-      return Math.max(1, Math.min(38, size));
+      // Plus 1 byte, minimum 2 bytes, maximum 39 bytes
+      return Math.max(2, Math.min(39, size + 1));
     } catch (NumberFormatException e) {
-      // Fallback for malformed numbers - should not happen with valid DynamoDB AttributeValues
-      // This conservative estimate errs on the side of allowing slightly oversized items
-      // rather than falsely rejecting valid ones
-      return Math.min(38, Math.max(1, numberString.length() / 2));
+      // Fallback for malformed numbers - should not happen with valid DynamoDB AttributeValues.
+      // Use the same sizing formula so behavior remains consistent with the primary path.
+      long size = (numberString.length() + 1L) / 2;
+      return Math.max(2, Math.min(39, size + 1));
     }
   }
 
