@@ -1,5 +1,5 @@
 {
-  "id" : "04248a6e-4c2c-4cef-bad1-d7b2788c6058",
+  "id" : "02cdfdc8-a963-4795-afdb-768348074cd2",
   "name" : "FSDocstoreIT_testAtomicWritesFail-POST-3",
   "request" : {
     "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
@@ -17,27 +17,27 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"writes\":[{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWritesFail0\",\"currentDocument\":{\"updateTime\":\"2026-03-04T21:20:13.753456Z\"}},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWritesFail1\",\"currentDocument\":{\"updateTime\":\"2026-03-04T21:20:13.753456Z\"}},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWritesFail2\",\"currentDocument\":{\"updateTime\":\"2026-03-04T21:20:13.753456Z\"}}]}",
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWritesFail:testAtomicWritesFail6\",\"fields\":{\"Player\":{\"stringValue\":\"testAtomicWritesFail6\"},\"Game\":{\"stringValue\":\"testAtomicWritesFail\"},\"s\":{\"stringValue\":\"66\"},\"DocstoreRevision\":{\"bytesValue\":\"CICthdMGEOic4tED\"}}},\"currentDocument\":{\"updateTime\":\"2026-07-22T23:47:12.976785Z\"}},{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWritesFail:testAtomicWritesFail7\",\"fields\":{\"Player\":{\"stringValue\":\"testAtomicWritesFail7\"},\"Game\":{\"stringValue\":\"testAtomicWritesFail\"},\"s\":{\"stringValue\":\"77\"},\"DocstoreRevision\":{\"bytesValue\":\"CICthdMGEOic4tED\"}}},\"currentDocument\":{\"updateTime\":\"2026-07-22T23:47:12.976785Z\"}},{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWritesFail:testAtomicWritesFail8\",\"fields\":{\"Player\":{\"stringValue\":\"testAtomicWritesFail8\"},\"Game\":{\"stringValue\":\"testAtomicWritesFail\"},\"s\":{\"stringValue\":\"8\"},\"DocstoreRevision\":{\"stringValue\":\"88\"}}},\"currentDocument\":{\"exists\":true}}]}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
   },
   "response" : {
-    "status" : 200,
-    "body" : "{\n  \"writeResults\": [\n    {},\n    {},\n    {}\n  ],\n  \"commitTime\": \"2026-03-04T21:20:14.691217Z\"\n}\n",
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No document to update: projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWritesFail:testAtomicWritesFail8\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n",
     "headers" : {
       "X-Frame-Options" : "SAMEORIGIN",
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "ESF",
-      "X-Debug-Tracking-ID" : "8271025556997541383;o=1",
+      "X-Debug-Tracking-ID" : "717299650592422109;o=1",
       "X-Content-Type-Options" : "nosniff",
       "Vary" : [ "Origin", "X-Origin", "Referer" ],
       "X-XSS-Protection" : "0",
-      "Date" : "Wed, 04 Mar 2026 21:20:14 GMT",
+      "Date" : "Wed, 22 Jul 2026 23:47:13 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "04248a6e-4c2c-4cef-bad1-d7b2788c6058",
+  "uuid" : "02cdfdc8-a963-4795-afdb-768348074cd2",
   "persistent" : true,
-  "insertionIndex" : 141
+  "insertionIndex" : 248
 }
