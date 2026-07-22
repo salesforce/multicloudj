@@ -422,6 +422,9 @@ public class AwsDocStore extends AbstractDocStore {
       av = av.toBuilder().m(m).build();
     }
 
+    // Validate item size before attempting to write to DynamoDB
+    validateItemSize(av.m());
+
     Put.Builder putBuilder = Put.builder().tableName(collectionOptions.getTableName()).item(av.m());
 
     Map<String, String> expressionAttributeNames = new HashMap<>();
@@ -480,6 +483,24 @@ public class AwsDocStore extends AbstractDocStore {
       return collectionOptions.getSortKey();
     } else {
       return "";
+    }
+  }
+
+  /**
+   * Validates that the DynamoDB item size does not exceed the 400 KB limit.
+   *
+   * @param item The DynamoDB item to validate
+   * @throws InvalidArgumentException if the item size exceeds the limit
+   */
+  private void validateItemSize(Map<String, AttributeValue> item) {
+    long itemSizeBytes = DynamoDbItemSizeCalculator.calculateItemSize(item);
+    if (itemSizeBytes > DynamoDbItemSizeCalculator.ITEM_SIZE_LIMIT_BYTES) {
+      throw new InvalidArgumentException(
+          String.format(
+              "Document size (%d bytes) exceeds DynamoDB item size limit (%d bytes / 400 KB). "
+                  + "Consider splitting the document into smaller items or storing large "
+                  + "attributes separately.",
+              itemSizeBytes, DynamoDbItemSizeCalculator.ITEM_SIZE_LIMIT_BYTES));
     }
   }
 
