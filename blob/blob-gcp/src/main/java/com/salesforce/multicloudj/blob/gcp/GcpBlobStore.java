@@ -234,7 +234,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
-    Blob blob = getRequiredBlobForDownload(downloadRequest);
+    Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
     // Parallel download uses Transfer Manager / file paths only; OutputStream downloads always use
     // ReadChannel streaming (parallelDownload is ignored for this overload).
     try (ReadChannel reader = storage.reader(blobId);
@@ -264,7 +264,8 @@ public class GcpBlobStore extends AbstractBlobStore {
   // cannot produce an InputStream directly.
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
-    Blob blob = getRequiredBlobForDownload(downloadRequest);
+    BlobId blobId = transformer.toBlobId(downloadRequest);
+    Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
     try {
       ReadChannel reader = blob.reader();
       applyRange(reader, downloadRequest, blob);
@@ -337,7 +338,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    */
   private DownloadResponse doParallelDownload(DownloadRequest downloadRequest, Path destination) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
-    Blob blob = getRequiredBlobForDownload(downloadRequest);
+    Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
     ParallelTmPaths tmPaths = computeParallelTmPaths(downloadRequest, destination);
     if (transferManager == null || tmPaths == null) {
       return downloadBlobToPath(blob, destination);
@@ -813,17 +814,16 @@ public class GcpBlobStore extends AbstractBlobStore {
     return blob;
   }
 
-  private Blob getRequiredBlobForDownload(DownloadRequest downloadRequest) {
-    BlobId getBlob = transformer.toBlobId(downloadRequest);
-    Blob blob = storage.get(getBlob);
+  private Blob getRequiredBlobForDownload(DownloadRequest downloadRequest, BlobId blobId) {
+    Blob blob = storage.get(blobId);
     if (blob != null) {
       return blob;
     }
     if (downloadRequest.isCheckArchived()) {
-      handleArchived(getBlob);
+      handleArchived(blobId);
     }
     throw new ResourceNotFoundException(
-        "Blob not found: " + getBlob.getBucket() + "/" + getBlob.getName());
+        "Blob not found: " + blobId.getBucket() + "/" + blobId.getName());
   }
 
   private void handleArchived(BlobId blobId) {
@@ -1695,7 +1695,10 @@ public class GcpBlobStore extends AbstractBlobStore {
       TransferManagerConfig.Builder configBuilder =
           TransferManagerConfig.newBuilder().setStorageOptions(options);
 
-      // Map transferManagerThreadPoolSize -> setMaxWorkers
+      // Map transferManagerThreadPoolSize -> setMaxWorkers.
+      // Unset, GCS defaults maxWorkers to 2 x availableProcessors. When raising this for
+      // directory-heavy workloads, also raise withMaxConnections (see buildHttpClient): extra
+      // workers only help if the single-route Apache connection pool can serve them concurrently.
       if (builder.getTransferManagerThreadPoolSize() != null) {
         configBuilder.setMaxWorkers(builder.getTransferManagerThreadPoolSize());
       }
@@ -1728,6 +1731,14 @@ public class GcpBlobStore extends AbstractBlobStore {
     private static CloseableHttpClient buildHttpClient(Builder builder) {
       HttpClientBuilder httpClientBuilder = ApacheHttpTransport.newDefaultHttpClientBuilder();
       httpClientBuilder.setDefaultRequestConfig(buildRequestConfig(builder));
+      // Performance note (directory / many-small-object workloads): GCS traffic all targets a
+      // single host, so it maps to one Apache HTTP route whose default per-route connection cap
+      // is 20. The TransferManager used for directory operations spawns 2 x availableProcessors
+      // workers, which on multi-core hosts exceeds that cap and leaves workers blocked waiting for
+      // a connection. For such workloads, raise this via withMaxConnections (which sets both
+      // maxConnTotal and maxConnPerRoute below) together with withTransferManagerThreadPoolSize;
+      // in a controlled benchmark this roughly tripled small-file directory throughput. The knob is
+      // left unset by default so single-object callers keep the lean default connection footprint.
       if (builder.getMaxConnections() != null) {
         int maxConns = builder.getMaxConnections();
         httpClientBuilder.setMaxConnTotal(maxConns);
