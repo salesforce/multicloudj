@@ -30,6 +30,8 @@ import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
 import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetBucketVersioningRequest;
+import com.aliyun.sdk.service.oss2.models.GetBucketVersioningResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectLegalHoldResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
@@ -67,10 +69,13 @@ import com.aliyun.sdk.service.oss2.models.TagSet;
 import com.aliyun.sdk.service.oss2.models.Tagging;
 import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartResult;
+import com.aliyun.sdk.service.oss2.models.VersioningConfiguration;
 import com.aliyun.sdk.service.oss2.paginator.ListObjectVersionsIterable;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -1259,6 +1264,94 @@ public class AliBlobStoreTest {
 
     verify(mockOssClient, times(1)).doesBucketExist("bucket-1");
     assertFalse(result);
+  }
+
+  @Test
+  void testDoGetBucketVersioning_enabled() {
+    VersioningConfiguration config =
+        VersioningConfiguration.newBuilder().status("Enabled").build();
+    GetBucketVersioningResult result = mock(GetBucketVersioningResult.class);
+    when(result.versioningConfiguration()).thenReturn(config);
+    doReturn(result)
+        .when(mockOssClient)
+        .getBucketVersioning(any(GetBucketVersioningRequest.class), any(OperationOptions.class));
+
+    BucketVersioningConfiguration versioning = ali.doGetBucketVersioning();
+
+    ArgumentCaptor<GetBucketVersioningRequest> captor =
+        ArgumentCaptor.forClass(GetBucketVersioningRequest.class);
+    verify(mockOssClient, times(1)).getBucketVersioning(captor.capture(), any());
+    assertEquals("bucket-1", captor.getValue().bucket());
+    assertEquals(BucketVersioningStatus.ENABLED, versioning.getStatus());
+  }
+
+  @Test
+  void testDoGetBucketVersioning_suspended() {
+    VersioningConfiguration config =
+        VersioningConfiguration.newBuilder().status("Suspended").build();
+    GetBucketVersioningResult result = mock(GetBucketVersioningResult.class);
+    when(result.versioningConfiguration()).thenReturn(config);
+    doReturn(result)
+        .when(mockOssClient)
+        .getBucketVersioning(any(GetBucketVersioningRequest.class), any(OperationOptions.class));
+
+    BucketVersioningConfiguration versioning = ali.doGetBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.SUSPENDED, versioning.getStatus());
+  }
+
+  @Test
+  void testDoGetBucketVersioning_neverConfigured_mapsToUnversioned() {
+    // A bucket that has never had versioning configured carries no status element; OSS surfaces
+    // this as a null VersioningConfiguration. It must map to UNVERSIONED, not an error.
+    GetBucketVersioningResult result = mock(GetBucketVersioningResult.class);
+    when(result.versioningConfiguration()).thenReturn(null);
+    doReturn(result)
+        .when(mockOssClient)
+        .getBucketVersioning(any(GetBucketVersioningRequest.class), any(OperationOptions.class));
+
+    BucketVersioningConfiguration versioning = ali.doGetBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.UNVERSIONED, versioning.getStatus());
+  }
+
+  @Test
+  void testDoGetBucketVersioning_nonexistentBucket_propagatesException() {
+    // OSS returns 404 NoSuchBucket when the bucket does not exist. The provider no longer
+    // translates this exception; it propagates to the central exception mapper. A mocked
+    // OperationException is used rather than `new OperationException(...)` because that
+    // constructor performs a String.format on the cause, which interacts poorly with the JaCoCo
+    // agent on Mockito-spun ServiceException instances in this build environment.
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchBucket");
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getBucketVersioning(
+            any(GetBucketVersioningRequest.class), any(OperationOptions.class)))
+        .thenThrow(op);
+
+    OperationException thrown =
+        assertThrows(OperationException.class, () -> ali.doGetBucketVersioning());
+    assertEquals(op, thrown);
+  }
+
+  @Test
+  void testDoGetBucketVersioning_otherError_propagates() {
+    // A non-404 failure (e.g. 403 AccessDenied) is not the missing-bucket case; the original
+    // exception must propagate unchanged so the framework's exception-translation layer maps it.
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(403);
+    when(service.errorCode()).thenReturn("AccessDenied");
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getBucketVersioning(
+            any(GetBucketVersioningRequest.class), any(OperationOptions.class)))
+        .thenThrow(op);
+
+    OperationException thrown =
+        assertThrows(OperationException.class, () -> ali.doGetBucketVersioning());
+    assertEquals(op, thrown);
   }
 
   private UploadRequest getTestUploadRequest() {

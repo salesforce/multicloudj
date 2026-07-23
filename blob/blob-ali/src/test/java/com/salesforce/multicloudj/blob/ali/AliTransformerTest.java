@@ -10,6 +10,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
+import com.aliyun.sdk.service.oss2.models.GetBucketVersioningResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload;
@@ -19,10 +20,12 @@ import com.aliyun.sdk.service.oss2.models.ListPartsResult;
 import com.aliyun.sdk.service.oss2.models.Part;
 import com.aliyun.sdk.service.oss2.models.PutObjectResult;
 import com.aliyun.sdk.service.oss2.models.UploadPartResult;
+import com.aliyun.sdk.service.oss2.models.VersioningConfiguration;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
 import com.aliyun.sdk.service.oss2.transport.HttpClientOptions;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -1322,6 +1325,69 @@ public class AliTransformerTest {
     assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", actual.contentMd5());
     assertNull(actual.headers().get("x-oss-hash-crc64ecma"));
     assertNull(actual.headers().get("x-oss-content-sha256"));
+  }
+
+  @Test
+  void testToGetBucketVersioningRequest() {
+    var actual = transformer.toGetBucketVersioningRequest();
+    assertEquals(BUCKET, actual.bucket());
+  }
+
+  @Test
+  void testToBucketVersioningConfiguration_enabled() {
+    VersioningConfiguration config =
+        VersioningConfiguration.newBuilder().status("Enabled").build();
+    GetBucketVersioningResult result = mock(GetBucketVersioningResult.class);
+    doReturn(config).when(result).versioningConfiguration();
+
+    var actual = transformer.toBucketVersioningConfiguration(result);
+
+    assertEquals(BucketVersioningStatus.ENABLED, actual.getStatus());
+  }
+
+  @Test
+  void testToBucketVersioningConfiguration_suspended() {
+    VersioningConfiguration config =
+        VersioningConfiguration.newBuilder().status("Suspended").build();
+    GetBucketVersioningResult result = mock(GetBucketVersioningResult.class);
+    doReturn(config).when(result).versioningConfiguration();
+
+    var actual = transformer.toBucketVersioningConfiguration(result);
+
+    assertEquals(BucketVersioningStatus.SUSPENDED, actual.getStatus());
+  }
+
+  @Test
+  void testToBucketVersioningConfiguration_nullConfiguration_mapsToUnversioned() {
+    GetBucketVersioningResult result = mock(GetBucketVersioningResult.class);
+    doReturn(null).when(result).versioningConfiguration();
+
+    var actual = transformer.toBucketVersioningConfiguration(result);
+
+    assertEquals(BucketVersioningStatus.UNVERSIONED, actual.getStatus());
+  }
+
+  @Test
+  void testToBucketVersioningConfiguration_nullStatus_mapsToUnversioned() {
+    VersioningConfiguration config = VersioningConfiguration.newBuilder().build();
+    GetBucketVersioningResult result = mock(GetBucketVersioningResult.class);
+    doReturn(config).when(result).versioningConfiguration();
+
+    var actual = transformer.toBucketVersioningConfiguration(result);
+
+    assertEquals(BucketVersioningStatus.UNVERSIONED, actual.getStatus());
+  }
+
+  @Test
+  void testToBucketVersioningConfiguration_unknownStatus_mapsToUnversioned() {
+    VersioningConfiguration config =
+        VersioningConfiguration.newBuilder().status("SomethingElse").build();
+    GetBucketVersioningResult result = mock(GetBucketVersioningResult.class);
+    doReturn(config).when(result).versioningConfiguration();
+
+    var actual = transformer.toBucketVersioningConfiguration(result);
+
+    assertEquals(BucketVersioningStatus.UNVERSIONED, actual.getStatus());
   }
 
   @Test

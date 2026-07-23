@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -576,6 +577,12 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
       }
       throw e;
     }
+  }
+
+  @Override
+  protected BucketVersioningConfiguration doGetBucketVersioning() {
+    return transformer.toBucketVersioningConfiguration(
+        s3Client.getBucketVersioning(transformer.toGetBucketVersioningRequest()));
   }
 
   /** Gets object lock configuration for a blob. */

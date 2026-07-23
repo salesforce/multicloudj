@@ -252,6 +252,12 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   /** {@inheritDoc} */
   @Override
+  public BucketVersioningConfiguration getBucketVersioning() {
+    return doGetBucketVersioning();
+  }
+
+  /** {@inheritDoc} */
+  @Override
   public DirectoryDownloadResponse downloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
     validator.validate(directoryDownloadRequest);
@@ -369,6 +375,25 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   protected abstract boolean doDoesObjectExist(String key, String versionId);
 
   protected abstract boolean doDoesBucketExist();
+
+  /**
+   * Provider hook for {@link #getBucketVersioning()}.
+   *
+   * <p>Default implementation throws {@link UnsupportedOperationException}; providers opt in
+   * by overriding this method. This is intentionally non-abstract (unlike
+   * {@link #doDoesBucketExist()}) because not every substrate supports bucket-level versioning
+   * configuration. An opt-in default avoids forcing those providers to implement a stub that
+   * merely throws, while still requiring a deliberate decision from any new provider that does
+   * support the feature.
+   *
+   * <p><strong>Error contract:</strong> When the bucket does not exist, implementations may
+   * propagate the substrate's native exception. The central exception mapper will normalize
+   * these to the appropriate MultiCloudJ exception type for callers.
+   */
+  protected BucketVersioningConfiguration doGetBucketVersioning() {
+    throw new UnsupportedOperationException(
+        "Bucket versioning configuration is not supported by this substrate implementation");
+  }
 
   /**
    * Provider hook for {@link #updateObjectRetention(String, String, ObjectRetentionConfig)}.
