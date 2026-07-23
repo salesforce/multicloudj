@@ -538,7 +538,18 @@ public class AliDocStore extends AbstractDocStore {
       return;
     }
 
+    // Build the write operations BEFORE opening the transaction. newWriteOperation validates the
+    // document shape and can throw InvalidArgumentException (e.g. a missing key field) — a caller
+    // error that must surface as-is, not be remapped to TransactionFailedException. Doing this
+    // first also means a malformed request never starts (or leaks) a transaction.
     List<WriteOperation> operations = new ArrayList<>();
+    for (Action w : writes) {
+      WriteOperation op = newWriteOperation(w, beforeDo);
+      if (op != null) {
+        operations.add(op);
+      }
+    }
+
     // Extract the partition key from any of the action which is supposed to be same.
     // If the partition key is not same in all writes, the transaction is anyway going to fail.
     PrimaryKey transactionPK =
@@ -556,22 +567,20 @@ public class AliDocStore extends AbstractDocStore {
     final String transactionId = startTransactionResponse.getTransactionID();
 
     try {
-      for (Action w : writes) {
-        WriteOperation op = newWriteOperation(w, beforeDo);
-        if (op != null) {
-          operations.add(op);
-          PutRowRequest putRowRequest = op.getPutRowRequest();
-          putRowRequest.setTransactionId(transactionId);
-          tableStoreClient.putRow(putRowRequest);
-        }
+      for (WriteOperation op : operations) {
+        PutRowRequest putRowRequest = op.getPutRowRequest();
+        putRowRequest.setTransactionId(transactionId);
+        tableStoreClient.putRow(putRowRequest);
       }
       tableStoreClient.commitTransaction(new CommitTransactionRequest(transactionId));
     } catch (RuntimeException e) {
-      // Any failure inside the local transaction — a rejected write/commit (TableStoreException,
-      // e.g. OTSConditionCheckFail on a non-existent row) or a transport failure (ClientException,
-      // e.g. a network timeout), both RuntimeExceptions — must fail the whole block: atomic writes
-      // are all-or-nothing. Abort so the transaction is not left dangling, then surface a uniform
-      // TransactionFailedException regardless of the underlying cause.
+      // Any failure of the transactional TableStore calls — a rejected write/commit
+      // (TableStoreException, e.g. OTSConditionCheckFail on a non-existent row) or a transport
+      // failure (ClientException, e.g. a network timeout), both RuntimeExceptions — must fail the
+      // whole block: atomic writes are all-or-nothing. Abort so the transaction is not left
+      // dangling, then surface a uniform TransactionFailedException regardless of the underlying
+      // cause. (Document-shape validation happens above, before the transaction opens, so caller
+      // errors are not remapped here.)
       try {
         tableStoreClient.abortTransaction(new AbortTransactionRequest(transactionId));
       } catch (RuntimeException abortFailure) {
