@@ -39,6 +39,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -493,6 +494,72 @@ public abstract class AbstractBlobStoreIT {
         false);
   }
 
+  /**
+   * Verifies that when an {@link OperationContext} carrying a service ID and tenant ID is attached
+   * to an upload, the SDK stamps those identifiers onto the stored object's metadata under the
+   * {@code sdk-logging-service-id} and {@code sdk-logging-tenant-id} keys. This is what lets cloud
+   * audit logs (e.g. S3 server access logs / GCS data access logs) be traced back to the
+   * originating service and tenant. When a correlation ID is also supplied, it is likewise
+   * persisted under {@code sdk-logging-correlation-id}.
+   */
+  @Test
+  public void testUpload_withServiceAndTenantId_stampsObjectMetadata() {
+    // Ali: the OSS provider stamps only the correlation id, not service/tenant id, so it does not
+    // satisfy this conformance expectation and has no recorded mappings for it.
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
+    String key = "conformance-tests/upload/observabilityMetadata";
+    String serviceId = "conformance-service";
+    String tenantId = "conformance-tenant";
+    String correlationId = "conformance-correlation-id";
+    byte[] content = "observability metadata test".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      OperationContext operationContext =
+          OperationContext.builder()
+              .serviceId(serviceId)
+              .tenantId(tenantId)
+              .correlationId(correlationId)
+              .build();
+
+      UploadResponse uploadResponse;
+      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+        UploadRequest request =
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(content.length)
+                .withOperationContext(operationContext)
+                .build();
+        uploadResponse = bucketClient.upload(request, inputStream);
+      }
+      Assertions.assertNotNull(uploadResponse, "No upload response returned");
+
+      BlobMetadata blobMetadata = bucketClient.getMetadata(key, null);
+      Assertions.assertNotNull(blobMetadata, "No metadata returned");
+      Map<String, String> storedMetadata = blobMetadata.getMetadata();
+
+      Assertions.assertEquals(
+          serviceId,
+          storedMetadata.get("sdk-logging-service-id"),
+          "service id was not stamped onto object metadata");
+      Assertions.assertEquals(
+          tenantId,
+          storedMetadata.get("sdk-logging-tenant-id"),
+          "tenant id was not stamped onto object metadata");
+      Assertions.assertEquals(
+          correlationId,
+          storedMetadata.get("sdk-logging-correlation-id"),
+          "correlation id was not stamped onto object metadata");
+    } catch (IOException e) {
+      Assertions.fail("testUpload_withServiceAndTenantId: unexpected error " + e.getMessage());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
   private void runUploadTests(String testName, String key, byte[] content, boolean wantError) {
     runUploadTest(testName, false, UploadType.InputStream, key, content, wantError);
     runUploadTest(testName, false, UploadType.ByteArray, key, content, wantError);
@@ -791,30 +858,6 @@ public abstract class AbstractBlobStoreIT {
       boolean downloadUsingVersionId,
       boolean useCorrectVersionId,
       boolean wantError,
-      boolean parallelDownload)
-      throws IOException {
-    runDownloadTest(
-        testName,
-        uploadKey,
-        downloadKey,
-        useVersionedBucket,
-        downloadType,
-        downloadUsingVersionId,
-        useCorrectVersionId,
-        wantError,
-        parallelDownload,
-        false);
-  }
-
-  private void runDownloadTest(
-      String testName,
-      String uploadKey,
-      String downloadKey,
-      boolean useVersionedBucket,
-      DownloadType downloadType,
-      boolean downloadUsingVersionId,
-      boolean useCorrectVersionId,
-      boolean wantError,
       boolean parallelDownload,
       boolean createParentPath)
       throws IOException {
@@ -865,6 +908,8 @@ public abstract class AbstractBlobStoreIT {
         Assertions.assertEquals(
             blobBytes.length, content.length, testName + ": Content-Length did not match");
         Assertions.assertArrayEquals(blobBytes, content, testName + ": Bytes arrays did not match");
+        Assertions.assertNotNull(response.getMetadata().getChecksum(),
+            testName + ": checksum is not there");
       } catch (SubstrateSdkException e) {
         Assertions.assertTrue(wantError, testName + ": Did not expect error. " + e.getMessage());
         return;
@@ -2589,6 +2634,7 @@ public abstract class AbstractBlobStoreIT {
             testConfig.testName + ": The metadata does not match the original");
         Assertions.assertNotNull(blobMetadata.getLastModified());
         Assertions.assertNotNull(blobMetadata.getCreatedTime());
+        Assertions.assertNotNull(blobMetadata.getChecksum());
       }
     } finally {
       // Delete our blob to clean up the test
@@ -4393,7 +4439,8 @@ public abstract class AbstractBlobStoreIT {
   /**
    * Asserts that the user-visible portion of {@code actual} blob metadata equals {@code expected},
    * ignoring SDK-internal entries that the blob clients stamp onto uploaded objects. Today that
-   * means the {@code correlation-id} key the SDK persists to tie a stored blob back to the trace
+   * means the {@code sdk-logging-correlation-id} key the SDK persists to tie a stored
+   * blob back to the trace
    * span and logs of the upload that produced it; the value is non-deterministic per upload and is
    * not user content, so it must not participate in user-metadata round-trip equality checks.
    *
@@ -4403,7 +4450,7 @@ public abstract class AbstractBlobStoreIT {
   private static void assertUserMetadataEquals(
       Map<String, String> expected, Map<String, String> actual, String message) {
     Map<String, String> filtered = new HashMap<>(actual);
-    filtered.remove("correlation-id");
+    filtered.remove("sdk-logging-correlation-id");
     Assertions.assertEquals(expected, filtered, message);
   }
 

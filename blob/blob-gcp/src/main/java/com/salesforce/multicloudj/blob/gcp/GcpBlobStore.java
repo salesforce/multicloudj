@@ -7,7 +7,6 @@ import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.Credentials;
 import com.google.auto.service.AutoService;
 import com.google.cloud.ReadChannel;
-import com.google.cloud.WriteChannel;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
@@ -127,10 +126,8 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -183,17 +180,18 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
     rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
-    try (WriteChannel writer =
-            storage.writer(
-                transformer.toBlobInfo(uploadRequest),
-                transformer.getBlobWriteOptions(uploadRequest));
-         var channel = Channels.newOutputStream(writer)) {
-      ByteStreams.copy(inputStream, channel);
+    try {
+      // createFrom returns the committed Blob with server-populated generation, crc32c, and etag
+      // already set, so the response can be built directly from it without a follow-up get().
+      Blob blob =
+          storage.createFrom(
+              transformer.toBlobInfo(uploadRequest),
+              inputStream,
+              transformer.getBlobWriteOptions(uploadRequest));
+      return transformer.toUploadResponse(blob);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from input stream", e);
     }
-    Blob blob = getRequiredBlob(BlobId.of(getBucket(), uploadRequest.getKey()));
-    return transformer.toUploadResponse(blob);
   }
 
   @Override
@@ -236,22 +234,12 @@ public class GcpBlobStore extends AbstractBlobStore {
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
-    Blob blob = getRequiredBlobForDownload(downloadRequest);
+    Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
     // Parallel download uses Transfer Manager / file paths only; OutputStream downloads always use
     // ReadChannel streaming (parallelDownload is ignored for this overload).
     try (ReadChannel reader = storage.reader(blobId);
         var channel = Channels.newInputStream(reader)) {
-
-      var range =
-          transformer.computeRange(
-              downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
-      if (range.getLeft() != null) {
-        reader.seek(range.getLeft());
-      }
-      if (range.getRight() != null) {
-        reader.limit(range.getRight());
-      }
-
+      applyRange(reader, downloadRequest, blob);
       ByteStreams.copy(channel, outputStream);
       return transformer.toDownloadResponse(blob);
     } catch (IOException e) {
@@ -276,22 +264,45 @@ public class GcpBlobStore extends AbstractBlobStore {
   // cannot produce an InputStream directly.
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
-    Blob blob = getRequiredBlobForDownload(downloadRequest);
+    BlobId blobId = transformer.toBlobId(downloadRequest);
+    Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
     try {
       ReadChannel reader = blob.reader();
-      var range =
-          transformer.computeRange(
-              downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
-      if (range.getLeft() != null) {
-        reader.seek(range.getLeft());
-      }
-      if (range.getRight() != null) {
-        reader.limit(range.getRight());
-      }
+      applyRange(reader, downloadRequest, blob);
       InputStream inputStream = Channels.newInputStream(reader);
       return transformer.toDownloadResponse(blob, inputStream);
     } catch (IOException e) {
       throw new SubstrateSdkException("Failed to create input stream for download", e);
+    }
+  }
+
+  /**
+   * Applies the requested byte range to a {@link ReadChannel} before streaming.
+   *
+   * <p>Full-object downloads skip range setup entirely: with no start or end, {@code computeRange}
+   * would return {@code (null, null)} and neither {@code seek} nor {@code limit} would be applied,
+   * so the emitted GCS GET is identical either way. Short-circuiting here avoids a needless
+   * transformer call and keeps the request byte-for-byte the same as a plain full-object read.
+   *
+   * @param reader the channel to position/limit
+   * @param downloadRequest the request carrying the optional start/end offsets
+   * @param blob the resolved blob, used for its size when resolving a suffix range
+   * @throws IOException if positioning the channel fails
+   */
+  private void applyRange(ReadChannel reader, DownloadRequest downloadRequest, Blob blob)
+      throws IOException {
+    boolean hasRange = downloadRequest.getStart() != null || downloadRequest.getEnd() != null;
+    if (!hasRange) {
+      return;
+    }
+    var range =
+        transformer.computeRange(
+            downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
+    if (range.getLeft() != null) {
+      reader.seek(range.getLeft());
+    }
+    if (range.getRight() != null) {
+      reader.limit(range.getRight());
     }
   }
 
@@ -327,7 +338,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    */
   private DownloadResponse doParallelDownload(DownloadRequest downloadRequest, Path destination) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
-    Blob blob = getRequiredBlobForDownload(downloadRequest);
+    Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
     ParallelTmPaths tmPaths = computeParallelTmPaths(downloadRequest, destination);
     if (transferManager == null || tmPaths == null) {
       return downloadBlobToPath(blob, destination);
@@ -803,17 +814,16 @@ public class GcpBlobStore extends AbstractBlobStore {
     return blob;
   }
 
-  private Blob getRequiredBlobForDownload(DownloadRequest downloadRequest) {
-    BlobId getBlob = transformer.toBlobId(downloadRequest);
-    Blob blob = storage.get(getBlob);
+  private Blob getRequiredBlobForDownload(DownloadRequest downloadRequest, BlobId blobId) {
+    Blob blob = storage.get(blobId);
     if (blob != null) {
       return blob;
     }
     if (downloadRequest.isCheckArchived()) {
-      handleArchived(getBlob);
+      handleArchived(blobId);
     }
     throw new ResourceNotFoundException(
-        "Blob not found: " + getBlob.getBucket() + "/" + getBlob.getName());
+        "Blob not found: " + blobId.getBucket() + "/" + blobId.getName());
   }
 
   private void handleArchived(BlobId blobId) {
@@ -1589,6 +1599,18 @@ public class GcpBlobStore extends AbstractBlobStore {
       return endpointStr;
     }
 
+    /**
+     * Determines whether the caller has configured any HTTP-transport option that requires us to
+     * override the GCS SDK's default transport. When this returns {@code false}, the SDK's own
+     * default transport (and its default connection pool) is used.
+     */
+    private static boolean shouldConfigureHttpClient(Builder builder) {
+      return builder.getProxyEndpoint() != null
+          || builder.getMaxConnections() != null
+          || builder.getSocketTimeout() != null
+          || builder.getIdleConnectionTimeout() != null;
+    }
+
     /** Creates HttpTransportOptions with ApacheHttpTransport */
     private static HttpTransportOptions buildTransportOptions(Builder builder) {
       CloseableHttpClient httpClient = buildHttpClient(builder);
@@ -1598,10 +1620,10 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     /** Helper function for generating the Storage client */
     private static Storage buildStorage(Builder builder) {
-      HttpTransportOptions transportOptions = buildTransportOptions(builder);
-
       StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder();
-      storageOptionsBuilder.setTransportOptions(transportOptions);
+      if (shouldConfigureHttpClient(builder)) {
+        storageOptionsBuilder.setTransportOptions(buildTransportOptions(builder));
+      }
 
       String endpoint = normalizeEndpoint(builder.getEndpoint());
       if (endpoint != null) {
@@ -1625,10 +1647,10 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     /** Helper function for generating the MultipartUpload client */
     private static MultipartUploadClient buildMultipartUploadClient(Builder builder) {
-      HttpTransportOptions transportOptions = buildTransportOptions(builder);
-
-      HttpStorageOptions.Builder storageOptionsBuilder =
-          HttpStorageOptions.http().setTransportOptions(transportOptions);
+      HttpStorageOptions.Builder storageOptionsBuilder = HttpStorageOptions.http();
+      if (shouldConfigureHttpClient(builder)) {
+        storageOptionsBuilder.setTransportOptions(buildTransportOptions(builder));
+      }
 
       String endpoint = normalizeEndpoint(builder.getEndpoint());
       if (endpoint != null) {
@@ -1673,7 +1695,10 @@ public class GcpBlobStore extends AbstractBlobStore {
       TransferManagerConfig.Builder configBuilder =
           TransferManagerConfig.newBuilder().setStorageOptions(options);
 
-      // Map transferManagerThreadPoolSize -> setMaxWorkers
+      // Map transferManagerThreadPoolSize -> setMaxWorkers.
+      // Unset, GCS defaults maxWorkers to 2 x availableProcessors. When raising this for
+      // directory-heavy workloads, also raise withMaxConnections (see buildHttpClient): extra
+      // workers only help if the single-route Apache connection pool can serve them concurrently.
       if (builder.getTransferManagerThreadPoolSize() != null) {
         configBuilder.setMaxWorkers(builder.getTransferManagerThreadPoolSize());
       }
@@ -1704,24 +1729,26 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     private static CloseableHttpClient buildHttpClient(Builder builder) {
-      HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+      HttpClientBuilder httpClientBuilder = ApacheHttpTransport.newDefaultHttpClientBuilder();
       httpClientBuilder.setDefaultRequestConfig(buildRequestConfig(builder));
-      httpClientBuilder.setConnectionManager(buildConnectionManager(builder));
+      // Performance note (directory / many-small-object workloads): GCS traffic all targets a
+      // single host, so it maps to one Apache HTTP route whose default per-route connection cap
+      // is 20. The TransferManager used for directory operations spawns 2 x availableProcessors
+      // workers, which on multi-core hosts exceeds that cap and leaves workers blocked waiting for
+      // a connection. For such workloads, raise this via withMaxConnections (which sets both
+      // maxConnTotal and maxConnPerRoute below) together with withTransferManagerThreadPoolSize;
+      // in a controlled benchmark this roughly tripled small-file directory throughput. The knob is
+      // left unset by default so single-object callers keep the lean default connection footprint.
+      if (builder.getMaxConnections() != null) {
+        int maxConns = builder.getMaxConnections();
+        httpClientBuilder.setMaxConnTotal(maxConns);
+        httpClientBuilder.setMaxConnPerRoute(maxConns);
+      }
       if (builder.getIdleConnectionTimeout() != null) {
         httpClientBuilder.evictIdleConnections(
             builder.getIdleConnectionTimeout().toMillis(), TimeUnit.MILLISECONDS);
       }
       return httpClientBuilder.build();
-    }
-
-    private static HttpClientConnectionManager buildConnectionManager(Builder builder) {
-      PoolingHttpClientConnectionManager connectionManager =
-          new PoolingHttpClientConnectionManager();
-      if (builder.getMaxConnections() != null) {
-        connectionManager.setMaxTotal(builder.getMaxConnections());
-        connectionManager.setDefaultMaxPerRoute(builder.getMaxConnections());
-      }
-      return connectionManager;
     }
 
     private static RequestConfig buildRequestConfig(Builder builder) {

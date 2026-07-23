@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.blob.aws.async.S3LoggingTransferListener;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -33,6 +34,8 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.IOException;
@@ -56,11 +59,14 @@ import org.apache.commons.lang3.StringUtils;
 import software.amazon.awssdk.awscore.presigner.PresignedRequest;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.http.ContentStreamProvider;
 import software.amazon.awssdk.retries.StandardRetryStrategy;
 import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
+import software.amazon.awssdk.services.s3.model.ChecksumMode;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
@@ -114,10 +120,24 @@ public class AwsTransformer {
 
   /**
    * Object-metadata key under which the SDK persists the operation correlation id during upload,
-   * so the value is stored on the blob (as {@code x-amz-meta-correlation-id} in S3) and matches
-   * the correlation id that appears in the same upload's logs and trace span.
+   * surfacing as {@code x-amz-meta-sdk-logging-correlation-id} in S3.
    */
-  public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
+  public static final String CORRELATION_ID_METADATA_KEY = SdkLoggingMetadataKeys.CORRELATION_ID;
+
+  /**
+   * Object-metadata key under which the SDK persists the operation service id during upload,
+   * surfacing as {@code x-amz-meta-sdk-logging-service-id} in S3.
+   */
+  public static final String SERVICE_ID_METADATA_KEY = SdkLoggingMetadataKeys.SERVICE_ID;
+
+  /**
+   * Object-metadata key under which the SDK persists the operation tenant id during upload,
+   * surfacing as {@code x-amz-meta-sdk-logging-tenant-id} in S3.
+   */
+  public static final String TENANT_ID_METADATA_KEY = SdkLoggingMetadataKeys.TENANT_ID;
+
+  /** Default MIME type used for the request body when the caller does not provide one. */
+  private static final String OCTET_STREAM_MIME = "application/octet-stream";
 
   private final String bucket;
 
@@ -186,8 +206,24 @@ public class AwsTransformer {
   }
 
   public AsyncRequestBody toAsyncRequestBody(UploadRequest uploadRequest, InputStream inputStream) {
+    Long contentLength =
+        uploadRequest.getContentLength() > 0 ? uploadRequest.getContentLength() : null;
     return AsyncRequestBody.fromInputStream(
-        inputStream, uploadRequest.getContentLength(), Executors.newSingleThreadExecutor());
+        inputStream, contentLength, Executors.newSingleThreadExecutor());
+  }
+
+  /**
+   * Builds a sync {@link RequestBody} for an {@link InputStream} upload, honouring the optional
+   * {@code contentLength} on {@link UploadRequest}. When {@code contentLength} is unspecified
+   * (i.e. not positive), an unknown-length {@link ContentStreamProvider}-based body is returned;
+   * the AWS SDK will buffer chunks internally to support retries.
+   */
+  public RequestBody toRequestBody(UploadRequest uploadRequest, InputStream inputStream) {
+    if (uploadRequest.getContentLength() > 0) {
+      return RequestBody.fromInputStream(inputStream, uploadRequest.getContentLength());
+    }
+    return RequestBody.fromContentProvider(
+        ContentStreamProvider.fromInputStream(inputStream), OCTET_STREAM_MIME);
   }
 
   public PutObjectRequest toRequest(UploadRequest request) {
@@ -196,15 +232,26 @@ public class AwsTransformer {
             .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
             .collect(Collectors.toList());
 
-    // Copy the application-supplied metadata and stamp the SDK's correlation id onto the
-    // stored object so it persists in S3 alongside the user's metadata. Skipped when the
-    // request carries no operation context, or when the app has supplied the same key
-    // explicitly.
+    // Copy the application-supplied metadata and stamp the SDK's correlation id, service id and
+    // tenant id onto the stored object so they persist in S3 alongside the user's metadata and can
+    // be traced from the object's S3 access/audit logs. Each key is skipped when the request
+    // carries no operation context, when that context value is absent, or when the app has
+    // supplied the same key explicitly.
     Map<String, String> metadata = new HashMap<>(request.getMetadata());
-    if (request.getOperationContext() != null
-        && StringUtils.isNotBlank(request.getOperationContext().getCorrelationId())
-        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-      metadata.put(CORRELATION_ID_METADATA_KEY, request.getOperationContext().getCorrelationId());
+    if (request.getOperationContext() != null) {
+      OperationContext ctx = request.getOperationContext();
+      if (StringUtils.isNotBlank(ctx.getCorrelationId())
+          && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+        metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
+      }
+      if (StringUtils.isNotBlank(ctx.getServiceId())
+          && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {
+        metadata.put(SERVICE_ID_METADATA_KEY, ctx.getServiceId());
+      }
+      if (StringUtils.isNotBlank(ctx.getTenantId())
+          && !metadata.containsKey(TENANT_ID_METADATA_KEY)) {
+        metadata.put(TENANT_ID_METADATA_KEY, ctx.getTenantId());
+      }
     }
 
     PutObjectRequest.Builder builder =
@@ -334,6 +381,7 @@ public class AwsTransformer {
         GetObjectRequest.builder()
             .bucket(getBucket())
             .key(request.getKey())
+            .checksumMode(ChecksumMode.ENABLED)
             .versionId(request.getVersionId());
 
     if (request.getStart() != null || request.getEnd() != null) {
@@ -378,6 +426,7 @@ public class AwsTransformer {
                 .metadata(response.metadata())
                 .objectSize(response.contentLength())
                 .contentType(response.contentType())
+                .checksum(toDriverChecksum(response))
                 .build())
         .build();
   }
@@ -398,9 +447,54 @@ public class AwsTransformer {
                 .metadata(response.metadata())
                 .objectSize(response.contentLength())
                 .contentType(response.contentType())
+                .checksum(toDriverChecksum(response))
                 .build())
         .inputStream(responseInputStream)
         .build();
+  }
+
+  private Checksum toDriverChecksum(GetObjectResponse response) {
+    if (response.checksumSHA256() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.SHA256)
+          .value(response.checksumSHA256())
+          .build();
+    }
+    if (response.checksumCRC32C() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.CRC32C)
+          .value(response.checksumCRC32C())
+          .build();
+    }
+    if (response.checksumCRC64NVME() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.CRC64)
+          .value(response.checksumCRC64NVME())
+          .build();
+    }
+    return null;
+  }
+
+  private Checksum toDriverChecksum(HeadObjectResponse response) {
+    if (response.checksumSHA256() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.SHA256)
+          .value(response.checksumSHA256())
+          .build();
+    }
+    if (response.checksumCRC32C() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.CRC32C)
+          .value(response.checksumCRC32C())
+          .build();
+    }
+    if (response.checksumCRC64NVME() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.CRC64)
+          .value(response.checksumCRC64NVME())
+          .build();
+    }
+    return null;
   }
 
   public DeleteObjectRequest toDeleteRequest(String key, String versionId) {
@@ -445,7 +539,12 @@ public class AwsTransformer {
   }
 
   public HeadObjectRequest toHeadRequest(String key, String versionId) {
-    return HeadObjectRequest.builder().bucket(getBucket()).key(key).versionId(versionId).build();
+    return HeadObjectRequest.builder()
+        .bucket(getBucket())
+        .key(key)
+        .versionId(versionId)
+        .checksumMode(ChecksumMode.ENABLED)
+        .build();
   }
 
   public BlobMetadata toMetadata(HeadObjectResponse response, String key) {
@@ -475,6 +574,7 @@ public class AwsTransformer {
         .md5(eTagToMD5(eTag))
         .contentType(response.contentType())
         .objectLockInfo(objectLockInfo)
+        .checksum(toDriverChecksum(response))
         .build();
   }
 

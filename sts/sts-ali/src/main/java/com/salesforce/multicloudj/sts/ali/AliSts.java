@@ -9,29 +9,38 @@ import com.aliyuncs.http.HttpClientConfig;
 import com.aliyuncs.profile.DefaultProfile;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleRequest;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleResponse;
+import com.aliyuncs.sts.model.v20150401.AssumeRoleWithOIDCRequest;
+import com.aliyuncs.sts.model.v20150401.AssumeRoleWithOIDCResponse;
 import com.aliyuncs.sts.model.v20150401.GetCallerIdentityRequest;
 import com.aliyuncs.sts.model.v20150401.GetCallerIdentityResponse;
 import com.aliyuncs.utils.EnvironmentUtils;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
+import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @AutoService(AbstractSts.class)
 public class AliSts extends AbstractSts {
+
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private IAcsClient stsClient;
 
@@ -162,6 +171,10 @@ public class AliSts extends AbstractSts {
     if (request.getExpiration() > 0) {
       roleRequest.setDurationSeconds((long) request.getExpiration());
     }
+    // If a credential scope is supplied, downscope the assumed role with an inline RAM policy.
+    if (request.getCredentialScope() != null) {
+      roleRequest.setPolicy(convertToRamPolicy(request.getCredentialScope()));
+    }
 
     try {
       AssumeRoleResponse response = stsClient.getAcsResponse(roleRequest);
@@ -172,6 +185,147 @@ public class AliSts extends AbstractSts {
           credentials.getSecurityToken());
     } catch (Exception e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * Translates a cloud-agnostic {@link CredentialScope} into an Alibaba RAM policy document (JSON)
+   * suitable for the AssumeRole {@code Policy} parameter.
+   *
+   * <p>Each scope rule becomes up to two RAM statements, because OSS restricts object access and
+   * list access differently:
+   *
+   * <ul>
+   *   <li><b>Object operations</b> ({@code oss:GetObject}/{@code PutObject}/{@code DeleteObject})
+   *       are restricted to a key prefix by encoding the prefix directly in the resource ARN
+   *       ({@code acs:oss:*:*:bucket/prefix/*}).
+   *   <li><b>List</b> ({@code oss:ListObjects}) must target the bucket resource
+   *       ({@code acs:oss:*:*:bucket}); the prefix is enforced with an {@code oss:Prefix} condition
+   *       because OSS evaluates the listable scope from the request prefix parameter, not the ARN.
+   * </ul>
+   *
+   * <p>Region and account fields use the {@code *} wildcard: the bucket name is the meaningful
+   * selector for OSS, and the policy is intersected with an already-assumed role for that account.
+   */
+  private String convertToRamPolicy(CredentialScope credentialScope) {
+    List<Map<String, Object>> statements = new ArrayList<>();
+    for (CredentialScope.ScopeRule rule : credentialScope.getRules()) {
+      String bucket = extractBucket(rule.getAvailableResource());
+      String prefix = extractPrefix(rule.getAvailabilityCondition(), bucket);
+
+      List<String> objectActions = new ArrayList<>();
+      List<String> listActions = new ArrayList<>();
+      for (String permission : rule.getAvailablePermissions()) {
+        String action = toOssAction(permission);
+        if ("oss:ListObjects".equals(action)) {
+          listActions.add(action);
+        } else {
+          objectActions.add(action);
+        }
+      }
+
+      if (!objectActions.isEmpty()) {
+        Map<String, Object> statement = new LinkedHashMap<>();
+        statement.put("Effect", "Allow");
+        statement.put("Action", objectActions);
+        statement.put("Resource", objectResourceArn(bucket, prefix));
+        statements.add(statement);
+      }
+
+      if (!listActions.isEmpty()) {
+        Map<String, Object> statement = new LinkedHashMap<>();
+        statement.put("Effect", "Allow");
+        statement.put("Action", listActions);
+        statement.put("Resource", "acs:oss:*:*:" + bucket);
+        if (prefix != null && !prefix.isEmpty()) {
+          Map<String, Object> stringLike = new LinkedHashMap<>();
+          stringLike.put("oss:Prefix", List.of(prefix, prefix + "*"));
+          Map<String, Object> condition = new LinkedHashMap<>();
+          condition.put("StringLike", stringLike);
+          statement.put("Condition", condition);
+        }
+        statements.add(statement);
+      }
+    }
+
+    // Throw on a scope with no statements so the caller gets an actionable error instead of an
+    // opaque AccessDenied: OSS treats an empty inline policy as deny-all.
+    if (statements.isEmpty()) {
+      throw new InvalidArgumentException(
+          "credential scope produced no RAM statements; supply at least one rule with a resource "
+              + "and permissions");
+    }
+
+    Map<String, Object> policy = new LinkedHashMap<>();
+    policy.put("Version", "1");
+    policy.put("Statement", statements);
+    return toJsonString(policy);
+  }
+
+  // Extracts the bucket name from a cloud-agnostic resource, e.g. "storage://my-bucket" or
+  // "storage://my-bucket/*" -> "my-bucket".
+  private String extractBucket(String availableResource) {
+    String remainder = availableResource.substring("storage://".length());
+    int slash = remainder.indexOf('/');
+    return slash >= 0 ? remainder.substring(0, slash) : remainder;
+  }
+
+  // Extracts the object-key prefix from the availability condition, relative to the bucket, e.g.
+  // "storage://my-bucket/documents/" -> "documents/". Returns null when no prefix is scoped (no
+  // condition or no resourcePrefix). A resourcePrefix that IS present but does not name this rule's
+  // bucket is rejected rather than ignored: silently returning null would widen the grant to the
+  // whole bucket (the unsafe direction), defeating the downscoping.
+  private String extractPrefix(CredentialScope.AvailabilityCondition condition, String bucket) {
+    if (condition == null || condition.getResourcePrefix() == null) {
+      return null;
+    }
+    String path = condition.getResourcePrefix().substring("storage://".length());
+    String bucketSegment = bucket + "/";
+    if (!path.startsWith(bucketSegment)) {
+      throw new InvalidArgumentException(
+          "credential scope resourcePrefix must be under the rule's bucket 'storage://"
+              + bucket
+              + "/'. Found: "
+              + condition.getResourcePrefix());
+    }
+    String prefix = path.substring(bucketSegment.length());
+    // RAM treats '*' and '?' as wildcards in both the resource ARN and the oss:Prefix StringLike
+    // condition, so a literal-looking prefix such as "priv*" would match every key starting with
+    // "priv" — widening the grant beyond what the caller asked for. Reject them (fail closed)
+    // rather than silently broadening the scope.
+    if (prefix.indexOf('*') >= 0 || prefix.indexOf('?') >= 0) {
+      throw new InvalidArgumentException(
+          "credential scope resourcePrefix must not contain wildcard characters ('*' or '?'); "
+              + "they would widen the grant. Found: " + condition.getResourcePrefix());
+    }
+    return prefix;
+  }
+
+  // Builds the OSS object resource ARN, encoding the key prefix when one is scoped:
+  // "acs:oss:*:*:bucket/prefix/*", or "acs:oss:*:*:bucket/*" for the whole bucket.
+  private String objectResourceArn(String bucket, String prefix) {
+    if (prefix != null && !prefix.isEmpty()) {
+      return "acs:oss:*:*:" + bucket + "/" + prefix + "*";
+    }
+    return "acs:oss:*:*:" + bucket + "/*";
+  }
+
+  // Maps a cloud-agnostic "storage:<Action>" permission to its OSS action. Object actions map by
+  // suffix (GetObject/PutObject/DeleteObject -> oss:GetObject/...); the list action is renamed
+  // (ListBucket -> oss:ListObjects, the RAM action behind the OSS GetBucket API).
+  private String toOssAction(String permission) {
+    String action = permission.substring("storage:".length());
+    if ("ListBucket".equals(action)) {
+      return "oss:ListObjects";
+    }
+    return "oss:" + action;
+  }
+
+  private String toJsonString(Map<String, Object> map) {
+    try {
+      return OBJECT_MAPPER.writeValueAsString(map);
+    } catch (JsonProcessingException e) {
+      throw new InvalidArgumentException("scoped credentials is not in right format", e);
     }
   }
 
@@ -210,10 +364,45 @@ public class AliSts extends AbstractSts {
     }
   }
 
+  // Env var the Aliyun SDK's own OIDCCredentialsProvider reads for the OIDC provider ARN when one
+  // is not supplied explicitly; mirrored here so callers can configure it out-of-band.
+  static final String OIDC_PROVIDER_ARN_ENV = "ALIBABA_CLOUD_OIDC_PROVIDER_ARN";
+
   @Override
   protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(
       AssumeRoleWebIdentityRequest request) {
-    throw new UnSupportedOperationException("Not supported yet.");
+    // AssumeRoleWithOIDC requires the OIDC provider ARN to be named explicitly on the request; it
+    // cannot be derived from the token. Take it from the request, else fall back to the env var the
+    // Aliyun SDK itself uses, else reject.
+    String providerArn = request.getWebIdentityProviderArn();
+    if (providerArn == null || providerArn.isEmpty()) {
+      providerArn = System.getenv(OIDC_PROVIDER_ARN_ENV);
+    }
+    if (providerArn == null || providerArn.isEmpty()) {
+      throw new InvalidArgumentException(
+          "webIdentityProviderArn is required for AssumeRoleWithOIDC; set it on the request or via "
+              + "the " + OIDC_PROVIDER_ARN_ENV + " environment variable");
+    }
+
+    AssumeRoleWithOIDCRequest oidcRequest = new AssumeRoleWithOIDCRequest();
+    oidcRequest.setRoleArn(request.getRole());
+    oidcRequest.setOIDCProviderArn(providerArn);
+    oidcRequest.setOIDCToken(request.getWebIdentityToken());
+    oidcRequest.setRoleSessionName(request.getSessionName());
+    if (request.getExpiration() > 0) {
+      oidcRequest.setDurationSeconds((long) request.getExpiration());
+    }
+
+    try {
+      AssumeRoleWithOIDCResponse response = stsClient.getAcsResponse(oidcRequest);
+      AssumeRoleWithOIDCResponse.Credentials credentials = response.getCredentials();
+      return new StsCredentials(
+          credentials.getAccessKeyId(),
+          credentials.getAccessKeySecret(),
+          credentials.getSecurityToken());
+    } catch (ClientException e) {
+      throw mapException(e);
+    }
   }
 
   @Override

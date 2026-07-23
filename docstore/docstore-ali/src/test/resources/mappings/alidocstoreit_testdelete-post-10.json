@@ -1,0 +1,28 @@
+{
+  "id" : "4d3cd522-74ad-4ad7-969c-baf35a9b9c39",
+  "name" : "AliDocstoreIT_testDelete-POST-10",
+  "request" : {
+    "url" : "/PutRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"op\":\"PutRow\",\"table\":\"docstore_test_1\",\"rows\":[{\"pk\":{\"pName\":{\"t\":\"PK:STRING\",\"v\":\"FrankDelete\"}},\"cells\":{\"i\":{\"t\":\"INTEGER\",\"v\":\"121\"},\"b\":{\"t\":\"BOOLEAN\",\"v\":\"true\"},\"s\":{\"t\":\"STRING\",\"v\":\"randomString\"},\"f\":{\"t\":\"DOUBLE\",\"v\":\"12.65999984741211\"}},\"deleteMarker\":false}],\"condition\":\"0802\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgBEAE=",
+    "headers" : {
+      "x-ots-requestid" : "000656c7-7393-17ad-4537-200a98add6aa",
+      "Authorization" : "OTS STS.NZMrJSWwKCLnZ9SeEi7Qzq3yc:p5eLUPKx1Iaw8Iwu732AjAcu5ts=",
+      "x-ots-date" : "2026-07-17T05:01:37.767345Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "bofsTfsxtvymDNQpw96K/Q==",
+      "Date" : "Fri, 17 Jul 2026 05:01:37 GMT"
+    }
+  },
+  "uuid" : "4d3cd522-74ad-4ad7-969c-baf35a9b9c39",
+  "persistent" : true,
+  "insertionIndex" : 270
+}

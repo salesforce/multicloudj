@@ -1,0 +1,8 @@
+# Revisions intentionally excluded from `git blame`.
+#
+# Enable locally with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (GitHub honors this file automatically in the blame UI.)
+
+# chore: enforce the checkstyle (whole-repo reformat, no logic changes) — PR #330
+14771469737e75686c6e3b23528d9fbb682d5cb1

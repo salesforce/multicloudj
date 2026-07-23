@@ -10,6 +10,7 @@ import com.google.cloud.storage.StorageClass;
 import com.google.common.collect.ImmutableMap;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -27,6 +28,8 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.IOException;
@@ -58,11 +61,22 @@ public class GcpTransformer {
   private static final String TAG_PREFIX = "gcp-tag-";
 
   /**
-   * Object-metadata key under which the SDK persists the operation correlation id during upload,
-   * so the value is stored on the blob in GCS and matches the correlation id that appears in the
-   * same upload's logs and trace span.
+   * Object-metadata key under which the SDK persists the operation correlation id during upload, so
+   * the value is stored on the blob in GCS.
    */
-  public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
+  public static final String CORRELATION_ID_METADATA_KEY = SdkLoggingMetadataKeys.CORRELATION_ID;
+
+  /**
+   * Object-metadata key under which the SDK persists the operation service id during upload, so the
+   * value is stored on the blob in GCS.
+   */
+  public static final String SERVICE_ID_METADATA_KEY = SdkLoggingMetadataKeys.SERVICE_ID;
+
+  /**
+   * Object-metadata key under which the SDK persists the operation tenant id during upload, so the
+   * value is stored on the blob in GCS.
+   */
+  public static final String TENANT_ID_METADATA_KEY = SdkLoggingMetadataKeys.TENANT_ID;
 
   public GcpTransformer(String bucket) {
     this.bucket = bucket;
@@ -81,15 +95,24 @@ public class GcpTransformer {
           .forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
     }
 
-    // Stamp the SDK's correlation id onto the stored object so it persists in GCS alongside
-    // the user's metadata. Skipped when the request carries no operation context, or when the
-    // app has supplied the same key explicitly.
-    if (uploadRequest.getOperationContext() != null
-        && StringUtils.isNotBlank(uploadRequest.getOperationContext().getCorrelationId())
-        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-      metadata.put(
-          CORRELATION_ID_METADATA_KEY,
-          uploadRequest.getOperationContext().getCorrelationId());
+    // Stamp the SDK's correlation id, service id and tenant id onto the stored object so they
+    // persist in GCS alongside the user's metadata and can be traced from the object's GCS audit
+    // logs. Each key is skipped when the request carries no operation context, when that context
+    // value is absent, or when the app has supplied the same key explicitly.
+    if (uploadRequest.getOperationContext() != null) {
+      OperationContext ctx = uploadRequest.getOperationContext();
+      if (StringUtils.isNotBlank(ctx.getCorrelationId())
+          && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+        metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
+      }
+      if (StringUtils.isNotBlank(ctx.getServiceId())
+          && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {
+        metadata.put(SERVICE_ID_METADATA_KEY, ctx.getServiceId());
+      }
+      if (StringUtils.isNotBlank(ctx.getTenantId())
+          && !metadata.containsKey(TENANT_ID_METADATA_KEY)) {
+        metadata.put(TENANT_ID_METADATA_KEY, ctx.getTenantId());
+      }
     }
 
     // Delegate to the protected toBlobInfo method which handles storage class, checksum, object
@@ -232,7 +255,18 @@ public class GcpTransformer {
         .md5(HexUtil.convertToBytes(blob.getMd5()))
         .contentType(blob.getContentType())
         .objectLockInfo(objectLockInfo)
+        .checksum(toDriverChecksum(blob))
         .build();
+  }
+
+  private Checksum toDriverChecksum(Blob blob) {
+    if (blob.getCrc32c() != null) {
+      return Checksum.builder()
+          .algorithm(ChecksumMethod.CRC32C)
+          .value(blob.getCrc32c())
+          .build();
+    }
+    return null;
   }
 
   public Storage.CopyRequest toCopyRequest(CopyRequest request) {

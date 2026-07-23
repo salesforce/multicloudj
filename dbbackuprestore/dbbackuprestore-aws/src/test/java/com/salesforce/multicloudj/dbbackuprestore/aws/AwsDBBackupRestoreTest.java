@@ -95,9 +95,40 @@ public class AwsDBBackupRestoreTest {
     assertEquals(2, backups.size());
     assertEquals(BackupStatus.AVAILABLE, backups.get(0).getStatus());
     assertEquals(BackupStatus.CREATING, backups.get(1).getStatus());
+    assertEquals(1024L, backups.get(0).getSizeInBytes());
+    assertEquals(2048L, backups.get(1).getSizeInBytes());
     assertEquals("Default", backups.get(0).getVaultId());
     verify(mockBackupClient, times(1))
         .listRecoveryPointsByResource(any(ListRecoveryPointsByResourceRequest.class));
+  }
+
+  @Test
+  void testListBackups_NullSize_ReturnsMinusOne() {
+    // AWS returns a boxed Long for backupSizeBytes(); it is null when the size has not been
+    // computed yet (e.g. a recovery point still in CREATING/PARTIAL). Unboxing null into the
+    // model's primitive long would throw NPE, so an absent size must map to -1 (unavailable)
+    // per the Backup.sizeInBytes contract.
+    RecoveryPointByResource recoveryNoSize =
+        RecoveryPointByResource.builder()
+            .recoveryPointArn("arn:aws:backup:us-west-2:123456789012:recovery-point:nosize")
+            .backupVaultName("Default")
+            .status(RecoveryPointStatus.CREATING)
+            .creationDate(Instant.now())
+            .build();
+
+    ListRecoveryPointsByResourceResponse response =
+        ListRecoveryPointsByResourceResponse.builder()
+            .recoveryPoints(Arrays.asList(recoveryNoSize))
+            .build();
+
+    when(mockBackupClient.listRecoveryPointsByResource(
+            any(ListRecoveryPointsByResourceRequest.class)))
+        .thenReturn(response);
+
+    List<Backup> backups = dbBackupRestore.listBackups();
+
+    assertEquals(1, backups.size());
+    assertEquals(-1L, backups.get(0).getSizeInBytes());
   }
 
   @Test
@@ -147,6 +178,44 @@ public class AwsDBBackupRestoreTest {
     assertEquals("MyVault", backup.getVaultId());
     verify(mockBackupClient, times(1))
         .describeRecoveryPoint(any(DescribeRecoveryPointRequest.class));
+  }
+
+  @Test
+  void testGetBackup_NullSize_ReturnsMinusOne() {
+    // DescribeRecoveryPoint returns a boxed Long for backupSizeInBytes(); when AWS omits it (size
+    // not yet computed) the unguarded mapper would unbox null and throw NPE. It must instead map to
+    // -1 (unavailable), consistent with the Backup.sizeInBytes contract and the other substrates.
+    RecoveryPointByResource recovery =
+        RecoveryPointByResource.builder()
+            .recoveryPointArn("arn:aws:backup:us-west-2:123456789012:recovery-point:nosize")
+            .backupVaultName("MyVault")
+            .build();
+
+    ListRecoveryPointsByResourceResponse listResponse =
+        ListRecoveryPointsByResourceResponse.builder()
+            .recoveryPoints(Arrays.asList(recovery))
+            .build();
+
+    when(mockBackupClient.listRecoveryPointsByResource(
+            any(ListRecoveryPointsByResourceRequest.class)))
+        .thenReturn(listResponse);
+
+    DescribeRecoveryPointResponse response =
+        DescribeRecoveryPointResponse.builder()
+            .recoveryPointArn("arn:aws:backup:us-west-2:123456789012:recovery-point:nosize")
+            .backupVaultName("MyVault")
+            .status(RecoveryPointStatus.CREATING)
+            .creationDate(Instant.now())
+            .build();
+
+    when(mockBackupClient.describeRecoveryPoint(any(DescribeRecoveryPointRequest.class)))
+        .thenReturn(response);
+
+    Backup backup =
+        dbBackupRestore.getBackup("arn:aws:backup:us-west-2:123456789012:recovery-point:nosize");
+
+    assertNotNull(backup);
+    assertEquals(-1L, backup.getSizeInBytes());
   }
 
   @Test

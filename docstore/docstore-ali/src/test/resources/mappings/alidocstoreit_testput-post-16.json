@@ -1,0 +1,28 @@
+{
+  "id" : "35de461c-6068-4d26-a0e1-7365e1ba232f",
+  "name" : "AliDocstoreIT_testPut-POST-16",
+  "request" : {
+    "url" : "/DeleteRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"op\":\"DeleteRow\",\"table\":\"docstore_test_1\",\"rows\":[{\"pk\":{\"pName\":{\"t\":\"PK:STRING\",\"v\":\"FrankMap\"}},\"cells\":{},\"deleteMarker\":true}],\"condition\":\"0800\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgAEAE=",
+    "headers" : {
+      "x-ots-requestid" : "000656c7-6edb-54fb-c93b-200a9ffe1af1",
+      "Authorization" : "OTS STS.NZMrJSWwKCLnZ9SeEi7Qzq3yc:HjYzAZdBubfH5CStS4s8ou9MxmU=",
+      "x-ots-date" : "2026-07-17T05:00:18.620381Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "cGqcInR86zj/8Pah1LWaHg==",
+      "Date" : "Fri, 17 Jul 2026 05:00:18 GMT"
+    }
+  },
+  "uuid" : "35de461c-6068-4d26-a0e1-7365e1ba232f",
+  "persistent" : true,
+  "insertionIndex" : 213
+}
