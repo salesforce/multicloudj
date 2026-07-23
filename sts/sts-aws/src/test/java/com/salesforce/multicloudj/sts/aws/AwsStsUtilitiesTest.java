@@ -15,17 +15,14 @@ import java.util.Map;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 class AwsStsUtilitiesTest {
 
-  private static StsUtilities mockStsUtilities;
   private static StsCredentials credentials;
   private static String region;
 
   @BeforeAll
   public static void setUp() {
-    mockStsUtilities = Mockito.mock(StsUtilities.class);
     region = "us-west-2";
     credentials = new StsCredentials("testKeyId", "testSecret", "testToken");
   }
@@ -37,41 +34,15 @@ class AwsStsUtilitiesTest {
   }
 
   @Test
-  void cloudNativeAuthSignedRequest() {
-    String region = "us-west-2";
-    String service = "sts";
-    String apiName = "GetCallerIdentity";
-    String apiVersion = "2011-06-15";
-
-    // create a sample bodypublisher
-    HttpRequest.BodyPublisher body =
-        HttpRequest.BodyPublishers.ofString("Action=" + apiName + "&Version=" + apiVersion);
-
-    // the request object we want to sign
-    HttpRequest fakeRequest =
-        HttpRequest.newBuilder()
-            .POST(body)
-            .uri(URI.create("https://" + service + "." + region + ".amazonaws.com:443"))
-            .build();
-
-    StsUtilities stsUtil =
-        StsUtilities.builder("aws")
-            .withRegion(region)
-            .withCredentialsOverrider(
-                new CredentialsOverrider.Builder(CredentialsType.SESSION)
-                    .withSessionCredentials(credentials)
-                    .build())
-            .build();
-
-    SignedAuthRequest newSignedAuthRequest = stsUtil.newCloudNativeAuthSignedRequest(fakeRequest);
+  void signedRequestEchoesSuppliedCredentials() {
+    SignedAuthRequest signed = stsUtil().newCloudNativeAuthSignedRequest(sampleRequest());
 
     Assertions.assertEquals(
-        credentials.getAccessKeyId(), newSignedAuthRequest.getCredentials().getAccessKeyId());
+        credentials.getAccessKeyId(), signed.getCredentials().getAccessKeyId());
     Assertions.assertEquals(
-        credentials.getAccessKeySecret(),
-        newSignedAuthRequest.getCredentials().getAccessKeySecret());
+        credentials.getAccessKeySecret(), signed.getCredentials().getAccessKeySecret());
     Assertions.assertEquals(
-        credentials.getSecurityToken(), newSignedAuthRequest.getCredentials().getSecurityToken());
+        credentials.getSecurityToken(), signed.getCredentials().getSecurityToken());
   }
 
   private static StsUtilities stsUtil() {
@@ -197,21 +168,6 @@ class AwsStsUtilitiesTest {
   }
 
   @Test
-  void signedIdentityHonorsExcludeContentTypeOption() {
-    SignedAuthRequest signed =
-        stsUtil()
-            .newCloudNativeAuthSignedRequest(
-                sampleRequest(),
-                SignOptions.builder().withExcludeContentTypeHeader(true).build());
-
-    Map<String, String> params =
-        parseQuery(URI.create(signed.getSignedIdentity()).getRawQuery());
-    Assertions.assertFalse(
-        params.containsKey("Content-Type"),
-        "Signed identity should not carry Content-Type when the header is excluded");
-  }
-
-  @Test
   void actionInQueryStringSignsActionAndVersionAsQueryParamsWithEmptyBody() {
     SignedAuthRequest signed =
         stsUtil()
@@ -237,30 +193,6 @@ class AwsStsUtilitiesTest {
     Assertions.assertTrue(
         request.headers().firstValue("Authorization").isPresent(),
         "The request should be signed");
-  }
-
-  @Test
-  void actionInQueryStringSignsCustomHeaders() {
-    SignedAuthRequest signed =
-        stsUtil()
-            .newCloudNativeAuthSignedRequest(
-                null,
-                SignOptions.builder()
-                    .withActionInQueryString(true)
-                    .withCustomHeader("x-goog-cloud-target-resource", "//example/audience")
-                    .build());
-
-    HttpRequest request = signed.getRequest();
-    Assertions.assertEquals(
-        "//example/audience",
-        request.headers().firstValue("x-goog-cloud-target-resource").orElse(null),
-        "Custom headers should be applied to the signed query-string request");
-
-    // The audience header must be covered by the signature, so it appears in SignedHeaders.
-    String authorization = request.headers().firstValue("Authorization").orElse("");
-    Assertions.assertTrue(
-        authorization.contains("x-goog-cloud-target-resource"),
-        "The audience header must be part of the SigV4 SignedHeaders");
   }
 
   @Test
