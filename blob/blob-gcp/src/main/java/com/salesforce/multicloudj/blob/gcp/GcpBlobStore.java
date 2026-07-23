@@ -128,6 +128,7 @@ import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1731,15 +1732,24 @@ public class GcpBlobStore extends AbstractBlobStore {
     private static CloseableHttpClient buildHttpClient(Builder builder) {
       HttpClientBuilder httpClientBuilder = ApacheHttpTransport.newDefaultHttpClientBuilder();
       httpClientBuilder.setDefaultRequestConfig(buildRequestConfig(builder));
-      // Performance note (directory / many-small-object workloads): GCS traffic all targets a
-      // single host, so it maps to one Apache HTTP route whose default per-route connection cap
-      // is 20. The TransferManager used for directory operations spawns 2 x availableProcessors
-      // workers, which on multi-core hosts exceeds that cap and leaves workers blocked waiting for
-      // a connection. For such workloads, raise this via withMaxConnections (which sets both
-      // maxConnTotal and maxConnPerRoute below) together with withTransferManagerThreadPoolSize;
-      // in a controlled benchmark this roughly tripled small-file directory throughput. The knob is
-      // left unset by default so single-object callers keep the lean default connection footprint.
-      if (builder.getMaxConnections() != null) {
+      if (builder.getMetricsPublisher() != null) {
+        // Sampling pool saturation needs a handle to the pool's live stats, so install an
+        // explicitly-owned connection manager (seeded with the same pool sizes
+        // ApacheHttpTransport.newDefaultHttpClientBuilder() applies) and read from it.
+        PoolingHttpClientConnectionManager connectionManager = buildConnectionManager(builder);
+        httpClientBuilder.setConnectionManager(connectionManager);
+        httpClientBuilder.addInterceptorLast(
+            new GcpConnectionPoolMetricsInterceptor(
+                connectionManager::getTotalStats, builder.getMetricsPublisher()));
+      } else if (builder.getMaxConnections() != null) {
+        // Performance note (directory / many-small-object workloads): GCS traffic all targets a
+        // single host, so it maps to one Apache HTTP route whose default per-route connection cap
+        // is 20. The TransferManager used for directory operations spawns 2 x availableProcessors
+        // workers, which on multi-core hosts exceeds that cap and leaves workers blocked waiting
+        // for a connection. For such workloads, raise this via withMaxConnections (which sets both
+        // maxConnTotal and maxConnPerRoute below) together with withTransferManagerThreadPoolSize;
+        // in a controlled benchmark this roughly tripled small-file directory throughput. The
+        // knob is left unset by default so single-object callers keep a lean pool footprint.
         int maxConns = builder.getMaxConnections();
         httpClientBuilder.setMaxConnTotal(maxConns);
         httpClientBuilder.setMaxConnPerRoute(maxConns);
@@ -1749,6 +1759,21 @@ public class GcpBlobStore extends AbstractBlobStore {
             builder.getIdleConnectionTimeout().toMillis(), TimeUnit.MILLISECONDS);
       }
       return httpClientBuilder.build();
+    }
+
+    private static PoolingHttpClientConnectionManager buildConnectionManager(Builder builder) {
+      PoolingHttpClientConnectionManager connectionManager =
+          new PoolingHttpClientConnectionManager();
+      if (builder.getMaxConnections() != null) {
+        connectionManager.setMaxTotal(builder.getMaxConnections());
+        connectionManager.setDefaultMaxPerRoute(builder.getMaxConnections());
+      } else {
+        // Mirror ApacheHttpTransport.newDefaultHttpClientBuilder()'s pool sizes so that
+        // enabling metrics never silently shrinks the pool from its uninstrumented default.
+        connectionManager.setMaxTotal(200);
+        connectionManager.setDefaultMaxPerRoute(20);
+      }
+      return connectionManager;
     }
 
     private static RequestConfig buildRequestConfig(Builder builder) {
