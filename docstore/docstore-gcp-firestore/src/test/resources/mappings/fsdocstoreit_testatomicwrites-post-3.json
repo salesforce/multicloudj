@@ -1,8 +1,8 @@
 {
-  "id" : "f41e6d4d-121b-4300-8eef-e8489547155c",
+  "id" : "2dcd03d7-6041-46fe-80bd-f8e34dd18ea9",
   "name" : "FSDocstoreIT_testAtomicWrites-POST-3",
   "request" : {
-    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet",
     "method" : "POST",
     "headers" : {
       "X-Query-Param-Count" : {
@@ -17,27 +17,27 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites6\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"66\"},\"pName\":{\"stringValue\":\"testAtomicWrites6\"},\"i\":{\"integerValue\":\"6\"},\"DocstoreRevision\":{\"bytesValue\":\"CIrEos0GENDR/p8B\"}}},\"currentDocument\":{\"updateTime\":\"2026-03-04T21:20:10.335522Z\"}},{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites7\",\"fields\":{\"b\":{\"booleanValue\":false},\"s\":{\"stringValue\":\"77\"},\"pName\":{\"stringValue\":\"testAtomicWrites7\"},\"i\":{\"integerValue\":\"7\"},\"DocstoreRevision\":{\"bytesValue\":\"CIrEos0GENDR/p8B\"}}},\"currentDocument\":{\"updateTime\":\"2026-03-04T21:20:10.335522Z\"}},{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites8\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"88\"},\"pName\":{\"stringValue\":\"testAtomicWrites8\"},\"i\":{\"integerValue\":\"8\"},\"DocstoreRevision\":{\"bytesValue\":\"CIrEos0GENDR/p8B\"}}},\"currentDocument\":{\"updateTime\":\"2026-03-04T21:20:10.335522Z\"}}]}",
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWrites:testAtomicWrites6\"]}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"writeResults\": [\n    {\n      \"updateTime\": \"2026-03-04T21:20:11.551743Z\"\n    },\n    {\n      \"updateTime\": \"2026-03-04T21:20:11.551743Z\"\n    },\n    {\n      \"updateTime\": \"2026-03-04T21:20:11.551743Z\"\n    }\n  ],\n  \"commitTime\": \"2026-03-04T21:20:11.551743Z\"\n}\n",
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWrites:testAtomicWrites6\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"testAtomicWrites6\"\n      },\n      \"Game\": {\n        \"stringValue\": \"testAtomicWrites\"\n      },\n      \"s\": {\n        \"stringValue\": \"66\"\n      },\n      \"DocstoreRevision\": {\n        \"bytesValue\": \"CP6shdMGEODZwHY=\"\n      }\n    },\n    \"createTime\": \"2026-07-22T23:47:10.248524Z\",\n    \"updateTime\": \"2026-07-22T23:47:10.695625Z\"\n  },\n  \"readTime\": \"2026-07-22T23:47:10.726687Z\"\n}\n]",
     "headers" : {
       "X-Frame-Options" : "SAMEORIGIN",
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "ESF",
-      "X-Debug-Tracking-ID" : "5385703521729375622;o=1",
+      "X-Debug-Tracking-ID" : "1208081483137714311;o=1",
       "X-Content-Type-Options" : "nosniff",
       "Vary" : [ "Origin", "X-Origin", "Referer" ],
       "X-XSS-Protection" : "0",
-      "Date" : "Wed, 04 Mar 2026 21:20:11 GMT",
+      "Date" : "Wed, 22 Jul 2026 23:47:10 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "f41e6d4d-121b-4300-8eef-e8489547155c",
+  "uuid" : "2dcd03d7-6041-46fe-80bd-f8e34dd18ea9",
   "persistent" : true,
-  "insertionIndex" : 131
+  "insertionIndex" : 236
 }

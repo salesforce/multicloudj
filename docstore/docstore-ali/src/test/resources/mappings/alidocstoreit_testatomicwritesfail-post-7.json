@@ -1,0 +1,27 @@
+{
+  "id" : "28299c9e-be71-40b4-90c3-973ac92f3329",
+  "name" : "AliDocstoreIT_testAtomicWritesFail-POST-7",
+  "request" : {
+    "url" : "/AbortTransaction",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "\nhDwAAAGRvY3N0b3JlX3Rlc3RfMh4AAAAxMzk2Nzk2NDA5MjE4NTYtNzkxODE1MTgxNTEwMjkDFAAAAHRlc3RBdG9taWNXcml0ZXNGYWls",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgAEAE=",
+    "headers" : {
+      "x-ots-requestid" : "0006573a-71e1-42ec-2b24-150a0d501020",
+      "Authorization" : "OTS STS.NXkaGqbYRYN1ubNDnFcFaPiHX:efP9u27WqIxx5BBag33x3LsALOo=",
+      "x-ots-date" : "2026-07-22T22:13:10.572674Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "cGqcInR86zj/8Pah1LWaHg==",
+      "Date" : "Wed, 22 Jul 2026 22:13:10 GMT"
+    }
+  },
+  "uuid" : "28299c9e-be71-40b4-90c3-973ac92f3329",
+  "persistent" : true,
+  "insertionIndex" : 191
+}

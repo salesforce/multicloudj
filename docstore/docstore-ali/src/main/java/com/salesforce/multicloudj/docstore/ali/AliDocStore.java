@@ -8,6 +8,7 @@ import com.alicloud.openservices.tablestore.SyncClient;
 import com.alicloud.openservices.tablestore.TableStoreException;
 import com.alicloud.openservices.tablestore.core.ResourceManager;
 import com.alicloud.openservices.tablestore.core.auth.CredentialsProvider;
+import com.alicloud.openservices.tablestore.model.AbortTransactionRequest;
 import com.alicloud.openservices.tablestore.model.BatchGetRowRequest;
 import com.alicloud.openservices.tablestore.model.BatchGetRowResponse;
 import com.alicloud.openservices.tablestore.model.ColumnValue;
@@ -40,6 +41,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.util.UUID;
 import com.salesforce.multicloudj.docstore.client.Query;
@@ -200,15 +202,26 @@ public class AliDocStore extends AbstractDocStore {
       // Run preliminary get actions
       runGets(preActions, beforeDo, batchSize);
 
-      // Run write actions asynchronously while proceeding with read actions in parallel
       CompletableFuture<Void> writeTask =
           CompletableFuture.runAsync(() -> runWrites(writeActions, beforeDo));
+
+      // When the action list contains an atomic transaction, the non-atomic writes must COMPLETE
+      // before the transaction starts. A Tablestore local transaction takes an exclusive lock on
+      // its partition; if a non-atomic write targets the same partition (e.g. a delete and an
+      // atomic put under one partition key) running it concurrently with the transaction races that
+      // lock and fails with OTSRowOperationConflict. Reads do not take the write lock, so the
+      // transaction still overlaps the read actions below. When there is no atomic transaction, the
+      // writes and reads run concurrently as before (the barrier is unnecessary).
+      if (!atomicWriteActions.isEmpty()) {
+        writeTask.get();
+      }
+
       CompletableFuture<Void> txWriteTask =
           CompletableFuture.runAsync(() -> runTxWrites(atomicWriteActions, beforeDo));
 
       runGets(readActions, beforeDo, batchSize);
 
-      // Await completion of write actions
+      // Await completion of the write actions and the atomic transaction
       writeTask.get();
       txWriteTask.get();
 
@@ -525,7 +538,18 @@ public class AliDocStore extends AbstractDocStore {
       return;
     }
 
+    // Build the write operations BEFORE opening the transaction. newWriteOperation validates the
+    // document shape and can throw InvalidArgumentException (e.g. a missing key field) — a caller
+    // error that must surface as-is, not be remapped to TransactionFailedException. Doing this
+    // first also means a malformed request never starts (or leaks) a transaction.
     List<WriteOperation> operations = new ArrayList<>();
+    for (Action w : writes) {
+      WriteOperation op = newWriteOperation(w, beforeDo);
+      if (op != null) {
+        operations.add(op);
+      }
+    }
+
     // Extract the partition key from any of the action which is supposed to be same.
     // If the partition key is not same in all writes, the transaction is anyway going to fail.
     PrimaryKey transactionPK =
@@ -542,17 +566,33 @@ public class AliDocStore extends AbstractDocStore {
         tableStoreClient.startLocalTransaction(startTransactionRequest);
     final String transactionId = startTransactionResponse.getTransactionID();
 
-    for (Action w : writes) {
-      WriteOperation op = newWriteOperation(w, beforeDo);
-      if (op != null) {
-        operations.add(op);
+    try {
+      for (WriteOperation op : operations) {
         PutRowRequest putRowRequest = op.getPutRowRequest();
         putRowRequest.setTransactionId(transactionId);
         tableStoreClient.putRow(putRowRequest);
       }
+      tableStoreClient.commitTransaction(new CommitTransactionRequest(transactionId));
+    } catch (RuntimeException e) {
+      // Any failure of the transactional TableStore calls — a rejected write/commit
+      // (TableStoreException, e.g. OTSConditionCheckFail on a non-existent row) or a transport
+      // failure (ClientException, e.g. a network timeout), both RuntimeExceptions — must fail the
+      // whole block: atomic writes are all-or-nothing. Abort so the transaction is not left
+      // dangling, then surface a uniform TransactionFailedException regardless of the underlying
+      // cause. (Document-shape validation happens above, before the transaction opens, so caller
+      // errors are not remapped here.)
+      TransactionFailedException failure =
+          new TransactionFailedException("Atomic write failed - all operations rolled back", e);
+      try {
+        tableStoreClient.abortTransaction(new AbortTransactionRequest(transactionId));
+      } catch (RuntimeException abortFailure) {
+        // Best-effort rollback. If the abort itself fails, the server-side transaction and its
+        // exclusive partition lock dangle until Tablestore's TTL; attach the abort failure as a
+        // suppressed exception so the diagnostic is not lost, then surface the original cause.
+        failure.addSuppressed(abortFailure);
+      }
+      throw failure;
     }
-
-    tableStoreClient.commitTransaction(new CommitTransactionRequest(transactionId));
     updateRevision(operations);
   }
 

@@ -1,32 +1,32 @@
 {
-  "id" : "090a29dc-1db3-45c0-8465-2cb9836fd762",
+  "id" : "ead6c51a-d985-40e7-8746-47b08c3f956b",
   "name" : "AwsDocstoreIT_testAtomicWrites-POST-6",
   "request" : {
     "url" : "/",
     "method" : "POST",
     "headers" : {
       "X-Amz-Target" : {
-        "equalTo" : "DynamoDB_20120810.DeleteItem"
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"testAtomicWrites2\"}},\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"9919e9c2-4aa5-cf01-1f9b-b4e6b7cc80d9\"}}}",
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-2\":{\"Keys\":[{\"Player\":{\"S\":\"testAtomicWrites8\"},\"Game\":{\"S\":\"testAtomicWrites\"}}],\"ConsistentRead\":false}}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "{}",
+    "body" : "{\"Responses\":{\"docstore-test-2\":[{\"DocstoreRevision\":{\"S\":\"fb245ec8-5eeb-5909-cd1f-a1ca5f8959d0\"},\"s\":{\"S\":\"88\"},\"Game\":{\"S\":\"testAtomicWrites\"},\"Player\":{\"S\":\"testAtomicWrites8\"}}]},\"UnprocessedKeys\":{}}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "VCRIFDOOL3JI43C66LJ4DVQUJBVV4KQNSO5AEMVJF66Q9ASUAAJG",
-      "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 04 Mar 2026 21:13:22 GMT",
+      "x-amzn-requestid" : "47E6815S3D5UAAAB66NGQ4RBAJVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2045949287",
+      "Date" : "Wed, 22 Jul 2026 23:39:37 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "090a29dc-1db3-45c0-8465-2cb9836fd762",
+  "uuid" : "ead6c51a-d985-40e7-8746-47b08c3f956b",
   "persistent" : true,
-  "insertionIndex" : 155
+  "insertionIndex" : 351
 }

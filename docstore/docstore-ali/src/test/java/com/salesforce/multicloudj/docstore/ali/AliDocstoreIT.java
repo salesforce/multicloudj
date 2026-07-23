@@ -9,8 +9,6 @@ import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 
 public class AliDocstoreIT extends AbstractDocstoreIT {
   // Switch it to https after table store can support https proxy and
@@ -19,16 +17,6 @@ public class AliDocstoreIT extends AbstractDocstoreIT {
   // either both connection should be http or https in order for wiremock setup to work.
   private static final String END_POINT = "http://chameleon-java.cn-shanghai.ots.aliyuncs.com";
   private static final String INSTANCE_NAME = "chameleon-java";
-
-  @Test
-  @Disabled("Atomic writes across partitions not supported by Tablestore local transactions")
-  @Override
-  public void testAtomicWrites() {}
-
-  @Test
-  @Disabled("Atomic writes across partitions not supported by Tablestore local transactions")
-  @Override
-  public void testAtomicWritesFail() {}
 
   @Override
   protected Harness createHarness() {
