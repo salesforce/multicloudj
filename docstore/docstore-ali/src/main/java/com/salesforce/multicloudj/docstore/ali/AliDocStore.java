@@ -209,9 +209,9 @@ public class AliDocStore extends AbstractDocStore {
       // before the transaction starts. A Tablestore local transaction takes an exclusive lock on
       // its partition; if a non-atomic write targets the same partition (e.g. a delete and an
       // atomic put under one partition key) running it concurrently with the transaction races that
-      // lock and fails with OTSRowOperationConflict. Reads do not take the lock, so the transaction
-      // still overlaps the read actions below. When there is no atomic transaction, the writes and
-      // reads run concurrently as before (the barrier is unnecessary).
+      // lock and fails with OTSRowOperationConflict. Reads do not take the write lock, so the
+      // transaction still overlaps the read actions below. When there is no atomic transaction, the
+      // writes and reads run concurrently as before (the barrier is unnecessary).
       if (!atomicWriteActions.isEmpty()) {
         writeTask.get();
       }
@@ -581,12 +581,17 @@ public class AliDocStore extends AbstractDocStore {
       // dangling, then surface a uniform TransactionFailedException regardless of the underlying
       // cause. (Document-shape validation happens above, before the transaction opens, so caller
       // errors are not remapped here.)
+      TransactionFailedException failure =
+          new TransactionFailedException("Atomic write failed - all operations rolled back", e);
       try {
         tableStoreClient.abortTransaction(new AbortTransactionRequest(transactionId));
       } catch (RuntimeException abortFailure) {
-        // Best-effort rollback; preserve and surface the original failure below.
+        // Best-effort rollback. If the abort itself fails, the server-side transaction and its
+        // exclusive partition lock dangle until Tablestore's TTL; attach the abort failure as a
+        // suppressed exception so the diagnostic is not lost, then surface the original cause.
+        failure.addSuppressed(abortFailure);
       }
-      throw new TransactionFailedException("Atomic write failed - all operations rolled back", e);
+      throw failure;
     }
     updateRevision(operations);
   }
