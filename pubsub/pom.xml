@@ -25,7 +25,6 @@
         <dependency>
             <groupId>com.google.auto.service</groupId>
             <artifactId>auto-service</artifactId>
-            <version>1.0-rc7</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
