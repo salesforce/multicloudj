@@ -60,7 +60,8 @@
         <mockito.version>5.16.1</mockito.version>
         <mockito-inline.version>5.2.0</mockito-inline.version>
         <wiremock.version>3.13.2</wiremock.version>
-        <lombok.version>1.18.40</lombok.version>
+        <lombok.version>1.18.46</lombok.version>
+        <auto-service.version>1.1.1</auto-service.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <httpclient.version>4.5.14</httpclient.version>
         <httpcore.version>4.4.16</httpcore.version>
@@ -546,6 +547,26 @@
                 <version>3.11.0</version>
                 <configuration>
                     <release>${releaseTarget}</release>
+                    <!--
+                      JDK 23+ no longer runs annotation processors discovered
+                      only on the classpath by default, so every processor the
+                      build relies on must be listed explicitly here. lombok
+                      generates boilerplate; google auto-service generates the
+                      META-INF/services entries that ServiceLoader uses for
+                      provider discovery.
+                    -->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>com.google.auto.service</groupId>
+                            <artifactId>auto-service</artifactId>
+                            <version>${auto-service.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>
