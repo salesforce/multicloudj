@@ -509,6 +509,25 @@ public abstract class AbstractDocstoreIT {
     }
   }
 
+  // Best-effort deletion of the given two-key (Game/Player) docs, used to clear rows a prior
+  // interrupted run may have left behind (these tests use fixed keys, so a leftover row would make
+  // the next run's create fail with already-exists). Deleting a non-existent key is a no-op, and
+  // any error here must not fail the test proper, so it is swallowed.
+  private void deleteTwoKeyDocs(DocStoreClient docStoreClient, List<Map<String, Object>> docs) {
+    try {
+      ActionList cleanup = docStoreClient.getActions();
+      for (Map<String, Object> doc : docs) {
+        Map<String, Object> key = new HashMap<>();
+        key.put("Game", doc.get("Game"));
+        key.put("Player", doc.get("Player"));
+        cleanup.delete(new Document(key));
+      }
+      cleanup.run();
+    } catch (RuntimeException ignore) {
+      // Pre-test cleanup is best-effort; ignore failures (e.g. nothing to delete).
+    }
+  }
+
   @Test
   public void testPut() {
     AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.SINGLE_KEY);
@@ -1237,22 +1256,27 @@ public abstract class AbstractDocstoreIT {
 
   @Test
   public void testAtomicWrites() {
-    AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.SINGLE_KEY);
+    // Atomic writes are scoped to a SINGLE partition key so the scenario is uniform across all
+    // substrates (some substrates' transactions only span a single partition key). Uses the two-key
+    // collection with the partition key (Game) held constant and only the sort key (Player) varied,
+    // so every write in the atomic block stays within one partition.
+    AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.TWO_KEYS);
     DocStoreClient docStoreClient = new DocStoreClient(docStore);
     String revField = "DocstoreRevision";
+    String partitionKeyValue = "testAtomicWrites";
 
-    // Create 9 test documents following the Go pattern
+    // Create 9 test documents, all within one partition (constant Game, varying Player).
     List<Map<String, Object>> docs = new ArrayList<>();
     for (int i = 0; i < 9; i++) {
       Map<String, Object> doc = new HashMap<>();
-      doc.put("pName", String.format("testAtomicWrites%d", i));
+      doc.put("Game", partitionKeyValue);
+      doc.put("Player", String.format("testAtomicWrites%d", i));
       doc.put("s", String.valueOf(i));
-      doc.put("i", i);
-      // doc.put("f", (float) (i+.10*i));
-      doc.put("b", i % 2 == 0);
       doc.put(revField, null);
       docs.add(doc);
     }
+
+    deleteTwoKeyDocs(docStoreClient, docs);
 
     // Put the nine docs
     ActionList actions = docStoreClient.getActions();
@@ -1271,7 +1295,8 @@ public abstract class AbstractDocstoreIT {
     List<Map<String, Object>> getDocs = new ArrayList<>();
     for (int i = 3; i < 6; i++) {
       Map<String, Object> getDoc = new HashMap<>();
-      getDoc.put("pName", docs.get(i).get("pName"));
+      getDoc.put("Game", docs.get(i).get("Game"));
+      getDoc.put("Player", docs.get(i).get("Player"));
       getDocs.add(getDoc);
     }
 
@@ -1303,51 +1328,64 @@ public abstract class AbstractDocstoreIT {
       Map<String, Object> expected = docs.get(i + 3);
       Map<String, Object> actual = getDocs.get(i);
       // The get operation should have populated these documents
-      Assertions.assertEquals(expected.get("pName"), actual.get("pName"));
+      Assertions.assertEquals(expected.get("Game"), actual.get("Game"));
+      Assertions.assertEquals(expected.get("Player"), actual.get("Player"));
       Assertions.assertEquals(expected.get("s"), actual.get("s"));
-      Assertions.assertEquals(expected.get("i"), actual.get("i"));
-      // Assertions.assertEquals(expected.get("f"), actual.get("f"));
-      Assertions.assertEquals(expected.get("b"), actual.get("b"));
       Assertions.assertNotNull(actual.get(revField));
     }
 
     // Get the docs updated as part of atomic writes and verify values were updated successfully
     Map<String, Object> doc6 = new HashMap<>();
-    doc6.put("pName", docs.get(6).get("pName"));
+    doc6.put("Game", docs.get(6).get("Game"));
+    doc6.put("Player", docs.get(6).get("Player"));
     docStoreClient.get(new Document(doc6));
     Assertions.assertEquals("66", doc6.get("s"));
 
     Map<String, Object> doc7 = new HashMap<>();
-    doc7.put("pName", docs.get(7).get("pName"));
+    doc7.put("Game", docs.get(7).get("Game"));
+    doc7.put("Player", docs.get(7).get("Player"));
     docStoreClient.get(new Document(doc7));
     Assertions.assertEquals("77", doc7.get("s"));
 
     Map<String, Object> doc8 = new HashMap<>();
-    doc8.put("pName", docs.get(8).get("pName"));
+    doc8.put("Game", docs.get(8).get("Game"));
+    doc8.put("Player", docs.get(8).get("Player"));
     docStoreClient.get(new Document(doc8));
     Assertions.assertEquals("88", doc8.get("s"));
+
+    // Clean up the docs this test created (docs 0-2 were already deleted above).
+    ActionList cleanup = docStoreClient.getActions();
+    for (int i = 3; i < 9; i++) {
+      cleanup.delete(new Document(docs.get(i)));
+    }
+    cleanup.run();
 
     docStoreClient.close();
   }
 
   @Test
   public void testAtomicWritesFail() {
-    AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.SINGLE_KEY);
+    // Single-partition atomic-writes failure + rollback scenario (see testAtomicWrites for why the
+    // partition key is held constant). The atomic block references a non-existent doc so the whole
+    // transaction must fail and roll back.
+    AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.TWO_KEYS);
     DocStoreClient docStoreClient = new DocStoreClient(docStore);
     String revField = "DocstoreRevision";
+    String partitionKeyValue = "testAtomicWritesFail";
 
-    // Create 9 test documents but only put the first 8 (doc8 won't exist)
+    // Create 9 test documents (constant Game, varying Player) but only put the first 8 so docs[8]
+    // does not exist.
     List<Map<String, Object>> docs = new ArrayList<>();
     for (int i = 0; i < 9; i++) {
       Map<String, Object> doc = new HashMap<>();
-      doc.put("pName", String.format("testAtomicWritesFail%d", i));
+      doc.put("Game", partitionKeyValue);
+      doc.put("Player", String.format("testAtomicWritesFail%d", i));
       doc.put("s", String.valueOf(i));
-      doc.put("i", i);
-      doc.put("f", (float) (i + .10 * i));
-      doc.put("b", i % 2 == 0);
       doc.put(revField, null);
       docs.add(doc);
     }
+
+    deleteTwoKeyDocs(docStoreClient, docs);
 
     // Put only the first eight docs (docs[8] doesn't exist)
     ActionList actions = docStoreClient.getActions();
@@ -1366,7 +1404,8 @@ public abstract class AbstractDocstoreIT {
     List<Map<String, Object>> getDocs = new ArrayList<>();
     for (int i = 3; i < 6; i++) {
       Map<String, Object> getDoc = new HashMap<>();
-      getDoc.put("pName", docs.get(i).get("pName"));
+      getDoc.put("Game", docs.get(i).get("Game"));
+      getDoc.put("Player", docs.get(i).get("Player"));
       getDocs.add(getDoc);
     }
 
@@ -1404,24 +1443,32 @@ public abstract class AbstractDocstoreIT {
       Map<String, Object> expected = docs.get(i + 3);
       Map<String, Object> actual = getDocs.get(i);
       // The get operation should have populated these documents
-      Assertions.assertEquals(expected.get("pName"), actual.get("pName"));
+      Assertions.assertEquals(expected.get("Game"), actual.get("Game"));
+      Assertions.assertEquals(expected.get("Player"), actual.get("Player"));
       Assertions.assertEquals(expected.get("s"), actual.get("s"));
-      Assertions.assertEquals(expected.get("i"), actual.get("i"));
-      Assertions.assertEquals(expected.get("f"), actual.get("f"));
-      Assertions.assertEquals(expected.get("b"), actual.get("b"));
       Assertions.assertNotNull(actual.get(revField));
     }
 
     // Validate that the values still remain the original (atomic rollback)
     Map<String, Object> doc6 = new HashMap<>();
-    doc6.put("pName", docs.get(6).get("pName"));
+    doc6.put("Game", docs.get(6).get("Game"));
+    doc6.put("Player", docs.get(6).get("Player"));
     docStoreClient.get(new Document(doc6));
     Assertions.assertEquals("6", doc6.get("s")); // Should still be original value
 
     Map<String, Object> doc7 = new HashMap<>();
-    doc7.put("pName", docs.get(7).get("pName"));
+    doc7.put("Game", docs.get(7).get("Game"));
+    doc7.put("Player", docs.get(7).get("Player"));
     docStoreClient.get(new Document(doc7));
     Assertions.assertEquals("7", doc7.get("s")); // Should still be original value
+
+    // Clean up the docs this test created (docs 0-2 were already deleted above; docs[8] never
+    // existed).
+    ActionList cleanup = docStoreClient.getActions();
+    for (int i = 3; i < 8; i++) {
+      cleanup.delete(new Document(docs.get(i)));
+    }
+    cleanup.run();
 
     docStoreClient.close();
   }
