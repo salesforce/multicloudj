@@ -1,0 +1,28 @@
+{
+  "id" : "a1364afe-7e76-47b5-91d3-b37d06ac1120",
+  "name" : "AliDocstoreIT_testAtomicWritesFail-POST-17",
+  "request" : {
+    "url" : "/PutRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"op\":\"PutRow\",\"table\":\"docstore_test_2\",\"rows\":[{\"pk\":{\"Game\":{\"t\":\"PK:STRING\",\"v\":\"testAtomicWritesFail\"},\"Player\":{\"t\":\"PK:STRING\",\"v\":\"testAtomicWritesFail2\"}},\"cells\":{\"DocstoreRevision\":{\"t\":\"STRING\",\"v\":\"37fcf709-06e6-78ce-f9a5-9a6d998cce39\"},\"s\":{\"t\":\"STRING\",\"v\":\"2\"}},\"deleteMarker\":false}],\"condition\":\"0802\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgBEAE=",
+    "headers" : {
+      "x-ots-requestid" : "0006573a-7189-b523-d8de-c60b0f0b542b",
+      "Authorization" : "OTS STS.NXkaGqbYRYN1ubNDnFcFaPiHX:87HE4q0FN0MdwMOqVrCNr1ERWTw=",
+      "x-ots-date" : "2026-07-22T22:13:04.849737Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "bofsTfsxtvymDNQpw96K/Q==",
+      "Date" : "Wed, 22 Jul 2026 22:13:04 GMT"
+    }
+  },
+  "uuid" : "a1364afe-7e76-47b5-91d3-b37d06ac1120",
+  "persistent" : true,
+  "insertionIndex" : 201
+}
