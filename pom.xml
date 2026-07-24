@@ -60,7 +60,7 @@
         <mockito.version>5.16.1</mockito.version>
         <mockito-inline.version>5.2.0</mockito-inline.version>
         <wiremock.version>3.13.2</wiremock.version>
-        <lombok.version>1.18.36</lombok.version>
+        <lombok.version>1.18.40</lombok.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <httpclient.version>4.5.14</httpclient.version>
         <httpcore.version>4.4.16</httpcore.version>
@@ -533,7 +533,7 @@
                         <dependency>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                            <version>1.18.34</version>
+                            <version>${lombok.version}</version>
                         </dependency>
                     </dependencies>
                 </plugin>
