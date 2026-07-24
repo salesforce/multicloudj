@@ -57,7 +57,7 @@
         <guava.version>33.2.1-jre</guava.version>
         <guice.version>7.0.0</guice.version>
         <junit.version>5.12.1</junit.version>
-        <mockito.version>5.16.1</mockito.version>
+        <mockito.version>5.18.0</mockito.version>
         <mockito-inline.version>5.2.0</mockito-inline.version>
         <wiremock.version>3.13.2</wiremock.version>
         <lombok.version>1.18.46</lombok.version>
