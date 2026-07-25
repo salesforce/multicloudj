@@ -5,7 +5,7 @@
     <artifactId>multicloudj-parent</artifactId>
     <packaging>pom</packaging>
     <description>Salesforce Multi-substrate Java SDK</description>
-    <version>0.4.4-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <name>multicloudj</name>
     <url>https://github.com/salesforce/multicloudj</url>
 
@@ -48,8 +48,8 @@
     </modules>
     <properties>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <compileSource>11</compileSource>
-        <releaseTarget>11</releaseTarget>
+        <compileSource>17</compileSource>
+        <releaseTarget>17</releaseTarget>
         <maven.min.version>3.5.0</maven.min.version>
         <java.min.version>${compileSource}</java.min.version>
         <slf4j.version>2.0.15</slf4j.version>
@@ -57,10 +57,10 @@
         <guava.version>33.2.1-jre</guava.version>
         <guice.version>7.0.0</guice.version>
         <junit.version>5.12.1</junit.version>
-        <mockito.version>5.16.1</mockito.version>
-        <mockito-inline.version>5.2.0</mockito-inline.version>
+        <mockito.version>5.18.0</mockito.version>
         <wiremock.version>3.13.2</wiremock.version>
-        <lombok.version>1.18.36</lombok.version>
+        <lombok.version>1.18.46</lombok.version>
+        <auto-service.version>1.1.1</auto-service.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <httpclient.version>4.5.14</httpclient.version>
         <httpcore.version>4.4.16</httpcore.version>
@@ -68,8 +68,8 @@
         <reactive-streams.version>1.0.4</reactive-streams.version>
         <eventstream.version>1.0.1</eventstream.version>
         <jmh.version>1.37</jmh.version>
-        <netty.version>4.1.135.Final</netty.version>
-        <jackson.version>2.18.6</jackson.version>
+        <netty.version>4.1.136.Final</netty.version>
+        <jackson.version>2.19.0</jackson.version>
         <aws-sdk.version>2.42.40</aws-sdk.version>
         <commons-codec.version>1.16.0</commons-codec.version>
         <wiremock-grpc.version>0.11.0</wiremock-grpc.version>
@@ -148,12 +148,6 @@
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
-                <artifactId>mockito-inline</artifactId>
-                <version>${mockito-inline.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.mockito</groupId>
                 <artifactId>mockito-junit-jupiter</artifactId>
                 <version>${mockito.version}</version>
                 <scope>test</scope>
@@ -177,6 +171,16 @@
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
                 <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.google.auto.service</groupId>
+                <artifactId>auto-service</artifactId>
+                <version>${auto-service.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.auto.service</groupId>
+                <artifactId>auto-service-annotations</artifactId>
+                <version>${auto-service.version}</version>
             </dependency>
 
             <!-- Commons Libraries -->
@@ -533,7 +537,7 @@
                         <dependency>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                            <version>1.18.34</version>
+                            <version>${lombok.version}</version>
                         </dependency>
                     </dependencies>
                 </plugin>
@@ -546,6 +550,26 @@
                 <version>3.11.0</version>
                 <configuration>
                     <release>${releaseTarget}</release>
+                    <!--
+                      JDK 23+ no longer runs annotation processors discovered
+                      only on the classpath by default, so every processor the
+                      build relies on must be listed explicitly here. lombok
+                      generates boilerplate; google auto-service generates the
+                      META-INF/services entries that ServiceLoader uses for
+                      provider discovery.
+                    -->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>com.google.auto.service</groupId>
+                            <artifactId>auto-service</artifactId>
+                            <version>${auto-service.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>
