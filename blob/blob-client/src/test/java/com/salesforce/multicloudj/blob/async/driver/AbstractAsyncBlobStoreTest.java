@@ -32,6 +32,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -49,6 +50,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 
 public class AbstractAsyncBlobStoreTest {
@@ -722,5 +724,29 @@ public class AbstractAsyncBlobStoreTest {
         () -> {
           mockBlobStore.deleteDirectory("test-prefix");
         });
+  }
+
+  @Test
+  void testCreateDownloadDestinationPath_rejectsTraversalKey(@TempDir Path destination) {
+    DownloadRequest request =
+        new DownloadRequest.Builder()
+            .withKey("../../etc/passwd")
+            .withCreateParentPath(true)
+            .build();
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> mockBlobStore.createDownloadDestinationPath(request, destination));
+  }
+
+  @Test
+  void testCreateDownloadDestinationPath_allowsNestedKey(@TempDir Path destination) {
+    DownloadRequest request =
+        new DownloadRequest.Builder()
+            .withKey("nested/dir/object.txt")
+            .withCreateParentPath(true)
+            .build();
+    Path resolved = mockBlobStore.createDownloadDestinationPath(request, destination);
+    assertTrue(resolved.startsWith(destination.normalize()));
+    assertEquals(destination.resolve("nested/dir/object.txt").normalize(), resolved);
   }
 }

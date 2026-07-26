@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -439,7 +440,12 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
     if (!request.isCreateParentPath()) {
       return destination;
     }
-    Path resolved = destination.resolve(request.getKey()).normalize();
+    Path base = destination.normalize();
+    Path resolved = base.resolve(request.getKey()).normalize();
+    if (!resolved.startsWith(base)) {
+      throw new InvalidArgumentException(
+          "Object key resolves outside the download destination directory: " + request.getKey());
+    }
     Path parent = resolved.getParent();
     if (parent != null) {
       try {
