@@ -351,7 +351,12 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     if (!request.isCreateParentPath()) {
       return destination;
     }
-    Path resolved = destination.resolve(request.getKey()).normalize();
+    Path base = destination.normalize();
+    Path resolved = base.resolve(request.getKey()).normalize();
+    if (!resolved.startsWith(base)) {
+      throw new InvalidArgumentException(
+          "Object key resolves outside the download destination directory: " + request.getKey());
+    }
     Path parent = resolved.getParent();
     if (parent != null) {
       try {
