@@ -99,13 +99,15 @@ public class Main {
     BucketClient client = getBucketClient(getProvider());
     InputStream content = getInputStream();
 
-    // Build the per-call observability context. serviceId / tenantId identify who is making the
-    // call; correlationId ties this request together across the caller's own logs and traces.
+    // Build the per-call observability context. All three ids are optional and never
+    // auto-generated; set whichever ones you have. serviceId / tenantId identify who is making the
+    // call; correlationId ties this request together across the caller's own logs and traces and
+    // is the only id echoed back on the response.
     OperationContext operationContext =
         OperationContext.builder()
             .serviceId("my-service")
             .tenantId("tenant-1234")
-            .correlationId("request-abc-987") // optional; echoed back on the response
+            .correlationId("request-abc-987")
             .build();
 
     // Attach the context to the upload request via withOperationContext(...).
@@ -428,8 +430,10 @@ public class Main {
     BucketClient bucketClient = getBucketClient(getProvider());
     String key = "multipart-audited-object-" + System.currentTimeMillis();
 
-    // Build the per-call observability context. serviceId / tenantId identify who is making the
-    // call; correlationId ties this request together across the caller's own logs and traces.
+    // Build the per-call observability context. All three ids are optional and never
+    // auto-generated; set whichever ones you have. serviceId / tenantId identify who is making the
+    // call; correlationId ties this request together across the caller's own logs and traces and
+    // is the only id echoed back on the response.
     OperationContext operationContext =
         OperationContext.builder()
             .serviceId("my-service")
