@@ -298,10 +298,25 @@ public class BucketClient implements AutoCloseable {
    *     blob does not exist.
    */
   public void delete(String key, String versionId) {
+    delete(key, versionId, null);
+  }
+
+  /**
+   * Deletes a single blob from substrate-specific Blob storage.
+   *
+   * @param key Object name of the Blob
+   * @param versionId The versionId of the blob. This field is optional and should be null unless
+   *     you're targeting the deletion of a specific key/version blob.
+   * @param operationContext Per-call observability context carrying the correlation ID. May be
+   *     null, in which case tracing is treated as disabled.
+   * @throws SubstrateSdkException Thrown if the operation fails. Will not throw an exception if the
+   *     blob does not exist.
+   */
+  public void delete(String key, String versionId, OperationContext operationContext) {
     multiCloudJLogger.traceVoidOperation(
         BlobSpanNames.DELETE,
         bucketAttrs(),
-        null,
+        operationContext,
         ctx -> {
           try {
             blobStore.delete(key, versionId);
@@ -319,10 +334,23 @@ public class BucketClient implements AutoCloseable {
    *     blob in the list does not exist.
    */
   public void delete(Collection<BlobIdentifier> objects) {
+    delete(objects, null);
+  }
+
+  /**
+   * Deletes a collection of Blobs from a substrate-specific Blob storage.
+   *
+   * @param objects A collection of blob identifiers to delete
+   * @param operationContext Per-call observability context carrying the correlation ID. May be
+   *     null, in which case tracing is treated as disabled.
+   * @throws SubstrateSdkException Thrown if the operation fails. Will not throw an exception if a
+   *     blob in the list does not exist.
+   */
+  public void delete(Collection<BlobIdentifier> objects, OperationContext operationContext) {
     multiCloudJLogger.traceVoidOperation(
         BlobSpanNames.DELETE,
         bucketAttrs(),
-        null,
+        operationContext,
         ctx -> {
           try {
             blobStore.delete(objects);
@@ -389,10 +417,27 @@ public class BucketClient implements AutoCloseable {
    *     does not exist.
    */
   public BlobMetadata getMetadata(String key, String versionId) {
+    return getMetadata(key, versionId, null);
+  }
+
+  /**
+   * Retrieves the metadata of the Blob
+   *
+   * @param key Name of the Blob, whose metadata is to be retrieved
+   * @param versionId The versionId of the blob. This field is optional and only used if your bucket
+   *     has versioning enabled. This value should be null unless you're targeting a specific
+   *     key/version blob.
+   * @param operationContext Per-call observability context carrying the correlation ID. May be
+   *     null, in which case tracing is treated as disabled.
+   * @return Metadata of the Blob
+   * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the blob
+   *     does not exist.
+   */
+  public BlobMetadata getMetadata(String key, String versionId, OperationContext operationContext) {
     return multiCloudJLogger.traceOperation(
         BlobSpanNames.GET_METADATA,
         bucketAttrs(),
-        null,
+        operationContext,
         ctx -> {
           try {
             return withCorrelationId(blobStore.getMetadata(key, versionId), ctx);
@@ -435,7 +480,7 @@ public class BucketClient implements AutoCloseable {
     return multiCloudJLogger.traceOperation(
         BlobSpanNames.LIST_PAGE,
         bucketAttrs(),
-        null,
+        request.getOperationContext(),
         ctx -> {
           try {
             return blobStore.listPage(request);
@@ -480,10 +525,11 @@ public class BucketClient implements AutoCloseable {
     return multiCloudJLogger.traceOperation(
         BlobSpanNames.INITIATE_MULTIPART_UPLOAD,
         bucketAttrs(),
-        null,
+        request.getOperationContext(),
         ctx -> {
+          MultipartUploadRequest enriched = withResolvedContext(request, ctx);
           try {
-            return blobStore.initiateMultipartUpload(request);
+            return blobStore.initiateMultipartUpload(enriched);
           } catch (Throwable t) {
             propagate(t);
             return null;
@@ -499,10 +545,24 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public UploadPartResponse uploadMultipartPart(MultipartUpload mpu, MultipartPart mpp) {
+    return uploadMultipartPart(mpu, mpp, null);
+  }
+
+  /**
+   * Uploads a part of the multipartUpload
+   *
+   * @param mpu The multipartUpload to use
+   * @param mpp The multipartPart data
+   * @param operationContext Per-call observability context carrying the correlation ID. May be
+   *     null, in which case tracing is treated as disabled.
+   * @throws SubstrateSdkException Thrown if the operation fails
+   */
+  public UploadPartResponse uploadMultipartPart(
+      MultipartUpload mpu, MultipartPart mpp, OperationContext operationContext) {
     return multiCloudJLogger.traceOperation(
         BlobSpanNames.UPLOAD_MULTIPART_PART,
         bucketAttrs(),
-        null,
+        operationContext,
         ctx -> {
           try {
             return blobStore.uploadMultipartPart(mpu, mpp);
@@ -522,10 +582,24 @@ public class BucketClient implements AutoCloseable {
    */
   public MultipartUploadResponse completeMultipartUpload(
       MultipartUpload mpu, List<UploadPartResponse> parts) {
+    return completeMultipartUpload(mpu, parts, null);
+  }
+
+  /**
+   * Completes a multipartUpload
+   *
+   * @param mpu The multipartUpload to use
+   * @param parts A list of the parts contained in the multipartUpload
+   * @param operationContext Per-call observability context carrying the correlation ID. May be
+   *     null, in which case tracing is treated as disabled.
+   * @throws SubstrateSdkException Thrown if the operation fails
+   */
+  public MultipartUploadResponse completeMultipartUpload(
+      MultipartUpload mpu, List<UploadPartResponse> parts, OperationContext operationContext) {
     return multiCloudJLogger.traceOperation(
         BlobSpanNames.COMPLETE_MULTIPART_UPLOAD,
         bucketAttrs(),
-        null,
+        operationContext,
         ctx -> {
           try {
             return blobStore.completeMultipartUpload(mpu, parts);
@@ -543,10 +617,23 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public List<UploadPartResponse> listMultipartUpload(MultipartUpload mpu) {
+    return listMultipartUpload(mpu, null);
+  }
+
+  /**
+   * Returns a list of all uploaded parts for the given MultipartUpload
+   *
+   * @param mpu The multipartUpload to query against
+   * @param operationContext Per-call observability context carrying the correlation ID. May be
+   *     null, in which case tracing is treated as disabled.
+   * @throws SubstrateSdkException Thrown if the operation fails
+   */
+  public List<UploadPartResponse> listMultipartUpload(
+      MultipartUpload mpu, OperationContext operationContext) {
     return multiCloudJLogger.traceOperation(
         BlobSpanNames.LIST_MULTIPART_UPLOAD,
         bucketAttrs(),
-        null,
+        operationContext,
         ctx -> {
           try {
             return blobStore.listMultipartUpload(mpu);
@@ -564,10 +651,22 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public void abortMultipartUpload(MultipartUpload mpu) {
+    abortMultipartUpload(mpu, null);
+  }
+
+  /**
+   * Aborts a multipartUpload
+   *
+   * @param mpu The multipartUpload to abort
+   * @param operationContext Per-call observability context carrying the correlation ID. May be
+   *     null, in which case tracing is treated as disabled.
+   * @throws SubstrateSdkException Thrown if the operation fails
+   */
+  public void abortMultipartUpload(MultipartUpload mpu, OperationContext operationContext) {
     multiCloudJLogger.traceVoidOperation(
         BlobSpanNames.ABORT_MULTIPART_UPLOAD,
         bucketAttrs(),
-        null,
+        operationContext,
         ctx -> {
           try {
             blobStore.abortMultipartUpload(mpu);
@@ -586,10 +685,24 @@ public class BucketClient implements AutoCloseable {
    *     does not exist.
    */
   public Map<String, String> getTags(String key) {
+    return getTags(key, null);
+  }
+
+  /**
+   * Returns a map of all the tags associated with the blob.
+   *
+   * @param key Name of the blob whose tags are to be retrieved
+   * @param operationContext Per-call observability context carrying the correlation ID. May be
+   *     null, in which case tracing is treated as disabled.
+   * @return The blob's tags
+   * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the blob
+   *     does not exist.
+   */
+  public Map<String, String> getTags(String key, OperationContext operationContext) {
     return multiCloudJLogger.traceOperation(
         BlobSpanNames.GET_TAGS,
         bucketAttrs(),
-        null,
+        operationContext,
         ctx -> {
           try {
             return blobStore.getTags(key);
@@ -914,6 +1027,32 @@ public class BucketClient implements AutoCloseable {
         .withObjectLock(req.getObjectLock())
         .withChecksumValue(req.getChecksumValue())
         .withChecksumAlgorithm(req.getChecksumAlgorithm())
+        .withContentType(req.getContentType())
+        .withOperationContext(ctx)
+        .build();
+  }
+
+  /**
+   * Returns a copy of {@code req} with the resolved {@link OperationContext} attached so the
+   * provider's transformer can read the same correlation id that this call's trace/log/MDC emit
+   * (an empty string when the caller didn't supply one; the correlation id is never
+   * auto-generated). The transformer then persists that id onto the multipart object's metadata
+   * under {@link com.salesforce.multicloudj.blob.driver.BlobMetadataKeys#CORRELATION_ID}.
+   */
+  static MultipartUploadRequest withResolvedContext(
+      MultipartUploadRequest req, OperationContext ctx) {
+    if (ctx == req.getOperationContext()) {
+      return req;
+    }
+    return new MultipartUploadRequest.Builder()
+        .withKey(req.getKey())
+        .withMetadata(req.getMetadata())
+        .withTags(req.getTags())
+        .withKmsKeyId(req.getKmsKeyId())
+        .withUseKmsManagedKey(req.isUseKmsManagedKey())
+        .withChecksumEnabled(req.isChecksumEnabled())
+        .withChecksumAlgorithm(req.getChecksumAlgorithm())
+        .withObjectLock(req.getObjectLock())
         .withContentType(req.getContentType())
         .withOperationContext(ctx)
         .build();

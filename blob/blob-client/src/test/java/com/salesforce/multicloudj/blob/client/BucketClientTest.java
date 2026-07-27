@@ -39,6 +39,7 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -447,14 +448,19 @@ public class BucketClientTest {
     MultipartUploadRequest request =
         new MultipartUploadRequest.Builder().withKey("object-1").build();
     client.initiateMultipartUpload(request);
-    verify(mockBlobStore, times(1)).initiateMultipartUpload(request);
+    // The client forwards a request enriched with the resolved OperationContext, so match by key
+    // rather than by object identity.
+    verify(mockBlobStore, times(1))
+        .initiateMultipartUpload(
+            argThat((MultipartUploadRequest req) -> "object-1".equals(req.getKey())));
   }
 
   @Test
   void testInitiateMultipartUploadException() {
     MultipartUploadRequest request =
         new MultipartUploadRequest.Builder().withKey("object-1").build();
-    when(mockBlobStore.initiateMultipartUpload(request)).thenThrow(RuntimeException.class);
+    when(mockBlobStore.initiateMultipartUpload(any(MultipartUploadRequest.class)))
+        .thenThrow(RuntimeException.class);
 
     assertThrows(
         UnAuthorizedException.class,
@@ -568,6 +574,98 @@ public class BucketClientTest {
         () -> {
           client.getTags("object-1");
         });
+  }
+
+  @Test
+  void testDeleteWithOperationContext() {
+    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    client.delete("object-1", "version-1", ctx);
+    verify(mockBlobStore, times(1)).delete(eq("object-1"), eq("version-1"));
+  }
+
+  @Test
+  void testBulkDeleteWithOperationContext() {
+    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    List<BlobIdentifier> objects =
+        List.of(new BlobIdentifier("object-1", "version-1"));
+    client.delete(objects, ctx);
+    verify(mockBlobStore, times(1)).delete(eq(objects));
+  }
+
+  @Test
+  void testGetMetadataWithOperationContext() {
+    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    BlobMetadata expectedBlobInfo =
+        BlobMetadata.builder().key("object-1").versionId("v1").build();
+    when(mockBlobStore.getMetadata(any(), any())).thenReturn(expectedBlobInfo);
+    BlobMetadata actual = client.getMetadata("object-1", "v1", ctx);
+    verify(mockBlobStore, times(1)).getMetadata(eq("object-1"), eq("v1"));
+    assertEquals("object-1", actual.getKey());
+  }
+
+  @Test
+  void testGetTagsWithOperationContext() {
+    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    client.getTags("object-1", ctx);
+    verify(mockBlobStore, times(1)).getTags("object-1");
+  }
+
+  @Test
+  void testUploadMultipartPartWithOperationContext() {
+    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    MultipartUpload multipartUpload =
+        MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
+    MultipartPart multipartPart = new MultipartPart(1, null, 0);
+    client.uploadMultipartPart(multipartUpload, multipartPart, ctx);
+    verify(mockBlobStore, times(1)).uploadMultipartPart(multipartUpload, multipartPart);
+  }
+
+  @Test
+  void testCompleteMultipartUploadWithOperationContext() {
+    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    MultipartUpload multipartUpload =
+        MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
+    List<UploadPartResponse> listOfParts = List.of(new UploadPartResponse(1, "etag", 0));
+    client.completeMultipartUpload(multipartUpload, listOfParts, ctx);
+    verify(mockBlobStore, times(1)).completeMultipartUpload(multipartUpload, listOfParts);
+  }
+
+  @Test
+  void testListMultipartUploadWithOperationContext() {
+    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    MultipartUpload multipartUpload =
+        MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
+    client.listMultipartUpload(multipartUpload, ctx);
+    verify(mockBlobStore, times(1)).listMultipartUpload(multipartUpload);
+  }
+
+  @Test
+  void testAbortMultipartUploadWithOperationContext() {
+    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    MultipartUpload multipartUpload =
+        MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
+    client.abortMultipartUpload(multipartUpload, ctx);
+    verify(mockBlobStore, times(1)).abortMultipartUpload(multipartUpload);
+  }
+
+  /**
+   * The initiateMultipartUpload path carries the resolved OperationContext into the request that is
+   * forwarded to the driver, so the driver observes a request whose context correlationId has been
+   * populated by the logger.
+   */
+  @Test
+  void testInitiateMultipartUploadEnrichesRequestWithResolvedContext() {
+    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey("object-1").withOperationContext(ctx).build();
+    client.initiateMultipartUpload(request);
+    verify(mockBlobStore, times(1))
+        .initiateMultipartUpload(
+            argThat(
+                (MultipartUploadRequest req) ->
+                    "object-1".equals(req.getKey())
+                        && req.getOperationContext() != null
+                        && req.getOperationContext().getCorrelationId() != null));
   }
 
   @Test

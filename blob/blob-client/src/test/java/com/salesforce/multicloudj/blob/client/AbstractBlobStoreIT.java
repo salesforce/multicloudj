@@ -560,6 +560,76 @@ public abstract class AbstractBlobStoreIT {
     }
   }
 
+  /**
+   * Verifies that when an {@link OperationContext} carrying a service ID and tenant ID is attached
+   * to an initiateMultipartUpload, the SDK stamps those identifiers onto the completed object's
+   * metadata under the {@code sdk-logging-service-id} and {@code sdk-logging-tenant-id} keys,
+   * mirroring the single-shot upload behavior. When a correlation ID is also supplied, it is
+   * likewise persisted under {@code sdk-logging-correlation-id}.
+   */
+  @Test
+  public void testInitiateMultipartUpload_withServiceAndTenantId_stampsObjectMetadata() {
+    // Ali: the OSS provider stamps only the correlation id, not service/tenant id, so it does not
+    // satisfy this conformance expectation and has no recorded mappings for it.
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
+    String key = "conformance-tests/multipart/observabilityMetadata";
+    String serviceId = "conformance-service";
+    String tenantId = "conformance-tenant";
+    String correlationId = "conformance-correlation-id";
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    MultipartUpload mpu = null;
+    try {
+      OperationContext operationContext =
+          OperationContext.builder()
+              .serviceId(serviceId)
+              .tenantId(tenantId)
+              .correlationId(correlationId)
+              .build();
+
+      MultipartUploadRequest request =
+          new MultipartUploadRequest.Builder()
+              .withKey(key)
+              .withOperationContext(operationContext)
+              .build();
+      mpu = bucketClient.initiateMultipartUpload(request);
+
+      UploadPartResponse partResponse =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(1, multipartBytes1));
+      bucketClient.completeMultipartUpload(mpu, List.of(partResponse));
+      mpu = null;
+
+      BlobMetadata blobMetadata = bucketClient.getMetadata(key, null);
+      Assertions.assertNotNull(blobMetadata, "No metadata returned");
+      Map<String, String> storedMetadata = blobMetadata.getMetadata();
+
+      Assertions.assertEquals(
+          serviceId,
+          storedMetadata.get("sdk-logging-service-id"),
+          "service id was not stamped onto object metadata");
+      Assertions.assertEquals(
+          tenantId,
+          storedMetadata.get("sdk-logging-tenant-id"),
+          "tenant id was not stamped onto object metadata");
+      Assertions.assertEquals(
+          correlationId,
+          storedMetadata.get("sdk-logging-correlation-id"),
+          "correlation id was not stamped onto object metadata");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+      if (mpu != null) {
+        try {
+          bucketClient.abortMultipartUpload(mpu);
+        } catch (Throwable t) {
+          // Ignore
+        }
+      }
+    }
+  }
+
   private void runUploadTests(String testName, String key, byte[] content, boolean wantError) {
     runUploadTest(testName, false, UploadType.InputStream, key, content, wantError);
     runUploadTest(testName, false, UploadType.ByteArray, key, content, wantError);

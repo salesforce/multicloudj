@@ -82,6 +82,32 @@ public class GcpTransformer {
     this.bucket = bucket;
   }
 
+  /**
+   * Stamps the operation context's correlation id, service id and tenant id into the given metadata
+   * map so they are persisted on the stored object in GCS. Each key is skipped when the context is
+   * null, when that context value is blank, or when the app has already supplied the same key.
+   *
+   * @param metadata the mutable metadata map to stamp into
+   * @param ctx the per-call observability context (may be null)
+   */
+  void stampContextMetadata(Map<String, String> metadata, OperationContext ctx) {
+    if (ctx == null) {
+      return;
+    }
+    if (StringUtils.isNotBlank(ctx.getCorrelationId())
+        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+      metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
+    }
+    if (StringUtils.isNotBlank(ctx.getServiceId())
+        && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {
+      metadata.put(SERVICE_ID_METADATA_KEY, ctx.getServiceId());
+    }
+    if (StringUtils.isNotBlank(ctx.getTenantId())
+        && !metadata.containsKey(TENANT_ID_METADATA_KEY)) {
+      metadata.put(TENANT_ID_METADATA_KEY, ctx.getTenantId());
+    }
+  }
+
   public BlobInfo toBlobInfo(UploadRequest uploadRequest) {
     Map<String, String> metadata = new HashMap<>();
     if (uploadRequest.getMetadata() != null) {
@@ -99,21 +125,7 @@ public class GcpTransformer {
     // persist in GCS alongside the user's metadata and can be traced from the object's GCS audit
     // logs. Each key is skipped when the request carries no operation context, when that context
     // value is absent, or when the app has supplied the same key explicitly.
-    if (uploadRequest.getOperationContext() != null) {
-      OperationContext ctx = uploadRequest.getOperationContext();
-      if (StringUtils.isNotBlank(ctx.getCorrelationId())
-          && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-        metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
-      }
-      if (StringUtils.isNotBlank(ctx.getServiceId())
-          && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {
-        metadata.put(SERVICE_ID_METADATA_KEY, ctx.getServiceId());
-      }
-      if (StringUtils.isNotBlank(ctx.getTenantId())
-          && !metadata.containsKey(TENANT_ID_METADATA_KEY)) {
-        metadata.put(TENANT_ID_METADATA_KEY, ctx.getTenantId());
-      }
-    }
+    stampContextMetadata(metadata, uploadRequest.getOperationContext());
 
     // Delegate to the protected toBlobInfo method which handles storage class, checksum, object
     // lock, and content type
