@@ -2318,6 +2318,34 @@ class GcpBlobStoreTest {
     assertEquals(123, connectionManager.getDefaultMaxPerRoute());
   }
 
+  @Test
+  void testBuildHttpClient_metricsEnabledInstallsPoolWithDefaultSizing() throws Exception {
+    // Enabling metrics swaps in an explicitly-owned connection manager so pool stats can be
+    // sampled. That swap must not silently shrink the pool from the transport's 200/20 default.
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder) new GcpBlobStore.Builder().withMetricsPublisher(metrics -> {});
+
+    PoolingHttpClientConnectionManager connectionManager =
+        extractConnectionManager(invokeBuildHttpClient(builder));
+
+    assertEquals(200, connectionManager.getMaxTotal());
+    assertEquals(20, connectionManager.getDefaultMaxPerRoute());
+  }
+
+  @Test
+  void testBuildHttpClient_metricsEnabledHonorsExplicitMaxConnections() throws Exception {
+    // On the metrics path, an explicit maxConnections must still size the installed pool.
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withMaxConnections(50).withMetricsPublisher(metrics -> {});
+
+    PoolingHttpClientConnectionManager connectionManager =
+        extractConnectionManager(invokeBuildHttpClient(builder));
+
+    assertEquals(50, connectionManager.getMaxTotal());
+    assertEquals(50, connectionManager.getDefaultMaxPerRoute());
+  }
+
   private static CloseableHttpClient invokeBuildHttpClient(GcpBlobStore.Builder builder)
       throws Exception {
     Method method =

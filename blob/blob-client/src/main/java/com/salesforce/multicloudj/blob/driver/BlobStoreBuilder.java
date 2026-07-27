@@ -140,20 +140,25 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
    * to this publisher. When left unset, no metrics are collected or published and client behavior
    * is unchanged.
    *
-   * <p>The underlying cloud SDKs expose different telemetry models, so the breadth of metrics
-   * varies by provider:
+   * <p>Across every provider that supports this hook, the same four connection-pool counters are
+   * emitted under the {@code HttpClient} category — {@code MaxConcurrency}, {@code
+   * LeasedConcurrency}, {@code AvailableConcurrency}, and {@code PendingConcurrencyAcquires} — so
+   * pool saturation can be observed uniformly regardless of the backing cloud. The underlying cloud
+   * SDKs expose different telemetry models, so some providers additionally emit a richer set:
    *
    * <ul>
-   *   <li><b>AWS</b>: fully supported. Metrics are bridged to the AWS SDK's native metric
-   *       publisher SPI and cover both the synchronous and asynchronous HTTP connection pools,
-   *       including connection-pool saturation and request/acquisition latency.
-   *   <li><b>GCP</b>: connection-pool utilization is supported. The GCP storage SDK provides no
-   *       push callback, so pool statistics (max/leased/available/pending connections) are sampled
-   *       from the HTTP connection pool after each request and forwarded to this publisher.
-   *   <li><b>Alibaba</b>: connection-pool utilization is supported. The Alibaba OSS SDK provides no
-   *       push callback, so pool statistics (max/leased/available/pending connections) are sampled
-   *       from the HTTP connection pools after each request and forwarded to this publisher.
+   *   <li><b>AWS</b>: supported. Metrics are bridged from the AWS SDK's native metric publisher SPI
+   *       for both the synchronous and asynchronous clients. In addition to the four common
+   *       connection-pool counters, AWS forwards its full native metric tree (for example
+   *       request/acquisition latency and per-attempt metrics) as a provider-specific superset,
+   *       each tagged with the SDK layer that produced it.
+   *   <li><b>GCP</b>: supported. The GCP storage SDK provides no push callback, so the four
+   *       connection-pool counters are sampled from the HTTP connection pool after each request and
+   *       forwarded to this publisher.
    * </ul>
+   *
+   * <p>Alibaba is not yet wired to this hook; supplying a publisher on an Alibaba-backed client is
+   * a no-op today and is planned for a follow-up.
    *
    * <p>Supplying a publisher is always safe: if a provider cannot produce a given metric it is
    * simply not emitted, and if a provider's connection pool is unavailable the hook degrades to a

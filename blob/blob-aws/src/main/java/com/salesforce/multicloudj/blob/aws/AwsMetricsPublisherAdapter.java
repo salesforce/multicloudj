@@ -15,8 +15,15 @@ import software.amazon.awssdk.metrics.MetricRecord;
  * API call with nested child collections for lower layers such as the HTTP client (where
  * connection-pool metrics like {@code MaxConcurrency}, {@code LeasedConcurrency}, {@code
  * PendingConcurrencyAcquires}, and {@code ConcurrencyAcquireDuration} live). This adapter flattens
- * that tree into neutral {@link Metric} instances, tagging each with the name of the collection
- * that produced it, and forwards them to the configured {@link MetricsPublisher}.
+ * the entire tree into neutral {@link Metric} instances, tagging each with the name of the
+ * collection that produced it, and forwards them to the configured {@link MetricsPublisher}.
+ *
+ * <p>Forwarding the whole tree is intentional: the connection-pool counters that every provider
+ * emits are a guaranteed subset (found under the {@code HttpClient} collection), and AWS callers
+ * additionally receive the SDK's native request- and attempt-level metrics as a provider-specific
+ * superset. Consumers that only care about pool saturation can filter by the {@code HttpClient}
+ * category; the metric names in that category match the cloud-agnostic {@link
+ * com.salesforce.multicloudj.common.observability.ConnectionPoolMetrics} vocabulary.
  */
 public class AwsMetricsPublisherAdapter implements software.amazon.awssdk.metrics.MetricPublisher {
 
