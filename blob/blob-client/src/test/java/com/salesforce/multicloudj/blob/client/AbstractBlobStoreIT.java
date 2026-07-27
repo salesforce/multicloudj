@@ -4,6 +4,8 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
@@ -2788,6 +2790,39 @@ public abstract class AbstractBlobStoreIT {
     Assertions.assertThrows(
         Exception.class,
         () -> bucketClient.getObjectLock("conformance-tests/objectlock/nonexistent", null));
+  }
+
+  // ------------------------------------------------------------------------------------
+  // Conformance tests for getBucketVersioning()
+  //
+  // These verify that every provider that supports bucket-level versioning reports the same
+  // status for an enabled bucket and surfaces an error for a bucket that does not exist. The
+  // SUSPENDED / UNVERSIONED mapping differs by substrate and is covered by provider unit tests.
+  // ------------------------------------------------------------------------------------
+
+  @Test
+  public void testGetBucketVersioning_enabledBucket() {
+    // The versioned conformance bucket is provisioned with versioning enabled.
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    BucketVersioningConfiguration configuration = bucketClient.getBucketVersioning();
+
+    Assertions.assertNotNull(
+        configuration, "getBucketVersioning should return a non-null configuration");
+    Assertions.assertEquals(
+        BucketVersioningStatus.ENABLED,
+        configuration.getStatus(),
+        "Versioned conformance bucket should report ENABLED");
+  }
+
+  @Test
+  public void testGetBucketVersioning_nonexistentBucket_throws() {
+    AbstractBlobStore blobStore = harness.createBlobStore(false, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // All providers must throw SubstrateSdkException for a bucket that does not exist.
+    Assertions.assertThrows(SubstrateSdkException.class, bucketClient::getBucketVersioning);
   }
 
   // ------------------------------------------------------------------------------------
