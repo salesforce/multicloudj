@@ -1,0 +1,34 @@
+{
+  "id" : "d9e0b08a-1921-4b22-a68a-9dbd157b7755",
+  "name" : "AwsBlobStoreIT_testGetBucketVersioning_nonexistentBucket_throws-GET-0",
+  "request" : {
+    "urlPath" : "/java-bucket-does-not-exist",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "versioning" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><BucketName>java-bucket-does-not-exist</BucketName><RequestId>2T5VF8CA822VFCRC</RequestId><HostId>2xFEFdRl4/VJ79gyQ73YTH86ViKukwzBAHVpeEXCUQPQstjEKH2MWNHEKb5cVgsA1jcQPc7vGNs=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "2T5VF8CA822VFCRC",
+      "x-amz-id-2" : "2xFEFdRl4/VJ79gyQ73YTH86ViKukwzBAHVpeEXCUQPQstjEKH2MWNHEKb5cVgsA1jcQPc7vGNs=",
+      "Date" : "Tue, 23 Jun 2026 15:21:06 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "d9e0b08a-1921-4b22-a68a-9dbd157b7755",
+  "persistent" : true,
+  "insertionIndex" : 764
+}

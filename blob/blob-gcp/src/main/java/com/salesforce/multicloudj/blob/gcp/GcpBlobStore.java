@@ -48,6 +48,7 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreBuilder;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
@@ -267,7 +268,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     BlobId blobId = transformer.toBlobId(downloadRequest);
     Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
     try {
-      ReadChannel reader = blob.reader();
+      ReadChannel reader = storage.reader(blobId);
       applyRange(reader, downloadRequest, blob);
       InputStream inputStream = Channels.newInputStream(reader);
       return transformer.toDownloadResponse(blob, inputStream);
@@ -1042,6 +1043,15 @@ public class GcpBlobStore extends AbstractBlobStore {
       }
       throw new SubstrateSdkException("Failed to check bucket existence", e);
     }
+  }
+
+  @Override
+  protected BucketVersioningConfiguration doGetBucketVersioning() {
+    Bucket bucketObj = storage.get(bucket);
+    if (bucketObj == null) {
+      throw new ResourceNotFoundException("Bucket does not exist: " + bucket);
+    }
+    return transformer.toBucketVersioningConfiguration(bucketObj.versioningEnabled());
   }
 
   /**

@@ -61,6 +61,8 @@ import com.google.cloud.storage.transfermanager.UploadResult;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
@@ -1812,7 +1814,7 @@ class GcpBlobStoreTest {
 
       when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
       when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
-      when(mockBlob.reader()).thenReturn(mockReadChannel);
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockTransformer.toDownloadResponse(eq(mockBlob), any(InputStream.class)))
           .thenReturn(expectedResponse);
 
@@ -1821,7 +1823,7 @@ class GcpBlobStoreTest {
       assertEquals(expectedResponse, response);
       verify(mockTransformer).toBlobId(downloadRequest);
       verify(mockStorage).get(mockBlobId);
-      verify(mockBlob).reader();
+      verify(mockStorage).reader(mockBlobId);
       verify(mockTransformer, never()).computeRange(any(), any(), anyLong());
       verify(mockTransformer).toDownloadResponse(eq(mockBlob), any(InputStream.class));
     }
@@ -1860,7 +1862,7 @@ class GcpBlobStoreTest {
 
       when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
       when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
-      when(mockBlob.reader()).thenReturn(mockReadChannel);
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockBlob.getSize()).thenReturn(100L);
       when(mockTransformer.computeRange(10L, 20L, 100L)).thenReturn(new ImmutablePair<>(10L, 21L));
       when(mockTransformer.toDownloadResponse(eq(mockBlob), any(InputStream.class)))
@@ -1872,7 +1874,7 @@ class GcpBlobStoreTest {
       assertEquals(expectedResponse, response);
       verify(mockTransformer).toBlobId(downloadRequest);
       verify(mockStorage).get(mockBlobId);
-      verify(mockBlob).reader();
+      verify(mockStorage).reader(mockBlobId);
       verify(mockReadChannel).seek(10L);
       verify(mockReadChannel).limit(21L);
       verify(mockTransformer).computeRange(10L, 20L, 100L);
@@ -1890,7 +1892,7 @@ class GcpBlobStoreTest {
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
     when(mockBlob.getSize()).thenReturn(100L);
     when(mockTransformer.computeRange(0L, 0L, 100L)).thenReturn(new ImmutablePair<>(0L, 1L));
-    when(mockBlob.reader()).thenReturn(mockReadChannel);
+    when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
     when(mockTransformer.toDownloadResponse(any(Blob.class), any(InputStream.class)))
         .thenReturn(DownloadResponse.builder().key(TEST_KEY).build());
 
@@ -1910,7 +1912,7 @@ class GcpBlobStoreTest {
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
     when(mockBlob.getSize()).thenReturn(100L);
     when(mockTransformer.computeRange(50L, null, 100L)).thenReturn(new ImmutablePair<>(50L, null));
-    when(mockBlob.reader()).thenReturn(mockReadChannel);
+    when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
     when(mockTransformer.toDownloadResponse(any(Blob.class), any(InputStream.class)))
         .thenReturn(DownloadResponse.builder().key(TEST_KEY).build());
 
@@ -1930,7 +1932,7 @@ class GcpBlobStoreTest {
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
     when(mockBlob.getSize()).thenReturn(100L);
     when(mockTransformer.computeRange(null, 25L, 100L)).thenReturn(new ImmutablePair<>(75L, 101L));
-    when(mockBlob.reader()).thenReturn(mockReadChannel);
+    when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
     when(mockTransformer.toDownloadResponse(any(Blob.class), any(InputStream.class)))
         .thenReturn(DownloadResponse.builder().key(TEST_KEY).build());
 
@@ -4772,4 +4774,40 @@ class GcpBlobStoreTest {
 
     assertThrows(NoSuchElementException.class, versions::next);
   }
+
+  @Test
+  void testDoGetBucketVersioning_delegatesToTransformer() {
+    Bucket mockBucket = mock(Bucket.class);
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
+    when(mockBucket.versioningEnabled()).thenReturn(true);
+    when(mockTransformer.toBucketVersioningConfiguration(true))
+        .thenReturn(BucketVersioningConfiguration.of(BucketVersioningStatus.ENABLED));
+
+    BucketVersioningConfiguration result = gcpBlobStore.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.ENABLED, result.getStatus());
+    verify(mockBucket).versioningEnabled();
+    verify(mockTransformer).toBucketVersioningConfiguration(true);
+  }
+
+  @Test
+  void testDoGetBucketVersioning_unversionedWhenFlagAbsent() {
+    Bucket mockBucket = mock(Bucket.class);
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
+    when(mockBucket.versioningEnabled()).thenReturn(null);
+    when(mockTransformer.toBucketVersioningConfiguration(null))
+        .thenReturn(BucketVersioningConfiguration.of(BucketVersioningStatus.UNVERSIONED));
+
+    BucketVersioningConfiguration result = gcpBlobStore.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.UNVERSIONED, result.getStatus());
+  }
+
+  @Test
+  void testDoGetBucketVersioning_missingBucketThrows() {
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(null);
+
+    assertThrows(ResourceNotFoundException.class, () -> gcpBlobStore.getBucketVersioning());
+  }
+
 }

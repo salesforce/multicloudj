@@ -2,6 +2,8 @@ package com.salesforce.multicloudj.blob.driver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -13,6 +15,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -27,6 +30,7 @@ import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 
 public class AbstractBlobStoreTest {
@@ -470,5 +474,29 @@ public class AbstractBlobStoreTest {
     org.junit.jupiter.api.Assertions.assertNull(delegated.getMode());
     org.junit.jupiter.api.Assertions.assertEquals(
         Boolean.FALSE, delegated.getBypassGovernanceRetention());
+  }
+
+  @Test
+  void testCreateDownloadDestinationPath_rejectsTraversalKey(@TempDir Path destination) {
+    DownloadRequest request =
+        new DownloadRequest.Builder()
+            .withKey("../../etc/passwd")
+            .withCreateParentPath(true)
+            .build();
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> mockBlobStore.createDownloadDestinationPath(request, destination));
+  }
+
+  @Test
+  void testCreateDownloadDestinationPath_allowsNestedKey(@TempDir Path destination) {
+    DownloadRequest request =
+        new DownloadRequest.Builder()
+            .withKey("nested/dir/object.txt")
+            .withCreateParentPath(true)
+            .build();
+    Path resolved = mockBlobStore.createDownloadDestinationPath(request, destination);
+    assertTrue(resolved.startsWith(destination.normalize()));
+    assertEquals(destination.resolve("nested/dir/object.txt").normalize(), resolved);
   }
 }

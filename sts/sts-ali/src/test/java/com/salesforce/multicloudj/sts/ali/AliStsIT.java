@@ -10,6 +10,7 @@ import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
 
 public class AliStsIT extends AbstractStsIT {
   @Override
@@ -26,6 +27,7 @@ public class AliStsIT extends AbstractStsIT {
       HttpClientConfig config = HttpClientConfig.getDefault();
       config.setHttpsProxy(String.format("https://%s:%d", TestsUtil.WIREMOCK_HOST, port));
       config.setX509TrustManagers(TestsUtilAli.createTrustManager());
+      config.setHostnameVerifier(NoopHostnameVerifier.INSTANCE);
 
       DefaultProfile profile = DefaultProfile.getProfile("cn-shanghai");
       profile.setHttpClientConfig(config);

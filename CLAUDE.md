@@ -176,7 +176,7 @@ Look for the local instructions in ~/.claude/config.md for git push to take the 
 
 ## Build Configuration
 
-- **Java Version**: Requires Java 11+, targets Java 11 bytecode
+- **Java Version**: Requires Java 17+, targets Java 17 bytecode
 - **Build Tool**: Maven 3.8+
 - **Parent POM**: `multicloudj-parent` in root `pom.xml`
 - **Version Management**: Uses `${revision}` property with flatten-maven-plugin

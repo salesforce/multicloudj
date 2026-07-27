@@ -27,6 +27,7 @@ public final class BlobSpanNames {
   public static final String GENERATE_PRESIGNED_URL = "blob.generatePresignedUrl";
   public static final String DOES_OBJECT_EXIST = "blob.doesObjectExist";
   public static final String DOES_BUCKET_EXIST = "blob.doesBucketExist";
+  public static final String GET_BUCKET_VERSIONING = "blob.getBucketVersioning";
 
   // Multipart operations.
   public static final String INITIATE_MULTIPART_UPLOAD = "blob.initiateMultipartUpload";

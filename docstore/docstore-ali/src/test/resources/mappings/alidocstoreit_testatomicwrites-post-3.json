@@ -1,0 +1,30 @@
+{
+  "id" : "ce0b0ed1-bf0a-4062-8fc0-cef698fdb2ca",
+  "name" : "AliDocstoreIT_testAtomicWrites-POST-3",
+  "request" : {
+    "url" : "/DeleteRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"op\":\"DeleteRow\",\"table\":\"docstore_test_2\",\"rows\":[{\"pk\":{\"Game\":{\"t\":\"PK:STRING\",\"v\":\"testAtomicWrites\"},\"Player\":{\"t\":\"PK:STRING\",\"v\":\"testAtomicWrites6\"}},\"cells\":{},\"deleteMarker\":true}],\"condition\":\"0800\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgBEAE=",
+    "headers" : {
+      "x-ots-requestid" : "0006573a-714b-2a6a-cf04-c20b0e5e32b3",
+      "Authorization" : "OTS STS.NXkaGqbYRYN1ubNDnFcFaPiHX:7Vr8HdjghyeF1aqrdI8X7cV1lc4=",
+      "x-ots-date" : "2026-07-22T22:13:00.747026Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "bofsTfsxtvymDNQpw96K/Q==",
+      "Date" : "Wed, 22 Jul 2026 22:13:00 GMT"
+    }
+  },
+  "uuid" : "ce0b0ed1-bf0a-4062-8fc0-cef698fdb2ca",
+  "persistent" : true,
+  "scenarioName" : "scenario-4-DeleteRow",
+  "requiredScenarioState" : "scenario-4-DeleteRow-2",
+  "insertionIndex" : 146
+}
