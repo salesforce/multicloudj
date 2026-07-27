@@ -393,4 +393,5 @@ public class BlobStoreValidator {
     // mode == null is the documented sentinel for "preserve current mode" — do NOT reject.
     // bypassGovernanceRetention == null is the documented default for "no bypass" — do NOT reject.
   }
+
 }

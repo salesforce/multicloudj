@@ -1,0 +1,28 @@
+{
+  "id" : "17f2d22e-c4c8-4698-9769-8c943ec67b50",
+  "name" : "AliDocstoreIT_testAtomicWrites-POST-36",
+  "request" : {
+    "url" : "/DeleteRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"op\":\"DeleteRow\",\"table\":\"docstore_test_1\",\"rows\":[{\"pk\":{\"pName\":{\"t\":\"PK:STRING\",\"v\":\"ClarkMapDelete\"}},\"cells\":{},\"deleteMarker\":true}],\"condition\":\"0800\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgAEAE=",
+    "headers" : {
+      "x-ots-requestid" : "0006573a-7090-d7bd-aa35-200a0a8aca4c",
+      "Authorization" : "OTS STS.NXkaGqbYRYN1ubNDnFcFaPiHX:qNzuusteRiPndog/LDhSAwvFR8A=",
+      "x-ots-date" : "2026-07-22T22:12:48.527016Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "cGqcInR86zj/8Pah1LWaHg==",
+      "Date" : "Wed, 22 Jul 2026 22:12:48 GMT"
+    }
+  },
+  "uuid" : "17f2d22e-c4c8-4698-9769-8c943ec67b50",
+  "persistent" : true,
+  "insertionIndex" : 179
+}

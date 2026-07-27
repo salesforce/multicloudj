@@ -12,38 +12,52 @@ import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.driver.AbstractStsUtilities;
 import com.salesforce.multicloudj.sts.driver.FlowCollector;
+import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
-import java.io.ByteArrayInputStream;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpRequest;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.List;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
-import software.amazon.awssdk.http.ContentStreamProvider;
-import software.amazon.awssdk.http.SdkHttpFullRequest;
-import software.amazon.awssdk.http.SdkHttpMethod;
-import software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner;
-import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
-import software.amazon.awssdk.identity.spi.AwsSessionCredentialsIdentity;
 
 @AutoService(AbstractStsUtilities.class)
 public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
-  private static final Set<String> RESTRICTED_HEADERS = Set.of("Content-Length", "Host", "Expect");
   private static final String SIGN_STS_ENDPOINT = "https://sts.%s.amazonaws.com/";
   private static final String DEFAULT_API_ACTION_NAME = "GetCallerIdentity";
   private static final String DEFAULT_API_VERSION = "2011-06-15";
   private static final String SERVICE_SIGNING_NAME = "sts";
-  private static final AwsV4HttpSigner signer = AwsV4HttpSigner.create();
+  private static final String AWS4_HMAC_SHA256 = "AWS4-HMAC-SHA256";
+  private static final String AWS4_REQUEST = "aws4_request";
+  private static final DateTimeFormatter AMZ_DATE_FORMAT =
+      DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").withLocale(Locale.US);
+  private static final DateTimeFormatter AMZ_DATESTAMP_FORMAT =
+      DateTimeFormatter.ofPattern("yyyyMMdd").withLocale(Locale.US);
+  private static final String REQUEST_HASH_HEADER = "x-request-hash";
+  private static final String CONTENT_TYPE_HEADER = "content-type";
+  private static final String CONTENT_TYPE_VALUE =
+      "application/x-www-form-urlencoded; charset=utf-8";
+
+  // Resolves credentials from the AWS default chain when the caller supplies none. Built lazily and
+  // reused across sign calls so the chain's cached, auto-refreshing credentials are retained rather
+  // than rebuilt every request.
+  private volatile DefaultCredentialsProvider defaultCredentialsProvider;
 
   public AwsStsUtilities(Builder builder) {
     super(builder);
@@ -60,122 +74,206 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
 
   @Override
   protected SignedAuthRequest newCloudNativeAuthSignedRequest(HttpRequest request) {
-    // create a StsCredentials object to hold the AWS access key, secret key, and session token
+    return newCloudNativeAuthSignedRequest(request, null);
+  }
+
+  @Override
+  protected SignedAuthRequest newCloudNativeAuthSignedRequest(
+      HttpRequest request, SignOptions options) {
     StsCredentials signingCredentials = getSigningCredentials();
-
-    // if the unsigned request is null, create a default request
-    // The default request is a POST request to the AWS STS service
-    if (request == null) {
-      throw new IllegalArgumentException("input request cannot be null");
+    if (options == null) {
+      options = SignOptions.builder().build();
     }
 
-    // Extract the request body from the unsigned HttpRequest
-    // If the request does not have a body, use HttpRequest.BodyPublishers.noBody()
-    //
-    // Note: We have to use the FlowCollector to collect the request body into a byte array because
-    // we do not know the body contents.
-    // See - https://stackoverflow.com/a/77705720
-    byte[] bytes =
-        request
-            .bodyPublisher()
-            .map(
-                publisher -> {
-                  // collect the HttpRequest request body into bytes (if present)
-                  FlowCollector<ByteBuffer> collector = new FlowCollector<ByteBuffer>();
-                  publisher.subscribe(collector);
-                  return collector
-                      .items()
-                      .thenApply(items -> items.isEmpty() ? null : items.get(0).array());
-                })
-            .orElseGet(() -> completedFuture(null))
-            .join();
+    String stsEndpoint = String.format(SIGN_STS_ENDPOINT, region);
+    URI uri = URI.create(stsEndpoint);
 
-    // create a BodyPublisher from the bytes (if present); will pass it into the signer so it has
-    // the request body
-    HttpRequest.BodyPublisher body;
+    // The request is optional. When one is supplied we sign its body; otherwise there is no service
+    // payload and we sign a bare GetCallerIdentity.
+    byte[] body = extractBody(request);
 
-    // If the request does not have a body, set the body to the following sts request body
-    // Action=GetCallerIdentity&Version=2011-06-15
+    // Action=GetCallerIdentity&Version=2011-06-15 travels either in the URL query string or in the
+    // request body (the AWS Query form). Signing it into the query string keeps the body empty, so
+    // the request can be replayed from its URL and headers alone.
     // See - https://docs.aws.amazon.com/IAM/latest/UserGuide/create-signed-request.html
-    if (bytes == null) {
-      bytes = ("Action=" + DEFAULT_API_ACTION_NAME + "&Version=" + DEFAULT_API_VERSION).getBytes();
+    String canonicalQuery = "";
+    if (options.isActionInQueryString()) {
+      canonicalQuery = "Action=" + DEFAULT_API_ACTION_NAME + "&Version=" + DEFAULT_API_VERSION;
+    } else if (body == null) {
+      body =
+          ("Action=" + DEFAULT_API_ACTION_NAME + "&Version=" + DEFAULT_API_VERSION)
+              .getBytes(StandardCharsets.UTF_8);
     }
-    final byte[] finalBytes = bytes;
-    body = HttpRequest.BodyPublishers.ofByteArray(finalBytes);
+    byte[] payload = body == null ? new byte[0] : body;
+    boolean hasBody = payload.length > 0;
 
-    // Create the canonical request
-    String canonicalUri = request.uri().getPath();
-    String canonicalQuerystring = "";
-    String canonicalHeaders =
-        "content-type:"
-            + request.headers().map().get("Content-Type")
-            + "host:"
-            + request.uri().getHost()
-            + "\n";
-    String signedHeaders = "content-type;host";
-    String payloadHash = getSha256Hash(body.toString());
+    // Assemble the canonical header set. host, the signing date, and the session token (when the
+    // credentials are temporary) are always signed. Header names must be lowercase per the SigV4
+    // canonical rules; the TreeMap keeps them sorted.
+    Instant now = Instant.now();
+    String amzDate = AMZ_DATE_FORMAT.format(now.atOffset(ZoneOffset.UTC));
+    String dateStamp = AMZ_DATESTAMP_FORMAT.format(now.atOffset(ZoneOffset.UTC));
+
+    SortedMap<String, String> headers = new TreeMap<>();
+    headers.put("host", uri.getHost());
+    headers.put("x-amz-date", amzDate);
+    if (signingCredentials.getSecurityToken() != null
+        && !signingCredentials.getSecurityToken().isEmpty()) {
+      headers.put("x-amz-security-token", signingCredentials.getSecurityToken());
+    }
+    // Content-Type describes the request body, so it is only relevant for the body form.
+    if (hasBody && !options.isExcludeContentTypeHeader()) {
+      headers.put(CONTENT_TYPE_HEADER, CONTENT_TYPE_VALUE);
+    }
+    // The request hash header is meaningful only when a caller service request was supplied.
+    if (request != null && !options.isExcludeRequestHashHeader()) {
+      headers.put(REQUEST_HASH_HEADER, getSha256Hash(payload));
+    }
+    // Caller supplied custom headers (e.g. a federation target resource) are always signed. Names
+    // must already be lowercase to satisfy the SigV4 canonical rules.
+    for (Map.Entry<String, String> header : options.getCustomHeaders().entrySet()) {
+      headers.put(header.getKey(), header.getValue());
+    }
+
+    // Authorization is not itself a signed header, so it is added after signing. host was signed
+    // but is dropped now: the JDK HTTP client rejects host as a restricted header, and the STS
+    // endpoint URL already carries it.
+    String authorization =
+        signSigV4(signingCredentials, canonicalQuery, headers, payload, amzDate, dateStamp);
+    headers.put("authorization", authorization);
+    headers.remove("host");
+
+    URI signedUri = canonicalQuery.isEmpty() ? uri : URI.create(stsEndpoint + "?" + canonicalQuery);
+    HttpRequest.BodyPublisher bodyPublisher =
+        hasBody
+            ? HttpRequest.BodyPublishers.ofByteArray(payload)
+            : HttpRequest.BodyPublishers.noBody();
+    HttpRequest.Builder builder = HttpRequest.newBuilder(signedUri).method("POST", bodyPublisher);
+    headers.forEach(builder::setHeader);
+
+    // The signed identity encodes the STS endpoint, action/version, and every request header as
+    // query parameters, so it can be parsed back into a POST and replayed against AWS STS.
+    String signedIdentity = buildSignedIdentity(uri, headers);
+
+    return new SignedAuthRequest(builder.build(), signingCredentials, signedIdentity);
+  }
+
+  /**
+   * Collects the body of an optional unsigned request into a byte array. Returns null when no
+   * request or no body is present.
+   *
+   * <p>A {@link FlowCollector} is used because the body contents are not known in advance. See -
+   * https://stackoverflow.com/a/77705720
+   */
+  private static byte[] extractBody(HttpRequest request) {
+    if (request == null) {
+      return null;
+    }
+    return request
+        .bodyPublisher()
+        .map(
+            publisher -> {
+              FlowCollector<ByteBuffer> collector = new FlowCollector<>();
+              publisher.subscribe(collector);
+              return collector
+                  .items()
+                  .thenApply(items -> items.isEmpty() ? null : items.get(0).array());
+            })
+        .orElseGet(() -> completedFuture(null))
+        .join();
+  }
+
+  /**
+   * Computes the AWS Signature Version 4 over the given canonical query, headers, and payload, and
+   * returns the Authorization header value. The signature covers exactly the supplied headers and
+   * no others.
+   */
+  private String signSigV4(
+      StsCredentials signingCredentials,
+      String canonicalQuery,
+      SortedMap<String, String> headers,
+      byte[] payload,
+      String amzDate,
+      String dateStamp) {
+    String signedHeaders = String.join(";", headers.keySet());
+
+    StringBuilder headerBlock = new StringBuilder();
+    headers.forEach(
+        (name, value) -> headerBlock.append(name).append(':').append(value).append('\n'));
+
     String canonicalRequest =
-        request.method()
+        "POST\n"
+            + "/\n"
+            + canonicalQuery
             + "\n"
-            + canonicalUri
-            + "\n"
-            + canonicalQuerystring
-            + "\n"
-            + canonicalHeaders
+            + headerBlock
             + "\n"
             + signedHeaders
             + "\n"
-            + payloadHash;
-    String canonicalRequestHash = getSha256Hash(canonicalRequest);
+            + getSha256Hash(payload);
 
-    // create the stsRequest which we will sign
-    HttpRequest stsRequest = createStsRequest(canonicalRequestHash);
+    String credentialScope =
+        dateStamp + "/" + region + "/" + SERVICE_SIGNING_NAME + "/" + AWS4_REQUEST;
+    String stringToSign =
+        AWS4_HMAC_SHA256
+            + "\n"
+            + amzDate
+            + "\n"
+            + credentialScope
+            + "\n"
+            + getSha256Hash(canonicalRequest);
 
-    // Convert the above stsRequest to an aws sdk HTTP request, so it can be signed via the aws sdk
-    SdkHttpFullRequest.Builder requestToSign =
-        SdkHttpFullRequest.builder()
-            .method(SdkHttpMethod.valueOf(stsRequest.method()))
-            .headers(stsRequest.headers().map())
-            .uri(stsRequest.uri());
+    byte[] signingKey =
+        deriveSigningKey(
+            signingCredentials.getAccessKeySecret(), dateStamp, region, SERVICE_SIGNING_NAME);
+    String signature = bytesToHex(hmacSha256(signingKey, stringToSign));
 
-    requestToSign.contentStreamProvider(() -> new ByteArrayInputStream(finalBytes));
-    requestToSign.putHeader("Content-Length", String.valueOf(bytes.length));
+    return AWS4_HMAC_SHA256
+        + " Credential="
+        + signingCredentials.getAccessKeyId()
+        + "/"
+        + credentialScope
+        + ", SignedHeaders="
+        + signedHeaders
+        + ", Signature="
+        + signature;
+  }
 
-    // Sign the request. Some services require custom signing configuration properties (e.g. S3).
-    // See AwsV4HttpSigner and AwsV4FamilyHttpSigner for the available signing options.
-    Optional<ContentStreamProvider> requestPayload =
-        Optional.ofNullable(requestToSign.contentStreamProvider());
+  /** Derives the AWS Signature Version 4 signing key for the given scope. */
+  private static byte[] deriveSigningKey(
+      String secretKey, String dateStamp, String region, String service) {
+    byte[] kDate = hmacSha256(("AWS4" + secretKey).getBytes(StandardCharsets.UTF_8), dateStamp);
+    byte[] kRegion = hmacSha256(kDate, region);
+    byte[] kService = hmacSha256(kRegion, service);
+    return hmacSha256(kService, AWS4_REQUEST);
+  }
 
-    final AwsSessionCredentialsIdentity identity =
-        AwsSessionCredentialsIdentity.builder()
-            .accessKeyId(signingCredentials.getAccessKeyId())
-            .secretAccessKey(signingCredentials.getAccessKeySecret())
-            .sessionToken(signingCredentials.getSecurityToken())
-            .build();
+  private static byte[] hmacSha256(byte[] key, String data) {
+    try {
+      Mac mac = Mac.getInstance("HmacSHA256");
+      mac.init(new SecretKeySpec(key, "HmacSHA256"));
+      return mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+    } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+      throw new UnknownException(e);
+    }
+  }
 
-    final SignedRequest signerOutput =
-        signer.sign(
-            r ->
-                r.identity(identity)
-                    .request(requestToSign.build())
-                    .payload(requestPayload.get())
-                    .putProperty(AwsV4HttpSigner.SERVICE_SIGNING_NAME, SERVICE_SIGNING_NAME)
-                    .putProperty(AwsV4HttpSigner.REGION_NAME, region));
+  private static String buildSignedIdentity(URI stsUri, Map<String, String> headers) {
+    StringBuilder query = new StringBuilder();
+    appendQueryParam(query, "Action", DEFAULT_API_ACTION_NAME);
+    appendQueryParam(query, "Version", DEFAULT_API_VERSION);
+    headers.forEach((name, value) -> appendQueryParam(query, name, value));
+    return stsUri.toString() + "?" + query;
+  }
 
-    // extract the signed headers
-    List<Map.Entry<String, List<String>>> signerOutputHeaders =
-        signerOutput.request().headers().entrySet().stream()
-            .filter(entry -> !RESTRICTED_HEADERS.contains(entry.getKey()))
-            .collect(Collectors.toList());
-
-    // build a copy of the HttpRequest with signed headers
-    HttpRequest.Builder builder =
-        HttpRequest.newBuilder(stsRequest.uri()).method(stsRequest.method(), body);
-    signerOutputHeaders.forEach(
-        entry -> builder.setHeader(entry.getKey(), String.join(",", entry.getValue())));
-
-    HttpRequest signed = builder.build();
-    return new SignedAuthRequest(signed, signingCredentials);
+  private static void appendQueryParam(StringBuilder query, String name, String value) {
+    if (query.length() > 0) {
+      query.append('&');
+    }
+    query
+        .append(URLEncoder.encode(name, StandardCharsets.UTF_8))
+        .append('=')
+        .append(URLEncoder.encode(value, StandardCharsets.UTF_8));
   }
 
   private static String bytesToHex(byte[] bytes) {
@@ -187,48 +285,49 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
   }
 
   private static String getSha256Hash(String data) {
+    return getSha256Hash(data.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private static String getSha256Hash(byte[] data) {
     try {
-      return bytesToHex(
-          MessageDigest.getInstance("SHA-256").digest(data.getBytes(StandardCharsets.UTF_8)));
+      return bytesToHex(MessageDigest.getInstance("SHA-256").digest(data));
     } catch (NoSuchAlgorithmException e) {
       throw new UnknownException(e);
     }
   }
 
-  private HttpRequest createStsRequest(String canonicalRequestHash) {
-    // interpolate SIGN_STS_ENDPOINT string with region
-    String stsEndpoint = String.format(SIGN_STS_ENDPOINT, region);
-    URI uri = URI.create(stsEndpoint);
-    String stsBody = "Action=" + DEFAULT_API_ACTION_NAME + "&Version=" + DEFAULT_API_VERSION;
-    HttpRequest.BodyPublisher body = HttpRequest.BodyPublishers.ofByteArray(stsBody.getBytes());
-
-    HttpRequest stsRequest =
-        HttpRequest.newBuilder()
-            .POST(body)
-            .uri(uri)
-            .setHeader("X-Request-Hash", canonicalRequestHash)
-            .setHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
-            .build();
-    return stsRequest;
-  }
-
   private StsCredentials getSigningCredentials() {
-    StsCredentials signingCredentials = credentialsOverrider.getSessionCredentials();
-
-    // Determine if we need to use default credentialsOverrider
-    // If the caller has not specified a StsCredentials, we will use the default
-    // credentialsOverrider provider
+    StsCredentials signingCredentials =
+        credentialsOverrider == null ? null : credentialsOverrider.getSessionCredentials();
     if (signingCredentials == null) {
-      DefaultCredentialsProvider credentialsProvider = DefaultCredentialsProvider.builder().build();
-      AwsSessionCredentials sessionCredentials =
-          (AwsSessionCredentials) credentialsProvider.resolveCredentials();
+      AwsCredentials resolved = defaultCredentialsProvider().resolveCredentials();
       signingCredentials =
           new StsCredentials(
-              sessionCredentials.accessKeyId(),
-              sessionCredentials.secretAccessKey(),
-              sessionCredentials.sessionToken());
+              resolved.accessKeyId(), resolved.secretAccessKey(), sessionToken(resolved));
     }
     return signingCredentials;
+  }
+
+  /** Returns the session token for temporary credentials, or null for long-term credentials. */
+  private static String sessionToken(AwsCredentials credentials) {
+    if (credentials instanceof AwsSessionCredentials) {
+      return ((AwsSessionCredentials) credentials).sessionToken();
+    }
+    return null;
+  }
+
+  private DefaultCredentialsProvider defaultCredentialsProvider() {
+    DefaultCredentialsProvider provider = defaultCredentialsProvider;
+    if (provider == null) {
+      synchronized (this) {
+        provider = defaultCredentialsProvider;
+        if (provider == null) {
+          provider = DefaultCredentialsProvider.builder().build();
+          defaultCredentialsProvider = provider;
+        }
+      }
+    }
+    return provider;
   }
 
   public static class Builder extends AbstractStsUtilities.Builder<AwsStsUtilities> {

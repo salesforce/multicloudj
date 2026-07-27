@@ -61,6 +61,8 @@ import com.google.cloud.storage.transfermanager.UploadResult;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
@@ -4652,4 +4654,40 @@ class GcpBlobStoreTest {
 
     assertThrows(NoSuchElementException.class, versions::next);
   }
+
+  @Test
+  void testDoGetBucketVersioning_delegatesToTransformer() {
+    Bucket mockBucket = mock(Bucket.class);
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
+    when(mockBucket.versioningEnabled()).thenReturn(true);
+    when(mockTransformer.toBucketVersioningConfiguration(true))
+        .thenReturn(BucketVersioningConfiguration.of(BucketVersioningStatus.ENABLED));
+
+    BucketVersioningConfiguration result = gcpBlobStore.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.ENABLED, result.getStatus());
+    verify(mockBucket).versioningEnabled();
+    verify(mockTransformer).toBucketVersioningConfiguration(true);
+  }
+
+  @Test
+  void testDoGetBucketVersioning_unversionedWhenFlagAbsent() {
+    Bucket mockBucket = mock(Bucket.class);
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
+    when(mockBucket.versioningEnabled()).thenReturn(null);
+    when(mockTransformer.toBucketVersioningConfiguration(null))
+        .thenReturn(BucketVersioningConfiguration.of(BucketVersioningStatus.UNVERSIONED));
+
+    BucketVersioningConfiguration result = gcpBlobStore.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.UNVERSIONED, result.getStatus());
+  }
+
+  @Test
+  void testDoGetBucketVersioning_missingBucketThrows() {
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(null);
+
+    assertThrows(ResourceNotFoundException.class, () -> gcpBlobStore.getBucketVersioning());
+  }
+
 }
