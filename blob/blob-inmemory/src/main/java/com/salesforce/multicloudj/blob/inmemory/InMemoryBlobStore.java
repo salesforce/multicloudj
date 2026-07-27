@@ -148,6 +148,31 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
   }
 
+  /**
+   * Returns a mutable copy of the supplied metadata with the operation context's correlation id,
+   * service id and tenant id stamped onto it. Each key is skipped when the context is absent, when
+   * that context value is blank, or when the caller has already supplied the same key.
+   */
+  private static Map<String, String> stampContextMetadata(
+      Map<String, String> source, OperationContext operationContext) {
+    Map<String, String> metadata = source != null ? new HashMap<>(source) : new HashMap<>();
+    if (operationContext != null) {
+      if (StringUtils.isNotBlank(operationContext.getCorrelationId())
+          && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+        metadata.put(CORRELATION_ID_METADATA_KEY, operationContext.getCorrelationId());
+      }
+      if (StringUtils.isNotBlank(operationContext.getServiceId())
+          && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {
+        metadata.put(SERVICE_ID_METADATA_KEY, operationContext.getServiceId());
+      }
+      if (StringUtils.isNotBlank(operationContext.getTenantId())
+          && !metadata.containsKey(TENANT_ID_METADATA_KEY)) {
+        metadata.put(TENANT_ID_METADATA_KEY, operationContext.getTenantId());
+      }
+    }
+    return metadata;
+  }
+
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
     validateBucketExists();
@@ -159,24 +184,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
     // Copy the application-supplied metadata and stamp the SDK's correlation id, service id and
     // tenant id on it so the values persist with the stored blob alongside the user's metadata.
-    // Each key is skipped when the request carries no operation context, when that context value
-    // is absent, or when the app has supplied the same key.
-    Map<String, String> metadata = new HashMap<>(uploadRequest.getMetadata());
-    if (uploadRequest.getOperationContext() != null) {
-      OperationContext ctx = uploadRequest.getOperationContext();
-      if (StringUtils.isNotBlank(ctx.getCorrelationId())
-          && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-        metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
-      }
-      if (StringUtils.isNotBlank(ctx.getServiceId())
-          && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {
-        metadata.put(SERVICE_ID_METADATA_KEY, ctx.getServiceId());
-      }
-      if (StringUtils.isNotBlank(ctx.getTenantId())
-          && !metadata.containsKey(TENANT_ID_METADATA_KEY)) {
-        metadata.put(TENANT_ID_METADATA_KEY, ctx.getTenantId());
-      }
-    }
+    Map<String, String> metadata = stampContextMetadata(uploadRequest.getMetadata(),
+        uploadRequest.getOperationContext());
 
     StoredBlob blob =
         new StoredBlob(
@@ -706,8 +715,13 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     validateBucketExists();
     String uploadId = UUID.randomUUID().toString();
 
+    // Stamp the SDK's correlation id, service id and tenant id onto the metadata so they persist
+    // with the object that this multipart upload eventually creates, matching single-shot upload.
+    Map<String, String> metadata =
+        stampContextMetadata(request.getMetadata(), request.getOperationContext());
+
     MultipartUploadState state =
-        new MultipartUploadState(request.getKey(), request.getMetadata(), request.getContentType());
+        new MultipartUploadState(request.getKey(), metadata, request.getContentType());
 
     MULTIPART_UPLOADS.put(uploadId, state);
 
@@ -715,7 +729,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .id(uploadId)
         .bucket(bucket)
         .key(request.getKey())
-        .metadata(request.getMetadata())
+        .metadata(metadata)
         .tags(request.getTags())
         .checksumEnabled(request.isChecksumEnabled())
         .kmsKeyId(request.getKmsKeyId())
