@@ -35,6 +35,8 @@ import com.alicloud.openservices.tablestore.model.StartLocalTransactionResponse;
 import com.alicloud.openservices.tablestore.model.TableMeta;
 import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.Action;
@@ -258,6 +260,84 @@ class AliDocStoreTest {
     TestAction create =
         new TestAction(ActionKind.ACTION_KIND_CREATE, new Document(book), null, null);
     Assertions.assertDoesNotThrow(() -> docStore.newPut(create, null));
+  }
+
+  @Test
+  void testRunPutRethrowsNonConditionalFailure() {
+    // A non-conditional Tablestore failure (e.g. server busy) means the row was NOT written.
+    // runPut must re-throw it rather than swallow it, so a lost write is not treated as success.
+    when(syncClient.putRow(any()))
+        .thenThrow(new TableStoreException("server busy", "OTSServerBusy"));
+    TestAction create =
+        new TestAction(ActionKind.ACTION_KIND_CREATE, new Document(book), null, null);
+    RowPutChange rowChange = new RowPutChange("my-table");
+
+    TableStoreException thrown =
+        Assertions.assertThrows(
+            TableStoreException.class, () -> ali.runPut(rowChange, create, null));
+    Assertions.assertEquals("OTSServerBusy", thrown.getErrorCode());
+  }
+
+  @Test
+  void testRunPutMapsConditionalFailureOnCreate() {
+    // A conditional-check failure on CREATE means the row already exists.
+    when(syncClient.putRow(any()))
+        .thenThrow(new TableStoreException("exists", "OTSConditionCheckFail"));
+    TestAction create =
+        new TestAction(ActionKind.ACTION_KIND_CREATE, new Document(book), null, null);
+    RowPutChange rowChange = new RowPutChange("my-table");
+
+    Assertions.assertThrows(
+        ResourceAlreadyExistsException.class, () -> ali.runPut(rowChange, create, null));
+  }
+
+  @Test
+  void testRunPutMapsConditionalFailureOnReplace() {
+    // A conditional-check failure on a non-CREATE (e.g. REPLACE) means the row does not exist.
+    when(syncClient.putRow(any()))
+        .thenThrow(new TableStoreException("missing", "OTSConditionCheckFail"));
+    TestAction replace =
+        new TestAction(ActionKind.ACTION_KIND_REPLACE, new Document(book), null, null);
+    RowPutChange rowChange = new RowPutChange("my-table");
+
+    Assertions.assertThrows(
+        ResourceNotFoundException.class, () -> ali.runPut(rowChange, replace, null));
+  }
+
+  @Test
+  void testRunPutRethrowsNullErrorCodeFailure() {
+    // A TableStoreException with a null error code is not a conditional-check failure, so it must
+    // still be re-thrown (not swallowed) rather than treated as a successful write.
+    when(syncClient.putRow(any())).thenThrow(new TableStoreException("boom", null));
+    TestAction create =
+        new TestAction(ActionKind.ACTION_KIND_CREATE, new Document(book), null, null);
+    RowPutChange rowChange = new RowPutChange("my-table");
+
+    TableStoreException thrown =
+        Assertions.assertThrows(
+            TableStoreException.class, () -> ali.runPut(rowChange, create, null));
+    Assertions.assertNull(thrown.getErrorCode());
+  }
+
+  @Test
+  void testFailedWriteDoesNotStampRevision() {
+    // When the write fails, the document's revision field must NOT be stamped with a new revision
+    // -- otherwise the client would carry a revision the server never persisted. The revision is
+    // stamped by updateRevision, which runs only after the write futures join successfully.
+    when(syncClient.putRow(any()))
+        .thenThrow(new TableStoreException("server busy", "OTSServerBusy"));
+    BookWithoutNest bookObj =
+        new BookWithoutNest(
+            "YellowBook", null, "WA", Timestamp.newBuilder().setNanos(1000).build(), 0, null);
+    Document document = new Document(bookObj);
+    Assertions.assertNull(
+        document.getField("docRevision"), "precondition: no revision before the write");
+
+    Assertions.assertThrows(Exception.class, () -> ali.getActions().put(document).run());
+
+    Assertions.assertNull(
+        document.getField("docRevision"),
+        "a failed write must not stamp a revision the server never persisted");
   }
 
   @Test
