@@ -408,6 +408,10 @@ public class AliDocStore extends AbstractDocStore {
           throw new ResourceNotFoundException(exception);
         }
       }
+      // Any other Tablestore failure (throttling, quota, server error, invalid request, timeout,
+      // etc.) leaves the write unconfirmed. Re-throw and let mapException classify it, rather than
+      // report an unconfirmed write as success and stamp a revision for it.
+      throw exception;
     }
   }
 

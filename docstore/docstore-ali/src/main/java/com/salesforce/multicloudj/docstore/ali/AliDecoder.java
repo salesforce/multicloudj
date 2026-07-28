@@ -14,6 +14,7 @@ import java.util.Map;
 
 public class AliDecoder implements Decoder {
   private Object value = null;
+  static final double EPSILON = 1e-9;
 
   public AliDecoder(Object value) {
     this.value = value;
@@ -195,12 +196,22 @@ public class AliDecoder implements Decoder {
         return attributeValue.asBoolean();
       case INTEGER:
         try {
-          return attributeValue.asLong();
+          long l = attributeValue.asLong();
+          int i = (int) l;
+          if (i == l) {
+            return i;
+          }
+          return l;
         } catch (NumberFormatException e) {
           throw new IllegalArgumentException(attributeValue.asLong() + " is not a number");
         }
       case DOUBLE:
-        return attributeValue.asDouble();
+        double d = attributeValue.asDouble();
+        float f = (float) d;
+        if (Math.abs(f - d) < EPSILON) {
+          return f;
+        }
+        return d;
       case BINARY:
         return attributeValue.asBinary();
       case STRING:
@@ -214,7 +225,12 @@ public class AliDecoder implements Decoder {
     switch (pkValue.getType()) {
       case INTEGER:
         try {
-          return pkValue.asLong();
+          long l = pkValue.asLong();
+          int i = (int) l;
+          if (i == l) {
+            return i;
+          }
+          return l;
         } catch (NumberFormatException e) {
           throw new IllegalArgumentException(pkValue.asLong() + " is not a number");
         }
