@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -26,6 +27,8 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -54,6 +57,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +65,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
+import org.slf4j.MDC;
 
 public class BucketClientTest {
 
@@ -576,76 +581,169 @@ public class BucketClientTest {
         });
   }
 
+  /**
+   * Builds an OperationContext carrying all three observability ids. Using distinct, non-blank
+   * values for each lets a test assert that every id — not just correlationId — is propagated.
+   */
+  private static OperationContext fullContext() {
+    return OperationContext.builder()
+        .correlationId("req-abc-123")
+        .serviceId("svc-42")
+        .tenantId("tenant-7")
+        .build();
+  }
+
+  /**
+   * Snapshots the three SDK observability MDC keys. The client threads the OperationContext only
+   * into the internally-created logger (never onto the driver call itself), so the sole place a
+   * test can observe propagation is the MDC the logger populates while the driver lambda runs.
+   * Capturing MDC at driver-invocation time and asserting it matches the passed context proves the
+   * context reached the tracer — a regression that dropped the context to {@code null} would yield
+   * an empty correlationId and absent service/tenant ids.
+   */
+  private static Map<String, String> snapshotObservabilityMdc() {
+    Map<String, String> snapshot = new HashMap<>();
+    snapshot.put("correlation_id", MDC.get("correlation_id"));
+    snapshot.put("service_id", MDC.get("service_id"));
+    snapshot.put("tenant_id", MDC.get("tenant_id"));
+    return snapshot;
+  }
+
+  private static void assertContextPropagated(Map<String, String> capturedMdc) {
+    assertEquals("req-abc-123", capturedMdc.get("correlation_id"));
+    assertEquals("svc-42", capturedMdc.get("service_id"));
+    assertEquals("tenant-7", capturedMdc.get("tenant_id"));
+  }
+
   @Test
   void testDeleteWithOperationContext() {
-    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
-    client.delete("object-1", "version-1", ctx);
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(invocation -> {
+      captured.putAll(snapshotObservabilityMdc());
+      return null;
+    }).when(mockBlobStore).delete(eq("object-1"), eq("version-1"));
+    client.delete("object-1", "version-1", fullContext());
     verify(mockBlobStore, times(1)).delete(eq("object-1"), eq("version-1"));
+    assertContextPropagated(captured);
   }
 
   @Test
   void testBulkDeleteWithOperationContext() {
-    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
     List<BlobIdentifier> objects =
         List.of(new BlobIdentifier("object-1", "version-1"));
-    client.delete(objects, ctx);
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(invocation -> {
+      captured.putAll(snapshotObservabilityMdc());
+      return null;
+    }).when(mockBlobStore).delete(eq(objects));
+    client.delete(objects, fullContext());
     verify(mockBlobStore, times(1)).delete(eq(objects));
+    assertContextPropagated(captured);
   }
 
   @Test
   void testGetMetadataWithOperationContext() {
-    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
     BlobMetadata expectedBlobInfo =
         BlobMetadata.builder().key("object-1").versionId("v1").build();
-    when(mockBlobStore.getMetadata(any(), any())).thenReturn(expectedBlobInfo);
-    BlobMetadata actual = client.getMetadata("object-1", "v1", ctx);
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(invocation -> {
+      captured.putAll(snapshotObservabilityMdc());
+      return expectedBlobInfo;
+    }).when(mockBlobStore).getMetadata(eq("object-1"), eq("v1"));
+    BlobMetadata actual = client.getMetadata("object-1", "v1", fullContext());
     verify(mockBlobStore, times(1)).getMetadata(eq("object-1"), eq("v1"));
     assertEquals("object-1", actual.getKey());
+    assertContextPropagated(captured);
   }
 
   @Test
   void testGetTagsWithOperationContext() {
-    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
-    client.getTags("object-1", ctx);
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(invocation -> {
+      captured.putAll(snapshotObservabilityMdc());
+      return Collections.emptyMap();
+    }).when(mockBlobStore).getTags("object-1");
+    client.getTags("object-1", fullContext());
     verify(mockBlobStore, times(1)).getTags("object-1");
+    assertContextPropagated(captured);
   }
 
   @Test
   void testUploadMultipartPartWithOperationContext() {
-    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
     MultipartUpload multipartUpload =
         MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
     MultipartPart multipartPart = new MultipartPart(1, null, 0);
-    client.uploadMultipartPart(multipartUpload, multipartPart, ctx);
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(invocation -> {
+      captured.putAll(snapshotObservabilityMdc());
+      return new UploadPartResponse(1, "etag", 0);
+    }).when(mockBlobStore).uploadMultipartPart(multipartUpload, multipartPart);
+    client.uploadMultipartPart(multipartUpload, multipartPart, fullContext());
     verify(mockBlobStore, times(1)).uploadMultipartPart(multipartUpload, multipartPart);
+    assertContextPropagated(captured);
   }
 
   @Test
   void testCompleteMultipartUploadWithOperationContext() {
-    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
     MultipartUpload multipartUpload =
         MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
     List<UploadPartResponse> listOfParts = List.of(new UploadPartResponse(1, "etag", 0));
-    client.completeMultipartUpload(multipartUpload, listOfParts, ctx);
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(invocation -> {
+      captured.putAll(snapshotObservabilityMdc());
+      return null;
+    }).when(mockBlobStore).completeMultipartUpload(multipartUpload, listOfParts);
+    client.completeMultipartUpload(multipartUpload, listOfParts, fullContext());
     verify(mockBlobStore, times(1)).completeMultipartUpload(multipartUpload, listOfParts);
+    assertContextPropagated(captured);
   }
 
   @Test
   void testListMultipartUploadWithOperationContext() {
-    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
     MultipartUpload multipartUpload =
         MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
-    client.listMultipartUpload(multipartUpload, ctx);
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(invocation -> {
+      captured.putAll(snapshotObservabilityMdc());
+      return Collections.emptyList();
+    }).when(mockBlobStore).listMultipartUpload(multipartUpload);
+    client.listMultipartUpload(multipartUpload, fullContext());
     verify(mockBlobStore, times(1)).listMultipartUpload(multipartUpload);
+    assertContextPropagated(captured);
   }
 
   @Test
   void testAbortMultipartUploadWithOperationContext() {
-    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
     MultipartUpload multipartUpload =
         MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
-    client.abortMultipartUpload(multipartUpload, ctx);
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(invocation -> {
+      captured.putAll(snapshotObservabilityMdc());
+      return null;
+    }).when(mockBlobStore).abortMultipartUpload(multipartUpload);
+    client.abortMultipartUpload(multipartUpload, fullContext());
     verify(mockBlobStore, times(1)).abortMultipartUpload(multipartUpload);
+    assertContextPropagated(captured);
+  }
+
+  @Test
+  void testListPageWithOperationContext() {
+    ListBlobsPageRequest request =
+        ListBlobsPageRequest.builder()
+            .withPrefix("prefix/")
+            .withOperationContext(fullContext())
+            .build();
+    ListBlobsPageResponse expected =
+        new ListBlobsPageResponse(Collections.emptyList(), false, null);
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(invocation -> {
+      captured.putAll(snapshotObservabilityMdc());
+      return expected;
+    }).when(mockBlobStore).listPage(request);
+    ListBlobsPageResponse actual = client.listPage(request);
+    verify(mockBlobStore, times(1)).listPage(request);
+    assertEquals(expected, actual);
+    assertContextPropagated(captured);
   }
 
   /**

@@ -724,11 +724,13 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
     // Stamp the SDK's correlation id, service id and tenant id onto the metadata so they persist
     // with the object that this multipart upload eventually creates, matching single-shot upload.
-    Map<String, String> metadata =
+    // Only the persisted upload state carries the stamped map; the returned handle echoes the
+    // caller's original request metadata so the handle reflects what the caller supplied.
+    Map<String, String> stampedMetadata =
         stampContextMetadata(request.getMetadata(), request.getOperationContext());
 
     MultipartUploadState state =
-        new MultipartUploadState(request.getKey(), metadata, request.getContentType());
+        new MultipartUploadState(request.getKey(), stampedMetadata, request.getContentType());
 
     MULTIPART_UPLOADS.put(uploadId, state);
 
@@ -736,7 +738,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .id(uploadId)
         .bucket(bucket)
         .key(request.getKey())
-        .metadata(metadata)
+        .metadata(request.getMetadata())
         .tags(request.getTags())
         .checksumEnabled(request.isChecksumEnabled())
         .kmsKeyId(request.getKmsKeyId())
