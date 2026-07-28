@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.docstore.ali;
 
 import com.alicloud.openservices.tablestore.model.ColumnValue;
+import com.alicloud.openservices.tablestore.model.PrimaryKeyValue;
 import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.docstore.driver.codec.Codec;
 import java.util.Arrays;
@@ -75,5 +76,91 @@ class AliDecoderTest {
     Assertions.assertNull(decoder.asBytes());
     Assertions.assertNull(decoder.asBool());
     Assertions.assertEquals(true, decoder.asNull());
+  }
+
+  @Test
+  void testAsInterfaceNarrowsIntegerColumnToInteger() {
+    Object got = new AliDecoder(ColumnValue.fromLong(5L)).asInterface();
+    Assertions.assertInstanceOf(Integer.class, got);
+    Assertions.assertEquals(5, got);
+  }
+
+  @Test
+  void testAsInterfaceKeepsOutOfIntRangeColumnAsLong() {
+    long big = 3_000_000_000L; // > Integer.MAX_VALUE
+    Object got = new AliDecoder(ColumnValue.fromLong(big)).asInterface();
+    Assertions.assertInstanceOf(Long.class, got);
+    Assertions.assertEquals(big, got);
+  }
+
+  @Test
+  void testAsInterfaceNarrowsDoubleColumnToFloat() {
+    Object got = new AliDecoder(ColumnValue.fromDouble(5.5)).asInterface();
+    Assertions.assertInstanceOf(Float.class, got);
+    Assertions.assertEquals(5.5f, got);
+  }
+
+  @Test
+  void testAsInterfaceKeepsHighPrecisionDoubleAsDouble() {
+    double precise = 0.1; // not exactly representable as a float
+    Object got = new AliDecoder(ColumnValue.fromDouble(precise)).asInterface();
+    Assertions.assertInstanceOf(Double.class, got);
+    Assertions.assertEquals(precise, got);
+  }
+
+  @Test
+  void testAsInterfaceNarrowsIntegerPrimaryKeyToInteger() {
+    Object got = new AliDecoder(PrimaryKeyValue.fromLong(7L)).asInterface();
+    Assertions.assertInstanceOf(Integer.class, got);
+    Assertions.assertEquals(7, got);
+  }
+
+  @Test
+  void testAsInterfaceKeepsOutOfIntRangePrimaryKeyAsLong() {
+    long big = 5_000_000_000L; // > Integer.MAX_VALUE
+    Object got = new AliDecoder(PrimaryKeyValue.fromLong(big)).asInterface();
+    Assertions.assertInstanceOf(Long.class, got);
+    Assertions.assertEquals(big, got);
+  }
+
+  @Test
+  void testAsInterfaceNarrowsNegativeIntegerColumnToInteger() {
+    Object got = new AliDecoder(ColumnValue.fromLong(-5L)).asInterface();
+    Assertions.assertInstanceOf(Integer.class, got);
+    Assertions.assertEquals(-5, got);
+  }
+
+  @Test
+  void testAsInterfaceNarrowsIntBoundaryColumnToInteger() {
+    // Exact int boundaries must narrow to Integer.
+    Assertions.assertInstanceOf(
+        Integer.class, new AliDecoder(ColumnValue.fromLong(Integer.MAX_VALUE)).asInterface());
+    Assertions.assertInstanceOf(
+        Integer.class, new AliDecoder(ColumnValue.fromLong(Integer.MIN_VALUE)).asInterface());
+  }
+
+  @Test
+  void testAsInterfaceKeepsJustBeyondIntBoundaryColumnAsLong() {
+    // One past each int boundary must stay Long (narrowing would wrap).
+    Assertions.assertInstanceOf(
+        Long.class, new AliDecoder(ColumnValue.fromLong(Integer.MAX_VALUE + 1L)).asInterface());
+    Assertions.assertInstanceOf(
+        Long.class, new AliDecoder(ColumnValue.fromLong(Integer.MIN_VALUE - 1L)).asInterface());
+  }
+
+  @Test
+  void testAsInterfaceNarrowsIntBoundaryPrimaryKeyToInteger() {
+    Assertions.assertInstanceOf(
+        Integer.class, new AliDecoder(PrimaryKeyValue.fromLong(Integer.MAX_VALUE)).asInterface());
+    Assertions.assertInstanceOf(
+        Integer.class, new AliDecoder(PrimaryKeyValue.fromLong(Integer.MIN_VALUE)).asInterface());
+  }
+
+  @Test
+  void testAsInterfaceKeepsJustBeyondIntBoundaryPrimaryKeyAsLong() {
+    Assertions.assertInstanceOf(
+        Long.class, new AliDecoder(PrimaryKeyValue.fromLong(Integer.MAX_VALUE + 1L)).asInterface());
+    Assertions.assertInstanceOf(
+        Long.class, new AliDecoder(PrimaryKeyValue.fromLong(Integer.MIN_VALUE - 1L)).asInterface());
   }
 }
