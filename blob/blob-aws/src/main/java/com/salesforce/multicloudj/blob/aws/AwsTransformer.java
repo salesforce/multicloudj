@@ -230,20 +230,16 @@ public class AwsTransformer {
         ContentStreamProvider.fromInputStream(inputStream), OCTET_STREAM_MIME);
   }
 
-  public PutObjectRequest toRequest(UploadRequest request) {
-    List<Tag> tags =
-        request.getTags().entrySet().stream()
-            .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
-            .collect(Collectors.toList());
-
-    // Copy the application-supplied metadata and stamp the SDK's correlation id, service id and
-    // tenant id onto the stored object so they persist in S3 alongside the user's metadata and can
-    // be traced from the object's S3 access/audit logs. Each key is skipped when the request
-    // carries no operation context, when that context value is absent, or when the app has
-    // supplied the same key explicitly.
-    Map<String, String> metadata = new HashMap<>(request.getMetadata());
-    if (request.getOperationContext() != null) {
-      OperationContext ctx = request.getOperationContext();
+  /**
+   * Returns a mutable copy of {@code appMetadata} with the SDK's correlation id, service id and
+   * tenant id stamped from {@code ctx}. Each key is skipped when {@code ctx} is null, when that
+   * context value is blank, or when the app has already supplied the same key — the caller's
+   * metadata always wins.
+   */
+  private Map<String, String> stampContextMetadata(
+      Map<String, String> appMetadata, OperationContext ctx) {
+    Map<String, String> metadata = new HashMap<>(appMetadata);
+    if (ctx != null) {
       if (StringUtils.isNotBlank(ctx.getCorrelationId())
           && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
         metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
@@ -257,6 +253,22 @@ public class AwsTransformer {
         metadata.put(TENANT_ID_METADATA_KEY, ctx.getTenantId());
       }
     }
+    return metadata;
+  }
+
+  public PutObjectRequest toRequest(UploadRequest request) {
+    List<Tag> tags =
+        request.getTags().entrySet().stream()
+            .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
+            .collect(Collectors.toList());
+
+    // Copy the application-supplied metadata and stamp the SDK's correlation id, service id and
+    // tenant id onto the stored object so they persist in S3 alongside the user's metadata and can
+    // be traced from the object's S3 access/audit logs. Each key is skipped when the request
+    // carries no operation context, when that context value is absent, or when the app has
+    // supplied the same key explicitly.
+    Map<String, String> metadata =
+        stampContextMetadata(request.getMetadata(), request.getOperationContext());
 
     PutObjectRequest.Builder builder =
         PutObjectRequest.builder()
@@ -597,11 +609,17 @@ public class AwsTransformer {
 
   public CreateMultipartUploadRequest toCreateMultipartUploadRequest(
       MultipartUploadRequest request) {
+    // Stamp the SDK's correlation id, service id and tenant id onto the multipart object so they
+    // persist in S3 alongside the user's metadata and can be traced from the object's S3
+    // access/audit logs, matching single-shot upload behavior.
+    Map<String, String> metadata =
+        stampContextMetadata(request.getMetadata(), request.getOperationContext());
+
     CreateMultipartUploadRequest.Builder builder =
         CreateMultipartUploadRequest.builder()
             .bucket(getBucket())
             .key(request.getKey())
-            .metadata(request.getMetadata());
+            .metadata(metadata);
 
     if (request.getTags() != null && !request.getTags().isEmpty()) {
       List<Tag> tags =
