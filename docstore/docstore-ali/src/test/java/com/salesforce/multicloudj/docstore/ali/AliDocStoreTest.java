@@ -38,6 +38,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.Action;
 import com.salesforce.multicloudj.docstore.driver.ActionKind;
@@ -333,7 +334,12 @@ class AliDocStoreTest {
     Assertions.assertNull(
         document.getField("docRevision"), "precondition: no revision before the write");
 
-    Assertions.assertThrows(Exception.class, () -> ali.getActions().put(document).run());
+    // The failure must surface through the full run() path with the classified type: run() routes
+    // the re-thrown TableStoreException through mapException, and OTSServerBusy maps to
+    // UnknownException. Asserting the concrete type guards the classification, not just that
+    // something was thrown.
+    Assertions.assertThrows(
+        UnknownException.class, () -> ali.getActions().put(document).run());
 
     Assertions.assertNull(
         document.getField("docRevision"),
