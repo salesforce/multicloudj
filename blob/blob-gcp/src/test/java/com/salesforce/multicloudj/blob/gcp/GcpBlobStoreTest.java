@@ -3278,7 +3278,7 @@ class GcpBlobStoreTest {
     when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
         .thenReturn(CreateMultipartUploadResponse.builder().uploadId("upload-ctx").build());
 
-    gcpBlobStore.doInitiateMultipartUpload(request);
+    MultipartUpload result = gcpBlobStore.doInitiateMultipartUpload(request);
 
     ArgumentCaptor<CreateMultipartUploadRequest> captor =
         ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
@@ -3298,6 +3298,23 @@ class GcpBlobStoreTest {
         "tenant-42",
         metadata.get(GcpTransformer.TENANT_ID_METADATA_KEY),
         "tenant id must be stamped onto the created object's metadata");
+
+    // The returned handle echoes the stamped metadata so it reflects what actually lands on the
+    // object, matching the create request and a subsequent getMetadata read-back.
+    Map<String, String> handleMetadata = result.getMetadata();
+    assertEquals("user-value", handleMetadata.get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        handleMetadata.get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "correlation id must be echoed onto the multipart upload handle metadata");
+    assertEquals(
+        "keystone-boxoffice",
+        handleMetadata.get(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "service id must be echoed onto the multipart upload handle metadata");
+    assertEquals(
+        "tenant-42",
+        handleMetadata.get(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "tenant id must be echoed onto the multipart upload handle metadata");
   }
 
   @Test
