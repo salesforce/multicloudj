@@ -79,6 +79,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
@@ -133,13 +134,13 @@ public class AliTransformer {
     Map<String, String> metadata = uploadRequest.getMetadata() != null
         ? new HashMap<>(uploadRequest.getMetadata())
         : new HashMap<>();
-    if (uploadRequest.getOperationContext() != null
-        && StringUtils.isNotBlank(
-            uploadRequest.getOperationContext().getCorrelationId())
-        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-      metadata.put(
-          CORRELATION_ID_METADATA_KEY,
-          uploadRequest.getOperationContext().getCorrelationId());
+    if (uploadRequest.getOperationContext() != null) {
+      OperationContext ctx = uploadRequest.getOperationContext();
+      String correlationIdKey = ctx.resolveCorrelationIdMetadataKey();
+      if (StringUtils.isNotBlank(ctx.getCorrelationId())
+          && !metadata.containsKey(correlationIdKey)) {
+        metadata.put(correlationIdKey, ctx.getCorrelationId());
+      }
     }
     if (!metadata.isEmpty()) {
       builder.metadata(metadata);

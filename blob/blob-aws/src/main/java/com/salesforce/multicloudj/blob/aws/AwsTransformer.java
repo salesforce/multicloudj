@@ -240,13 +240,14 @@ public class AwsTransformer {
     // tenant id onto the stored object so they persist in S3 alongside the user's metadata and can
     // be traced from the object's S3 access/audit logs. Each key is skipped when the request
     // carries no operation context, when that context value is absent, or when the app has
-    // supplied the same key explicitly.
+    // supplied the same key explicitly. The correlation id key is customizable.
     Map<String, String> metadata = new HashMap<>(request.getMetadata());
     if (request.getOperationContext() != null) {
       OperationContext ctx = request.getOperationContext();
+      String correlationIdKey = ctx.resolveCorrelationIdMetadataKey();
       if (StringUtils.isNotBlank(ctx.getCorrelationId())
-          && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-        metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
+          && !metadata.containsKey(correlationIdKey)) {
+        metadata.put(correlationIdKey, ctx.getCorrelationId());
       }
       if (StringUtils.isNotBlank(ctx.getServiceId())
           && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {

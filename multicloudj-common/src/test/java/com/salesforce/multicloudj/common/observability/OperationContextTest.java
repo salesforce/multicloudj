@@ -115,4 +115,57 @@ class OperationContextTest {
     assertEquals(a, b);
     assertNotEquals(a, c);
   }
+
+  @Test
+  void builder_setsCorrelationIdMetadataKey() {
+    OperationContext ctx =
+        OperationContext.builder().correlationIdMetadataKey("my-corr-key").build();
+    assertEquals("my-corr-key", ctx.getCorrelationIdMetadataKey());
+  }
+
+  @Test
+  void resolveCorrelationIdMetadataKey_usesCustomKeyWhenSupplied() {
+    OperationContext ctx =
+        OperationContext.builder().correlationIdMetadataKey("my-corr-key").build();
+    assertEquals("my-corr-key", ctx.resolveCorrelationIdMetadataKey());
+  }
+
+  @Test
+  void resolveCorrelationIdMetadataKey_fallsBackToDefaultWhenNull() {
+    OperationContext ctx = OperationContext.builder().build();
+    assertNull(ctx.getCorrelationIdMetadataKey());
+    assertEquals(SdkLoggingMetadataKeys.CORRELATION_ID, ctx.resolveCorrelationIdMetadataKey());
+  }
+
+  @Test
+  void resolveCorrelationIdMetadataKey_fallsBackToDefaultWhenBlank() {
+    OperationContext ctx = OperationContext.builder().correlationIdMetadataKey("   ").build();
+    assertEquals(SdkLoggingMetadataKeys.CORRELATION_ID, ctx.resolveCorrelationIdMetadataKey());
+  }
+
+  @Test
+  void toBuilder_preservesCorrelationIdMetadataKey() {
+    OperationContext original =
+        OperationContext.builder()
+            .correlationId("req-1")
+            .correlationIdMetadataKey("my-corr-key")
+            .build();
+    OperationContext updated = original.toBuilder().correlationId("req-2").build();
+
+    assertEquals("req-2", updated.getCorrelationId());
+    assertEquals("my-corr-key", updated.getCorrelationIdMetadataKey());
+  }
+
+  @Test
+  void valueSemantics_correlationIdMetadataKeyParticipatesInEquals() {
+    OperationContext a =
+        OperationContext.builder().correlationId("x").correlationIdMetadataKey("k1").build();
+    OperationContext b =
+        OperationContext.builder().correlationId("x").correlationIdMetadataKey("k1").build();
+    OperationContext c =
+        OperationContext.builder().correlationId("x").correlationIdMetadataKey("k2").build();
+
+    assertEquals(a, b);
+    assertNotEquals(a, c);
+  }
 }

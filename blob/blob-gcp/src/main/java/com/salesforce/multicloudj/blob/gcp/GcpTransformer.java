@@ -103,9 +103,10 @@ public class GcpTransformer {
     // value is absent, or when the app has supplied the same key explicitly.
     if (uploadRequest.getOperationContext() != null) {
       OperationContext ctx = uploadRequest.getOperationContext();
+      String correlationIdKey = ctx.resolveCorrelationIdMetadataKey();
       if (StringUtils.isNotBlank(ctx.getCorrelationId())
-          && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-        metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
+          && !metadata.containsKey(correlationIdKey)) {
+        metadata.put(correlationIdKey, ctx.getCorrelationId());
       }
       if (StringUtils.isNotBlank(ctx.getServiceId())
           && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {

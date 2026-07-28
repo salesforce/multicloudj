@@ -25,6 +25,12 @@ import lombok.Value;
  * additionally stamp all three identifiers onto the stored object's metadata (under {@code
  * sdk-logging-*} keys) so cloud audit logs can be traced back to the originating request, tenant,
  * and service.
+ *
+ * <p>The metadata key under which the correlation id is stamped is customizable via {@code
+ * correlationIdMetadataKey}; when it is not supplied the providers fall back to the default {@link
+ * SdkLoggingMetadataKeys#CORRELATION_ID}. The stamped <em>value</em> is always {@code
+ * correlationId}. This lets a caller align the stored key with an existing metadata convention
+ * while leaving the service-id and tenant-id keys fixed.
  */
 @Value
 @Builder(toBuilder = true)
@@ -51,4 +57,29 @@ public class OperationContext {
    * for the duration of the operation, and is not echoed back in responses.
    */
   String serviceId;
+
+  /**
+   * Application-supplied metadata key under which providers stamp the {@link #correlationId} value
+   * onto a stored object during upload. Optional; when {@code null} or blank, providers fall back
+   * to the default {@link SdkLoggingMetadataKeys#CORRELATION_ID}. Only the correlation-id key is
+   * customizable; the service-id and tenant-id keys remain fixed. This field affects only the
+   * stored metadata <em>key</em>; it does not change the correlation id value, the span attribute,
+   * the MDC entry, or the value echoed back on responses.
+   */
+  String correlationIdMetadataKey;
+
+  /**
+   * Resolves the metadata key under which the correlation id should be stamped on a stored object:
+   * the application-supplied {@link #correlationIdMetadataKey} when present, otherwise the default
+   * {@link SdkLoggingMetadataKeys#CORRELATION_ID}. Defined here so the fallback lives in one place
+   * and cannot drift across provider implementations.
+   *
+   * @return the custom correlation-id metadata key when supplied and non-blank, else {@link
+   *     SdkLoggingMetadataKeys#CORRELATION_ID}
+   */
+  public String resolveCorrelationIdMetadataKey() {
+    return (correlationIdMetadataKey == null || correlationIdMetadataKey.trim().isEmpty())
+        ? SdkLoggingMetadataKeys.CORRELATION_ID
+        : correlationIdMetadataKey;
+  }
 }

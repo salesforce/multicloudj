@@ -213,6 +213,54 @@ public class AliTransformerTest {
   }
 
   @Test
+  void testToPutObjectRequest_customCorrelationIdKeyUsed() {
+    var ctx = OperationContext.builder()
+        .correlationId("req-abc-123")
+        .correlationIdMetadataKey("x-custom-corr")
+        .build();
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withMetadata(Map.of("user-key", "user-value"))
+        .withOperationContext(ctx)
+        .build();
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        actual.metadata().get("x-custom-corr"),
+        "custom correlation id key must be used when provided");
+    assertFalse(
+        actual.metadata().containsKey(
+            AliTransformer.CORRELATION_ID_METADATA_KEY),
+        "default key must not be present when custom key is used");
+  }
+
+  @Test
+  void testToPutObjectRequest_customKeyNotOverwrittenWhenAppSuppliesIt() {
+    var ctx = OperationContext.builder()
+        .correlationId("sdk-generated")
+        .correlationIdMetadataKey("x-custom-corr")
+        .build();
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withMetadata(Map.of("x-custom-corr", "user-supplied"))
+        .withOperationContext(ctx)
+        .build();
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals(
+        "user-supplied",
+        actual.metadata().get("x-custom-corr"),
+        "application's explicit metadata value must take"
+            + " precedence over the SDK's even with custom key");
+  }
+
+  @Test
   void testToUploadResponse() {
     UploadRequest request =
         UploadRequest.builder()
