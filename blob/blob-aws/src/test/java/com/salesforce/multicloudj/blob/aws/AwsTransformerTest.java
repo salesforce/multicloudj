@@ -1806,6 +1806,38 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testToMultipartUpload_handleEchoesStampedMetadata() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("keystone-boxoffice")
+            .tenantId("tenant-42")
+            .build();
+    MultipartUploadRequest mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+    CreateMultipartUploadResponse response =
+        CreateMultipartUploadResponse.builder()
+            .bucket(BUCKET)
+            .key("object-1")
+            .uploadId("upload-id")
+            .build();
+
+    MultipartUpload mpu = transformer.toMultipartUpload(mpuRequest, response);
+
+    // The handle reflects what actually lands on the object: the caller's metadata plus the
+    // stamped correlation/service/tenant ids, matching the create request and a getMetadata
+    // read-back.
+    assertEquals("user-value", mpu.getMetadata().get("user-key"));
+    assertEquals("req-abc-123", mpu.getMetadata().get("sdk-logging-correlation-id"));
+    assertEquals("keystone-boxoffice", mpu.getMetadata().get("sdk-logging-service-id"));
+    assertEquals("tenant-42", mpu.getMetadata().get("sdk-logging-tenant-id"));
+  }
+
+  @Test
   void testToAwsRetryStrategyWithExponentialMode() {
     RetryConfig config =
         RetryConfig.builder()

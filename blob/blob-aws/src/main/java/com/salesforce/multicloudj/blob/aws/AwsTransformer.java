@@ -1051,7 +1051,10 @@ public class AwsTransformer {
         .bucket(response.bucket())
         .key(response.key())
         .id(response.uploadId())
-        .metadata(request.getMetadata())
+        // Echo the stamped metadata (user-supplied entries plus the SDK's correlation/service/
+        // tenant ids) so the handle reflects what actually lands on the multipart object, matching
+        // the create request and a subsequent getMetadata read-back.
+        .metadata(stampContextMetadata(request.getMetadata(), request.getOperationContext()))
         .tags(request.getTags())
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())

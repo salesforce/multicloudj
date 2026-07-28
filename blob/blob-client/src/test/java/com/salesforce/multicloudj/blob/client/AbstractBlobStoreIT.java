@@ -599,6 +599,22 @@ public abstract class AbstractBlobStoreIT {
               .build();
       mpu = bucketClient.initiateMultipartUpload(request);
 
+      // The returned handle echoes the stamped metadata so it reflects what actually lands on the
+      // object, consistent with the getMetadata read-back asserted below.
+      Map<String, String> handleMetadata = mpu.getMetadata();
+      Assertions.assertEquals(
+          serviceId,
+          handleMetadata.get("sdk-logging-service-id"),
+          "service id was not echoed onto the multipart upload handle metadata");
+      Assertions.assertEquals(
+          tenantId,
+          handleMetadata.get("sdk-logging-tenant-id"),
+          "tenant id was not echoed onto the multipart upload handle metadata");
+      Assertions.assertEquals(
+          correlationId,
+          handleMetadata.get("sdk-logging-correlation-id"),
+          "correlation id was not echoed onto the multipart upload handle metadata");
+
       UploadPartResponse partResponse =
           bucketClient.uploadMultipartPart(mpu, new MultipartPart(1, multipartBytes1));
       bucketClient.completeMultipartUpload(mpu, List.of(partResponse));

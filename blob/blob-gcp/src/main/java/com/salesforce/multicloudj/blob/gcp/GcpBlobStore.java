@@ -674,7 +674,10 @@ public class GcpBlobStore extends AbstractBlobStore {
         .bucket(getBucket())
         .key(request.getKey())
         .id(gcpMultipartUpload.uploadId())
-        .metadata(request.getMetadata())
+        // Echo the stamped metadata (user-supplied entries plus the SDK's correlation/service/
+        // tenant ids) so the handle reflects what actually lands on the multipart object, matching
+        // the create request and a subsequent getMetadata read-back.
+        .metadata(metadata)
         .tags(request.getTags())
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
