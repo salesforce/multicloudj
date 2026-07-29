@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -24,6 +25,7 @@ import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
@@ -41,8 +43,10 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -72,6 +76,7 @@ import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.slf4j.MDC;
 
@@ -756,22 +761,113 @@ public class AsyncBucketClientTest {
   @Test
   void testInitiateMultipartUploadEnrichesRequestWithResolvedContext()
       throws ExecutionException, InterruptedException {
+    // Populate every field the client's withResolvedContext copies so we can assert none is
+    // silently dropped while the request is rebuilt to swap in the resolved OperationContext.
+    // A dropped field (e.g. metadata or tags) would defeat the metadata stamping this path adds.
+    Map<String, String> metadata = Map.of("meta-1", "meta-value-1");
+    Map<String, String> tags = Map.of("tag-1", "tag-value-1");
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2030-01-01T00:00:00Z"))
+            .legalHold(true)
+            .build();
     MultipartUploadRequest request =
         new MultipartUploadRequest.Builder()
             .withKey("object-1")
+            .withMetadata(metadata)
+            .withTags(tags)
+            .withKmsKeyId("kms-key-1")
+            .withUseKmsManagedKey(true)
+            .withChecksumEnabled(true)
+            .withChecksumAlgorithm(ChecksumMethod.SHA256)
+            .withObjectLock(objectLock)
+            .withContentType("application/json")
             .withOperationContext(fullContext())
             .build();
     doReturn(future(mock(MultipartUpload.class)))
         .when(mockBlobStore)
         .initiateMultipartUpload(any(MultipartUploadRequest.class));
+
     client.initiateMultipartUpload(request).get();
-    verify(mockBlobStore, times(1))
-        .initiateMultipartUpload(
-            argThat(
-                (MultipartUploadRequest req) ->
-                    "object-1".equals(req.getKey())
-                        && req.getOperationContext() != null
-                        && "req-abc-123".equals(req.getOperationContext().getCorrelationId())));
+
+    ArgumentCaptor<MultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(MultipartUploadRequest.class);
+    verify(mockBlobStore, times(1)).initiateMultipartUpload(captor.capture());
+    MultipartUploadRequest forwarded = captor.getValue();
+
+    // The resolved context is swapped in.
+    assertEquals("req-abc-123", forwarded.getOperationContext().getCorrelationId());
+    // Every other field must survive the rebuild unchanged.
+    assertEquals("object-1", forwarded.getKey());
+    assertEquals(metadata, forwarded.getMetadata());
+    assertEquals(tags, forwarded.getTags());
+    assertEquals("kms-key-1", forwarded.getKmsKeyId());
+    assertTrue(forwarded.isUseKmsManagedKey());
+    assertTrue(forwarded.isChecksumEnabled());
+    assertEquals(ChecksumMethod.SHA256, forwarded.getChecksumAlgorithm());
+    assertSame(objectLock, forwarded.getObjectLock());
+    assertEquals("application/json", forwarded.getContentType());
+  }
+
+  /**
+   * Directly exercises the multipart rebuild branch of {@code withResolvedContext}: when the
+   * resolved context differs from the request's own context, the request is rebuilt from scratch.
+   * Every field the builder copies must be preserved — a dropped field (e.g. metadata or tags)
+   * would silently defeat the metadata stamping this path adds. The higher-level client test can
+   * short-circuit past this branch, so it is asserted here explicitly.
+   */
+  @Test
+  void testWithResolvedContextMultipartRebuildPreservesAllFields() {
+    Map<String, String> metadata = Map.of("meta-1", "meta-value-1");
+    Map<String, String> tags = Map.of("tag-1", "tag-value-1");
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2030-01-01T00:00:00Z"))
+            .legalHold(true)
+            .build();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(metadata)
+            .withTags(tags)
+            .withKmsKeyId("kms-key-1")
+            .withUseKmsManagedKey(true)
+            .withChecksumEnabled(true)
+            .withChecksumAlgorithm(ChecksumMethod.SHA256)
+            .withObjectLock(objectLock)
+            .withContentType("application/json")
+            .withOperationContext(OperationContext.builder().correlationId("original").build())
+            .build();
+
+    // A distinct context instance forces the rebuild branch (not the identity short-circuit).
+    OperationContext resolved = fullContext();
+    MultipartUploadRequest rebuilt = AsyncBucketClient.withResolvedContext(request, resolved);
+
+    assertSame(resolved, rebuilt.getOperationContext());
+    assertEquals("object-1", rebuilt.getKey());
+    assertEquals(metadata, rebuilt.getMetadata());
+    assertEquals(tags, rebuilt.getTags());
+    assertEquals("kms-key-1", rebuilt.getKmsKeyId());
+    assertTrue(rebuilt.isUseKmsManagedKey());
+    assertTrue(rebuilt.isChecksumEnabled());
+    assertEquals(ChecksumMethod.SHA256, rebuilt.getChecksumAlgorithm());
+    assertSame(objectLock, rebuilt.getObjectLock());
+    assertEquals("application/json", rebuilt.getContentType());
+  }
+
+  /**
+   * When the resolved context is the very same instance already on the request, {@code
+   * withResolvedContext} returns the request unchanged rather than rebuilding it.
+   */
+  @Test
+  void testWithResolvedContextMultipartReturnsSameInstanceWhenContextUnchanged() {
+    OperationContext ctx = fullContext();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey("object-1").withOperationContext(ctx).build();
+
+    assertSame(request, AsyncBucketClient.withResolvedContext(request, ctx));
   }
 
   @Test
