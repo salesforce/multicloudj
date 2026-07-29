@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 
 import com.aliyuncs.DefaultAcsClient;
+import com.aliyuncs.auth.AlibabaCloudCredentialsProvider;
 import com.aliyuncs.exceptions.ClientException;
 import com.aliyuncs.http.HttpClientConfig;
 import com.aliyuncs.profile.IClientProfile;
@@ -14,14 +15,17 @@ import com.aliyuncs.sts.model.v20150401.AssumeRoleWithOIDCRequest;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleWithOIDCResponse;
 import com.aliyuncs.sts.model.v20150401.GetCallerIdentityRequest;
 import com.aliyuncs.sts.model.v20150401.GetCallerIdentityResponse;
+import com.aliyuncs.utils.AuthUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.lang.reflect.Field;
 import java.net.URI;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -183,6 +187,22 @@ public class AliStsTest {
   public void testRuntimeExceptionType() {
     AliSts sts = new AliSts().builder().build(mockStsClient);
     Assertions.assertInstanceOf(UnknownException.class, sts.mapException(new RuntimeException()));
+  }
+
+  @Test
+  public void testMapExceptionWithNullErrorCode() {
+    // A ClientException can carry a null error code (e.g. the SDK's own "not found credentials"
+    // raised by the credentials fallback when nothing resolves). ERROR_MAPPING is a Map.of(...),
+    // which throws on a null key -- mapException must not NPE, and must preserve the cause.
+    AliSts sts = new AliSts().builder().build(mockStsClient);
+    ClientException noCreds = new ClientException("not found credentials");
+    Assertions.assertNull(
+        noCreds.getErrCode(), "precondition: single-arg ClientException has no code");
+
+    SubstrateSdkException mapped = sts.mapException(noCreds);
+
+    Assertions.assertInstanceOf(UnknownException.class, mapped);
+    Assertions.assertSame(noCreds, mapped.getCause(), "original ClientException must be preserved");
   }
 
   @Test
@@ -393,6 +413,49 @@ public class AliStsTest {
 
     AliSts sts = new AliSts().builder().build(mockStsClient);
     assertThrows(InvalidArgumentException.class, () -> sts.assumeRole(request));
+  }
+
+  @Test
+  public void testPublicBuilderAttachesDefaultCredentialsProvider() throws Exception {
+    // Guards the headline fix: the public builder must attach the SDK default credential chain to
+    // the underlying client. Building via the real builder is offline (the SDK client ctor does no
+    // credential network I/O); inspecting the attached provider catches a regression where the
+    // provider-carrying DefaultAcsClient ctor is dropped for the bare single-arg one (which would
+    // reattach the StaticCredentialsProvider snapshot and reintroduce the MissingAccessKeyId
+    // failure this fix addresses).
+    AliSts sts = new AliSts().builder().withRegion("cn-hangzhou").build();
+
+    Field stsClientField = AliSts.class.getDeclaredField("stsClient");
+    stsClientField.setAccessible(true);
+    Object client = stsClientField.get(sts);
+    Assertions.assertInstanceOf(DefaultAcsClient.class, client);
+
+    // DefaultAcsClient.getCredentialsProvider() returns the provider passed to its constructor
+    // verbatim. Assert positively that it is the same type buildCredentialsProvider() produces
+    // (the SDK DefaultCredentialsProvider), which pins the wiring rather than the absence of one
+    // wrong type.
+    AlibabaCloudCredentialsProvider provider =
+        ((DefaultAcsClient) client).getCredentialsProvider();
+    Assertions.assertNotNull(provider, "public builder must attach a credentials provider");
+    Assertions.assertEquals(
+        AliSts.buildCredentialsProvider().getClass(),
+        provider.getClass(),
+        "public builder must attach the SDK default credentials provider");
+  }
+
+  @Test
+  public void testBuildCredentialsProviderWrapsCtorFailure() {
+    // The DefaultCredentialsProvider ctor throws ClientException for an empty
+    // ALIBABA_CLOUD_ECS_METADATA; the no-arg buildCredentialsProvider() must wrap that as
+    // InvalidArgumentException. Force the condition via the SDK's test seam (AuthUtils overrides
+    // System.getenv for this variable), and reset it in finally so the JVM-wide static does not
+    // leak to other tests.
+    AuthUtils.setEnvironmentECSMetaData("");
+    try {
+      assertThrows(InvalidArgumentException.class, AliSts::buildCredentialsProvider);
+    } finally {
+      AuthUtils.setEnvironmentECSMetaData(null);
+    }
   }
 
   // Compares two JSON strings for structural equality, ignoring object key ordering.
