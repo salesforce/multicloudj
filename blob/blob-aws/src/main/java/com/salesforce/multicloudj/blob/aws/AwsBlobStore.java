@@ -590,8 +590,20 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
   public ObjectLockInfo getObjectLock(String key, String versionId) {
     GetObjectRetentionResponse retentionResponse =
         s3Client.getObjectRetention(transformer.toGetObjectRetentionRequest(key, versionId));
-    GetObjectLegalHoldResponse legalHoldResponse =
-        s3Client.getObjectLegalHold(transformer.toGetObjectLegalHoldRequest(key, versionId));
+    GetObjectLegalHoldResponse legalHoldResponse;
+    try {
+      legalHoldResponse =
+          s3Client.getObjectLegalHold(transformer.toGetObjectLegalHoldRequest(key, versionId));
+    } catch (S3Exception e) {
+      // S3 returns 404 NoSuchObjectLockConfiguration when a legal hold was never explicitly
+      // set on the object version — treat as "hold not present" so callers see a normal
+      // ObjectLockInfo instead of a 404 propagating up. Any other error is re-thrown.
+      if (e.statusCode() == 404) {
+        legalHoldResponse = null;
+      } else {
+        throw e;
+      }
+    }
     return transformer.toObjectLockInfo(retentionResponse, legalHoldResponse);
   }
 
