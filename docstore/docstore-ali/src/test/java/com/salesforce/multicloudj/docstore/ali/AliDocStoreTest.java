@@ -15,6 +15,7 @@ import com.alicloud.openservices.tablestore.model.Column;
 import com.alicloud.openservices.tablestore.model.ColumnValue;
 import com.alicloud.openservices.tablestore.model.CommitTransactionRequest;
 import com.alicloud.openservices.tablestore.model.ConsumedCapacity;
+import com.alicloud.openservices.tablestore.model.DeleteRowRequest;
 import com.alicloud.openservices.tablestore.model.DeleteRowResponse;
 import com.alicloud.openservices.tablestore.model.DescribeTableRequest;
 import com.alicloud.openservices.tablestore.model.DescribeTableResponse;
@@ -416,6 +417,46 @@ class AliDocStoreTest {
         ArgumentCaptor.forClass(CommitTransactionRequest.class);
     verify(syncClient, times(1)).commitTransaction(argumentCaptorTx.capture());
     Assertions.assertEquals("tx-id", argumentCaptorTx.getValue().getTransactionID());
+  }
+
+  @Test
+  void testWritesTxMixedPutAndDelete() {
+    // An atomic write containing both a put and a delete must issue the delete via deleteRow (not
+    // putRow) so the row is actually removed. The transactional path used to send every operation
+    // through putRow, so a delete never reached deleteRow inside the transaction. Verify the delete
+    // lands on deleteRow and both operations carry the transaction id.
+    Book putBook = new Book("BlueBook", null, "WA", null, 3.99f, null, null);
+    Book deleteBook = new Book("BlueBook", null, "TX", null, 3.99f, null, null);
+    ActionList writes =
+        ali.getActions()
+            .enableAtomicWrites()
+            .put(new Document(putBook))
+            .delete(new Document(deleteBook));
+    writes.run();
+
+    // The delete must go through deleteRow (exactly once), with the transaction id attached.
+    ArgumentCaptor<DeleteRowRequest> deleteCaptor =
+        ArgumentCaptor.forClass(DeleteRowRequest.class);
+    verify(syncClient, times(1)).deleteRow(deleteCaptor.capture());
+    DeleteRowRequest deleteRequest = deleteCaptor.getValue();
+    Assertions.assertEquals("tx-id", deleteRequest.getTransactionId());
+    Assertions.assertEquals(
+        "TX",
+        deleteRequest
+            .getRowChange()
+            .getPrimaryKey()
+            .getPrimaryKeyColumn("publisher")
+            .getValue()
+            .asString(),
+        "deleteRow must target the row identified by the delete action's key");
+
+    // The put must go through putRow (exactly once), also within the transaction.
+    ArgumentCaptor<PutRowRequest> putCaptor = ArgumentCaptor.forClass(PutRowRequest.class);
+    verify(syncClient, times(1)).putRow(putCaptor.capture());
+    Assertions.assertEquals("tx-id", putCaptor.getValue().getTransactionId());
+
+    // The transaction commits once, covering both operations atomically.
+    verify(syncClient, times(1)).commitTransaction(any());
   }
 
   @Test
