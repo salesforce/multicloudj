@@ -3385,6 +3385,40 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoInitiateMultipartUpload_blankContextIdsAreSkipped() {
+    // Blank/whitespace ids must be treated as absent: no metadata key should be stamped for them,
+    // while a non-blank id in the same context is still stamped.
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("   ")
+            .serviceId("")
+            .tenantId("tenant-present")
+            .build();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey(TEST_KEY).withOperationContext(ctx).build();
+
+    when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+        .thenReturn(CreateMultipartUploadResponse.builder().uploadId("upload-blank").build());
+
+    gcpBlobStore.doInitiateMultipartUpload(request);
+
+    ArgumentCaptor<CreateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+    verify(mpuClient).createMultipartUpload(captor.capture());
+    Map<String, String> metadata = captor.getValue().metadata();
+    assertFalse(
+        metadata.containsKey(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "a whitespace-only correlation id must not be stamped");
+    assertFalse(
+        metadata.containsKey(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "a blank service id must not be stamped");
+    assertEquals(
+        "tenant-present",
+        metadata.get(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "a non-blank id in the same context must still be stamped");
+  }
+
+  @Test
   void testDoInitiateMultipartUpload_NoMetadata() {
     // Given
     MultipartUploadRequest request = new MultipartUploadRequest.Builder().withKey(TEST_KEY).build();
