@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.alicloud.openservices.tablestore.ClientException;
 import com.alicloud.openservices.tablestore.SyncClient;
 import com.alicloud.openservices.tablestore.TableStoreException;
+import com.alicloud.openservices.tablestore.model.AbortTransactionRequest;
 import com.alicloud.openservices.tablestore.model.BatchGetRowResponse;
 import com.alicloud.openservices.tablestore.model.CapacityUnit;
 import com.alicloud.openservices.tablestore.model.Column;
@@ -23,6 +24,7 @@ import com.alicloud.openservices.tablestore.model.GetRangeRequest;
 import com.alicloud.openservices.tablestore.model.GetRangeResponse;
 import com.alicloud.openservices.tablestore.model.IndexMeta;
 import com.alicloud.openservices.tablestore.model.IndexType;
+import com.alicloud.openservices.tablestore.model.PrimaryKey;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyBuilder;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyValue;
 import com.alicloud.openservices.tablestore.model.PutRowRequest;
@@ -30,6 +32,7 @@ import com.alicloud.openservices.tablestore.model.PutRowResponse;
 import com.alicloud.openservices.tablestore.model.RangeRowQueryCriteria;
 import com.alicloud.openservices.tablestore.model.Response;
 import com.alicloud.openservices.tablestore.model.Row;
+import com.alicloud.openservices.tablestore.model.RowChange;
 import com.alicloud.openservices.tablestore.model.RowDeleteChange;
 import com.alicloud.openservices.tablestore.model.RowPutChange;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionResponse;
@@ -38,7 +41,9 @@ import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
+import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.Action;
@@ -61,6 +66,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.junit.jupiter.api.AfterEach;
@@ -96,6 +103,20 @@ class AliDocStoreTest {
 
     public void setIndex(int index) {
       this.index = index;
+    }
+  }
+
+  // A RowChange subtype that is neither a put nor a delete, used to exercise the transactional
+  // dispatch loop's rejection of unsupported change types. Not tied to any real SDK operation, so
+  // it stays valid regardless of which RowChange types the driver supports.
+  static class UnknownRowChange extends RowChange {
+    UnknownRowChange(String tableName) {
+      super(tableName);
+    }
+
+    @Override
+    public int getDataSize() {
+      return 0;
     }
   }
 
@@ -457,6 +478,59 @@ class AliDocStoreTest {
 
     // The transaction commits once, covering both operations atomically.
     verify(syncClient, times(1)).commitTransaction(any());
+  }
+
+  @Test
+  void testWritesTxRejectsUnsupportedRowChange() {
+    // The transactional dispatch loop must reject an unsupported RowChange subtype with a clear
+    // error instead of blindly casting it to a put and throwing an opaque ClassCastException. Feed
+    // it a synthetic unsupported RowChange (via an overridden newPut) and assert the atomic write
+    // fails cleanly and rolls back. A test-only stub keeps this valid even if new RowChange types
+    // become supported later.
+    SyncClient txClient = mock(SyncClient.class);
+    StartLocalTransactionResponse txResponse = mock(StartLocalTransactionResponse.class);
+    when(txResponse.getTransactionID()).thenReturn("tx-id");
+    when(txClient.startLocalTransaction(any())).thenReturn(txResponse);
+
+    AliDocStore.Builder builder =
+        new AliDocStore.Builder()
+            .withRegion("cn-shanghai")
+            .withEndpointType("internet")
+            .withInstanceId("something")
+            .withCollectionOptions(
+                new CollectionOptions.CollectionOptionsBuilder()
+                    .withPartitionKey("title")
+                    .withSortKey("publisher")
+                    .withTableName("my-table")
+                    .withRevisionField("docRevision")
+                    .build())
+            .withTableStoreClient(txClient);
+    AliDocStore docStoreWithUnknownChange =
+        new AliDocStore(builder) {
+          @Override
+          protected WriteOperation newPut(Action action, Consumer<Predicate<Object>> beforeDo) {
+            return new WriteOperation(
+                action, new UnknownRowChange("my-table"), null, null, () -> {});
+          }
+        };
+
+    Book book = new Book("BlueBook", null, "WA", null, 3.99f, null, null);
+    ActionList writes =
+        docStoreWithUnknownChange
+            .getActions()
+            .enableAtomicWrites()
+            .put(new Document(book));
+
+    TransactionFailedException thrown =
+        Assertions.assertThrows(TransactionFailedException.class, writes::run);
+    Assertions.assertInstanceOf(
+        UnSupportedOperationException.class,
+        thrown.getCause(),
+        "unsupported RowChange must surface as UnSupportedOperationException, not a CCE");
+
+    // The transaction must NOT commit, and must be aborted (all-or-nothing rollback).
+    verify(txClient, times(0)).commitTransaction(any());
+    verify(txClient, times(1)).abortTransaction(any(AbortTransactionRequest.class));
   }
 
   @Test

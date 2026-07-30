@@ -43,6 +43,7 @@ import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsExcepti
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.util.UUID;
 import com.salesforce.multicloudj.docstore.client.Query;
@@ -575,15 +576,21 @@ public class AliDocStore extends AbstractDocStore {
       for (WriteOperation op : operations) {
         // Tablestore has no single generic "apply this RowChange" call, so dispatch each op to the
         // request type its change requires: deletes go through deleteRow, puts through putRow.
+        // Reject any other unsupported RowChange subtype with a clear error rather than blindly
+        // casting it to a put and failing with an opaque ClassCastException mid-transaction.
         RowChange change = op.getRowChange();
         if (change instanceof RowDeleteChange) {
           DeleteRowRequest deleteRowRequest = new DeleteRowRequest((RowDeleteChange) change);
           deleteRowRequest.setTransactionId(transactionId);
           tableStoreClient.deleteRow(deleteRowRequest);
-        } else {
+        } else if (change instanceof RowPutChange) {
           PutRowRequest putRowRequest = new PutRowRequest((RowPutChange) change);
           putRowRequest.setTransactionId(transactionId);
           tableStoreClient.putRow(putRowRequest);
+        } else {
+          throw new UnSupportedOperationException(
+              "Unsupported RowChange type in atomic write: "
+                  + (change == null ? "null" : change.getClass().getName()));
         }
       }
       tableStoreClient.commitTransaction(new CommitTransactionRequest(transactionId));
