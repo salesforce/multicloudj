@@ -1,0 +1,40 @@
+{
+  "id" : "730cd54b-143c-4c04-b1bc-c3155345a536",
+  "name" : "AwsBlobStoreIT_testInitiateMultipartUpload_withServiceAndTenantId_stampsObjectMetadata-PUT-3",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart/observabilityMetadata",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "partNumber" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "lccETuDvBGAusqE4pZKlJQwBI8DYaiJBL_1Pv_EGK_e0t2OYJzN_5fJT9Gy2nEOXWQLNE3liAuFyccXShrrITqrCOeCSs9BpAn.uYq9j9IIQ_00mX_AM5VdGvRRQ0jQM5NFbDzvy17w8VPa3zw8pt5UMmhMdpGkx0JtzTuqLxmuop.Htng..fgCS0OHnUucT"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"2b5c91ad399409ec9b409b66f5bb00fb\"",
+      "x-amz-request-id" : "HM2B6T8XE80BHK76",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "KRIvwRHTfMnJiCT0tx1eFfSqvo8uy5lCpjDiVx1KgHc6ijngRcmYH+5LIhtaRezpZvvkiHURR9xTTkKF8n+VTALff4hXaboT",
+      "Date" : "Mon, 27 Jul 2026 06:36:53 GMT"
+    }
+  },
+  "uuid" : "730cd54b-143c-4c04-b1bc-c3155345a536",
+  "persistent" : true,
+  "insertionIndex" : 777
+}
