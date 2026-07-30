@@ -635,8 +635,14 @@ public class GcpBlobStore extends AbstractBlobStore {
       createRequestBuilder.kmsKeyName(request.getKmsKeyId());
     }
 
-    if (request.getMetadata() != null) {
-      createRequestBuilder.metadata(request.getMetadata());
+    // Build a mutable metadata map so the SDK's correlation id, service id and tenant id can be
+    // stamped onto the created object alongside any user-supplied metadata, mirroring the
+    // single-shot upload path. Stamping happens even when the caller supplied no metadata.
+    Map<String, String> metadata =
+        request.getMetadata() != null ? new HashMap<>(request.getMetadata()) : new HashMap<>();
+    transformer.stampContextMetadata(metadata, request.getOperationContext());
+    if (!metadata.isEmpty()) {
+      createRequestBuilder.metadata(metadata);
     }
 
     if (request.getContentType() != null && !request.getContentType().isEmpty()) {
@@ -668,7 +674,10 @@ public class GcpBlobStore extends AbstractBlobStore {
         .bucket(getBucket())
         .key(request.getKey())
         .id(gcpMultipartUpload.uploadId())
-        .metadata(request.getMetadata())
+        // Echo the stamped metadata (user-supplied entries plus the SDK's correlation/service/
+        // tenant ids) so the handle reflects what actually lands on the multipart object, matching
+        // the create request and a subsequent getMetadata read-back.
+        .metadata(metadata)
         .tags(request.getTags())
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())

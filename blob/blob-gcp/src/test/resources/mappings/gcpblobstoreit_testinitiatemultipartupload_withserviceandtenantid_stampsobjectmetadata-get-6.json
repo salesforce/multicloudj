@@ -1,0 +1,50 @@
+{
+  "id" : "ebbe24fa-bca9-4eb1-9e67-42c0d87a1e7d",
+  "name" : "GcpBlobStoreIT_testInitiateMultipartUpload_withServiceAndTenantId_stampsObjectMetadata-GET-6",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "maxResults" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/multipart/observabilityMetadata"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AKhXX7LbqXq2VxqNEy8SKkGvuinMtJQcbbrxWQFWOS_VDLFQb1qj4rJsNiZw_QH26xAtrs1IWqj1MV8",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Tue, 28 Jul 2026 18:21:13 GMT",
+      "Date" : "Tue, 28 Jul 2026 18:21:13 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "ebbe24fa-bca9-4eb1-9e67-42c0d87a1e7d",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-2",
+  "insertionIndex" : 1469
+}
