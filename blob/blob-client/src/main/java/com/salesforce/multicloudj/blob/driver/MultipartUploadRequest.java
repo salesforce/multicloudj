@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.driver;
 
 import static java.util.Collections.unmodifiableMap;
 
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import java.util.Collections;
 import java.util.Map;
 import lombok.Getter;
@@ -20,6 +21,13 @@ public class MultipartUploadRequest {
   private final ObjectLockConfiguration objectLock;
   private final String contentType;
 
+  /**
+   * (Optional parameter) Per-call observability context carrying the correlation ID. The
+   * correlation ID is never auto-generated; when it is null or missing it defaults to an empty
+   * string and tracing is treated as disabled.
+   */
+  private final OperationContext operationContext;
+
   private MultipartUploadRequest(final Builder builder) {
     this.key = builder.key;
     this.metadata = builder.metadata;
@@ -34,6 +42,7 @@ public class MultipartUploadRequest {
     this.checksumEnabled = builder.checksumEnabled || builder.checksumAlgorithm != null;
     this.objectLock = builder.objectLock;
     this.contentType = builder.contentType;
+    this.operationContext = builder.operationContext;
   }
 
   public Map<String, String> getMetadata() {
@@ -54,6 +63,7 @@ public class MultipartUploadRequest {
     private ChecksumMethod checksumAlgorithm;
     private ObjectLockConfiguration objectLock;
     private String contentType;
+    private OperationContext operationContext;
 
     public Builder withKey(String key) {
       this.key = key;
@@ -97,6 +107,19 @@ public class MultipartUploadRequest {
 
     public Builder withContentType(String contentType) {
       this.contentType = contentType;
+      return this;
+    }
+
+    /**
+     * Sets the per-call observability context carrying the correlation ID. The correlation ID is
+     * never auto-generated; if not set (or if the context's correlation ID is null/empty) it
+     * defaults to an empty string and tracing is treated as disabled.
+     *
+     * @param operationContext the observability context
+     * @return this builder
+     */
+    public Builder withOperationContext(OperationContext operationContext) {
+      this.operationContext = operationContext;
       return this;
     }
 
