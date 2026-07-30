@@ -598,7 +598,9 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
       // S3 returns 404 NoSuchObjectLockConfiguration when a legal hold was never explicitly
       // set on the object version — treat as "hold not present" so callers see a normal
       // ObjectLockInfo instead of a 404 propagating up. Any other error is re-thrown.
-      if (e.statusCode() == 404) {
+      if (e.statusCode() == 404
+          && e.awsErrorDetails() != null
+          && "NoSuchObjectLockConfiguration".equals(e.awsErrorDetails().errorCode())) {
         legalHoldResponse = null;
       } else {
         throw e;
