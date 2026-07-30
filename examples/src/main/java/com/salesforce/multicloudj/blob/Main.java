@@ -133,6 +133,94 @@ public class Main {
   }
 
   /**
+   * ASYNC counterpart of {@link #uploadWithServiceAndTenantId()}. Threads a single {@link
+   * OperationContext} (serviceId / tenantId / correlationId) through the context-aware {@link
+   * AsyncBucketClient} APIs and blocks on each {@link CompletableFuture} so the demo runs
+   * sequentially and every SDK observability log line carries the same correlation_id / tenant_id /
+   * service_id MDC fields.
+   *
+   * <p>Exercised APIs: {@code upload(UploadRequest, byte[])}, {@code getMetadata(key, null, ctx)},
+   * {@code getTags(key, ctx)}, the multipart lifecycle ({@code initiateMultipartUpload} →
+   * {@code uploadMultipartPart} → {@code listMultipartUpload} → {@code completeMultipartUpload}),
+   * and both {@code delete(...)} overloads.
+   */
+  public static void asyncUploadWithServiceAndTenantId() {
+    AsyncBucketClient client = getAsyncBucketClient(getProvider());
+
+    OperationContext operationContext =
+        OperationContext.builder()
+            .serviceId("my-service")
+            .tenantId("tenant-1234")
+            .correlationId("request-abc-987") // optional; echoed back on the response
+            .build();
+
+    long stamp = System.currentTimeMillis();
+    String simpleKey = "async-audited-object-" + stamp;
+    String multipartKey = "async-multipart-audited-object-" + stamp;
+
+    try {
+      // 1. Single-shot upload with the context attached to the UploadRequest.
+      UploadRequest uploadRequest =
+          new UploadRequest.Builder()
+              .withKey(simpleKey)
+              .withTags(Map.of("tagKey1", "tagVal1"))
+              .withOperationContext(operationContext)
+              .build();
+      UploadResponse uploadResponse =
+          client.upload(uploadRequest, "async upload content".getBytes()).join();
+      getLogger().info("async upload response: {}", uploadResponse);
+      getLogger().info("correlation id echoed back: {}", uploadResponse.getCorrelationId());
+
+      // 2. getMetadata(key, versionId, ctx) — read back the stamped identifiers.
+      BlobMetadata metadata = client.getMetadata(simpleKey, null, operationContext).join();
+      getLogger().info("stamped object metadata: {}", metadata.getMetadata());
+      // -> {sdk-logging-service-id=my-service, sdk-logging-tenant-id=tenant-1234,
+      //     sdk-logging-correlation-id=request-abc-987}
+
+      // 3. getTags(key, ctx).
+      Map<String, String> tags = client.getTags(simpleKey, operationContext).join();
+      getLogger().info("blob tags: {}", tags);
+
+      // 4. Multipart lifecycle, context on initiate + each explicit-context call.
+      MultipartUploadRequest mpuRequest =
+          new MultipartUploadRequest.Builder()
+              .withKey(multipartKey)
+              .withOperationContext(operationContext)
+              .build();
+      MultipartUpload mpu = client.initiateMultipartUpload(mpuRequest).join();
+      getLogger().info("initiated multipart upload: {}", mpu.getId());
+
+      byte[] partContent = "multipart async content".getBytes();
+      MultipartPart part = new MultipartPart(1, partContent);
+      UploadPartResponse partResponse =
+          client.uploadMultipartPart(mpu, part, operationContext).join();
+      getLogger().info("uploaded part: {}", partResponse.getPartNumber());
+
+      List<UploadPartResponse> listedParts =
+          client.listMultipartUpload(mpu, operationContext).join();
+      getLogger().info("listed {} multipart part(s)", listedParts.size());
+
+      MultipartUploadResponse mpuResponse =
+          client.completeMultipartUpload(mpu, List.of(partResponse), operationContext).join();
+      getLogger().info("completed multipart upload, etag: {}", mpuResponse.getEtag());
+
+      // 5. getMetadata on the completed multipart object to confirm stamped identifiers.
+      BlobMetadata mpuMetadata = client.getMetadata(multipartKey, null, operationContext).join();
+      getLogger().info("stamped multipart object metadata: {}", mpuMetadata.getMetadata());
+
+      // 6. delete(key, versionId, ctx) and delete(Collection<BlobIdentifier>, ctx).
+      client.delete(simpleKey, null, operationContext).join();
+      client
+          .delete(List.of(new BlobIdentifier(multipartKey, null)), operationContext)
+          .join();
+      getLogger().info("deleted async validation objects");
+    } catch (Exception e) {
+      getLogger().error("async validation failed", e);
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
    * Downloads a blob from a specified bucket using the provided key.
    */
   public static void downloadBlob() throws FileNotFoundException {
