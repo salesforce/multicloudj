@@ -1219,23 +1219,30 @@ public class AwsTransformer {
   }
 
   /**
-   * Converts GetObjectRetentionResponse and GetObjectLegalHoldResponse to ObjectLockInfo
+   * Converts GetObjectRetentionResponse and GetObjectLegalHoldResponse to ObjectLockInfo. Returns
+   * null only when both retention and legal hold are absent — a legal-hold-only object still
+   * surfaces as an ObjectLockInfo (with null mode/retainUntilDate) so callers observe the hold.
    */
   public ObjectLockInfo toObjectLockInfo(
       GetObjectRetentionResponse retentionResponse, GetObjectLegalHoldResponse legalHoldResponse) {
-    if (retentionResponse == null || retentionResponse.retention() == null) {
+    boolean legalHoldOn =
+        legalHoldResponse != null
+            && legalHoldResponse.legalHold() != null
+            && legalHoldResponse.legalHold().status() == ObjectLockLegalHoldStatus.ON;
+    boolean retentionPresent =
+        retentionResponse != null && retentionResponse.retention() != null;
+
+    if (!retentionPresent && !legalHoldOn) {
       return null;
     }
 
-    ObjectLockRetentionMode retentionMode = retentionResponse.retention().mode();
-    return ObjectLockInfo.builder()
-        .mode(toDriverRetentionMode(retentionMode))
-        .retainUntilDate(retentionResponse.retention().retainUntilDate())
-        .legalHold(
-            legalHoldResponse != null
-                && legalHoldResponse.legalHold() != null
-                && legalHoldResponse.legalHold().status() == ObjectLockLegalHoldStatus.ON)
-        .build();
+    ObjectLockInfo.ObjectLockInfoBuilder builder = ObjectLockInfo.builder().legalHold(legalHoldOn);
+    if (retentionPresent) {
+      builder
+          .mode(toDriverRetentionMode(retentionResponse.retention().mode()))
+          .retainUntilDate(retentionResponse.retention().retainUntilDate());
+    }
+    return builder.build();
   }
 
   /** Creates a {@link GetBucketVersioningRequest} for the bound bucket. */
