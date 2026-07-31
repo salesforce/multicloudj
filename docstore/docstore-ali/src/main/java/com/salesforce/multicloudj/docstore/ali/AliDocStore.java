@@ -424,13 +424,8 @@ public class AliDocStore extends AbstractDocStore {
   protected void runDelete(
       RowDeleteChange delete, Action action, Consumer<Predicate<Object>> beforeDo) {
     DeleteRowRequest deleteRowRequest = new DeleteRowRequest(delete);
-    // Let any TableStoreException propagate to mapException. A delete sets no row-existence
-    // expectation, so its only conditional-check failure comes from the revision column condition
-    // (value mismatch, or the revision column missing because the row is absent) -- in every case
-    // the row is not at the pinned revision, an optimistic-lock failure that OTSConditionCheckFail
-    // correctly maps to FailedPreconditionException. Unlike runPut, this deliberately does not
-    // remap the conditional failure to ResourceNotFoundException: a delete's failure is about the
-    // revision guard, not row existence, so the two operations surface different exceptions here.
+    // A delete's only conditional-check failure is a revision mismatch (it sets no existence
+    // expectation), so let it propagate and map to FailedPreconditionException.
     tableStoreClient.deleteRow(deleteRowRequest);
   }
 
