@@ -1828,13 +1828,22 @@ public class AwsTransformerTest {
 
     MultipartUpload mpu = transformer.toMultipartUpload(mpuRequest, response);
 
-    // The handle reflects what actually lands on the object: the caller's metadata plus the
-    // stamped correlation/service/tenant ids, matching the create request and a getMetadata
-    // read-back.
-    assertEquals("user-value", mpu.getMetadata().get("user-key"));
-    assertEquals("req-abc-123", mpu.getMetadata().get("sdk-logging-correlation-id"));
-    assertEquals("keystone-boxoffice", mpu.getMetadata().get("sdk-logging-service-id"));
-    assertEquals("tenant-42", mpu.getMetadata().get("sdk-logging-tenant-id"));
+    // The returned handle echoes the stamped metadata so it reflects what actually lands on the
+    // object, matching the create request and a subsequent getMetadata read-back.
+    Map<String, String> handleMetadata = mpu.getMetadata();
+    assertEquals("user-value", handleMetadata.get("user-key"));
+    assertEquals(
+        "keystone-boxoffice",
+        handleMetadata.get("sdk-logging-service-id"),
+        "service id must be echoed onto the multipart upload handle metadata");
+    assertEquals(
+        "tenant-42",
+        handleMetadata.get("sdk-logging-tenant-id"),
+        "tenant id must be echoed onto the multipart upload handle metadata");
+    assertEquals(
+        "req-abc-123",
+        handleMetadata.get("sdk-logging-correlation-id"),
+        "correlation id must be echoed onto the multipart upload handle metadata");
   }
 
   @Test
