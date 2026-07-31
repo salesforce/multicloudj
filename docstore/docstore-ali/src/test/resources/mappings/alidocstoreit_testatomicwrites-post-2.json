@@ -1,11 +1,11 @@
 {
-  "id" : "b2589b3f-2ee9-45e8-b2a3-ff4ea4744e59",
+  "id" : "794100fd-6da8-413a-b088-3152fcc863d3",
   "name" : "AliDocstoreIT_testAtomicWrites-POST-2",
   "request" : {
     "url" : "/DeleteRow",
     "method" : "POST",
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"op\":\"DeleteRow\",\"table\":\"docstore_test_2\",\"rows\":[{\"pk\":{\"Game\":{\"t\":\"PK:STRING\",\"v\":\"testAtomicWrites\"},\"Player\":{\"t\":\"PK:STRING\",\"v\":\"testAtomicWrites3\"}},\"cells\":{},\"deleteMarker\":true}],\"condition\":\"0800\"}",
+      "equalToJson" : "{\"op\":\"DeleteRow\",\"table\":\"docstore_test_2\",\"rows\":[{\"pk\":{\"Game\":{\"t\":\"PK:STRING\",\"v\":\"testAtomicWrites\"},\"Player\":{\"t\":\"PK:STRING\",\"v\":\"testAtomicWrites8\"}},\"cells\":{},\"deleteMarker\":true}],\"condition\":\"080012470801124308011210446f6373746f72655265766973696f6e1a29032400000066623234356563382d356565622d353930392d636431662d61316361356638393539643020012801\"}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -14,17 +14,15 @@
     "status" : 200,
     "base64Body" : "CgYKBAgBEAE=",
     "headers" : {
-      "x-ots-requestid" : "0006573a-714b-4425-a9dd-c60b0df653e9",
-      "Authorization" : "OTS STS.NXkaGqbYRYN1ubNDnFcFaPiHX:YuSlZSg4ldj9Qh0pCOqCQK1g8j4=",
-      "x-ots-date" : "2026-07-22T22:13:00.748382Z",
+      "x-ots-requestid" : "000657ed-c820-b28d-cadd-c60b0eaae271",
+      "Authorization" : "OTS STS.NY3TWDAWC3sV57fGWmx8PCPqs:IfXrUPhz3oPMhWqNUWoauWq6iow=",
+      "x-ots-date" : "2026-07-31T20:10:36.718893Z",
       "x-ots-contenttype" : "protocol buffer",
       "x-ots-contentmd5" : "bofsTfsxtvymDNQpw96K/Q==",
-      "Date" : "Wed, 22 Jul 2026 22:13:00 GMT"
+      "Date" : "Fri, 31 Jul 2026 20:10:36 GMT"
     }
   },
-  "uuid" : "b2589b3f-2ee9-45e8-b2a3-ff4ea4744e59",
+  "uuid" : "794100fd-6da8-413a-b088-3152fcc863d3",
   "persistent" : true,
-  "scenarioName" : "scenario-3-DeleteRow",
-  "requiredScenarioState" : "scenario-3-DeleteRow-2",
   "insertionIndex" : 145
 }
