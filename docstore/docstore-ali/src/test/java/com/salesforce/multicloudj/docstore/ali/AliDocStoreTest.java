@@ -9,12 +9,15 @@ import static org.mockito.Mockito.when;
 import com.alicloud.openservices.tablestore.ClientException;
 import com.alicloud.openservices.tablestore.SyncClient;
 import com.alicloud.openservices.tablestore.TableStoreException;
+import com.alicloud.openservices.tablestore.model.AbortTransactionRequest;
 import com.alicloud.openservices.tablestore.model.BatchGetRowResponse;
 import com.alicloud.openservices.tablestore.model.CapacityUnit;
 import com.alicloud.openservices.tablestore.model.Column;
 import com.alicloud.openservices.tablestore.model.ColumnValue;
 import com.alicloud.openservices.tablestore.model.CommitTransactionRequest;
+import com.alicloud.openservices.tablestore.model.Condition;
 import com.alicloud.openservices.tablestore.model.ConsumedCapacity;
+import com.alicloud.openservices.tablestore.model.DeleteRowRequest;
 import com.alicloud.openservices.tablestore.model.DeleteRowResponse;
 import com.alicloud.openservices.tablestore.model.DescribeTableRequest;
 import com.alicloud.openservices.tablestore.model.DescribeTableResponse;
@@ -22,6 +25,7 @@ import com.alicloud.openservices.tablestore.model.GetRangeRequest;
 import com.alicloud.openservices.tablestore.model.GetRangeResponse;
 import com.alicloud.openservices.tablestore.model.IndexMeta;
 import com.alicloud.openservices.tablestore.model.IndexType;
+import com.alicloud.openservices.tablestore.model.PrimaryKey;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyBuilder;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyValue;
 import com.alicloud.openservices.tablestore.model.PutRowRequest;
@@ -29,15 +33,19 @@ import com.alicloud.openservices.tablestore.model.PutRowResponse;
 import com.alicloud.openservices.tablestore.model.RangeRowQueryCriteria;
 import com.alicloud.openservices.tablestore.model.Response;
 import com.alicloud.openservices.tablestore.model.Row;
+import com.alicloud.openservices.tablestore.model.RowChange;
 import com.alicloud.openservices.tablestore.model.RowDeleteChange;
 import com.alicloud.openservices.tablestore.model.RowPutChange;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionResponse;
 import com.alicloud.openservices.tablestore.model.TableMeta;
 import com.google.protobuf.Timestamp;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
+import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.Action;
@@ -60,6 +68,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.junit.jupiter.api.AfterEach;
@@ -95,6 +105,20 @@ class AliDocStoreTest {
 
     public void setIndex(int index) {
       this.index = index;
+    }
+  }
+
+  // A RowChange subtype that is neither a put nor a delete, used to exercise the transactional
+  // dispatch loop's rejection of unsupported change types. Not tied to any real SDK operation, so
+  // it stays valid regardless of which RowChange types the driver supports.
+  static class UnknownRowChange extends RowChange {
+    UnknownRowChange(String tableName) {
+      super(tableName);
+    }
+
+    @Override
+    public int getDataSize() {
+      return 0;
     }
   }
 
@@ -419,6 +443,99 @@ class AliDocStoreTest {
   }
 
   @Test
+  void testWritesTxMixedPutAndDelete() {
+    // An atomic write containing both a put and a delete must issue the delete via deleteRow (not
+    // putRow) so the row is actually removed. The transactional path used to send every operation
+    // through putRow, so a delete never reached deleteRow inside the transaction. Verify the delete
+    // lands on deleteRow and both operations carry the transaction id.
+    Book putBook = new Book("BlueBook", null, "WA", null, 3.99f, null, null);
+    Book deleteBook = new Book("BlueBook", null, "TX", null, 3.99f, null, null);
+    ActionList writes =
+        ali.getActions()
+            .enableAtomicWrites()
+            .put(new Document(putBook))
+            .delete(new Document(deleteBook));
+    writes.run();
+
+    // The delete must go through deleteRow (exactly once), with the transaction id attached.
+    ArgumentCaptor<DeleteRowRequest> deleteCaptor =
+        ArgumentCaptor.forClass(DeleteRowRequest.class);
+    verify(syncClient, times(1)).deleteRow(deleteCaptor.capture());
+    DeleteRowRequest deleteRequest = deleteCaptor.getValue();
+    Assertions.assertEquals("tx-id", deleteRequest.getTransactionId());
+    Assertions.assertEquals(
+        "TX",
+        deleteRequest
+            .getRowChange()
+            .getPrimaryKey()
+            .getPrimaryKeyColumn("publisher")
+            .getValue()
+            .asString(),
+        "deleteRow must target the row identified by the delete action's key");
+
+    // The put must go through putRow (exactly once), also within the transaction.
+    ArgumentCaptor<PutRowRequest> putCaptor = ArgumentCaptor.forClass(PutRowRequest.class);
+    verify(syncClient, times(1)).putRow(putCaptor.capture());
+    Assertions.assertEquals("tx-id", putCaptor.getValue().getTransactionId());
+
+    // The transaction commits once, covering both operations atomically.
+    verify(syncClient, times(1)).commitTransaction(any());
+  }
+
+  @Test
+  void testWritesTxRejectsUnsupportedRowChange() {
+    // The transactional dispatch loop must reject an unsupported RowChange subtype with a clear
+    // error instead of blindly casting it to a put and throwing an opaque ClassCastException. Feed
+    // it a synthetic unsupported RowChange (via an overridden newPut) and assert the atomic write
+    // fails cleanly and rolls back. A test-only stub keeps this valid even if new RowChange types
+    // become supported later.
+    SyncClient txClient = mock(SyncClient.class);
+    StartLocalTransactionResponse txResponse = mock(StartLocalTransactionResponse.class);
+    when(txResponse.getTransactionID()).thenReturn("tx-id");
+    when(txClient.startLocalTransaction(any())).thenReturn(txResponse);
+
+    AliDocStore.Builder builder =
+        new AliDocStore.Builder()
+            .withRegion("cn-shanghai")
+            .withEndpointType("internet")
+            .withInstanceId("something")
+            .withCollectionOptions(
+                new CollectionOptions.CollectionOptionsBuilder()
+                    .withPartitionKey("title")
+                    .withSortKey("publisher")
+                    .withTableName("my-table")
+                    .withRevisionField("docRevision")
+                    .build())
+            .withTableStoreClient(txClient);
+    AliDocStore docStoreWithUnknownChange =
+        new AliDocStore(builder) {
+          @Override
+          protected WriteOperation newPut(Action action, Consumer<Predicate<Object>> beforeDo) {
+            return new WriteOperation(
+                action, new UnknownRowChange("my-table"), null, null, () -> {});
+          }
+        };
+
+    Book book = new Book("BlueBook", null, "WA", null, 3.99f, null, null);
+    ActionList writes =
+        docStoreWithUnknownChange
+            .getActions()
+            .enableAtomicWrites()
+            .put(new Document(book));
+
+    TransactionFailedException thrown =
+        Assertions.assertThrows(TransactionFailedException.class, writes::run);
+    Assertions.assertInstanceOf(
+        UnSupportedOperationException.class,
+        thrown.getCause(),
+        "unsupported RowChange must surface as UnSupportedOperationException, not a CCE");
+
+    // The transaction must NOT commit, and must be aborted (all-or-nothing rollback).
+    verify(txClient, times(0)).commitTransaction(any());
+    verify(txClient, times(1)).abortTransaction(any(AbortTransactionRequest.class));
+  }
+
+  @Test
   void testEmptyActions() {
     ActionList writes = ali.getActions();
     Assertions.assertDoesNotThrow(writes::run);
@@ -676,6 +793,8 @@ class AliDocStoreTest {
 
   @Test
   void testDeleteWithRevision() {
+    // A delete whose document carries a revision must attach a revision precondition to the
+    // DeleteRowRequest so the delete is guarded by optimistic concurrency.
     BookWithoutNest bookObj =
         new BookWithoutNest(
             "YellowBook",
@@ -686,6 +805,146 @@ class AliDocStoreTest {
             "something");
     Document document = new Document(bookObj);
     Assertions.assertDoesNotThrow(() -> ali.getActions().delete(document).run());
+
+    ArgumentCaptor<DeleteRowRequest> captor = ArgumentCaptor.forClass(DeleteRowRequest.class);
+    verify(syncClient).deleteRow(captor.capture());
+    Condition condition = captor.getValue().getRowChange().getCondition();
+    Assertions.assertNotNull(
+        condition.getColumnCondition(),
+        "delete with a revision must carry a revision column precondition");
+  }
+
+  @Test
+  void testDeleteWithoutRevisionIsUnconditional() {
+    // A delete whose document has no revision must issue an unconditional delete (no column
+    // precondition) -- deletes are idempotent when the caller does not pin a revision.
+    BookWithoutNest bookObj =
+        new BookWithoutNest(
+            "YellowBook", null, "WA", Timestamp.newBuilder().setNanos(1000).build(), 0, null);
+    Document document = new Document(bookObj);
+    Assertions.assertDoesNotThrow(() -> ali.getActions().delete(document).run());
+
+    ArgumentCaptor<DeleteRowRequest> captor = ArgumentCaptor.forClass(DeleteRowRequest.class);
+    verify(syncClient).deleteRow(captor.capture());
+    Condition condition = captor.getValue().getRowChange().getCondition();
+    Assertions.assertNull(
+        condition.getColumnCondition(),
+        "delete without a revision must not carry a column precondition");
+  }
+
+  @Test
+  void testDeleteWithStaleRevisionMapsToFailedPrecondition() {
+    // A delete never sets an existence expectation, so its only conditional-check failure is a
+    // revision-precondition mismatch (optimistic-lock loss). That must surface as
+    // FailedPreconditionException (via the default OTSConditionCheckFail mapping), NOT
+    // ResourceNotFoundException -- the row is present, just at a different revision.
+    when(syncClient.deleteRow(any()))
+        .thenThrow(new TableStoreException("stale", "OTSConditionCheckFail"));
+    BookWithoutNest bookObj =
+        new BookWithoutNest(
+            "YellowBook",
+            null,
+            "WA",
+            Timestamp.newBuilder().setNanos(1000).build(),
+            0,
+            "stale-revision");
+    Document document = new Document(bookObj);
+    Assertions.assertThrows(
+        FailedPreconditionException.class, () -> ali.getActions().delete(document).run());
+  }
+
+  @Test
+  void testDeleteRethrowsNonConditionalFailure() {
+    // A non-conditional TableStoreException on a delete must be re-thrown (not swallowed and not
+    // mis-mapped to ResourceNotFoundException) so it reaches mapException and is classified by its
+    // error code -- OTSServerBusy maps to UnknownException.
+    when(syncClient.deleteRow(any()))
+        .thenThrow(new TableStoreException("boom", "OTSServerBusy"));
+    BookWithoutNest bookObj =
+        new BookWithoutNest(
+            "YellowBook",
+            null,
+            "WA",
+            Timestamp.newBuilder().setNanos(1000).build(),
+            0,
+            "something");
+    Document document = new Document(bookObj);
+    Assertions.assertThrows(
+        UnknownException.class, () -> ali.getActions().delete(document).run());
+  }
+
+  @Test
+  void testAtomicDeleteWithStaleRevisionFailsAndAborts() {
+    // A stale-revision delete inside an atomic write makes the transactional deleteRow fail the
+    // conditional check; the whole transaction must fail (TransactionFailedException) and abort,
+    // preserving all-or-nothing semantics.
+    when(syncClient.deleteRow(any()))
+        .thenThrow(new TableStoreException("stale", "OTSConditionCheckFail"));
+    Book putBook = new Book("BlueBook", null, "WA", null, 3.99f, null, null);
+    BookWithoutNest deleteBook =
+        new BookWithoutNest(
+            "BlueBook", null, "TX", Timestamp.newBuilder().setNanos(1000).build(), 0,
+            "stale-revision");
+    ActionList writes =
+        ali.getActions()
+            .enableAtomicWrites()
+            .put(new Document(putBook))
+            .delete(new Document(deleteBook));
+
+    Assertions.assertThrows(TransactionFailedException.class, writes::run);
+    verify(syncClient, times(0)).commitTransaction(any());
+    verify(syncClient, times(1)).abortTransaction(any(AbortTransactionRequest.class));
+  }
+
+  @Test
+  void testAtomicDeleteCarriesRevisionPrecondition() {
+    // Defense-in-depth for the transactional path: a revision-bearing delete inside an atomic write
+    // must carry the revision precondition on the transactional DeleteRowRequest (with the txn id),
+    // not just on the non-atomic path.
+    DeleteRowResponse deleteResponse = mock(DeleteRowResponse.class);
+    when(syncClient.deleteRow(any())).thenReturn(deleteResponse);
+    BookWithoutNest deleteBook =
+        new BookWithoutNest(
+            "BlueBook", null, "TX", Timestamp.newBuilder().setNanos(1000).build(), 0, "rev-1");
+    ali.getActions().enableAtomicWrites().delete(new Document(deleteBook)).run();
+
+    ArgumentCaptor<DeleteRowRequest> captor = ArgumentCaptor.forClass(DeleteRowRequest.class);
+    verify(syncClient).deleteRow(captor.capture());
+    DeleteRowRequest request = captor.getValue();
+    Assertions.assertEquals("tx-id", request.getTransactionId());
+    Assertions.assertNotNull(
+        request.getRowChange().getCondition().getColumnCondition(),
+        "transactional delete must carry the revision column precondition");
+  }
+
+  @Test
+  void testDeleteWithEmptyStringRevisionIsUnconditional() {
+    // An empty-string revision means "no revision pinned": buildRevisionPrecondition returns null,
+    // so the delete is unconditional (no column precondition), same as a null revision.
+    BookWithoutNest bookObj =
+        new BookWithoutNest(
+            "YellowBook", null, "WA", Timestamp.newBuilder().setNanos(1000).build(), 0, "");
+    Document document = new Document(bookObj);
+    Assertions.assertDoesNotThrow(() -> ali.getActions().delete(document).run());
+
+    ArgumentCaptor<DeleteRowRequest> captor = ArgumentCaptor.forClass(DeleteRowRequest.class);
+    verify(syncClient).deleteRow(captor.capture());
+    Assertions.assertNull(
+        captor.getValue().getRowChange().getCondition().getColumnCondition(),
+        "empty-string revision must not attach a column precondition");
+  }
+
+  @Test
+  void testDeleteWithNonStringRevisionThrowsInvalidArgument() {
+    // A non-String revision on a delete is a caller error: buildRevisionPrecondition rejects it,
+    // and it must surface as InvalidArgumentException rather than reaching the server.
+    Map<String, Object> doc = new HashMap<>();
+    doc.put("title", "YellowBook");
+    doc.put("publisher", "WA");
+    doc.put("docRevision", 123);
+    Document document = new Document(doc);
+    Assertions.assertThrows(
+        InvalidArgumentException.class, () -> ali.getActions().delete(document).run());
   }
 
   @Test

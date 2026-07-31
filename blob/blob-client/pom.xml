@@ -51,6 +51,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.5.19</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>sts-client</artifactId>
         </dependency>

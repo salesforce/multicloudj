@@ -1,11 +1,11 @@
 {
-  "id" : "254bffd2-f62f-456f-9040-4055138ef8da",
+  "id" : "ff9f230c-7ba7-42e3-8191-3864b4bcc2a0",
   "name" : "AliDocstoreIT_testAtomicWritesFail-POST-2",
   "request" : {
     "url" : "/DeleteRow",
     "method" : "POST",
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"op\":\"DeleteRow\",\"table\":\"docstore_test_2\",\"rows\":[{\"pk\":{\"Game\":{\"t\":\"PK:STRING\",\"v\":\"testAtomicWritesFail\"},\"Player\":{\"t\":\"PK:STRING\",\"v\":\"testAtomicWritesFail6\"}},\"cells\":{},\"deleteMarker\":true}],\"condition\":\"0800\"}",
+      "equalToJson" : "{\"op\":\"DeleteRow\",\"table\":\"docstore_test_2\",\"rows\":[{\"pk\":{\"Game\":{\"t\":\"PK:STRING\",\"v\":\"testAtomicWritesFail\"},\"Player\":{\"t\":\"PK:STRING\",\"v\":\"testAtomicWritesFail4\"}},\"cells\":{},\"deleteMarker\":true}],\"condition\":\"080012470801124308011210446f6373746f72655265766973696f6e1a29032400000038396663363765642d353565382d373731662d643735652d32666538663561623437616420012801\"}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -14,17 +14,15 @@
     "status" : 200,
     "base64Body" : "CgYKBAgBEAE=",
     "headers" : {
-      "x-ots-requestid" : "0006573a-720e-92df-6f76-700b0dfa1bea",
-      "Authorization" : "OTS STS.NXkaGqbYRYN1ubNDnFcFaPiHX:dJBRbsHtp8OADIJrlkOT4Fqs5Gk=",
-      "x-ots-date" : "2026-07-22T22:13:13.545678Z",
+      "x-ots-requestid" : "000657ed-c8e4-7d1a-aa35-200a0a44441d",
+      "Authorization" : "OTS STS.NY3TWDAWC3sV57fGWmx8PCPqs:S8Tw8Llsu7RH6cHsCHpIatBl3WE=",
+      "x-ots-date" : "2026-07-31T20:10:49.573444Z",
       "x-ots-contenttype" : "protocol buffer",
       "x-ots-contentmd5" : "bofsTfsxtvymDNQpw96K/Q==",
-      "Date" : "Wed, 22 Jul 2026 22:13:13 GMT"
+      "Date" : "Fri, 31 Jul 2026 20:10:49 GMT"
     }
   },
-  "uuid" : "254bffd2-f62f-456f-9040-4055138ef8da",
+  "uuid" : "ff9f230c-7ba7-42e3-8191-3864b4bcc2a0",
   "persistent" : true,
-  "scenarioName" : "scenario-3-DeleteRow",
-  "requiredScenarioState" : "scenario-3-DeleteRow-2",
   "insertionIndex" : 186
 }
