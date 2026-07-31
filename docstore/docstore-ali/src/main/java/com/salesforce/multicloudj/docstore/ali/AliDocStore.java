@@ -285,6 +285,10 @@ public class AliDocStore extends AbstractDocStore {
 
     PrimaryKey primaryKey = pkBuilder.build();
     RowDeleteChange rowChange = new RowDeleteChange(collectionOptions.getTableName(), primaryKey);
+    // Enforce the optimistic-concurrency revision precondition on delete: when the document carries
+    // a revision, the delete only succeeds if the stored row still carries that revision. No
+    // revision on the document means an unconditional delete.
+    buildPreCondition(action, rowChange);
     return new WriteOperation(
         action, rowChange, null, null, () -> runDelete(rowChange, action, beforeDo));
   }
@@ -369,15 +373,15 @@ public class AliDocStore extends AbstractDocStore {
     return condition;
   }
 
-  private void buildPreCondition(Action a, RowPutChange rowPutChange) {
+  private void buildPreCondition(Action a, RowChange rowChange) {
     switch (a.getKind()) {
       case ACTION_KIND_CREATE:
-        rowPutChange.setCondition(new Condition(RowExistenceExpectation.EXPECT_NOT_EXIST));
+        rowChange.setCondition(new Condition(RowExistenceExpectation.EXPECT_NOT_EXIST));
         return;
       case ACTION_KIND_UPDATE:
       case ACTION_KIND_REPLACE:
         Condition condition = buildRevisionPrecondition(a.getDocument(), getRevisionField());
-        rowPutChange.setCondition(
+        rowChange.setCondition(
             Objects.requireNonNullElseGet(
                 condition, () -> new Condition(RowExistenceExpectation.EXPECT_EXIST)));
         return;
@@ -386,7 +390,7 @@ public class AliDocStore extends AbstractDocStore {
         Condition revisionCondition =
             buildRevisionPrecondition(a.getDocument(), getRevisionField());
         if (revisionCondition != null) {
-          rowPutChange.setCondition(revisionCondition);
+          rowChange.setCondition(revisionCondition);
         }
         return;
       case ACTION_KIND_GET:
@@ -420,6 +424,13 @@ public class AliDocStore extends AbstractDocStore {
   protected void runDelete(
       RowDeleteChange delete, Action action, Consumer<Predicate<Object>> beforeDo) {
     DeleteRowRequest deleteRowRequest = new DeleteRowRequest(delete);
+    // Let any TableStoreException propagate to mapException. A delete sets no row-existence
+    // expectation, so its only conditional-check failure comes from the revision column condition
+    // (value mismatch, or the revision column missing because the row is absent) -- in every case
+    // the row is not at the pinned revision, an optimistic-lock failure that OTSConditionCheckFail
+    // correctly maps to FailedPreconditionException. Unlike runPut, this deliberately does not
+    // remap the conditional failure to ResourceNotFoundException: a delete's failure is about the
+    // revision guard, not row existence, so the two operations surface different exceptions here.
     tableStoreClient.deleteRow(deleteRowRequest);
   }
 
