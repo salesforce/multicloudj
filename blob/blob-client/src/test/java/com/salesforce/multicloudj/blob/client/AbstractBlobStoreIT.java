@@ -2744,11 +2744,13 @@ public abstract class AbstractBlobStoreIT {
 
   /**
    * Fixed retainUntil for object lock tests so WireMock replay matches recorded request body.
+   * Values must remain far in the future so record mode remains valid over time and providers
+   * that reject past retention dates on upload continue to accept the request.
    */
   private static final Instant OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE =
       Instant.parse("2026-03-11T15:47:28.252Z");
   private static final Instant OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE =
-      Instant.parse("2026-03-11T15:47:25.512Z");
+      Instant.parse("2100-01-01T00:00:00Z");
   private static final Instant OBJECT_LOCK_RETAIN_UNTIL_DIRECTORY_UPLOAD =
       Instant.parse("2030-04-30T00:00:00Z");
 
@@ -4558,6 +4560,50 @@ public abstract class AbstractBlobStoreIT {
   }
 
   /**
+   * Best-effort cleanup for blobs left behind by object-lock tests. Each key is walked through
+   * three independent steps so partial failures don't skip remaining work:
+   *
+   * <ol>
+   *   <li>Release legal hold, if any.
+   *   <li>Shorten the object's retention with {@code bypassGovernanceRetention=true}. This clears
+   *       GOVERNANCE/UNLOCKED retention so the subsequent delete can succeed. COMPLIANCE/LOCKED
+   *       retention cannot be shortened; the delete step still runs and creates a delete-marker
+   *       on a versioned bucket, which is sufficient to let re-record runs re-upload the key.
+   *   <li>Delete the blob (creates a delete-marker on versioned buckets).
+   * </ol>
+   *
+   * <p>Every step swallows exceptions so tests that call this in a {@code finally} block always
+   * make progress across all supplied keys.
+   */
+  private void safeCleanupLockedBlobs(BucketClient bucketClient, String... keys) {
+    Instant clearedRetention = Instant.parse("2020-01-01T00:00:00Z");
+    for (String key : keys) {
+      try {
+        bucketClient.updateLegalHold(key, null, false);
+      } catch (Throwable t) {
+        // Ignore
+      }
+      try {
+        bucketClient.updateObjectRetention(
+            key,
+            null,
+            ObjectRetentionConfig.builder()
+                .mode(RetentionMode.GOVERNANCE)
+                .retainUntilDate(clearedRetention)
+                .bypassGovernanceRetention(Boolean.TRUE)
+                .build());
+      } catch (Throwable t) {
+        // Ignore
+      }
+      try {
+        bucketClient.delete(key, null);
+      } catch (Throwable t) {
+        // Ignore
+      }
+    }
+  }
+
+  /**
    * Asserts that the user-visible portion of {@code actual} blob metadata equals {@code expected},
    * ignoring SDK-internal entries that the blob clients stamp onto uploaded objects. Today that
    * means the {@code sdk-logging-correlation-id} key the SDK persists to tie a stored
@@ -5931,7 +5977,7 @@ public abstract class AbstractBlobStoreIT {
             .useEventBasedHold(false)
             .build();
 
-    String prefix = "conformance-tests/directory-objectlock/upload-with-lock-v1";
+    String prefix = "conformance-tests/directory-objectlock/upload-with-lock";
 
     DirectoryUploadRequest request =
         DirectoryUploadRequest.builder()
@@ -5977,7 +6023,7 @@ public abstract class AbstractBlobStoreIT {
       while (cleanupBlobs.hasNext()) {
         cleanupKeys.add(cleanupBlobs.next().getKey());
       }
-      safeDeleteBlobs(bucketClient, cleanupKeys.toArray(new String[0]));
+      safeCleanupLockedBlobs(bucketClient, cleanupKeys.toArray(new String[0]));
     }
 
     blobStore.close();

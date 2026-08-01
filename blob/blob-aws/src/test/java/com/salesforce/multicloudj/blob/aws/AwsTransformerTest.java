@@ -2108,6 +2108,26 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testToObjectLockInfo_LegalHoldOnly() {
+    var legalHoldResponse =
+        GetObjectLegalHoldResponse.builder()
+            .legalHold(ObjectLockLegalHold.builder().status(ObjectLockLegalHoldStatus.ON).build())
+            .build();
+
+    var result = transformer.toObjectLockInfo(null, legalHoldResponse);
+
+    assertNotNull(result);
+    assertTrue(result.isLegalHold());
+    assertNull(result.getMode());
+    assertNull(result.getRetainUntilDate());
+  }
+
+  @Test
+  void testToObjectLockInfo_NoRetentionAndNoLegalHold() {
+    assertNull(transformer.toObjectLockInfo(null, null));
+  }
+
+  @Test
   void testToObjectLockInfo_WithComplianceMode() {
     var retentionResponse =
         GetObjectRetentionResponse.builder()

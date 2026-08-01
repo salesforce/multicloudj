@@ -1,9 +1,9 @@
 {
-  "id" : "ad67e07c-9a30-436b-81f8-ff51032cfb20",
-  "name" : "GcpBlobStoreIT_testUploadDirectory_WithObjectLock-POST-10",
+  "id" : "0750e360-0fc1-4694-921d-90e875d4b027",
+  "name" : "GcpBlobStoreIT_testUploadDirectory_WithObjectLock-GET-9",
   "request" : {
     "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdirectory-objectlock%2Fupload-with-lock%2Ffile1.txt",
-    "method" : "POST",
+    "method" : "GET",
     "headers" : {
       "X-Query-Param-Count" : {
         "equalTo" : "1"
@@ -15,12 +15,7 @@
           "equalTo" : "full"
         } ]
       }
-    },
-    "bodyPatterns" : [ {
-      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"generation\":\"1785320563806129\",\"name\":\"conformance-tests/directory-objectlock/upload-with-lock/file1.txt\",\"temporaryHold\":false}",
-      "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : false
-    } ]
+    }
   },
   "response" : {
     "status" : 200,
@@ -28,17 +23,18 @@
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
-      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
       "ETag" : "CLGfkLDV95UDEAI=",
-      "X-GUploader-UploadID" : "AKhXX7Kt8wyWAsOAR1JlDLMviHqLmAlX8QdldPM7ZW5GCQEyVEjn2z_kHyMv_RuftoUaiqnmDJeNt7K2_TH0",
+      "X-GUploader-UploadID" : "AKhXX7LlJjPSyP-8KPX4C-acnBqM-lLns9K3XMsE4ZWo8Hh5JPrtyys0fb-xw5rS1MJpruA4AfFGDGcZRQrF",
       "Vary" : [ "Origin", "X-Origin" ],
-      "Pragma" : "no-cache",
-      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Wed, 29 Jul 2026 10:22:50 GMT",
+      "Expires" : "Wed, 29 Jul 2026 10:22:51 GMT",
+      "Date" : "Wed, 29 Jul 2026 10:22:51 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "ad67e07c-9a30-436b-81f8-ff51032cfb20",
+  "uuid" : "0750e360-0fc1-4694-921d-90e875d4b027",
   "persistent" : true,
-  "insertionIndex" : 1454
+  "scenarioName" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-directory-objectlock-upload-with-lock-file1.txt",
+  "requiredScenarioState" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-directory-objectlock-upload-with-lock-file1.txt-3",
+  "insertionIndex" : 1453
 }
