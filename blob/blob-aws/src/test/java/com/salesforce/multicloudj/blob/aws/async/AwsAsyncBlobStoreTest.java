@@ -69,10 +69,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -771,6 +774,33 @@ public class AwsAsyncBlobStoreTest {
             .map(ObjectIdentifier::key)
             .collect(Collectors.toList());
     assertTrue(identifiers.containsAll(keys));
+  }
+
+  @Test
+  void testDoBulkDeleteChunksAtS3KeyLimit() throws ExecutionException, InterruptedException {
+    int totalObjects = 2050;
+    List<BlobIdentifier> objects = new ArrayList<>(totalObjects);
+    for (int i = 0; i < totalObjects; i++) {
+      objects.add(new BlobIdentifier("object-" + i, "version-" + i));
+    }
+    DeleteObjectsResponse response = mock(DeleteObjectsResponse.class);
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class))).thenReturn(future(response));
+
+    aws.doDelete(objects).get();
+
+    ArgumentCaptor<DeleteObjectsRequest> requestCaptor =
+        ArgumentCaptor.forClass(DeleteObjectsRequest.class);
+    // 2050 objects => ceil(2050 / 1000) = 3 requests
+    verify(mockS3Client, times(3)).deleteObjects(requestCaptor.capture());
+
+    Set<String> deletedKeys = new HashSet<>();
+    for (DeleteObjectsRequest request : requestCaptor.getAllValues()) {
+      assertEquals("bucket-1", request.bucket());
+      List<ObjectIdentifier> ids = request.delete().objects();
+      assertTrue(ids.size() <= 1000, "request exceeded S3 1000-key limit: " + ids.size());
+      ids.forEach(id -> deletedKeys.add(id.key()));
+    }
+    assertEquals(totalObjects, deletedKeys.size());
   }
 
   @Test
