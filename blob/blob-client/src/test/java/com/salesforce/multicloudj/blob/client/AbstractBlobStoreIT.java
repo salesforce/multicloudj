@@ -2748,9 +2748,9 @@ public abstract class AbstractBlobStoreIT {
    * that reject past retention dates on upload continue to accept the request.
    */
   private static final Instant OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE =
-      Instant.parse("2026-03-11T15:47:28.252Z");
+      Instant.parse("2030-04-30T00:00:00Z");
   private static final Instant OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE =
-      Instant.parse("2100-01-01T00:00:00Z");
+      Instant.parse("2030-04-30T00:00:00Z");
   private static final Instant OBJECT_LOCK_RETAIN_UNTIL_DIRECTORY_UPLOAD =
       Instant.parse("2030-04-30T00:00:00Z");
 
@@ -2794,8 +2794,10 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testGetObjectLock_afterUploadWithRetentionCompliance() throws IOException {
-    // Ali: OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE constant is in the past; OSS rejects it in
-    // record mode. Requires cross-provider fix to the stale constant + re-recording all stubs.
+    // Ali: OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE was previously in the past, which OSS rejected in
+    // record mode. The constant has been bumped forward, but the Ali code path and its stubs
+    // were not re-recorded as part of that change, so this test remains skipped for Ali until
+    // its stubs are regenerated.
     Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
 
     String key = "conformance-tests/objectlock/retention-compliance";
