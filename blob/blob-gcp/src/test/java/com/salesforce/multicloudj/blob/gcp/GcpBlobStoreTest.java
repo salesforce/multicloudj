@@ -2376,6 +2376,49 @@ class GcpBlobStoreTest {
     return (PoolingHttpClientConnectionManager) field.get(httpClient);
   }
 
+  private static org.apache.http.HttpResponseInterceptor[] extractResponseInterceptors(
+      CloseableHttpClient httpClient) throws Exception {
+    // Apache wires response interceptors into the InternalHttpClient's private "execChain": a
+    // stack of ClientExecChain wrappers that each delegate through a "requestExecutor" field until
+    // reaching the ProtocolExec, which owns the ImmutableHttpProcessor holding the interceptors.
+    Field execChainField = httpClient.getClass().getDeclaredField("execChain");
+    execChainField.setAccessible(true);
+    Object node = execChainField.get(httpClient);
+
+    Object httpProcessor = null;
+    while (node != null) {
+      Field processorField = findFieldOrNull(node.getClass(), "httpProcessor");
+      if (processorField != null) {
+        processorField.setAccessible(true);
+        httpProcessor = processorField.get(node);
+        break;
+      }
+      Field delegateField = findFieldOrNull(node.getClass(), "requestExecutor");
+      if (delegateField == null) {
+        break;
+      }
+      delegateField.setAccessible(true);
+      node = delegateField.get(node);
+    }
+    assertNotNull(httpProcessor, "could not locate httpProcessor in the client exec chain");
+
+    Field interceptorsField =
+        httpProcessor.getClass().getDeclaredField("responseInterceptors");
+    interceptorsField.setAccessible(true);
+    return (org.apache.http.HttpResponseInterceptor[]) interceptorsField.get(httpProcessor);
+  }
+
+  private static Field findFieldOrNull(Class<?> type, String name) {
+    for (Class<?> c = type; c != null; c = c.getSuperclass()) {
+      try {
+        return c.getDeclaredField(name);
+      } catch (NoSuchFieldException ignored) {
+        // keep walking up the hierarchy
+      }
+    }
+    return null;
+  }
+
   @Test
   void testShouldConfigureHttpClient_falseWhenNothingSet() throws Exception {
     GcpBlobStore.Builder builder = new GcpBlobStore.Builder();
@@ -2420,6 +2463,24 @@ class GcpBlobStoreTest {
     GcpBlobStore.Builder builder =
         (GcpBlobStore.Builder) new GcpBlobStore.Builder().withMetricsPublisher(metrics -> {});
     assertTrue(invokeShouldConfigureHttpClient(builder));
+  }
+
+  @Test
+  void testBuildHttpClient_metricsOnlyInstallsPoolMetricsInterceptor() throws Exception {
+    // End-to-end wiring: a metrics-only builder must actually register the pool-sampling
+    // interceptor on the built HttpClient — not merely pass the shouldConfigureHttpClient gate.
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder) new GcpBlobStore.Builder().withMetricsPublisher(metrics -> {});
+
+    org.apache.http.HttpResponseInterceptor[] interceptors =
+        extractResponseInterceptors(invokeBuildHttpClient(builder));
+
+    boolean installed =
+        java.util.Arrays.stream(interceptors)
+            .anyMatch(i -> i instanceof GcpConnectionPoolMetricsInterceptor);
+    assertTrue(
+        installed,
+        "metrics-only client must register GcpConnectionPoolMetricsInterceptor on its transport");
   }
 
   private static boolean invokeShouldConfigureHttpClient(GcpBlobStore.Builder builder)
