@@ -1,5 +1,5 @@
 {
-  "id" : "2ef42e9f-bb18-4454-9e97-a5fbeed12094",
+  "id" : "f7fe6e7c-08dd-409c-a0f2-0a6301dda220",
   "name" : "AwsBlobStoreIT_testGetObjectLock_afterUploadWithRetentionCompliance-DELETE-0",
   "request" : {
     "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/retention-compliance",
@@ -10,13 +10,13 @@
     "headers" : {
       "Server" : "AmazonS3",
       "x-amz-delete-marker" : "true",
-      "x-amz-request-id" : "HKZV8MSQ4Z3ZS5EN",
-      "x-amz-id-2" : "DTgiCl41YtB+B1fUk+jKJbczJ8xR7fLh+yFh3kVD6qqoFjV5tA25McTMEQDgHTrqHLhPqmMWGZs=",
-      "x-amz-version-id" : "dgfAa8W..c5.DiJ0.jxtZFXKdwube9Dr",
-      "Date" : "Wed, 29 Jul 2026 02:27:02 GMT"
+      "x-amz-request-id" : "8362MM7BTN9D3CTD",
+      "x-amz-id-2" : "PN5l+DrntdgHl7vePiX1i4k0JZNLLJ8nFiFa96nRpAU2R2nKnIX9QCYmGvdmqnY7UgQTD8YAlgnjasZ566vvcD/7ORRkV/jx",
+      "x-amz-version-id" : "mqlj96naITwXHB7pqK78ofzfdCp94ju9",
+      "Date" : "Mon, 03 Aug 2026 20:38:51 GMT"
     }
   },
-  "uuid" : "2ef42e9f-bb18-4454-9e97-a5fbeed12094",
+  "uuid" : "f7fe6e7c-08dd-409c-a0f2-0a6301dda220",
   "persistent" : true,
-  "insertionIndex" : 776
+  "insertionIndex" : 777
 }
