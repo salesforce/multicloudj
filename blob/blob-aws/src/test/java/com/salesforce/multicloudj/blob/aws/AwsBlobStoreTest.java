@@ -1876,6 +1876,71 @@ public class AwsBlobStoreTest {
   }
 
   @Test
+  void testGetObjectLock_RetentionAbsent_LegalHoldPresent() {
+    String key = "test-key";
+    S3Exception noRetention =
+        (S3Exception)
+            S3Exception.builder()
+                .statusCode(404)
+                .awsErrorDetails(
+                    AwsErrorDetails.builder().errorCode("NoSuchObjectLockConfiguration").build())
+                .build();
+    GetObjectLegalHoldResponse legalHoldResponse =
+        GetObjectLegalHoldResponse.builder()
+            .legalHold(ObjectLockLegalHold.builder().status(ObjectLockLegalHoldStatus.ON).build())
+            .build();
+
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenThrow(noRetention);
+    when(mockS3Client.getObjectLegalHold(any(GetObjectLegalHoldRequest.class)))
+        .thenReturn(legalHoldResponse);
+
+    ObjectLockInfo result = aws.getObjectLock(key, null);
+
+    assertNotNull(result);
+    assertTrue(result.isLegalHold());
+    assertNull(result.getMode());
+    assertNull(result.getRetainUntilDate());
+  }
+
+  @Test
+  void testGetObjectLock_BothAbsent() {
+    String key = "test-key";
+    S3Exception noSuchLock =
+        (S3Exception)
+            S3Exception.builder()
+                .statusCode(404)
+                .awsErrorDetails(
+                    AwsErrorDetails.builder().errorCode("NoSuchObjectLockConfiguration").build())
+                .build();
+
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenThrow(noSuchLock);
+    when(mockS3Client.getObjectLegalHold(any(GetObjectLegalHoldRequest.class)))
+        .thenThrow(noSuchLock);
+
+    ObjectLockInfo result = aws.getObjectLock(key, null);
+
+    assertNull(result);
+  }
+
+  @Test
+  void testGetObjectLock_RetentionOtherS3Error_Propagates() {
+    String key = "test-key";
+    S3Exception accessDenied =
+        (S3Exception)
+            S3Exception.builder()
+                .statusCode(403)
+                .awsErrorDetails(AwsErrorDetails.builder().errorCode("AccessDenied").build())
+                .build();
+
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenThrow(accessDenied);
+
+    assertThrows(S3Exception.class, () -> aws.getObjectLock(key, null));
+  }
+
+  @Test
   void testUpdateObjectRetention_Success() {
     // Given
     String key = "test-key";

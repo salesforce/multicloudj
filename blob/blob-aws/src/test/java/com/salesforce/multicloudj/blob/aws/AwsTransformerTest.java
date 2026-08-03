@@ -823,6 +823,137 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testToCreateMultipartUploadRequest_correlationIdInjectedIntoMetadata() {
+    var ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    var mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals("user-value", request.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        request.metadata().get("sdk-logging-correlation-id"),
+        "transformer must persist the operation correlation_id under the well-known metadata key");
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequest_correlationIdNotInjectedWhenContextMissing() {
+    var metadata = Map.of("user-key", "user-value");
+    var mpuRequest =
+        new MultipartUploadRequest.Builder().withKey("object-1").withMetadata(metadata).build();
+
+    var request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals(metadata, request.metadata());
+    assertFalse(
+        request.metadata().containsKey("sdk-logging-correlation-id"),
+        "no injection when the request carries no OperationContext");
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequest_userSuppliedCorrelationIdNotOverwritten() {
+    var ctx = OperationContext.builder().correlationId("sdk-generated").build();
+    var mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(Map.of("sdk-logging-correlation-id", "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    var request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals(
+        "user-supplied",
+        request.metadata().get("sdk-logging-correlation-id"),
+        "application's explicit sdk-logging-correlation-id metadata value"
+            + " must take precedence over the SDK's");
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequest_serviceIdAndTenantIdInjectedIntoMetadata() {
+    var ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("keystone-boxoffice")
+            .tenantId("tenant-42")
+            .build();
+    var mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals("user-value", request.metadata().get("user-key"));
+    assertEquals(
+        "keystone-boxoffice",
+        request.metadata().get("sdk-logging-service-id"),
+        "transformer must persist the operation service_id under the well-known metadata key");
+    assertEquals(
+        "tenant-42",
+        request.metadata().get("sdk-logging-tenant-id"),
+        "transformer must persist the operation tenant_id under the well-known metadata key");
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequest_blankServiceIdAndTenantIdNotInjected() {
+    var ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("")
+            .tenantId("   ")
+            .build();
+    var mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertFalse(
+        request.metadata().containsKey("sdk-logging-service-id"),
+        "blank serviceId must be skipped, not stamped as an empty metadata value");
+    assertFalse(
+        request.metadata().containsKey("sdk-logging-tenant-id"),
+        "blank tenantId must be skipped, not stamped as an empty metadata value");
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequest_userSuppliedServiceIdAndTenantIdNotOverwritten() {
+    var ctx =
+        OperationContext.builder().serviceId("sdk-service").tenantId("sdk-tenant").build();
+    var mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(
+                Map.of(
+                    "sdk-logging-service-id", "user-service",
+                    "sdk-logging-tenant-id", "user-tenant"))
+            .withOperationContext(ctx)
+            .build();
+
+    var request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals(
+        "user-service",
+        request.metadata().get("sdk-logging-service-id"),
+        "application's explicit service_id metadata value must take precedence over the SDK's");
+    assertEquals(
+        "user-tenant",
+        request.metadata().get("sdk-logging-tenant-id"),
+        "application's explicit tenant_id metadata value must take precedence over the SDK's");
+  }
+
+  @Test
   void testToCreateMultipartUploadRequestWithObjectLock() {
     Map<String, String> metadata = Map.of(TEST_METADATA_KEY, TEST_METADATA_VALUE);
     Instant retainUntil = Instant.parse("2026-12-31T23:59:59Z");
@@ -1675,6 +1806,47 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testToMultipartUpload_handleEchoesStampedMetadata() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("keystone-boxoffice")
+            .tenantId("tenant-42")
+            .build();
+    MultipartUploadRequest mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+    CreateMultipartUploadResponse response =
+        CreateMultipartUploadResponse.builder()
+            .bucket(BUCKET)
+            .key("object-1")
+            .uploadId("upload-id")
+            .build();
+
+    MultipartUpload mpu = transformer.toMultipartUpload(mpuRequest, response);
+
+    // The returned handle echoes the stamped metadata so it reflects what actually lands on the
+    // object, matching the create request and a subsequent getMetadata read-back.
+    Map<String, String> handleMetadata = mpu.getMetadata();
+    assertEquals("user-value", handleMetadata.get("user-key"));
+    assertEquals(
+        "keystone-boxoffice",
+        handleMetadata.get("sdk-logging-service-id"),
+        "service id must be echoed onto the multipart upload handle metadata");
+    assertEquals(
+        "tenant-42",
+        handleMetadata.get("sdk-logging-tenant-id"),
+        "tenant id must be echoed onto the multipart upload handle metadata");
+    assertEquals(
+        "req-abc-123",
+        handleMetadata.get("sdk-logging-correlation-id"),
+        "correlation id must be echoed onto the multipart upload handle metadata");
+  }
+
+  @Test
   void testToAwsRetryStrategyWithExponentialMode() {
     RetryConfig config =
         RetryConfig.builder()
@@ -1933,6 +2105,26 @@ public class AwsTransformerTest {
     var result = transformer.toObjectLockInfo(null, legalHoldResponse);
 
     assertNull(result);
+  }
+
+  @Test
+  void testToObjectLockInfo_LegalHoldOnly() {
+    var legalHoldResponse =
+        GetObjectLegalHoldResponse.builder()
+            .legalHold(ObjectLockLegalHold.builder().status(ObjectLockLegalHoldStatus.ON).build())
+            .build();
+
+    var result = transformer.toObjectLockInfo(null, legalHoldResponse);
+
+    assertNotNull(result);
+    assertTrue(result.isLegalHold());
+    assertNull(result.getMode());
+    assertNull(result.getRetainUntilDate());
+  }
+
+  @Test
+  void testToObjectLockInfo_NoRetentionAndNoLegalHold() {
+    assertNull(transformer.toObjectLockInfo(null, null));
   }
 
   @Test
