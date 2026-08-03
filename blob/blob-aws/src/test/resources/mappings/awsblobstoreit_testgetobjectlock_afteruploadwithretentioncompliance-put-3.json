@@ -1,5 +1,5 @@
 {
-  "id" : "f8e22ba0-c5b2-480b-8d39-92532673547a",
+  "id" : "78c52fd4-736e-4f4e-b1bc-df54fea8fce3",
   "name" : "AwsBlobStoreIT_testGetObjectLock_afterUploadWithRetentionCompliance-PUT-3",
   "request" : {
     "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/retention-compliance",
@@ -14,15 +14,15 @@
       "Server" : "AmazonS3",
       "ETag" : "\"a0d246afc0f8baf1e7dd602c80efd967\"",
       "x-amz-checksum-type" : "FULL_OBJECT",
-      "x-amz-request-id" : "5DQYXFP6MV2GTXKP",
+      "x-amz-request-id" : "6QQ3JV9TQC36Q768",
       "x-amz-checksum-crc32c" : "4z8aNg==",
       "x-amz-server-side-encryption" : "AES256",
-      "x-amz-id-2" : "2J1uHZ+Hty26BGEbGFREfUodsoYh5IvtW/fqrXu2z2WJ5dz80cCpOu/DfgsAu/wQCbGNvg7muSI=",
-      "x-amz-version-id" : "HzdERNn9lKGvon7s.Ufl13dsC9KP91m9",
-      "Date" : "Wed, 29 Jul 2026 02:27:00 GMT"
+      "x-amz-id-2" : "3LGVTOGatK21PVCEFfDXJ75kR3L7uX0A0Kzw1NkxU5fCKdSazDfYMkWZMHrcx+VTPsdjxaMvsdOW0kZCAsE8PvVCmqscsy4q",
+      "x-amz-version-id" : ".ejj4fnqDrCGYDEDSDLUKiEmWC9kCi6k",
+      "Date" : "Mon, 03 Aug 2026 20:38:50 GMT"
     }
   },
-  "uuid" : "f8e22ba0-c5b2-480b-8d39-92532673547a",
+  "uuid" : "78c52fd4-736e-4f4e-b1bc-df54fea8fce3",
   "persistent" : true,
-  "insertionIndex" : 779
+  "insertionIndex" : 780
 }
