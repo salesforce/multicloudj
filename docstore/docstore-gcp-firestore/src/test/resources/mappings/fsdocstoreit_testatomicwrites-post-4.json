@@ -1,5 +1,5 @@
 {
-  "id" : "654c6d13-5920-485c-8858-d1afe1df0e2c",
+  "id" : "24ba4a13-e5a6-417d-8796-860cbaccedca",
   "name" : "FSDocstoreIT_testAtomicWrites-POST-4",
   "request" : {
     "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
@@ -17,27 +17,27 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"writes\":[{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites0\",\"currentDocument\":{\"updateTime\":\"2026-03-04T21:20:10.335522Z\"}},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites1\",\"currentDocument\":{\"updateTime\":\"2026-03-04T21:20:10.335522Z\"}},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites2\",\"currentDocument\":{\"updateTime\":\"2026-03-04T21:20:10.335522Z\"}}]}",
+      "equalToJson" : "{\"writes\":[{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWrites:testAtomicWrites0\",\"currentDocument\":{\"updateTime\":\"2026-07-22T23:47:10.248524Z\"}},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWrites:testAtomicWrites1\",\"currentDocument\":{\"updateTime\":\"2026-07-22T23:47:10.248524Z\"}},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWrites:testAtomicWrites2\",\"currentDocument\":{\"updateTime\":\"2026-07-22T23:47:10.248524Z\"}}]}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"writeResults\": [\n    {},\n    {},\n    {}\n  ],\n  \"commitTime\": \"2026-03-04T21:20:11.114674Z\"\n}\n",
+    "body" : "{\n  \"writeResults\": [\n    {},\n    {},\n    {}\n  ],\n  \"commitTime\": \"2026-07-22T23:47:10.726687Z\"\n}\n",
     "headers" : {
       "X-Frame-Options" : "SAMEORIGIN",
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "ESF",
-      "X-Debug-Tracking-ID" : "16079830650618775464;o=1",
+      "X-Debug-Tracking-ID" : "11115393232793370432;o=1",
       "X-Content-Type-Options" : "nosniff",
       "Vary" : [ "Origin", "X-Origin", "Referer" ],
       "X-XSS-Protection" : "0",
-      "Date" : "Wed, 04 Mar 2026 21:20:11 GMT",
+      "Date" : "Wed, 22 Jul 2026 23:47:10 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "654c6d13-5920-485c-8858-d1afe1df0e2c",
+  "uuid" : "24ba4a13-e5a6-417d-8796-860cbaccedca",
   "persistent" : true,
-  "insertionIndex" : 132
+  "insertionIndex" : 237
 }

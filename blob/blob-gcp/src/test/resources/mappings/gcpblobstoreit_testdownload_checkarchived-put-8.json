@@ -1,0 +1,53 @@
+{
+  "id" : "2afa5376-55bc-4ecf-bedd-261c69a92344",
+  "name" : "GcpBlobStoreIT_testDownload_checkArchived-PUT-8",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/check-archived/archived-blob"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      },
+      "upload_id" : {
+        "hasExactly" : [ {
+          "equalTo" : "AKhXX7IqdnTbchdYdm05N75koqCLhcWh8qskw5doRAZWav_2ttEkJN81NF8OAM5g7XrGPa-W-ARaNYV2dq9myTf8NNm3t60BJ84JaeoMc1yDvA"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "archived content",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/check-archived/archived-blob/1784554963821068\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fcheck-archived%2Farchived-blob\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fcheck-archived%2Farchived-blob?generation=1784554963821068&alt=media\",\n  \"name\": \"conformance-tests/check-archived/archived-blob\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1784554963821068\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"16\",\n  \"md5Hash\": \"qYhxiUZF0GoGNk7+a0KvnQ==\",\n  \"crc32c\": \"VQHFnw==\",\n  \"etag\": \"CIzEzaWx4ZUDEAE=\",\n  \"timeCreated\": \"2026-07-20T13:42:43.885Z\",\n  \"updated\": \"2026-07-20T13:42:43.885Z\",\n  \"timeStorageClassUpdated\": \"2026-07-20T13:42:43.885Z\",\n  \"timeFinalized\": \"2026-07-20T13:42:43.885Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CIzEzaWx4ZUDEAE=",
+      "X-GUploader-UploadID" : "AKhXX7IqdnTbchdYdm05N75koqCLhcWh8qskw5doRAZWav_2ttEkJN81NF8OAM5g7XrGPa-W-ARaNYV2dq9myTf8NNm3t60BJ84JaeoMc1yDvA",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Mon, 20 Jul 2026 13:42:43 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "2afa5376-55bc-4ecf-bedd-261c69a92344",
+  "persistent" : true,
+  "insertionIndex" : 1387
+}

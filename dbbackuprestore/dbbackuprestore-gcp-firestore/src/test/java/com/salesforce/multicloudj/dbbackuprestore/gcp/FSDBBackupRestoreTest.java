@@ -105,6 +105,10 @@ public class FSDBBackupRestoreTest {
     assertEquals(2, backups.size());
     assertEquals(BackupStatus.AVAILABLE, backups.get(0).getStatus());
     assertEquals(BackupStatus.CREATING, backups.get(1).getStatus());
+    // Firestore Admin listBackups omits the stats sub-message, so size must be reported as
+    // unavailable (-1), not a misleading 0. This is the path the client's FirestoreBackupStep uses.
+    assertEquals(-1L, backups.get(0).getSizeInBytes());
+    assertEquals(-1L, backups.get(1).getSizeInBytes());
     assertNull(backups.get(0).getVaultId()); // GCP doesn't use vaults
     verify(mockFirestoreClient, times(1)).listBackups(LOCATION);
   }
@@ -147,6 +151,67 @@ public class FSDBBackupRestoreTest {
     assertNull(result.getVaultId());
     verify(mockFirestoreClient, times(1))
         .getBackup("projects/my-project/locations/us-central1/backups/backup-123");
+  }
+
+  @Test
+  void testGetBackup_NoStats_ReturnsMinusOne() {
+    // Firestore Admin often omits the stats sub-message (e.g. on the REST/HTTP-JSON transport, and
+    // for backups whose stats have not materialized). Absent stats must map to -1 (unavailable),
+    // not the protobuf default 0 that would otherwise leak through getStats().getSizeBytes().
+    Backup backup =
+        Backup.newBuilder()
+            .setName("projects/my-project/locations/us-central1/backups/backup-nostats")
+            .setDatabase("projects/my-project/databases/(default)")
+            .setState(Backup.State.READY)
+            .setSnapshotTime(
+                Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build())
+            .setExpireTime(
+                Timestamp.newBuilder()
+                    .setSeconds(Instant.now().plusSeconds(86400).getEpochSecond())
+                    .build())
+            .build();
+
+    when(mockFirestoreClient.getBackup(
+            "projects/my-project/locations/us-central1/backups/backup-nostats"))
+        .thenReturn(backup);
+
+    com.salesforce.multicloudj.dbbackuprestore.driver.Backup result =
+        dbBackupRestore.getBackup(
+            "projects/my-project/locations/us-central1/backups/backup-nostats");
+
+    assertNotNull(result);
+    assertEquals(BackupStatus.AVAILABLE, result.getStatus());
+    assertEquals(-1L, result.getSizeInBytes());
+  }
+
+  @Test
+  void testGetBackup_StatsPresentWithZeroSize_ReturnsZero() {
+    // A genuinely empty backup (stats present, size 0) must report 0, not -1. hasStats() lets us
+    // distinguish "field absent" (unavailable) from "present with a real zero".
+    Backup backup =
+        Backup.newBuilder()
+            .setName("projects/my-project/locations/us-central1/backups/backup-empty")
+            .setDatabase("projects/my-project/databases/(default)")
+            .setState(Backup.State.READY)
+            .setSnapshotTime(
+                Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build())
+            .setExpireTime(
+                Timestamp.newBuilder()
+                    .setSeconds(Instant.now().plusSeconds(86400).getEpochSecond())
+                    .build())
+            .setStats(Backup.Stats.newBuilder().setSizeBytes(0).build())
+            .build();
+
+    when(mockFirestoreClient.getBackup(
+            "projects/my-project/locations/us-central1/backups/backup-empty"))
+        .thenReturn(backup);
+
+    com.salesforce.multicloudj.dbbackuprestore.driver.Backup result =
+        dbBackupRestore.getBackup(
+            "projects/my-project/locations/us-central1/backups/backup-empty");
+
+    assertNotNull(result);
+    assertEquals(0L, result.getSizeInBytes());
   }
 
   @Test

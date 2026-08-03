@@ -1,0 +1,53 @@
+{
+  "id" : "bf30c825-c1fc-4a7b-b8fd-17611dd8dbc9",
+  "name" : "GcpBlobStoreIT_testUpdateObjectRetention_compliance_extend_succeeds-PUT-5",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/objectlock/update/comp-extend"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      },
+      "upload_id" : {
+        "hasExactly" : [ {
+          "equalTo" : "AKhXX7IYFmY9ZB3tzFqVavXcHSsMf1nascuRJbiiQtr5O3tmcRv6ZpQ6Ybm-01KbE06CEkijBpIZCY-3O7RVgaGquow-N8bryohxQRxkCbvatg"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "retention-update-conformance-tests/objectlock/update/comp-extend",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/objectlock/update/comp-extend/1784554997622247\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fcomp-extend\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fcomp-extend?generation=1784554997622247&alt=media\",\n  \"name\": \"conformance-tests/objectlock/update/comp-extend\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1784554997622247\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"64\",\n  \"md5Hash\": \"vWPifY4f/HsqfoKrZKIf6g==\",\n  \"crc32c\": \"WUEpvQ==\",\n  \"etag\": \"COfL3LWx4ZUDEAE=\",\n  \"temporaryHold\": false,\n  \"retentionExpirationTime\": \"2030-01-01T00:00:00.000Z\",\n  \"retention\": {\n    \"retainUntilTime\": \"2030-01-01T00:00:00.000Z\",\n    \"mode\": \"Locked\"\n  },\n  \"timeCreated\": \"2026-07-20T13:43:17.701Z\",\n  \"updated\": \"2026-07-20T13:43:17.701Z\",\n  \"timeStorageClassUpdated\": \"2026-07-20T13:43:17.701Z\",\n  \"timeFinalized\": \"2026-07-20T13:43:17.701Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "COfL3LWx4ZUDEAE=",
+      "X-GUploader-UploadID" : "AKhXX7IYFmY9ZB3tzFqVavXcHSsMf1nascuRJbiiQtr5O3tmcRv6ZpQ6Ybm-01KbE06CEkijBpIZCY-3O7RVgaGquow-N8bryohxQRxkCbvatg",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Mon, 20 Jul 2026 13:43:17 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "bf30c825-c1fc-4a7b-b8fd-17611dd8dbc9",
+  "persistent" : true,
+  "insertionIndex" : 1452
+}

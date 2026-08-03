@@ -1,0 +1,26 @@
+{
+  "id" : "b6eb5dc4-df32-4115-85b2-75d0c00e9358",
+  "name" : "AliDocstoreIT_testReplace-POST-13",
+  "request" : {
+    "url" : "/BatchGetRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "CkAKD2RvY3N0b3JlX3Rlc3RfMRIpdQAAAAEDBAUAAABwTmFtZQUQAAAAAwsAAABKb2huUmVwbGFjZQrRCa8aADAB"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CvwBCg9kb2NzdG9yZV90ZXN0XzES6AEIARoGCgQIARAAItsBdQAAAAEDBAUAAABwTmFtZQUQAAAAAwsAAABKb2huUmVwbGFjZQrRAgMEAQAAAGIFAgAAAAIAByfty7mfAQAAChADBAUAAABieXRlcwUTAAAABw4AAAByZXBsYWNlZFN0cmluZwcn7cu5nwEAAApiAwQBAAAAZgUJAAAAAQAAACCuR0FAByfty7mfAQAACmsDBAEAAABpBQkAAAAAXwAAAAAAAAAHJ+3LuZ8BAAAK7AMEAQAAAHMFEwAAAAMOAAAAcmVwbGFjZWRTdHJpbmcHJ+3LuZ8BAAAKPwnk",
+    "headers" : {
+      "x-ots-requestid" : "000657ed-c4a4-b448-1376-2b1a0898c0f0",
+      "Authorization" : "OTS STS.NY3TWDAWC3sV57fGWmx8PCPqs:iOMYQ0ri54viGbfuBEwlDs2Sios=",
+      "x-ots-date" : "2026-07-31T20:09:38.280994Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "JKA2wCituzwoYMofUAjAIw==",
+      "Date" : "Fri, 31 Jul 2026 20:09:38 GMT"
+    }
+  },
+  "uuid" : "b6eb5dc4-df32-4115-85b2-75d0c00e9358",
+  "persistent" : true,
+  "insertionIndex" : 94
+}

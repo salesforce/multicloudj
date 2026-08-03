@@ -27,6 +27,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -81,6 +82,144 @@ public class Main {
 
     // Log the upload response
     getLogger().info("received upload response {}", response);
+  }
+
+  /**
+   * Uploads an object while attaching an {@link OperationContext} that carries a service ID and
+   * tenant ID. The SDK stamps these identifiers onto the stored object's metadata (under the
+   * {@code sdk-logging-service-id} and {@code sdk-logging-tenant-id} keys) so that cloud audit
+   * logs (e.g. S3 server access logs / GCS data access logs) can be traced back to the calling
+   * service and tenant.
+   *
+   * <p>The {@code correlationId} is optional; when supplied it is echoed back on the {@link
+   * UploadResponse} so the caller can correlate this request across its own logs and traces. The
+   * {@code serviceId} and {@code tenantId} are supplied by the caller and are never auto-generated.
+   */
+  public static void uploadWithServiceAndTenantId() {
+    BucketClient client = getBucketClient(getProvider());
+    InputStream content = getInputStream();
+
+    // Build the per-call observability context. All three ids are optional and never
+    // auto-generated; set whichever ones you have. serviceId / tenantId identify who is making the
+    // call; correlationId ties this request together across the caller's own logs and traces and
+    // is the only id echoed back on the response.
+    OperationContext operationContext =
+        OperationContext.builder()
+            .serviceId("my-service")
+            .tenantId("tenant-1234")
+            .correlationId("request-abc-987")
+            .build();
+
+    // Attach the context to the upload request via withOperationContext(...).
+    UploadRequest uploadRequest =
+        new UploadRequest.Builder()
+            .withKey("bucket-path/audited-object.jpg")
+            .withOperationContext(operationContext)
+            .build();
+
+    UploadResponse response = client.upload(uploadRequest, content);
+
+    // The stored object now carries sdk-logging-service-id=my-service,
+    // sdk-logging-tenant-id=tenant-1234 and sdk-logging-correlation-id=request-abc-987
+    // in its object metadata.
+    getLogger().info("received upload response {}", response);
+    getLogger().info("correlation id echoed back: {}", response.getCorrelationId());
+
+    // Read the object back to demonstrate that the service id, tenant id and correlation id were
+    // stamped onto its metadata. serviceId / tenantId are not echoed on the response (the caller
+    // supplied them), so the object metadata is where their effect is observable.
+    BlobMetadata metadata = client.getMetadata("bucket-path/audited-object.jpg", null);
+    getLogger().info("stamped object metadata: {}", metadata.getMetadata());
+    // -> {sdk-logging-service-id=my-service, sdk-logging-tenant-id=tenant-1234,
+    //     sdk-logging-correlation-id=request-abc-987}
+  }
+
+  /**
+   * ASYNC counterpart of {@link #uploadWithServiceAndTenantId()}. Threads a single {@link
+   * OperationContext} (serviceId / tenantId / correlationId) through the context-aware {@link
+   * AsyncBucketClient} APIs and blocks on each {@link CompletableFuture} so the demo runs
+   * sequentially and every SDK observability log line carries the same correlation_id / tenant_id /
+   * service_id MDC fields.
+   *
+   * <p>Exercised APIs: {@code upload(UploadRequest, byte[])}, {@code getMetadata(key, null, ctx)},
+   * {@code getTags(key, ctx)}, the multipart lifecycle ({@code initiateMultipartUpload} →
+   * {@code uploadMultipartPart} → {@code listMultipartUpload} → {@code completeMultipartUpload}),
+   * and both {@code delete(...)} overloads.
+   */
+  public static void asyncUploadWithServiceAndTenantId() {
+    AsyncBucketClient client = getAsyncBucketClient(getProvider());
+
+    OperationContext operationContext =
+        OperationContext.builder()
+            .serviceId("my-service")
+            .tenantId("tenant-1234")
+            .correlationId("request-abc-987") // optional; echoed back on the response
+            .build();
+
+    long stamp = System.currentTimeMillis();
+    String simpleKey = "async-audited-object-" + stamp;
+    String multipartKey = "async-multipart-audited-object-" + stamp;
+
+    try {
+      // 1. Single-shot upload with the context attached to the UploadRequest.
+      UploadRequest uploadRequest =
+          new UploadRequest.Builder()
+              .withKey(simpleKey)
+              .withTags(Map.of("tagKey1", "tagVal1"))
+              .withOperationContext(operationContext)
+              .build();
+      UploadResponse uploadResponse =
+          client.upload(uploadRequest, "async upload content".getBytes()).join();
+      getLogger().info("async upload response: {}", uploadResponse);
+      getLogger().info("correlation id echoed back: {}", uploadResponse.getCorrelationId());
+
+      // 2. getMetadata(key, versionId, ctx) — read back the stamped identifiers.
+      BlobMetadata metadata = client.getMetadata(simpleKey, null, operationContext).join();
+      getLogger().info("stamped object metadata: {}", metadata.getMetadata());
+      // -> {sdk-logging-service-id=my-service, sdk-logging-tenant-id=tenant-1234,
+      //     sdk-logging-correlation-id=request-abc-987}
+
+      // 3. getTags(key, ctx).
+      Map<String, String> tags = client.getTags(simpleKey, operationContext).join();
+      getLogger().info("blob tags: {}", tags);
+
+      // 4. Multipart lifecycle, context on initiate + each explicit-context call.
+      MultipartUploadRequest mpuRequest =
+          new MultipartUploadRequest.Builder()
+              .withKey(multipartKey)
+              .withOperationContext(operationContext)
+              .build();
+      MultipartUpload mpu = client.initiateMultipartUpload(mpuRequest).join();
+      getLogger().info("initiated multipart upload: {}", mpu.getId());
+
+      byte[] partContent = "multipart async content".getBytes();
+      MultipartPart part = new MultipartPart(1, partContent);
+      UploadPartResponse partResponse =
+          client.uploadMultipartPart(mpu, part, operationContext).join();
+      getLogger().info("uploaded part: {}", partResponse.getPartNumber());
+
+      List<UploadPartResponse> listedParts =
+          client.listMultipartUpload(mpu, operationContext).join();
+      getLogger().info("listed {} multipart part(s)", listedParts.size());
+
+      MultipartUploadResponse mpuResponse =
+          client.completeMultipartUpload(mpu, List.of(partResponse), operationContext).join();
+      getLogger().info("completed multipart upload, etag: {}", mpuResponse.getEtag());
+
+      // 5. getMetadata on the completed multipart object to confirm stamped identifiers.
+      BlobMetadata mpuMetadata = client.getMetadata(multipartKey, null, operationContext).join();
+      getLogger().info("stamped multipart object metadata: {}", mpuMetadata.getMetadata());
+
+      // 6. delete(key, versionId, ctx) and delete(Collection<BlobIdentifier>, ctx).
+      client.delete(simpleKey, null, operationContext).join();
+      client
+          .delete(List.of(new BlobIdentifier(multipartKey, null)), operationContext)
+          .join();
+      getLogger().info("deleted async validation objects");
+    } catch (Exception e) {
+      getLogger().error("async validation failed", e);
+      throw new RuntimeException(e);
+    }
   }
 
   /**
@@ -358,6 +497,76 @@ public class Main {
       try {
         bucketClient.abortMultipartUpload(upload);
         getLogger().info("Aborted multipart upload");
+      } catch (Exception abortEx) {
+        getLogger().error("Failed to abort multipart upload", abortEx);
+      }
+    }
+  }
+
+  /**
+   * Initiates a multipart upload while attaching an {@link OperationContext} that carries a service
+   * ID and tenant ID. The SDK stamps these identifiers onto the created object's metadata (under the
+   * {@code sdk-logging-service-id} and {@code sdk-logging-tenant-id} keys), mirroring the single-shot
+   * {@link #uploadWithServiceAndTenantId()} path, so that cloud audit logs can be traced back to the
+   * calling service and tenant even for objects assembled from multiple parts.
+   *
+   * <p>The {@code correlationId} is optional; when supplied it is also stamped onto the object
+   * metadata (under {@code sdk-logging-correlation-id}). The {@code serviceId} and {@code tenantId}
+   * are supplied by the caller and are never auto-generated.
+   */
+  public static void multipartUploadWithServiceAndTenantId() {
+    BucketClient bucketClient = getBucketClient(getProvider());
+    String key = "multipart-audited-object-" + System.currentTimeMillis();
+
+    // Build the per-call observability context. All three ids are optional and never
+    // auto-generated; set whichever ones you have. serviceId / tenantId identify who is making the
+    // call; correlationId ties this request together across the caller's own logs and traces and
+    // is the only id echoed back on the response.
+    OperationContext operationContext =
+        OperationContext.builder()
+            .serviceId("my-service")
+            .tenantId("tenant-1234")
+            .correlationId("request-abc-987")
+            .build();
+
+    // Attach the context to the multipart-upload request via withOperationContext(...). The SDK
+    // stamps the ids onto the object at initiate time, so the created object carries them once the
+    // upload is completed.
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey(key)
+            .withOperationContext(operationContext)
+            .build();
+
+    MultipartUpload upload = bucketClient.initiateMultipartUpload(request);
+    getLogger().info("Initiated multipart upload: id={}", upload.getId());
+
+    try {
+      List<UploadPartResponse> partResponses = new ArrayList<>();
+
+      // Upload a single 5MB part to meet the minimum part-size requirement of some providers.
+      int partSize = 5 * 1024 * 1024;
+      byte[] partData = new byte[partSize];
+      Arrays.fill(partData, (byte) '0');
+
+      UploadPartResponse partResponse =
+          bucketClient.uploadMultipartPart(upload, new MultipartPart(1, partData));
+      partResponses.add(partResponse);
+
+      bucketClient.completeMultipartUpload(upload, partResponses);
+      getLogger().info("Completed multipart upload for key: {}", key);
+
+      // Read the object back to demonstrate that the service id, tenant id and correlation id were
+      // stamped onto its metadata. serviceId / tenantId identify the caller, so the object metadata
+      // is where their effect is observable.
+      BlobMetadata metadata = bucketClient.getMetadata(key, null);
+      getLogger().info("stamped object metadata: {}", metadata.getMetadata());
+      // -> {sdk-logging-service-id=my-service, sdk-logging-tenant-id=tenant-1234,
+      //     sdk-logging-correlation-id=request-abc-987}
+    } catch (Exception e) {
+      getLogger().error("Multipart upload failed, aborting...", e);
+      try {
+        bucketClient.abortMultipartUpload(upload);
       } catch (Exception abortEx) {
         getLogger().error("Failed to abort multipart upload", abortEx);
       }

@@ -6,7 +6,10 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -37,6 +40,8 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -65,6 +70,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 
 /** InMemory implementation of BlobStore for testing purposes */
 @AutoService(AbstractBlobStore.class)
@@ -73,11 +79,22 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   private static final String PROVIDER_ID = "memory";
 
   /**
-   * Object-metadata key under which the SDK persists the operation correlation id during upload,
-   * so the value is stored on the blob alongside the user's metadata and matches the correlation
-   * id that appears in the same upload's logs and trace span.
+   * Object-metadata key under which the SDK persists the operation correlation id during upload, so
+   * the value is stored on the blob alongside the user's metadata.
    */
-  public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
+  public static final String CORRELATION_ID_METADATA_KEY = SdkLoggingMetadataKeys.CORRELATION_ID;
+
+  /**
+   * Object-metadata key under which the SDK persists the operation service id during upload, so the
+   * value is stored on the blob alongside the user's metadata.
+   */
+  public static final String SERVICE_ID_METADATA_KEY = SdkLoggingMetadataKeys.SERVICE_ID;
+
+  /**
+   * Object-metadata key under which the SDK persists the operation tenant id during upload, so the
+   * value is stored on the blob alongside the user's metadata.
+   */
+  public static final String TENANT_ID_METADATA_KEY = SdkLoggingMetadataKeys.TENANT_ID;
 
   // Shared storage across all instances - key is "bucket:key:versionId"
   private static final Map<String, StoredBlob> STORAGE = new ConcurrentHashMap<>();
@@ -133,6 +150,31 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
   }
 
+  /**
+   * Returns a mutable copy of the supplied metadata with the operation context's correlation id,
+   * service id and tenant id stamped onto it. Each key is skipped when the context is absent, when
+   * that context value is blank, or when the caller has already supplied the same key.
+   */
+  private static Map<String, String> stampContextMetadata(
+      Map<String, String> source, OperationContext operationContext) {
+    Map<String, String> metadata = source != null ? new HashMap<>(source) : new HashMap<>();
+    if (operationContext != null) {
+      if (StringUtils.isNotBlank(operationContext.getCorrelationId())
+          && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+        metadata.put(CORRELATION_ID_METADATA_KEY, operationContext.getCorrelationId());
+      }
+      if (StringUtils.isNotBlank(operationContext.getServiceId())
+          && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {
+        metadata.put(SERVICE_ID_METADATA_KEY, operationContext.getServiceId());
+      }
+      if (StringUtils.isNotBlank(operationContext.getTenantId())
+          && !metadata.containsKey(TENANT_ID_METADATA_KEY)) {
+        metadata.put(TENANT_ID_METADATA_KEY, operationContext.getTenantId());
+      }
+    }
+    return metadata;
+  }
+
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
     validateBucketExists();
@@ -142,17 +184,10 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     String versionId = UUID.randomUUID().toString();
     String versionedKey = baseKey + ":" + versionId;
 
-    // Copy the application-supplied metadata and stamp the SDK's correlation id on it so
-    // the value persists with the stored blob alongside the user's metadata. Skipped when
-    // the request carries no operation context, or when the app has supplied the same key.
-    Map<String, String> metadata = new HashMap<>(uploadRequest.getMetadata());
-    if (uploadRequest.getOperationContext() != null
-        && uploadRequest.getOperationContext().getCorrelationId() != null
-        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-      metadata.put(
-          CORRELATION_ID_METADATA_KEY,
-          uploadRequest.getOperationContext().getCorrelationId());
-    }
+    // Copy the application-supplied metadata and stamp the SDK's correlation id, service id and
+    // tenant id on it so the values persist with the stored blob alongside the user's metadata.
+    Map<String, String> metadata = stampContextMetadata(uploadRequest.getMetadata(),
+        uploadRequest.getOperationContext());
 
     StoredBlob blob =
         new StoredBlob(
@@ -325,7 +360,12 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     if (!request.isCreateParentPath()) {
       return destination;
     }
-    Path resolved = destination.resolve(request.getKey()).normalize();
+    Path base = destination.normalize();
+    Path resolved = base.resolve(request.getKey()).normalize();
+    if (!resolved.startsWith(base)) {
+      throw new InvalidArgumentException(
+          "Object key resolves outside the download destination directory: " + request.getKey());
+    }
     Path parent = resolved.getParent();
     if (parent != null) {
       try {
@@ -529,6 +569,14 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .createdTime(blob.getLastModified())
         .contentType(blob.getContentType())
         .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
+        .checksum(toDriverChecksum(blob.getData()))
+        .build();
+  }
+
+  private Checksum toDriverChecksum(byte[] data) {
+    return Checksum.builder()
+        .algorithm(ChecksumMethod.CRC32C)
+        .value(computeCrc32cChecksum(data))
         .build();
   }
 
@@ -674,8 +722,15 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     validateBucketExists();
     String uploadId = UUID.randomUUID().toString();
 
+    // Stamp the SDK's correlation id, service id and tenant id onto the metadata so they persist
+    // with the object that this multipart upload eventually creates, matching single-shot upload.
+    // Both the persisted upload state and the returned handle carry the stamped map so the handle
+    // reflects what actually lands on the multipart object.
+    Map<String, String> stampedMetadata =
+        stampContextMetadata(request.getMetadata(), request.getOperationContext());
+
     MultipartUploadState state =
-        new MultipartUploadState(request.getKey(), request.getMetadata(), request.getContentType());
+        new MultipartUploadState(request.getKey(), stampedMetadata, request.getContentType());
 
     MULTIPART_UPLOADS.put(uploadId, state);
 
@@ -683,7 +738,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .id(uploadId)
         .bucket(bucket)
         .key(request.getKey())
-        .metadata(request.getMetadata())
+        .metadata(stampedMetadata)
         .tags(request.getTags())
         .checksumEnabled(request.isChecksumEnabled())
         .kmsKeyId(request.getKmsKeyId())
@@ -898,6 +953,15 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   @Override
+  protected BucketVersioningConfiguration doGetBucketVersioning() {
+    BucketMetadata metadata = BUCKETS.get(bucket);
+    if (metadata == null) {
+      throw new ResourceNotFoundException("Bucket does not exist: " + bucket);
+    }
+    return BucketVersioningConfiguration.of(metadata.getVersioningStatus());
+  }
+
+  @Override
   public void close() {
     // Nothing to close for in-memory implementation
   }
@@ -1072,6 +1136,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .createdTime(blob.getLastModified())
                 .contentType(blob.getContentType())
                 .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
+                .checksum(toDriverChecksum(blob.getData()))
                 .build())
         .build();
   }
@@ -1092,6 +1157,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .createdTime(blob.getLastModified())
                 .contentType(blob.getContentType())
                 .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
+                .checksum(toDriverChecksum(blob.getData()))
                 .build())
         .inputStream(inputStream)
         .build();
@@ -1187,9 +1253,15 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   @Getter
   static class BucketMetadata {
     private final Instant creationDate;
+    private final BucketVersioningStatus versioningStatus;
 
     public BucketMetadata(Instant creationDate) {
+      this(creationDate, BucketVersioningStatus.UNVERSIONED);
+    }
+
+    public BucketMetadata(Instant creationDate, BucketVersioningStatus versioningStatus) {
       this.creationDate = creationDate;
+      this.versioningStatus = versioningStatus;
     }
   }
 
@@ -1281,6 +1353,16 @@ public class InMemoryBlobStore extends AbstractBlobStore {
    */
   public static void createBucket(String bucketName) {
     BUCKETS.putIfAbsent(bucketName, new BucketMetadata(Instant.now()));
+  }
+
+  /**
+   * Creates a bucket with the specified versioning status for testing purposes.
+   *
+   * @param bucketName the name of the bucket to create
+   * @param versioningStatus the initial versioning status for the bucket
+   */
+  public static void createBucket(String bucketName, BucketVersioningStatus versioningStatus) {
+    BUCKETS.putIfAbsent(bucketName, new BucketMetadata(Instant.now(), versioningStatus));
   }
 
   /** Clears all in-memory storage including buckets, blobs, tags, and multipart uploads. */

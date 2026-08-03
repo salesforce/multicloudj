@@ -785,12 +785,27 @@ public abstract class AbstractDocstoreBenchmarkTest {
       }
     }
 
+    // Optional method-name filter, e.g. -DbenchmarkInclude=benchmarkAtomicWrites to run a
+    // single benchmark; defaults to the whole class.
+    String methodFilter = System.getProperty("benchmarkInclude", "");
+    String include =
+        methodFilter.isEmpty()
+            ? ".*" + this.getClass().getName() + ".*"
+            : ".*" + this.getClass().getName() + "\\." + methodFilter + ".*";
+
+    // Optional fork override, e.g. -DbenchmarkForks=3 for tighter confidence intervals.
+    int forks = Integer.getInteger("benchmarkForks", 1);
+
+    String resultFile =
+        System.getProperty(
+            "benchmarkResultFile", "target/jmh-docstore-results-" + getProviderId() + ".json");
+
     Options opt =
         new OptionsBuilder()
-            .include(".*" + this.getClass().getName() + ".*")
-            .forks(1)
+            .include(include)
+            .forks(forks)
             .resultFormat(ResultFormatType.JSON)
-            .result("target/jmh-docstore-results-" + getProviderId() + ".json")
+            .result(resultFile)
             .jvmArgsAppend(forwardedArgs.toArray(new String[0]))
             .build();
 

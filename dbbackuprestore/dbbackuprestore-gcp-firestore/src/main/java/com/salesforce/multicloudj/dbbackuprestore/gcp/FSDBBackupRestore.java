@@ -172,7 +172,7 @@ public class FSDBBackupRestore extends AbstractDBBackupRestore {
         .expiryTime(
             Instant.ofEpochSecond(
                 backup.getExpireTime().getSeconds(), backup.getExpireTime().getNanos()))
-        .sizeInBytes(backup.getStats().getSizeBytes())
+        .sizeInBytes(backup.hasStats() ? backup.getStats().getSizeBytes() : -1)
         .build();
   }
 

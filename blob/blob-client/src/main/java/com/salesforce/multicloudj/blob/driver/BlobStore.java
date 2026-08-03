@@ -278,6 +278,25 @@ public interface BlobStore extends SdkService, Provider {
   boolean doesBucketExist();
 
   /**
+   * Retrieves the bucket's versioning configuration.
+   *
+   * <p>The returned status is normalized across substrates onto {@link BucketVersioningStatus}:
+   *
+   * <ul>
+   *   <li>{@link BucketVersioningStatus#ENABLED} when versioning is active.
+   *   <li>{@link BucketVersioningStatus#SUSPENDED} when versioning was enabled and is now paused.
+   *       Substrates with no distinct suspended state never return this value.
+   *   <li>{@link BucketVersioningStatus#UNVERSIONED} when versioning has never been configured or
+   *       has been turned off.
+   * </ul>
+   *
+   * @return the bucket's versioning configuration
+   * @throws UnsupportedOperationException if the provider does not support bucket versioning
+   *     configuration
+   */
+  BucketVersioningConfiguration getBucketVersioning();
+
+  /**
    * Downloads a directory from the blob store
    *
    * @param directoryDownloadRequest the directory download request
@@ -303,9 +322,17 @@ public interface BlobStore extends SdkService, Provider {
   /**
    * Gets object lock configuration for a blob.
    *
+   * <p>Retention and legal hold are independent sub-resources on an object version; a version may
+   * have neither, only a legal hold, only retention, or both. Implementations return {@code null}
+   * only when the object has <em>neither</em>. If either is present the result is non-null: a
+   * legal-hold-only object surfaces with {@code legalHold=true} and null {@code mode} /
+   * {@code retainUntilDate}, and a retention-only object surfaces with {@code legalHold=false} and
+   * non-null mode / date.
+   *
    * @param key Object key
    * @param versionId Optional version ID. For versioned buckets, null means latest version.
-   * @return ObjectLockInfo containing lock configuration, or null if object lock is not configured
+   * @return ObjectLockInfo describing the object's lock state, or null if the object has neither
+   *     retention nor legal hold configured
    */
   ObjectLockInfo getObjectLock(String key, String versionId);
 

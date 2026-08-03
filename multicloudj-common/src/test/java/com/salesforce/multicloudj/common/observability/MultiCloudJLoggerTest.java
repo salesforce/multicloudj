@@ -376,8 +376,6 @@ class MultiCloudJLoggerTest {
     assertNull(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
   }
 
-  // --- tenantId ------------------------------------------------------------
-
   @Test
   void tenantId_provided_setOnSpanAttributeAndMdc() {
     MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
@@ -420,6 +418,29 @@ class MultiCloudJLoggerTest {
     assertNull(
         otel.getSpans().get(0).getAttributes().get(AttributeKey.stringKey("tenant_id")),
         "tenant_id span attribute should not be set when tenant is missing");
+  }
+
+  @Test
+  void tenantId_blank_notSetOnSpanAttribute_andNotInMdc() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    // A blank (whitespace-only) tenant_id must be treated as absent by the isNotBlank guard.
+    OperationContext input =
+        OperationContext.builder().correlationId("req-1").tenantId("   ").build();
+    AtomicReference<String> capturedTenant = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        input,
+        ctx -> {
+          capturedTenant.set(MDC.get(MultiCloudJLogger.MDC_TENANT_ID));
+          return null;
+        });
+
+    assertNull(capturedTenant.get(), "blank tenant_id must not be put in MDC");
+    assertNull(
+        otel.getSpans().get(0).getAttributes().get(AttributeKey.stringKey("tenant_id")),
+        "blank tenant_id must not be set as a span attribute");
   }
 
   @Test
@@ -479,6 +500,129 @@ class MultiCloudJLoggerTest {
     assertNull(resolved.get().getTenantId(), "tenant_id must NOT be auto-generated");
   }
 
+  @Test
+  void serviceId_provided_setOnSpanAttributeAndMdc() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    OperationContext input =
+        OperationContext.builder().correlationId("req-1").serviceId("svc-1").build();
+    AtomicReference<String> capturedService = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        input,
+        ctx -> {
+          capturedService.set(MDC.get(MultiCloudJLogger.MDC_SERVICE_ID));
+          return null;
+        });
+
+    assertEquals("svc-1", capturedService.get(), "service_id should be in MDC during operation");
+    assertEquals(
+        "svc-1",
+        otel.getSpans().get(0).getAttributes().get(AttributeKey.stringKey("service_id")),
+        "service_id should be a span attribute");
+    assertNull(MDC.get(MultiCloudJLogger.MDC_SERVICE_ID), "service_id MDC must be cleared after");
+  }
+
+  @Test
+  void serviceId_null_notSetOnSpanAttribute_andNotInMdc() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    AtomicReference<String> capturedService = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        null,
+        ctx -> {
+          capturedService.set(MDC.get(MultiCloudJLogger.MDC_SERVICE_ID));
+          return null;
+        });
+
+    assertNull(capturedService.get(), "service_id MDC should not be set when service is missing");
+    assertNull(
+        otel.getSpans().get(0).getAttributes().get(AttributeKey.stringKey("service_id")),
+        "service_id span attribute should not be set when service is missing");
+  }
+
+  @Test
+  void serviceId_blank_notSetOnSpanAttribute_andNotInMdc() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    // A blank (whitespace-only) service_id must be treated as absent by the isNotBlank guard.
+    OperationContext input =
+        OperationContext.builder().correlationId("req-1").serviceId("   ").build();
+    AtomicReference<String> capturedService = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        input,
+        ctx -> {
+          capturedService.set(MDC.get(MultiCloudJLogger.MDC_SERVICE_ID));
+          return null;
+        });
+
+    assertNull(capturedService.get(), "blank service_id must not be put in MDC");
+    assertNull(
+        otel.getSpans().get(0).getAttributes().get(AttributeKey.stringKey("service_id")),
+        "blank service_id must not be set as a span attribute");
+  }
+
+  @Test
+  void serviceId_disabledPolicy_stillInMdc() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.DISABLED, "blob", "aws");
+    OperationContext input = OperationContext.builder().serviceId("svc-7").build();
+    AtomicReference<String> capturedService = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        input,
+        ctx -> {
+          capturedService.set(MDC.get(MultiCloudJLogger.MDC_SERVICE_ID));
+          return null;
+        });
+
+    assertEquals("svc-7", capturedService.get());
+    assertTrue(otel.getSpans().isEmpty(), "no spans under DISABLED");
+    assertNull(MDC.get(MultiCloudJLogger.MDC_SERVICE_ID));
+  }
+
+  @Test
+  void serviceId_clearedAfterException() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    OperationContext input = OperationContext.builder().serviceId("svc-x").build();
+
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            logger.traceOperation(
+                "blob.test",
+                null,
+                input,
+                ctx -> {
+                  throw new IllegalStateException("boom");
+                }));
+
+    assertNull(MDC.get(MultiCloudJLogger.MDC_SERVICE_ID));
+  }
+
+  @Test
+  void serviceId_neverAutoGenerated() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    AtomicReference<OperationContext> resolved = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        null,
+        ctx -> {
+          resolved.set(ctx);
+          return null;
+        });
+
+    assertNull(resolved.get().getServiceId(), "service_id must NOT be auto-generated");
+  }
+
   // --- prior MDC preservation ---------------------------------------------
   // Library-hygiene: callers may already have these keys populated from an outer
   // request context. The SDK must restore them after the traced call returns
@@ -488,12 +632,14 @@ class MultiCloudJLoggerTest {
   void priorSdkMdc_isRestoredAfterTrace_underTracedPolicy() {
     MDC.put(MultiCloudJLogger.MDC_CORRELATION_ID, "outer-correlation");
     MDC.put(MultiCloudJLogger.MDC_TENANT_ID, "outer-tenant");
+    MDC.put(MultiCloudJLogger.MDC_SERVICE_ID, "outer-service");
     MDC.put(MultiCloudJLogger.MDC_SDK_SERVICE, "outer-svc");
     MDC.put(MultiCloudJLogger.MDC_SDK_PROVIDER, "outer-provider");
 
     MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
     AtomicReference<String> insideCorrelation = new AtomicReference<>();
     AtomicReference<String> insideTenant = new AtomicReference<>();
+    AtomicReference<String> insideService = new AtomicReference<>();
 
     logger.traceOperation(
         "blob.test",
@@ -501,10 +647,12 @@ class MultiCloudJLoggerTest {
         OperationContext.builder()
             .correlationId("inner-correlation")
             .tenantId("inner-tenant")
+            .serviceId("inner-service")
             .build(),
         ctx -> {
           insideCorrelation.set(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
           insideTenant.set(MDC.get(MultiCloudJLogger.MDC_TENANT_ID));
+          insideService.set(MDC.get(MultiCloudJLogger.MDC_SERVICE_ID));
           return null;
         });
 
@@ -514,6 +662,10 @@ class MultiCloudJLoggerTest {
         "SDK's correlation_id must be visible inside the lambda");
     assertEquals(
         "inner-tenant", insideTenant.get(), "SDK's tenant_id must be visible inside the lambda");
+    assertEquals(
+        "inner-service",
+        insideService.get(),
+        "SDK's service_id must be visible inside the lambda");
 
     assertEquals(
         "outer-correlation",
@@ -523,6 +675,10 @@ class MultiCloudJLoggerTest {
         "outer-tenant",
         MDC.get(MultiCloudJLogger.MDC_TENANT_ID),
         "prior tenant_id must be restored");
+    assertEquals(
+        "outer-service",
+        MDC.get(MultiCloudJLogger.MDC_SERVICE_ID),
+        "prior service_id must be restored");
     assertEquals(
         "outer-svc",
         MDC.get(MultiCloudJLogger.MDC_SDK_SERVICE),

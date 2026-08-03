@@ -1,5 +1,5 @@
 {
-  "id" : "c9fd7156-87a3-4a8e-aca1-38cb6a738e73",
+  "id" : "11fe5da1-ad84-41a3-99bd-ccbceee9301a",
   "name" : "AwsBlobStoreIT_testVersionedDownload_noVersionId-GET-10",
   "request" : {
     "url" : "/chameleon-jcloud-versioned/conformance-tests/versioned_download_no_versionId_versioned",
@@ -7,25 +7,26 @@
   },
   "response" : {
     "status" : 200,
-    "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGFwG71L3h7gTjsFlvY5lOuu",
+    "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGE=",
     "headers" : {
       "Accept-Ranges" : "bytes",
       "Server" : "AmazonS3",
       "ETag" : "\"701bbd4bde1ee04e3b0596f63994ebae\"",
-      "Last-Modified" : "Wed, 04 Mar 2026 20:56:24 GMT",
-      "x-amz-request-id" : "YEW77M7V8607Q592",
+      "x-amz-checksum-crc64nvme" : "4G16TxxAsWw=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "Last-Modified" : "Sun, 12 Jul 2026 21:11:55 GMT",
+      "x-amz-request-id" : "6F7H4DBCA1MFW5NV",
       "x-amz-server-side-encryption" : "AES256",
-      "x-amz-id-2" : "G4yLc+uHdJBsALDHMTTxoCW1ictc+ZXCoqL2VYsjInk/X9CQfnTKfRCGBeePde+Z5EbtEj7JRb9NQS2YfdjBKQb11VbXhnOk",
-      "x-amz-transfer-encoding" : "append-md5",
-      "x-amz-version-id" : "4h5pkj1MKmKpKk6Ybp3qlvJawq6P5GQA",
-      "Date" : "Wed, 04 Mar 2026 20:56:25 GMT",
+      "x-amz-id-2" : "kmzvNA0M8KyMy30XmTjELRZgsSYIFZCUGv3POXT2tAeLrXlUkPzmvD6t3LbhL2PjoZyh28fIRNJvabkPfOhpGA6SRa1xcQgh",
+      "x-amz-version-id" : "Lsw_hBEQR9NwER0Aw99bjhi0exh0hmkK",
+      "Date" : "Sun, 12 Jul 2026 21:11:55 GMT",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "c9fd7156-87a3-4a8e-aca1-38cb6a738e73",
+  "uuid" : "11fe5da1-ad84-41a3-99bd-ccbceee9301a",
   "persistent" : true,
   "scenarioName" : "scenario-2-chameleon-jcloud-versioned-conformance-tests-versioned_download_no_versionId_versioned",
   "requiredScenarioState" : "Started",
   "newScenarioState" : "scenario-2-chameleon-jcloud-versioned-conformance-tests-versioned_download_no_versionId_versioned-2",
-  "insertionIndex" : 68
+  "insertionIndex" : 781
 }

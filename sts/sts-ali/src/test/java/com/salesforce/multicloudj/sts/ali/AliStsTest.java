@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 
 import com.aliyuncs.DefaultAcsClient;
+import com.aliyuncs.auth.AlibabaCloudCredentialsProvider;
 import com.aliyuncs.exceptions.ClientException;
 import com.aliyuncs.http.HttpClientConfig;
 import com.aliyuncs.profile.IClientProfile;
@@ -14,12 +15,17 @@ import com.aliyuncs.sts.model.v20150401.AssumeRoleWithOIDCRequest;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleWithOIDCResponse;
 import com.aliyuncs.sts.model.v20150401.GetCallerIdentityRequest;
 import com.aliyuncs.sts.model.v20150401.GetCallerIdentityResponse;
+import com.aliyuncs.utils.AuthUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
+import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.lang.reflect.Field;
 import java.net.URI;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -184,6 +190,22 @@ public class AliStsTest {
   }
 
   @Test
+  public void testMapExceptionWithNullErrorCode() {
+    // A ClientException can carry a null error code (e.g. the SDK's own "not found credentials"
+    // raised by the credentials fallback when nothing resolves). ERROR_MAPPING is a Map.of(...),
+    // which throws on a null key -- mapException must not NPE, and must preserve the cause.
+    AliSts sts = new AliSts().builder().build(mockStsClient);
+    ClientException noCreds = new ClientException("not found credentials");
+    Assertions.assertNull(
+        noCreds.getErrCode(), "precondition: single-arg ClientException has no code");
+
+    SubstrateSdkException mapped = sts.mapException(noCreds);
+
+    Assertions.assertInstanceOf(UnknownException.class, mapped);
+    Assertions.assertSame(noCreds, mapped.getCause(), "original ClientException must be preserved");
+  }
+
+  @Test
   public void testBuildHttpClientConfigWithExplicitProxyEndpoint() {
     URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
     AliSts.Builder builder =
@@ -215,5 +237,230 @@ public class AliStsTest {
     String expectedUrl = "http://proxy.example.com:8080";
     Assertions.assertEquals(expectedUrl, config.getHttpProxy());
     Assertions.assertEquals(expectedUrl, config.getHttpsProxy());
+  }
+
+  // Captures the AssumeRoleRequest issued for the given cloud-agnostic request, using a dedicated
+  // mock so the captured request is unambiguous.
+  private static AssumeRoleRequest capturedAssumeRoleRequest(AssumedRoleRequest request)
+      throws ClientException {
+    DefaultAcsClient client = Mockito.mock(DefaultAcsClient.class);
+    AssumeRoleResponse.Credentials creds = new AssumeRoleResponse.Credentials();
+    creds.setAccessKeyId("k");
+    creds.setAccessKeySecret("s");
+    creds.setSecurityToken("t");
+    AssumeRoleResponse response = new AssumeRoleResponse();
+    response.setCredentials(creds);
+    Mockito.when(client.getAcsResponse(any(AssumeRoleRequest.class))).thenReturn(response);
+
+    AliSts sts = new AliSts().builder().build(client);
+    sts.assumeRole(request);
+
+    ArgumentCaptor<AssumeRoleRequest> captor = ArgumentCaptor.forClass(AssumeRoleRequest.class);
+    Mockito.verify(client).getAcsResponse(captor.capture());
+    return captor.getValue();
+  }
+
+  @Test
+  public void testAssumeRoleWithCredentialScope() throws Exception {
+    // The Capstone shape: read-write access downscoped to a bucket + key prefix. Object operations
+    // and the list operation must land in separate RAM statements with different resource forms.
+    CredentialScope credentialScope =
+        CredentialScope.builder()
+            .rule(
+                CredentialScope.ScopeRule.builder()
+                    .availableResource("storage://my-bucket")
+                    .availablePermission("storage:GetObject")
+                    .availablePermission("storage:PutObject")
+                    .availablePermission("storage:ListBucket")
+                    .availabilityCondition(
+                        CredentialScope.AvailabilityCondition.builder()
+                            .resourcePrefix("storage://my-bucket/documents/")
+                            .title("Limit to documents folder")
+                            .description("Only allow access to the documents folder")
+                            .build())
+                    .build())
+            .build();
+
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder()
+            .withRole("acs:ram::123456789:role/my-bucket-ro")
+            .withSessionName("my-session")
+            .withCredentialScope(credentialScope)
+            .build();
+
+    AssumeRoleRequest captured = capturedAssumeRoleRequest(request);
+
+    String expectedPolicy =
+        "{\"Version\":\"1\",\"Statement\":["
+            + "{\"Effect\":\"Allow\",\"Action\":[\"oss:GetObject\",\"oss:PutObject\"],"
+            + "\"Resource\":\"acs:oss:*:*:my-bucket/documents/*\"},"
+            + "{\"Effect\":\"Allow\",\"Action\":[\"oss:ListObjects\"],"
+            + "\"Resource\":\"acs:oss:*:*:my-bucket\","
+            + "\"Condition\":{\"StringLike\":{\"oss:Prefix\":[\"documents/\",\"documents/*\"]}}}]}";
+    assertJsonEquals(expectedPolicy, captured.getPolicy());
+  }
+
+  @Test
+  public void testAssumeRoleWithCredentialScopeNoPrefix() throws Exception {
+    // No availability condition -> object ops cover the whole bucket, list statement has no
+    // prefix condition.
+    CredentialScope credentialScope =
+        CredentialScope.builder()
+            .rule(
+                CredentialScope.ScopeRule.builder()
+                    .availableResource("storage://my-bucket")
+                    .availablePermission("storage:GetObject")
+                    .availablePermission("storage:ListBucket")
+                    .build())
+            .build();
+
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder()
+            .withRole("acs:ram::123456789:role/my-bucket-ro")
+            .withSessionName("my-session")
+            .withCredentialScope(credentialScope)
+            .build();
+
+    AssumeRoleRequest captured = capturedAssumeRoleRequest(request);
+
+    String expectedPolicy =
+        "{\"Version\":\"1\",\"Statement\":["
+            + "{\"Effect\":\"Allow\",\"Action\":[\"oss:GetObject\"],"
+            + "\"Resource\":\"acs:oss:*:*:my-bucket/*\"},"
+            + "{\"Effect\":\"Allow\",\"Action\":[\"oss:ListObjects\"],"
+            + "\"Resource\":\"acs:oss:*:*:my-bucket\"}]}";
+    assertJsonEquals(expectedPolicy, captured.getPolicy());
+  }
+
+  @Test
+  public void testAssumeRoleWithoutCredentialScopeSetsNoPolicy() throws Exception {
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder().withRole("testRole").withSessionName("testSession").build();
+
+    AssumeRoleRequest captured = capturedAssumeRoleRequest(request);
+
+    Assertions.assertNull(captured.getPolicy(), "no credential scope should mean no inline policy");
+  }
+
+  @Test
+  public void testAssumeRoleWithMismatchedPrefixBucketThrows() {
+    // A resourcePrefix that names a different (or missing) bucket than availableResource must be
+    // rejected, not silently ignored -- ignoring it would widen the grant to the whole bucket.
+    CredentialScope credentialScope =
+        CredentialScope.builder()
+            .rule(
+                CredentialScope.ScopeRule.builder()
+                    .availableResource("storage://my-bucket")
+                    .availablePermission("storage:GetObject")
+                    .availabilityCondition(
+                        CredentialScope.AvailabilityCondition.builder()
+                            .resourcePrefix("storage://other-bucket/documents/")
+                            .build())
+                    .build())
+            .build();
+
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder()
+            .withRole("acs:ram::123456789:role/my-bucket-ro")
+            .withSessionName("my-session")
+            .withCredentialScope(credentialScope)
+            .build();
+
+    AliSts sts = new AliSts().builder().build(mockStsClient);
+    assertThrows(InvalidArgumentException.class, () -> sts.assumeRole(request));
+  }
+
+  @Test
+  public void testAssumeRoleWithWildcardPrefixThrows() {
+    // A resourcePrefix containing RAM wildcards ('*'/'?') would widen the grant beyond the literal
+    // prefix (RAM treats them as wildcards in both the ARN and the oss:Prefix StringLike). Reject
+    // it rather than silently broadening the scope.
+    CredentialScope credentialScope =
+        CredentialScope.builder()
+            .rule(
+                CredentialScope.ScopeRule.builder()
+                    .availableResource("storage://my-bucket")
+                    .availablePermission("storage:GetObject")
+                    .availabilityCondition(
+                        CredentialScope.AvailabilityCondition.builder()
+                            .resourcePrefix("storage://my-bucket/priv*")
+                            .build())
+                    .build())
+            .build();
+
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder()
+            .withRole("acs:ram::123456789:role/my-bucket-ro")
+            .withSessionName("my-session")
+            .withCredentialScope(credentialScope)
+            .build();
+
+    AliSts sts = new AliSts().builder().build(mockStsClient);
+    assertThrows(InvalidArgumentException.class, () -> sts.assumeRole(request));
+  }
+
+  @Test
+  public void testAssumeRoleWithEmptyCredentialScopeThrows() {
+    // A credential scope was supplied but has no rules -> it would downscope to an empty policy.
+    // Reject it up front rather than sending a deny-all policy that fails opaquely at request time.
+    CredentialScope emptyScope = CredentialScope.builder().build();
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder()
+            .withRole("acs:ram::123456789:role/my-bucket-ro")
+            .withSessionName("my-session")
+            .withCredentialScope(emptyScope)
+            .build();
+
+    AliSts sts = new AliSts().builder().build(mockStsClient);
+    assertThrows(InvalidArgumentException.class, () -> sts.assumeRole(request));
+  }
+
+  @Test
+  public void testPublicBuilderAttachesDefaultCredentialsProvider() throws Exception {
+    // Guards the headline fix: the public builder must attach the SDK default credential chain to
+    // the underlying client. Building via the real builder is offline (the SDK client ctor does no
+    // credential network I/O); inspecting the attached provider catches a regression where the
+    // provider-carrying DefaultAcsClient ctor is dropped for the bare single-arg one (which would
+    // reattach the StaticCredentialsProvider snapshot and reintroduce the MissingAccessKeyId
+    // failure this fix addresses).
+    AliSts sts = new AliSts().builder().withRegion("cn-hangzhou").build();
+
+    Field stsClientField = AliSts.class.getDeclaredField("stsClient");
+    stsClientField.setAccessible(true);
+    Object client = stsClientField.get(sts);
+    Assertions.assertInstanceOf(DefaultAcsClient.class, client);
+
+    // DefaultAcsClient.getCredentialsProvider() returns the provider passed to its constructor
+    // verbatim. Assert positively that it is the same type buildCredentialsProvider() produces
+    // (the SDK DefaultCredentialsProvider), which pins the wiring rather than the absence of one
+    // wrong type.
+    AlibabaCloudCredentialsProvider provider =
+        ((DefaultAcsClient) client).getCredentialsProvider();
+    Assertions.assertNotNull(provider, "public builder must attach a credentials provider");
+    Assertions.assertEquals(
+        AliSts.buildCredentialsProvider().getClass(),
+        provider.getClass(),
+        "public builder must attach the SDK default credentials provider");
+  }
+
+  @Test
+  public void testBuildCredentialsProviderWrapsCtorFailure() {
+    // The DefaultCredentialsProvider ctor throws ClientException for an empty
+    // ALIBABA_CLOUD_ECS_METADATA; the no-arg buildCredentialsProvider() must wrap that as
+    // InvalidArgumentException. Force the condition via the SDK's test seam (AuthUtils overrides
+    // System.getenv for this variable), and reset it in finally so the JVM-wide static does not
+    // leak to other tests.
+    AuthUtils.setEnvironmentECSMetaData("");
+    try {
+      assertThrows(InvalidArgumentException.class, AliSts::buildCredentialsProvider);
+    } finally {
+      AuthUtils.setEnvironmentECSMetaData(null);
+    }
+  }
+
+  // Compares two JSON strings for structural equality, ignoring object key ordering.
+  private static void assertJsonEquals(String expected, String actual) throws Exception {
+    ObjectMapper mapper = new ObjectMapper();
+    Assertions.assertEquals(mapper.readTree(expected), mapper.readTree(actual));
   }
 }

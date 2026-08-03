@@ -1,0 +1,49 @@
+{
+  "id" : "6c3c17dc-3a74-476c-8467-536a6d750b4e",
+  "name" : "GcpBlobStoreIT_testInitiateMultipartUpload_withServiceAndTenantId_stampsObjectMetadata-GET-1",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "maxResults" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/multipart/observabilityMetadata"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart/observabilityMetadata/1785262878792183\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fmultipart%2FobservabilityMetadata\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fmultipart%2FobservabilityMetadata?generation=1785262878792183&alt=media\",\n      \"name\": \"conformance-tests/multipart/observabilityMetadata\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n      \"generation\": \"1785262878792183\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/x-www-form-urlencoded\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"5242880\",\n      \"crc32c\": \"OGE8Qg==\",\n      \"etag\": \"CPez4r3+9ZUDEAE=\",\n      \"timeCreated\": \"2026-07-28T18:21:18.915Z\",\n      \"updated\": \"2026-07-28T18:21:18.915Z\",\n      \"timeStorageClassUpdated\": \"2026-07-28T18:21:18.915Z\",\n      \"timeFinalized\": \"2026-07-28T18:21:18.915Z\",\n      \"metadata\": {\n        \"sdk-logging-service-id\": \"conformance-service\",\n        \"sdk-logging-tenant-id\": \"conformance-tenant\",\n        \"sdk-logging-correlation-id\": \"conformance-correlation-id\"\n      }\n    }\n  ]\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AKhXX7IbE_LE2M8TNfEoXUCsxMk32viVVBNofY4cZZSZigjY6b1IP-FiHWcGsz2TY4OIj_A_zxUw-uU",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Tue, 28 Jul 2026 18:21:19 GMT",
+      "Date" : "Tue, 28 Jul 2026 18:21:19 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "6c3c17dc-3a74-476c-8467-536a6d750b4e",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o",
+  "requiredScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-2",
+  "insertionIndex" : 1464
+}

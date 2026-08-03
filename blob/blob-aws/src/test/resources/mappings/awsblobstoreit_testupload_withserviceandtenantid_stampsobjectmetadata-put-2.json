@@ -1,0 +1,38 @@
+{
+  "id" : "48f3da3c-a0d3-4b06-b667-87a21543ca84",
+  "name" : "AwsBlobStoreIT_testUpload_withServiceAndTenantId_stampsObjectMetadata-PUT-2",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/upload/observabilityMetadata",
+    "method" : "PUT",
+    "headers" : {
+      "x-amz-meta-sdk-logging-service-id" : {
+        "equalTo" : "conformance-service"
+      },
+      "x-amz-meta-sdk-logging-tenant-id" : {
+        "equalTo" : "conformance-tenant"
+      },
+      "x-amz-meta-sdk-logging-correlation-id" : {
+        "equalTo" : "conformance-correlation-id"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "b2JzZXJ2YWJpbGl0eSBtZXRhZGF0YSB0ZXN0"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"23f2001ceaecde3c9ceb04bceb40a0b5\"",
+      "x-amz-checksum-crc64nvme" : "FlVsXh1/si8=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "EA3WGQTX9Y34YGXT",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "3urKeu/2YjFMstMKLKDZMskPg8MtmOcEb15F4O9DGuUNqa8sZL9dZqHmle2/OF5hikZEe6weFp0=",
+      "Date" : "Mon, 20 Jul 2026 20:41:38 GMT"
+    }
+  },
+  "uuid" : "48f3da3c-a0d3-4b06-b667-87a21543ca84",
+  "persistent" : true,
+  "insertionIndex" : 776
+}

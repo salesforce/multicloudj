@@ -4,6 +4,8 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
@@ -39,6 +41,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -493,6 +496,158 @@ public abstract class AbstractBlobStoreIT {
         false);
   }
 
+  /**
+   * Verifies that when an {@link OperationContext} carrying a service ID and tenant ID is attached
+   * to an upload, the SDK stamps those identifiers onto the stored object's metadata under the
+   * {@code sdk-logging-service-id} and {@code sdk-logging-tenant-id} keys. This is what lets cloud
+   * audit logs (e.g. S3 server access logs / GCS data access logs) be traced back to the
+   * originating service and tenant. When a correlation ID is also supplied, it is likewise
+   * persisted under {@code sdk-logging-correlation-id}.
+   */
+  @Test
+  public void testUpload_withServiceAndTenantId_stampsObjectMetadata() {
+    // Ali: the OSS provider stamps only the correlation id, not service/tenant id, so it does not
+    // satisfy this conformance expectation and has no recorded mappings for it.
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
+    String key = "conformance-tests/upload/observabilityMetadata";
+    String serviceId = "conformance-service";
+    String tenantId = "conformance-tenant";
+    String correlationId = "conformance-correlation-id";
+    byte[] content = "observability metadata test".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      OperationContext operationContext =
+          OperationContext.builder()
+              .serviceId(serviceId)
+              .tenantId(tenantId)
+              .correlationId(correlationId)
+              .build();
+
+      UploadResponse uploadResponse;
+      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+        UploadRequest request =
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(content.length)
+                .withOperationContext(operationContext)
+                .build();
+        uploadResponse = bucketClient.upload(request, inputStream);
+      }
+      Assertions.assertNotNull(uploadResponse, "No upload response returned");
+
+      BlobMetadata blobMetadata = bucketClient.getMetadata(key, null);
+      Assertions.assertNotNull(blobMetadata, "No metadata returned");
+      Map<String, String> storedMetadata = blobMetadata.getMetadata();
+
+      Assertions.assertEquals(
+          serviceId,
+          storedMetadata.get("sdk-logging-service-id"),
+          "service id was not stamped onto object metadata");
+      Assertions.assertEquals(
+          tenantId,
+          storedMetadata.get("sdk-logging-tenant-id"),
+          "tenant id was not stamped onto object metadata");
+      Assertions.assertEquals(
+          correlationId,
+          storedMetadata.get("sdk-logging-correlation-id"),
+          "correlation id was not stamped onto object metadata");
+    } catch (IOException e) {
+      Assertions.fail("testUpload_withServiceAndTenantId: unexpected error " + e.getMessage());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  /**
+   * Verifies that when an {@link OperationContext} carrying a service ID and tenant ID is attached
+   * to an initiateMultipartUpload, the SDK stamps those identifiers onto the completed object's
+   * metadata under the {@code sdk-logging-service-id} and {@code sdk-logging-tenant-id} keys,
+   * mirroring the single-shot upload behavior. When a correlation ID is also supplied, it is
+   * likewise persisted under {@code sdk-logging-correlation-id}.
+   */
+  @Test
+  public void testInitiateMultipartUpload_withServiceAndTenantId_stampsObjectMetadata() {
+    // Ali: the OSS provider stamps only the correlation id, not service/tenant id, so it does not
+    // satisfy this conformance expectation and has no recorded mappings for it.
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
+    String key = "conformance-tests/multipart/observabilityMetadata";
+    String serviceId = "conformance-service";
+    String tenantId = "conformance-tenant";
+    String correlationId = "conformance-correlation-id";
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    MultipartUpload mpu = null;
+    try {
+      OperationContext operationContext =
+          OperationContext.builder()
+              .serviceId(serviceId)
+              .tenantId(tenantId)
+              .correlationId(correlationId)
+              .build();
+
+      MultipartUploadRequest request =
+          new MultipartUploadRequest.Builder()
+              .withKey(key)
+              .withOperationContext(operationContext)
+              .build();
+      mpu = bucketClient.initiateMultipartUpload(request);
+
+      // The returned handle echoes the stamped metadata so it reflects what actually lands on the
+      // object, consistent with the getMetadata read-back asserted below.
+      Map<String, String> handleMetadata = mpu.getMetadata();
+      Assertions.assertEquals(
+          serviceId,
+          handleMetadata.get("sdk-logging-service-id"),
+          "service id was not echoed onto the multipart upload handle metadata");
+      Assertions.assertEquals(
+          tenantId,
+          handleMetadata.get("sdk-logging-tenant-id"),
+          "tenant id was not echoed onto the multipart upload handle metadata");
+      Assertions.assertEquals(
+          correlationId,
+          handleMetadata.get("sdk-logging-correlation-id"),
+          "correlation id was not echoed onto the multipart upload handle metadata");
+
+      UploadPartResponse partResponse =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(1, multipartBytes1));
+      bucketClient.completeMultipartUpload(mpu, List.of(partResponse));
+      mpu = null;
+
+      BlobMetadata blobMetadata = bucketClient.getMetadata(key, null);
+      Assertions.assertNotNull(blobMetadata, "No metadata returned");
+      Map<String, String> storedMetadata = blobMetadata.getMetadata();
+
+      Assertions.assertEquals(
+          serviceId,
+          storedMetadata.get("sdk-logging-service-id"),
+          "service id was not stamped onto object metadata");
+      Assertions.assertEquals(
+          tenantId,
+          storedMetadata.get("sdk-logging-tenant-id"),
+          "tenant id was not stamped onto object metadata");
+      Assertions.assertEquals(
+          correlationId,
+          storedMetadata.get("sdk-logging-correlation-id"),
+          "correlation id was not stamped onto object metadata");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+      if (mpu != null) {
+        try {
+          bucketClient.abortMultipartUpload(mpu);
+        } catch (Throwable t) {
+          // Ignore
+        }
+      }
+    }
+  }
+
   private void runUploadTests(String testName, String key, byte[] content, boolean wantError) {
     runUploadTest(testName, false, UploadType.InputStream, key, content, wantError);
     runUploadTest(testName, false, UploadType.ByteArray, key, content, wantError);
@@ -791,30 +946,6 @@ public abstract class AbstractBlobStoreIT {
       boolean downloadUsingVersionId,
       boolean useCorrectVersionId,
       boolean wantError,
-      boolean parallelDownload)
-      throws IOException {
-    runDownloadTest(
-        testName,
-        uploadKey,
-        downloadKey,
-        useVersionedBucket,
-        downloadType,
-        downloadUsingVersionId,
-        useCorrectVersionId,
-        wantError,
-        parallelDownload,
-        false);
-  }
-
-  private void runDownloadTest(
-      String testName,
-      String uploadKey,
-      String downloadKey,
-      boolean useVersionedBucket,
-      DownloadType downloadType,
-      boolean downloadUsingVersionId,
-      boolean useCorrectVersionId,
-      boolean wantError,
       boolean parallelDownload,
       boolean createParentPath)
       throws IOException {
@@ -865,6 +996,8 @@ public abstract class AbstractBlobStoreIT {
         Assertions.assertEquals(
             blobBytes.length, content.length, testName + ": Content-Length did not match");
         Assertions.assertArrayEquals(blobBytes, content, testName + ": Bytes arrays did not match");
+        Assertions.assertNotNull(response.getMetadata().getChecksum(),
+            testName + ": checksum is not there");
       } catch (SubstrateSdkException e) {
         Assertions.assertTrue(wantError, testName + ": Did not expect error. " + e.getMessage());
         return;
@@ -2589,6 +2722,7 @@ public abstract class AbstractBlobStoreIT {
             testConfig.testName + ": The metadata does not match the original");
         Assertions.assertNotNull(blobMetadata.getLastModified());
         Assertions.assertNotNull(blobMetadata.getCreatedTime());
+        Assertions.assertNotNull(blobMetadata.getChecksum());
       }
     } finally {
       // Delete our blob to clean up the test
@@ -2610,11 +2744,13 @@ public abstract class AbstractBlobStoreIT {
 
   /**
    * Fixed retainUntil for object lock tests so WireMock replay matches recorded request body.
+   * Values must remain far in the future so record mode remains valid over time and providers
+   * that reject past retention dates on upload continue to accept the request.
    */
   private static final Instant OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE =
       Instant.parse("2026-03-11T15:47:28.252Z");
   private static final Instant OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE =
-      Instant.parse("2026-03-11T15:47:25.512Z");
+      Instant.parse("2100-01-01T00:00:00Z");
   private static final Instant OBJECT_LOCK_RETAIN_UNTIL_DIRECTORY_UPLOAD =
       Instant.parse("2030-04-30T00:00:00Z");
 
@@ -2742,6 +2878,39 @@ public abstract class AbstractBlobStoreIT {
     Assertions.assertThrows(
         Exception.class,
         () -> bucketClient.getObjectLock("conformance-tests/objectlock/nonexistent", null));
+  }
+
+  // ------------------------------------------------------------------------------------
+  // Conformance tests for getBucketVersioning()
+  //
+  // These verify that every provider that supports bucket-level versioning reports the same
+  // status for an enabled bucket and surfaces an error for a bucket that does not exist. The
+  // SUSPENDED / UNVERSIONED mapping differs by substrate and is covered by provider unit tests.
+  // ------------------------------------------------------------------------------------
+
+  @Test
+  public void testGetBucketVersioning_enabledBucket() {
+    // The versioned conformance bucket is provisioned with versioning enabled.
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    BucketVersioningConfiguration configuration = bucketClient.getBucketVersioning();
+
+    Assertions.assertNotNull(
+        configuration, "getBucketVersioning should return a non-null configuration");
+    Assertions.assertEquals(
+        BucketVersioningStatus.ENABLED,
+        configuration.getStatus(),
+        "Versioned conformance bucket should report ENABLED");
+  }
+
+  @Test
+  public void testGetBucketVersioning_nonexistentBucket_throws() {
+    AbstractBlobStore blobStore = harness.createBlobStore(false, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // All providers must throw SubstrateSdkException for a bucket that does not exist.
+    Assertions.assertThrows(SubstrateSdkException.class, bucketClient::getBucketVersioning);
   }
 
   // ------------------------------------------------------------------------------------
@@ -4391,9 +4560,54 @@ public abstract class AbstractBlobStoreIT {
   }
 
   /**
+   * Best-effort cleanup for blobs left behind by object-lock tests. Each key is walked through
+   * three independent steps so partial failures don't skip remaining work:
+   *
+   * <ol>
+   *   <li>Release legal hold, if any.
+   *   <li>Shorten the object's retention with {@code bypassGovernanceRetention=true}. This clears
+   *       GOVERNANCE/UNLOCKED retention so the subsequent delete can succeed. COMPLIANCE/LOCKED
+   *       retention cannot be shortened; the delete step still runs and creates a delete-marker
+   *       on a versioned bucket, which is sufficient to let re-record runs re-upload the key.
+   *   <li>Delete the blob (creates a delete-marker on versioned buckets).
+   * </ol>
+   *
+   * <p>Every step swallows exceptions so tests that call this in a {@code finally} block always
+   * make progress across all supplied keys.
+   */
+  private void safeCleanupLockedBlobs(BucketClient bucketClient, String... keys) {
+    Instant clearedRetention = Instant.parse("2020-01-01T00:00:00Z");
+    for (String key : keys) {
+      try {
+        bucketClient.updateLegalHold(key, null, false);
+      } catch (Throwable t) {
+        // Ignore
+      }
+      try {
+        bucketClient.updateObjectRetention(
+            key,
+            null,
+            ObjectRetentionConfig.builder()
+                .mode(RetentionMode.GOVERNANCE)
+                .retainUntilDate(clearedRetention)
+                .bypassGovernanceRetention(Boolean.TRUE)
+                .build());
+      } catch (Throwable t) {
+        // Ignore
+      }
+      try {
+        bucketClient.delete(key, null);
+      } catch (Throwable t) {
+        // Ignore
+      }
+    }
+  }
+
+  /**
    * Asserts that the user-visible portion of {@code actual} blob metadata equals {@code expected},
    * ignoring SDK-internal entries that the blob clients stamp onto uploaded objects. Today that
-   * means the {@code correlation-id} key the SDK persists to tie a stored blob back to the trace
+   * means the {@code sdk-logging-correlation-id} key the SDK persists to tie a stored
+   * blob back to the trace
    * span and logs of the upload that produced it; the value is non-deterministic per upload and is
    * not user content, so it must not participate in user-metadata round-trip equality checks.
    *
@@ -4403,7 +4617,7 @@ public abstract class AbstractBlobStoreIT {
   private static void assertUserMetadataEquals(
       Map<String, String> expected, Map<String, String> actual, String message) {
     Map<String, String> filtered = new HashMap<>(actual);
-    filtered.remove("correlation-id");
+    filtered.remove("sdk-logging-correlation-id");
     Assertions.assertEquals(expected, filtered, message);
   }
 
@@ -5763,7 +5977,7 @@ public abstract class AbstractBlobStoreIT {
             .useEventBasedHold(false)
             .build();
 
-    String prefix = "conformance-tests/directory-objectlock/upload-with-lock-v1";
+    String prefix = "conformance-tests/directory-objectlock/upload-with-lock";
 
     DirectoryUploadRequest request =
         DirectoryUploadRequest.builder()
@@ -5809,7 +6023,7 @@ public abstract class AbstractBlobStoreIT {
       while (cleanupBlobs.hasNext()) {
         cleanupKeys.add(cleanupBlobs.next().getKey());
       }
-      safeDeleteBlobs(bucketClient, cleanupKeys.toArray(new String[0]));
+      safeCleanupLockedBlobs(bucketClient, cleanupKeys.toArray(new String[0]));
     }
 
     blobStore.close();

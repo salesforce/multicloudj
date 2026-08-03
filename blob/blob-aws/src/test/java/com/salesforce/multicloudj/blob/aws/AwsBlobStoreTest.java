@@ -22,6 +22,8 @@ import static org.mockito.Mockito.when;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -109,6 +111,8 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketVersioningRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketVersioningResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -1872,6 +1876,71 @@ public class AwsBlobStoreTest {
   }
 
   @Test
+  void testGetObjectLock_RetentionAbsent_LegalHoldPresent() {
+    String key = "test-key";
+    S3Exception noRetention =
+        (S3Exception)
+            S3Exception.builder()
+                .statusCode(404)
+                .awsErrorDetails(
+                    AwsErrorDetails.builder().errorCode("NoSuchObjectLockConfiguration").build())
+                .build();
+    GetObjectLegalHoldResponse legalHoldResponse =
+        GetObjectLegalHoldResponse.builder()
+            .legalHold(ObjectLockLegalHold.builder().status(ObjectLockLegalHoldStatus.ON).build())
+            .build();
+
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenThrow(noRetention);
+    when(mockS3Client.getObjectLegalHold(any(GetObjectLegalHoldRequest.class)))
+        .thenReturn(legalHoldResponse);
+
+    ObjectLockInfo result = aws.getObjectLock(key, null);
+
+    assertNotNull(result);
+    assertTrue(result.isLegalHold());
+    assertNull(result.getMode());
+    assertNull(result.getRetainUntilDate());
+  }
+
+  @Test
+  void testGetObjectLock_BothAbsent() {
+    String key = "test-key";
+    S3Exception noSuchLock =
+        (S3Exception)
+            S3Exception.builder()
+                .statusCode(404)
+                .awsErrorDetails(
+                    AwsErrorDetails.builder().errorCode("NoSuchObjectLockConfiguration").build())
+                .build();
+
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenThrow(noSuchLock);
+    when(mockS3Client.getObjectLegalHold(any(GetObjectLegalHoldRequest.class)))
+        .thenThrow(noSuchLock);
+
+    ObjectLockInfo result = aws.getObjectLock(key, null);
+
+    assertNull(result);
+  }
+
+  @Test
+  void testGetObjectLock_RetentionOtherS3Error_Propagates() {
+    String key = "test-key";
+    S3Exception accessDenied =
+        (S3Exception)
+            S3Exception.builder()
+                .statusCode(403)
+                .awsErrorDetails(AwsErrorDetails.builder().errorCode("AccessDenied").build())
+                .build();
+
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenThrow(accessDenied);
+
+    assertThrows(S3Exception.class, () -> aws.getObjectLock(key, null));
+  }
+
+  @Test
   void testUpdateObjectRetention_Success() {
     // Given
     String key = "test-key";
@@ -2444,4 +2513,70 @@ public class AwsBlobStoreTest {
 
     assertThrows(NoSuchElementException.class, versions::next);
   }
+
+  @Test
+  void testGetBucketVersioning_enabled() {
+    when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
+        .thenReturn(
+            GetBucketVersioningResponse.builder()
+                .status(software.amazon.awssdk.services.s3.model.BucketVersioningStatus.ENABLED)
+                .build());
+
+    BucketVersioningConfiguration result = aws.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.ENABLED, result.getStatus());
+
+    ArgumentCaptor<GetBucketVersioningRequest> captor =
+        ArgumentCaptor.forClass(GetBucketVersioningRequest.class);
+    verify(mockS3Client, times(1)).getBucketVersioning(captor.capture());
+    assertEquals("bucket-1", captor.getValue().bucket());
+  }
+
+  @Test
+  void testGetBucketVersioning_suspended() {
+    when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
+        .thenReturn(
+            GetBucketVersioningResponse.builder()
+                .status(software.amazon.awssdk.services.s3.model.BucketVersioningStatus.SUSPENDED)
+                .build());
+
+    BucketVersioningConfiguration result = aws.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.SUSPENDED, result.getStatus());
+  }
+
+  @Test
+  void testGetBucketVersioning_neverConfiguredMapsToUnversioned() {
+    // S3 returns a response with no status element for a bucket that has never had versioning
+    // configured; the SDK surfaces this as a null status.
+    when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
+        .thenReturn(GetBucketVersioningResponse.builder().build());
+
+    BucketVersioningConfiguration result = aws.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.UNVERSIONED, result.getStatus());
+  }
+
+  @Test
+  void testGetBucketVersioning_nonexistentBucketThrowsS3Exception() {
+    S3Exception noSuchBucket =
+        (S3Exception)
+            S3Exception.builder().message("NoSuchBucket").statusCode(404).build();
+    when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
+        .thenThrow(noSuchBucket);
+
+    assertThrows(S3Exception.class, () -> aws.getBucketVersioning());
+  }
+
+  @Test
+  void testGetBucketVersioning_serviceExceptionPropagates() {
+    AwsServiceException exception =
+        (AwsServiceException)
+            AwsServiceException.builder().message("boom").statusCode(500).build();
+    when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
+        .thenThrow(exception);
+
+    assertThrows(AwsServiceException.class, () -> aws.getBucketVersioning());
+  }
+
 }

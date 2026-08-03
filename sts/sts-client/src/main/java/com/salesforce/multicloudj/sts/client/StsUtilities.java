@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.driver.AbstractStsUtilities;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import java.net.http.HttpRequest;
 import java.util.ServiceLoader;
@@ -93,6 +94,23 @@ public class StsUtilities {
   public SignedAuthRequest newCloudNativeAuthSignedRequest(HttpRequest request) {
     try {
       return this.stsUtility.cloudNativeAuthSignedRequest(request);
+    } catch (Throwable t) {
+      throw this.stsUtility.mapException(t);
+    }
+  }
+
+  /**
+   * Signs a request using the supplied options and returns the signed auth request.
+   *
+   * @param request The HttpRequest containing the request details. May be null when the caller only
+   *     needs a signed STS request without a service request to hash.
+   * @param options The SignOptions controlling custom headers and header exclusions.
+   * @return The SignedAuthRequest.
+   */
+  public SignedAuthRequest newCloudNativeAuthSignedRequest(
+      HttpRequest request, SignOptions options) {
+    try {
+      return this.stsUtility.cloudNativeAuthSignedRequest(request, options);
     } catch (Throwable t) {
       throw this.stsUtility.mapException(t);
     }

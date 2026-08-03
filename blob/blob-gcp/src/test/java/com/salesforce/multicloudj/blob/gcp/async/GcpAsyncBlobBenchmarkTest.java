@@ -21,7 +21,18 @@ public class GcpAsyncBlobBenchmarkTest extends AbstractAsyncBlobBenchmarkTest {
     @Override
     protected AsyncBlobStore buildStore() {
       String bucket = requireEnv("BLOB_BENCHMARK_GCP_BUCKET");
-      return GcpAsyncBlobStore.builder().withBucket(bucket).build();
+      GcpAsyncBlobStore.Builder builder = GcpAsyncBlobStore.builder();
+      builder.withBucket(bucket);
+      // Controlled experiment toggle: -Dbench.gcp.tuned=true raises the Apache HTTP
+      // per-route connection cap (default 20) and the TransferManager worker pool so we can
+      // measure whether connection-pool saturation is the directory/small-op bottleneck.
+      if (Boolean.getBoolean("bench.gcp.tuned")) {
+        int maxConn = Integer.getInteger("bench.gcp.maxConnections", 200);
+        int tmPool = Integer.getInteger("bench.gcp.tmPoolSize", 64);
+        builder.withMaxConnections(maxConn);
+        builder.withTransferManagerThreadPoolSize(tmPool);
+      }
+      return builder.build();
     }
   }
 }

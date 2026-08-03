@@ -19,6 +19,7 @@ import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.gcp.util.MultipartBoundaryTransformer;
 import com.salesforce.multicloudj.common.gcp.util.MockGoogleCredentialsFactory;
 import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -176,6 +177,20 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
     @Override
     public String getMetadataHeader(String key) {
       return "x-goog-meta-" + key;
+    }
+
+    /**
+     * Records the {@code x-goog-meta-sdk-logging-*} request headers as stub match conditions so the
+     * replay-mode upload IT verifies the SDK actually sends the service/tenant/correlation ids on
+     * the write (not just that a recorded read response echoes them back). If the SDK stops sending
+     * one of these headers, the recorded stub no longer matches and the IT fails.
+     */
+    @Override
+    public List<String> getRecordingCaptureHeaders() {
+      return List.of(
+          getMetadataHeader(SdkLoggingMetadataKeys.SERVICE_ID),
+          getMetadataHeader(SdkLoggingMetadataKeys.TENANT_ID),
+          getMetadataHeader(SdkLoggingMetadataKeys.CORRELATION_ID));
     }
 
     @Override

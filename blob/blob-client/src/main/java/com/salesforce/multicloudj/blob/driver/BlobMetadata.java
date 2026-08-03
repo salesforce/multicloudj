@@ -39,6 +39,12 @@ public class BlobMetadata {
   /** Object lock information for this blob. null if object lock is not configured. */
   private final ObjectLockInfo objectLockInfo;
 
+  /**
+   * Checksum of the object as reported by the store, or {@code null} if the store does not report
+   * one. Populated on responses from {@code getMetadata} and {@code download}.
+   */
+  private final Checksum checksum;
+
   /** The correlation ID associated with the operation that produced this metadata. */
   private final String correlationId;
 }

@@ -27,8 +27,9 @@ public class CopyFromRequest {
   private final String destKey;
 
   /**
-   * (Optional) Per-call observability context carrying the correlation ID. If null or if its
-   * correlation ID is missing, the SDK auto-generates a UUID and returns it via the response.
+   * (Optional) Per-call observability context carrying the correlation ID. The correlation ID is
+   * never auto-generated; when it is null or missing it defaults to an empty string and tracing is
+   * treated as disabled. When supplied, it is echoed back via the response.
    */
   private final OperationContext operationContext;
 }

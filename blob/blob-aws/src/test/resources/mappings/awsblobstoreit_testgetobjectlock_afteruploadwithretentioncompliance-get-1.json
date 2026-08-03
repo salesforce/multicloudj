@@ -1,21 +1,34 @@
 {
-  "id" : "d347659c-5a3c-4fc8-b762-cbc659db862f",
+  "id" : "c3302fb6-0694-4f3e-9ed8-31334b649b80",
   "name" : "AwsBlobStoreIT_testGetObjectLock_afterUploadWithRetentionCompliance-GET-1",
   "request" : {
-    "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/retention-compliance?legal-hold",
-    "method" : "GET"
-  },
-  "response" : {
-    "status" : 200,
-    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPExlZ2FsSG9sZCB4bWxucz0iaHR0cDovL3MzLmFtYXpvbmF3cy5jb20vZG9jLzIwMDYtMDMtMDEvIj48U3RhdHVzPk9GRjwvU3RhdHVzPjwvTGVnYWxIb2xkPg==",
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/retention-compliance",
+    "method" : "GET",
     "headers" : {
-      "Server" : "AmazonS3",
-      "x-amz-request-id" : "4D2B85GHY6590P53",
-      "x-amz-id-2" : "307GDQtwiRYN+bfeMLaezt7y6XzLj65HzEwvWToGP3Psyu9IEWal7IoQf7IKOkBxyuOffstlt99e6rmFODGTnn2OQPq020b8",
-      "Date" : "Tue, 10 Mar 2026 16:18:32 GMT"
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "legal-hold" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
     }
   },
-  "uuid" : "d347659c-5a3c-4fc8-b762-cbc659db862f",
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchObjectLockConfiguration</Code><Message>The specified object does not have a ObjectLock configuration</Message><RequestId>SEM79T5NYNQTR8KQ</RequestId><HostId>zpCqxl+pY4heowowrthqgx9cfNmCZZSqaE7Zt7Y8obborGejjCnPTFG4D2fJ6240rEoXDIOnKJI=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "SEM79T5NYNQTR8KQ",
+      "x-amz-id-2" : "zpCqxl+pY4heowowrthqgx9cfNmCZZSqaE7Zt7Y8obborGejjCnPTFG4D2fJ6240rEoXDIOnKJI=",
+      "Date" : "Wed, 29 Jul 2026 02:27:00 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "c3302fb6-0694-4f3e-9ed8-31334b649b80",
   "persistent" : true,
-  "insertionIndex" : 601
+  "insertionIndex" : 777
 }

@@ -61,6 +61,8 @@ import com.google.cloud.storage.transfermanager.UploadResult;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
@@ -99,12 +101,15 @@ import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.provider.Provider;
+import com.salesforce.multicloudj.common.observability.MetricsPublisher;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URL;
@@ -127,6 +132,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -228,6 +234,18 @@ class GcpBlobStoreTest {
               .build();
         });
 
+    // Delegate stampContextMetadata to a real transformer so store-level tests exercise the
+    // genuine stamping behavior through the same code path production uses.
+    GcpTransformer realTransformer = new GcpTransformer(TEST_BUCKET);
+    lenient()
+        .doAnswer(invocation -> {
+          Map<String, String> metadata = invocation.getArgument(0);
+          realTransformer.stampContextMetadata(metadata, invocation.getArgument(1));
+          return null;
+        })
+        .when(mockTransformer)
+        .stampContextMetadata(anyMap(), nullable(OperationContext.class));
+
     gcpBlobStore = new GcpBlobStore(builder, mockStorage, mpuClient, mockTransferManager);
   }
 
@@ -285,8 +303,6 @@ class GcpBlobStoreTest {
     when(mockStorage.createFrom(
         eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
         .thenReturn(mockBlob);
-    // After createFrom, doUpload fetches the committed object to get fully-populated metadata.
-    when(mockStorage.get(any(BlobId.class))).thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
     // When
@@ -297,7 +313,8 @@ class GcpBlobStoreTest {
     assertEquals(expectedResponse, response);
     verify(mockStorage).createFrom(
         eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
-    verify(mockStorage).get(any(BlobId.class));
+    // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
+    verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
@@ -348,6 +365,8 @@ class GcpBlobStoreTest {
     assertEquals(expectedResponse, response);
     verify(mockStorage).createFrom(
         eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
+    // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
+    verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
@@ -377,6 +396,8 @@ class GcpBlobStoreTest {
     assertEquals(expectedResponse, response);
     verify(mockStorage)
         .createFrom(eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class));
+    // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
+    verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
@@ -406,6 +427,8 @@ class GcpBlobStoreTest {
     assertEquals(expectedResponse, response);
     verify(mockStorage)
         .createFrom(eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class));
+    // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
+    verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
@@ -2285,33 +2308,117 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testBuildConnectionManager_defaultsPoolWhenMaxConnectionsUnset() throws Exception {
+  void testBuildHttpClient_inheritsGcpDefaultsWhenMaxConnectionsUnset() throws Exception {
     GcpBlobStore.Builder builder = new GcpBlobStore.Builder();
 
-    PoolingHttpClientConnectionManager connectionManager = invokeBuildConnectionManager(builder);
+    PoolingHttpClientConnectionManager connectionManager =
+        extractConnectionManager(invokeBuildHttpClient(builder));
 
+    // GCP's ApacheHttpTransport.newDefaultHttpClientBuilder() sets 200/20; we must not
+    // override those when the caller did not set maxConnections.
     assertEquals(200, connectionManager.getMaxTotal());
     assertEquals(20, connectionManager.getDefaultMaxPerRoute());
   }
 
   @Test
-  void testBuildConnectionManager_usesExplicitMaxConnections() throws Exception {
+  void testBuildHttpClient_usesExplicitMaxConnections() throws Exception {
     GcpBlobStore.Builder builder =
         (GcpBlobStore.Builder) new GcpBlobStore.Builder().withMaxConnections(123);
 
-    PoolingHttpClientConnectionManager connectionManager = invokeBuildConnectionManager(builder);
+    PoolingHttpClientConnectionManager connectionManager =
+        extractConnectionManager(invokeBuildHttpClient(builder));
 
     assertEquals(123, connectionManager.getMaxTotal());
     assertEquals(123, connectionManager.getDefaultMaxPerRoute());
   }
 
-  private static PoolingHttpClientConnectionManager invokeBuildConnectionManager(
-      GcpBlobStore.Builder builder) throws Exception {
+  private static CloseableHttpClient invokeBuildHttpClient(GcpBlobStore.Builder builder)
+      throws Exception {
     Method method =
         GcpBlobStore.Builder.class.getDeclaredMethod(
-            "buildConnectionManager", GcpBlobStore.Builder.class);
+            "buildHttpClient", GcpBlobStore.Builder.class);
     method.setAccessible(true);
-    return (PoolingHttpClientConnectionManager) method.invoke(null, builder);
+    return (CloseableHttpClient) method.invoke(null, builder);
+  }
+
+  private static PoolingHttpClientConnectionManager extractConnectionManager(
+      CloseableHttpClient httpClient) throws Exception {
+    // Apache's InternalHttpClient holds the connection manager on a private "connManager" field.
+    Field field = httpClient.getClass().getDeclaredField("connManager");
+    field.setAccessible(true);
+    return (PoolingHttpClientConnectionManager) field.get(httpClient);
+  }
+  
+  @Test
+  void testBuildHttpClient_withMetricsUsesObservableDefaultPool() throws Exception {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withMetricsPublisher(metrics -> {});
+
+    try (CloseableHttpClient httpClient = invokeBuildHttpClient(builder)) {
+      PoolingHttpClientConnectionManager connectionManager =
+          extractConnectionManager(httpClient);
+
+      assertEquals(200, connectionManager.getMaxTotal());
+      assertEquals(20, connectionManager.getDefaultMaxPerRoute());
+    }
+  }
+  
+  @Test
+  void testShouldConfigureHttpClient_trueWhenMetricsPublisherSet() throws Exception {
+    MetricsPublisher publisher = metrics -> {};
+
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withMetricsPublisher(publisher);
+
+    assertTrue(invokeShouldConfigureHttpClient(builder));
+  }
+
+  @Test
+  void testShouldConfigureHttpClient_falseWhenNothingSet() throws Exception {
+    GcpBlobStore.Builder builder = new GcpBlobStore.Builder();
+    assertFalse(invokeShouldConfigureHttpClient(builder));
+  }
+
+  @Test
+  void testShouldConfigureHttpClient_trueWhenMaxConnectionsSet() throws Exception {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder) new GcpBlobStore.Builder().withMaxConnections(10);
+    assertTrue(invokeShouldConfigureHttpClient(builder));
+  }
+
+  @Test
+  void testShouldConfigureHttpClient_trueWhenSocketTimeoutSet() throws Exception {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withSocketTimeout(Duration.ofSeconds(5));
+    assertTrue(invokeShouldConfigureHttpClient(builder));
+  }
+
+  @Test
+  void testShouldConfigureHttpClient_trueWhenIdleConnectionTimeoutSet() throws Exception {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withIdleConnectionTimeout(Duration.ofSeconds(5));
+    assertTrue(invokeShouldConfigureHttpClient(builder));
+  }
+
+  @Test
+  void testShouldConfigureHttpClient_trueWhenProxyEndpointSet() throws Exception {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withProxyEndpoint(URI.create("http://proxy.example:3128"));
+    assertTrue(invokeShouldConfigureHttpClient(builder));
+  }
+
+  private static boolean invokeShouldConfigureHttpClient(GcpBlobStore.Builder builder)
+      throws Exception {
+    Method method =
+        GcpBlobStore.Builder.class.getDeclaredMethod(
+            "shouldConfigureHttpClient", GcpBlobStore.Builder.class);
+    method.setAccessible(true);
+    return (Boolean) method.invoke(null, builder);
   }
 
   private static UploadResult makeUploadResult(String key, TransferStatus status, Exception ex) {
@@ -3178,6 +3285,164 @@ class GcpBlobStoreTest {
     assertEquals(TEST_BUCKET, capturedRequest.bucket());
     assertEquals(TEST_KEY, capturedRequest.key());
     // Don't verify kmsKeyName as it's an optional field
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_stampsOperationContextOntoObjectMetadata() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("keystone-boxoffice")
+            .tenantId("tenant-42")
+            .build();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+        .thenReturn(CreateMultipartUploadResponse.builder().uploadId("upload-ctx").build());
+
+    MultipartUpload result = gcpBlobStore.doInitiateMultipartUpload(request);
+
+    ArgumentCaptor<CreateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+    verify(mpuClient).createMultipartUpload(captor.capture());
+    Map<String, String> metadata = captor.getValue().metadata();
+
+    assertEquals("user-value", metadata.get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        metadata.get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "correlation id must be stamped onto the created object's metadata");
+    assertEquals(
+        "keystone-boxoffice",
+        metadata.get(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "service id must be stamped onto the created object's metadata");
+    assertEquals(
+        "tenant-42",
+        metadata.get(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "tenant id must be stamped onto the created object's metadata");
+
+    // The returned handle echoes the stamped metadata so it reflects what actually lands on the
+    // object, matching the create request and a subsequent getMetadata read-back.
+    Map<String, String> handleMetadata = result.getMetadata();
+    assertEquals("user-value", handleMetadata.get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        handleMetadata.get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "correlation id must be echoed onto the multipart upload handle metadata");
+    assertEquals(
+        "keystone-boxoffice",
+        handleMetadata.get(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "service id must be echoed onto the multipart upload handle metadata");
+    assertEquals(
+        "tenant-42",
+        handleMetadata.get(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "tenant id must be echoed onto the multipart upload handle metadata");
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_stampsContextEvenWhenNoUserMetadata() {
+    OperationContext ctx = OperationContext.builder().serviceId("svc-only").build();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey(TEST_KEY).withOperationContext(ctx).build();
+
+    when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+        .thenReturn(CreateMultipartUploadResponse.builder().uploadId("upload-svc").build());
+
+    gcpBlobStore.doInitiateMultipartUpload(request);
+
+    ArgumentCaptor<CreateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+    verify(mpuClient).createMultipartUpload(captor.capture());
+    assertEquals(
+        "svc-only",
+        captor.getValue().metadata().get(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "context must be stamped even when the caller supplied no metadata");
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_userSuppliedContextKeyNotOverwritten() {
+    OperationContext ctx = OperationContext.builder().correlationId("sdk-generated").build();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of(GcpTransformer.CORRELATION_ID_METADATA_KEY, "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+        .thenReturn(CreateMultipartUploadResponse.builder().uploadId("upload-user").build());
+
+    gcpBlobStore.doInitiateMultipartUpload(request);
+
+    ArgumentCaptor<CreateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+    verify(mpuClient).createMultipartUpload(captor.capture());
+    assertEquals(
+        "user-supplied",
+        captor.getValue().metadata().get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "an explicit metadata value from the caller must take precedence over the context");
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_noContextLeavesMetadataUnstamped() {
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .build();
+
+    when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+        .thenReturn(CreateMultipartUploadResponse.builder().uploadId("upload-noctx").build());
+
+    gcpBlobStore.doInitiateMultipartUpload(request);
+
+    ArgumentCaptor<CreateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+    verify(mpuClient).createMultipartUpload(captor.capture());
+    Map<String, String> metadata = captor.getValue().metadata();
+    assertEquals("user-value", metadata.get("user-key"));
+    assertFalse(metadata.containsKey(GcpTransformer.CORRELATION_ID_METADATA_KEY));
+    assertFalse(metadata.containsKey(GcpTransformer.SERVICE_ID_METADATA_KEY));
+    assertFalse(metadata.containsKey(GcpTransformer.TENANT_ID_METADATA_KEY));
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_blankContextIdsAreSkipped() {
+    // Blank/whitespace ids must be treated as absent: no metadata key should be stamped for them,
+    // while a non-blank id in the same context is still stamped.
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("   ")
+            .serviceId("")
+            .tenantId("tenant-present")
+            .build();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey(TEST_KEY).withOperationContext(ctx).build();
+
+    when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+        .thenReturn(CreateMultipartUploadResponse.builder().uploadId("upload-blank").build());
+
+    gcpBlobStore.doInitiateMultipartUpload(request);
+
+    ArgumentCaptor<CreateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+    verify(mpuClient).createMultipartUpload(captor.capture());
+    Map<String, String> metadata = captor.getValue().metadata();
+    assertFalse(
+        metadata.containsKey(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "a whitespace-only correlation id must not be stamped");
+    assertFalse(
+        metadata.containsKey(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "a blank service id must not be stamped");
+    assertEquals(
+        "tenant-present",
+        metadata.get(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "a non-blank id in the same context must still be stamped");
   }
 
   @Test
@@ -4587,4 +4852,40 @@ class GcpBlobStoreTest {
 
     assertThrows(NoSuchElementException.class, versions::next);
   }
+
+  @Test
+  void testDoGetBucketVersioning_delegatesToTransformer() {
+    Bucket mockBucket = mock(Bucket.class);
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
+    when(mockBucket.versioningEnabled()).thenReturn(true);
+    when(mockTransformer.toBucketVersioningConfiguration(true))
+        .thenReturn(BucketVersioningConfiguration.of(BucketVersioningStatus.ENABLED));
+
+    BucketVersioningConfiguration result = gcpBlobStore.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.ENABLED, result.getStatus());
+    verify(mockBucket).versioningEnabled();
+    verify(mockTransformer).toBucketVersioningConfiguration(true);
+  }
+
+  @Test
+  void testDoGetBucketVersioning_unversionedWhenFlagAbsent() {
+    Bucket mockBucket = mock(Bucket.class);
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
+    when(mockBucket.versioningEnabled()).thenReturn(null);
+    when(mockTransformer.toBucketVersioningConfiguration(null))
+        .thenReturn(BucketVersioningConfiguration.of(BucketVersioningStatus.UNVERSIONED));
+
+    BucketVersioningConfiguration result = gcpBlobStore.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.UNVERSIONED, result.getStatus());
+  }
+
+  @Test
+  void testDoGetBucketVersioning_missingBucketThrows() {
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(null);
+
+    assertThrows(ResourceNotFoundException.class, () -> gcpBlobStore.getBucketVersioning());
+  }
+
 }

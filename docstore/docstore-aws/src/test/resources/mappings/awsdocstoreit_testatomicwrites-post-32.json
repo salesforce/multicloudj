@@ -1,0 +1,32 @@
+{
+  "id" : "a88ce3e5-6d64-4b8e-96f7-6778b45f07de",
+  "name" : "AwsDocstoreIT_testAtomicWrites-POST-32",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.DeleteItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"FrankDelete\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "GCRUGHDR5LDT14FEH0ST6K8DGRVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Wed, 22 Jul 2026 23:39:34 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "a88ce3e5-6d64-4b8e-96f7-6778b45f07de",
+  "persistent" : true,
+  "insertionIndex" : 377
+}

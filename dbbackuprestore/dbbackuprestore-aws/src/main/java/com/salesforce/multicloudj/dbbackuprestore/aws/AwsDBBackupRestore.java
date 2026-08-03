@@ -182,18 +182,25 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
   }
 
   private Backup convertToBackup(RecoveryPointByResource recoveryPoint) {
+    // backupSizeBytes() is a boxed Long that AWS leaves null until the size is computed (e.g. while
+    // the recovery point is still CREATING/PARTIAL). Guard the unboxing and report -1 (unavailable)
+    // per the Backup.sizeInBytes contract instead of throwing NPE.
+    Long sizeInBytes = recoveryPoint.backupSizeBytes();
     return Backup.builder()
         .backupId(recoveryPoint.recoveryPointArn())
         .resourceName(getResourceName())
         .status(convertRecoveryPointStatus(recoveryPoint.status()))
         .creationTime(recoveryPoint.creationDate())
         .expiryTime(null)
-        .sizeInBytes(recoveryPoint.backupSizeBytes())
+        .sizeInBytes(sizeInBytes != null ? sizeInBytes : -1)
         .vaultId(recoveryPoint.backupVaultName())
         .build();
   }
 
   private Backup convertToBackup(DescribeRecoveryPointResponse response) {
+    // backupSizeInBytes() is a boxed Long that AWS leaves null until the size is computed. Guard
+    // the unboxing and report -1 (unavailable) per the Backup.sizeInBytes contract instead of NPE.
+    Long sizeInBytes = response.backupSizeInBytes();
     return Backup.builder()
         .backupId(response.recoveryPointArn())
         .resourceName(getResourceName())
@@ -203,7 +210,7 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
             response.calculatedLifecycle() != null
                 ? response.calculatedLifecycle().deleteAt()
                 : null)
-        .sizeInBytes(response.backupSizeInBytes())
+        .sizeInBytes(sizeInBytes != null ? sizeInBytes : -1)
         .vaultId(response.backupVaultName())
         .build();
   }

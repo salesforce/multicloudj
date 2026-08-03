@@ -1,8 +1,8 @@
 package com.salesforce.multicloudj.iam.gcp;
 
+import static com.salesforce.multicloudj.common.gcp.util.WiremockGrpcUtil.getGrpcTransportChannelWithRecordingInterceptor;
+import static com.salesforce.multicloudj.common.gcp.util.WiremockGrpcUtil.initializeWireMockGrpcService;
 import static com.salesforce.multicloudj.common.util.common.TestsUtil.getCurrentTestPrefix;
-import static com.salesforce.multicloudj.common.util.common.WiremockGrpcUtil.getGrpcTransportChannelWithRecordingInterceptor;
-import static com.salesforce.multicloudj.common.util.common.WiremockGrpcUtil.initializeWireMockGrpcService;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;

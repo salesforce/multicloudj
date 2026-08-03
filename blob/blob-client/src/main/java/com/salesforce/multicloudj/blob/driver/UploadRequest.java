@@ -66,9 +66,10 @@ public class UploadRequest {
   private final String contentType;
 
   /**
-   * (Optional parameter) Per-call observability context carrying the correlation ID. If null or
-   * if its correlation ID is missing, the SDK auto-generates a UUID and returns it via the
-   * response object.
+   * (Optional parameter) Per-call observability context carrying the correlation ID. The
+   * correlation ID is never auto-generated; when it is null or missing it defaults to an empty
+   * string and tracing is treated as disabled. When supplied, it is echoed back via the response
+   * object.
    */
   private final OperationContext operationContext;
 
@@ -168,8 +169,9 @@ public class UploadRequest {
     }
 
     /**
-     * Sets the per-call observability context carrying the correlation ID. If not set (or if the
-     * context's correlation ID is null/empty), the SDK auto-generates a UUID.
+     * Sets the per-call observability context carrying the correlation ID. The correlation ID is
+     * never auto-generated; if not set (or if the context's correlation ID is null/empty) it
+     * defaults to an empty string and tracing is treated as disabled.
      *
      * @param operationContext the observability context
      * @return this builder
