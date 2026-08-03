@@ -2290,8 +2290,8 @@ class GcpBlobStoreTest {
 
     PoolingHttpClientConnectionManager connectionManager = invokeBuildConnectionManager(builder);
 
-    assertEquals(50, connectionManager.getMaxTotal());
-    assertEquals(50, connectionManager.getDefaultMaxPerRoute());
+    assertEquals(200, connectionManager.getMaxTotal());
+    assertEquals(20, connectionManager.getDefaultMaxPerRoute());
   }
 
   @Test

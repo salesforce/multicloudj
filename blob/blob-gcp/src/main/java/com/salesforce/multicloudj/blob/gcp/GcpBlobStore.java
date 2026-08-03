@@ -1512,7 +1512,8 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Getter
   public static class Builder extends AbstractBlobStore.Builder<GcpBlobStore, Builder> {
-    private static final int DEFAULT_MAX_CONNECTIONS = 50;
+    private static final int DEFAULT_MAX_CONNECTIONS = 200;
+    private static final int DEFAULT_MAX_CONNECTIONS_PER_ROUTE = 20;
 
     private Storage storage;
     private MultipartUploadClient mpuClient;
@@ -1717,11 +1718,20 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     private static CloseableHttpClient buildHttpClient(Builder builder) {
-      HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+      HttpClientBuilder httpClientBuilder = ApacheHttpTransport.newDefaultHttpClientBuilder();
       httpClientBuilder.setDefaultRequestConfig(buildRequestConfig(builder));
-      PoolingHttpClientConnectionManager connectionManager = buildConnectionManager(builder);
-      httpClientBuilder.setConnectionManager(connectionManager);
+
+      // GCS traffic normally targets one Apache HTTP route. Directory transfers can have more
+      // workers than the default per-route limit, so an explicit maximum applies to both limits.
+      if (builder.getMaxConnections() != null) {
+        int maxConns = builder.getMaxConnections();
+        httpClientBuilder.setMaxConnTotal(maxConns);
+        httpClientBuilder.setMaxConnPerRoute(maxConns);
+      }
+
       if (builder.getMetricsPublisher() != null) {
+        PoolingHttpClientConnectionManager connectionManager = buildConnectionManager(builder);
+        httpClientBuilder.setConnectionManager(connectionManager);
         httpClientBuilder.addInterceptorLast(
             new GcpConnectionPoolMetricsInterceptor(
                 connectionManager::getTotalStats, builder.getMetricsPublisher()));
@@ -1736,10 +1746,13 @@ public class GcpBlobStore extends AbstractBlobStore {
     private static PoolingHttpClientConnectionManager buildConnectionManager(Builder builder) {
       PoolingHttpClientConnectionManager connectionManager =
           new PoolingHttpClientConnectionManager();
-      int maxConns = builder.getMaxConnections() != null
-          ? builder.getMaxConnections() : DEFAULT_MAX_CONNECTIONS;
-      connectionManager.setMaxTotal(maxConns);
-      connectionManager.setDefaultMaxPerRoute(maxConns);
+      if (builder.getMaxConnections() != null) {
+        connectionManager.setMaxTotal(builder.getMaxConnections());
+        connectionManager.setDefaultMaxPerRoute(builder.getMaxConnections());
+      } else {
+        connectionManager.setMaxTotal(DEFAULT_MAX_CONNECTIONS);
+        connectionManager.setDefaultMaxPerRoute(DEFAULT_MAX_CONNECTIONS_PER_ROUTE);
+      }
       return connectionManager;
     }
 
