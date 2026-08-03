@@ -2758,8 +2758,7 @@ public abstract class AbstractBlobStoreIT {
   public void testGetObjectLock_afterUploadWithRetentionGovernance() throws IOException {
     String key = "conformance-tests/objectlock/retention-governance";
     byte[] content = "Object lock retention governance test".getBytes(StandardCharsets.UTF_8);
-    // Keep retainUntil in the future so record mode remains valid over time.
-    Instant retainUntil = Instant.parse("2100-01-01T00:00:00Z");
+    Instant retainUntil = OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE;
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
