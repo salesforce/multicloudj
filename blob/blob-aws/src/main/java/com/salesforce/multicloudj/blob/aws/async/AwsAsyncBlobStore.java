@@ -39,6 +39,7 @@ import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.observability.MetricsPublisher;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
 import java.io.IOException;
@@ -98,6 +99,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   private final S3AsyncClient client;
   private final S3TransferManager transferManager;
   private final AwsTransformer transformer;
+  private final MetricsPublisher metricsPublisher;
 
   public AwsAsyncBlobStore(
       String bucket,
@@ -107,10 +109,31 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       S3AsyncClient client,
       S3TransferManager transferManager,
       AwsTransformerSupplier transformerSupplier) {
+    this(
+        bucket,
+        region,
+        credentialsOverrider,
+        validator,
+        client,
+        transferManager,
+        transformerSupplier,
+        null);
+  }
+
+  public AwsAsyncBlobStore(
+      String bucket,
+      String region,
+      CredentialsOverrider credentialsOverrider,
+      BlobStoreValidator validator,
+      S3AsyncClient client,
+      S3TransferManager transferManager,
+      AwsTransformerSupplier transformerSupplier,
+      MetricsPublisher metricsPublisher) {
     super(AwsConstants.PROVIDER_ID, bucket, region, credentialsOverrider, validator);
     this.client = client;
     this.transferManager = transferManager;
     this.transformer = transformerSupplier.get(bucket);
+    this.metricsPublisher = metricsPublisher;
   }
 
   @Override
@@ -573,6 +596,12 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     if (client != null) {
       client.close();
     }
+    // The AWS SDK v2 does not close MetricPublishers registered via addMetricPublisher
+    // (ownership stays with the caller), so release the publisher here to honor the
+    // MetricsPublisher lifecycle contract.
+    if (metricsPublisher != null) {
+      metricsPublisher.close();
+    }
   }
 
   public static Builder builder() {
@@ -753,6 +782,10 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       }
     }
 
+    // Note: unlike the standard S3AsyncClient path, the CRT-backed client (used when parallel
+    // downloads are enabled) uses a native HTTP stack rather than the SDK's metric-publisher SPI,
+    // so a MetricsPublisher supplied via withMetricsPublisher(...) does not emit connection-pool
+    // metrics on this path. This is a documented limitation; see withMetricsPublisher's javadoc.
     private static void applyCommonConfig(
         S3CrtAsyncClientBuilder builder, Builder config, Region regionObj) {
       // Configure region
@@ -855,7 +888,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           getValidator(),
           client,
           tm,
-          getTransformerSupplier());
+          getTransformerSupplier(),
+          getMetricsPublisher());
     }
   }
 }

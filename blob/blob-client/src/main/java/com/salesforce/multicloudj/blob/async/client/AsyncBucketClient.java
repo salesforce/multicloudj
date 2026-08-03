@@ -30,6 +30,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.observability.MetricsPublisher;
 import com.salesforce.multicloudj.common.observability.MultiCloudJLogger;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.observability.TracingPolicy;
@@ -762,6 +763,16 @@ public class AsyncBucketClient implements AutoCloseable {
     @Override
     public Builder withTracingPolicy(TracingPolicy tracingPolicy) {
       super.withTracingPolicy(tracingPolicy);
+      return this;
+    }
+
+    /**
+     * Method to supply an opt-in publisher for cloud-agnostic client metrics (for example HTTP
+     * connection-pool saturation). Off by default.
+     */
+    @Override
+    public Builder withMetricsPublisher(MetricsPublisher metricsPublisher) {
+      super.withMetricsPublisher(metricsPublisher);
       return this;
     }
 

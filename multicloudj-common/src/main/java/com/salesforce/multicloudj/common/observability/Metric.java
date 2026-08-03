@@ -13,6 +13,16 @@ import lombok.Getter;
  * <p>The {@link #category} preserves the logical layer that produced the metric (for example {@code
  * "ApiCall"} or {@code "HttpClient"}) so operators can distinguish, e.g., connection-pool
  * saturation metrics from request-level metrics without needing provider-specific types.
+ *
+ * <p><b>Provider-neutral contract.</b> The only metrics guaranteed on every supported provider are
+ * the four connection-pool counters defined in {@link ConnectionPoolMetrics} ({@code
+ * MaxConcurrency}, {@code LeasedConcurrency}, {@code AvailableConcurrency}, {@code
+ * PendingConcurrencyAcquires}), all emitted under {@link ConnectionPoolMetrics#CATEGORY_HTTP_CLIENT
+ * "HttpClient"} with an {@link Integer} {@link #value}. Any other name/category (for example an
+ * AWS-shaped {@code ApiCall}/{@code ApiCallAttempt} metric, whose value may be a {@code Duration},
+ * {@code String}, or numeric type) is a provider-specific superset that is not portable across
+ * clouds. A consumer written to the neutral contract should filter by category {@code "HttpClient"}
+ * and the four names above, and must not assume the {@link #value} type of any other metric.
  */
 @Builder
 @Getter

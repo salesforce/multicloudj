@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobSpanNames;
+import com.salesforce.multicloudj.blob.driver.BlobStoreBuilder;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
@@ -29,6 +30,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.observability.MetricsPublisher;
 import com.salesforce.multicloudj.common.observability.MultiCloudJLogger;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.observability.TracingPolicy;
@@ -1245,6 +1247,19 @@ public class BucketClient implements AutoCloseable {
      */
     public BlobBuilder withTracingPolicy(TracingPolicy tracingPolicy) {
       this.blobStoreBuilder.withTracingPolicy(tracingPolicy);
+      return this;
+    }
+
+    /**
+     * Method to supply an opt-in publisher for cloud-agnostic client metrics (for example
+     * HTTP connection-pool saturation). Off by default; see {@link
+     * BlobStoreBuilder#withMetricsPublisher(MetricsPublisher)} for provider support details.
+     *
+     * @param metricsPublisher The publisher to receive client metrics, or {@code null} to disable.
+     * @return An instance of self
+     */
+    public BlobBuilder withMetricsPublisher(MetricsPublisher metricsPublisher) {
+      this.blobStoreBuilder.withMetricsPublisher(metricsPublisher);
       return this;
     }
 

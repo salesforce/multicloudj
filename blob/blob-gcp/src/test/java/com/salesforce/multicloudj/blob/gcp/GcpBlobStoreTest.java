@@ -2413,6 +2413,15 @@ class GcpBlobStoreTest {
     assertTrue(invokeShouldConfigureHttpClient(builder));
   }
 
+  @Test
+  void testShouldConfigureHttpClient_trueWhenOnlyMetricsPublisherSet() throws Exception {
+    // Regression: a metrics-only builder must still own its transport so the pool-sampling
+    // interceptor gets installed; otherwise metrics silently no-op for the common enable path.
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder) new GcpBlobStore.Builder().withMetricsPublisher(metrics -> {});
+    assertTrue(invokeShouldConfigureHttpClient(builder));
+  }
+
   private static boolean invokeShouldConfigureHttpClient(GcpBlobStore.Builder builder)
       throws Exception {
     Method method =

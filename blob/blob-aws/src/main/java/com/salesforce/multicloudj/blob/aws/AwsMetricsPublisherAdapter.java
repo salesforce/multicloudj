@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.common.observability.MetricsPublisher;
 import java.util.ArrayList;
 import java.util.List;
 import software.amazon.awssdk.metrics.MetricCollection;
+import software.amazon.awssdk.metrics.MetricPublisher;
 import software.amazon.awssdk.metrics.MetricRecord;
 
 /**
@@ -25,7 +26,7 @@ import software.amazon.awssdk.metrics.MetricRecord;
  * category; the metric names in that category match the cloud-agnostic {@link
  * com.salesforce.multicloudj.common.observability.ConnectionPoolMetrics} vocabulary.
  */
-public class AwsMetricsPublisherAdapter implements software.amazon.awssdk.metrics.MetricPublisher {
+public class AwsMetricsPublisherAdapter implements MetricPublisher {
 
   private final MetricsPublisher delegate;
 

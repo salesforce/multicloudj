@@ -52,6 +52,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.observability.MetricsPublisher;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -2200,6 +2201,23 @@ public class AwsBlobStoreTest {
 
     // Then
     verify(mockS3Client, times(1)).close();
+  }
+
+  @Test
+  void testCloseReleasesMetricsPublisher() {
+    // The AWS SDK v2 does not close caller-registered MetricPublishers, so the blob store must
+    // release the supplied publisher itself when it closes.
+    MetricsPublisher metricsPublisher = mock(MetricsPublisher.class);
+    AwsBlobStore.Builder builder = new AwsBlobStore.Builder();
+    builder.withTransformerSupplier(transformerSupplier);
+    builder.withBucket("bucket-1");
+    builder.withRegion("us-east-2");
+    builder.withMetricsPublisher(metricsPublisher);
+    AwsBlobStore store = builder.build();
+
+    store.close();
+
+    verify(metricsPublisher, times(1)).close();
   }
 
   // ---- New overload: updateObjectRetention(String, String, ObjectRetentionConfig) ----

@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.observability.MetricsPublisher;
 import com.salesforce.multicloudj.common.observability.TracingPolicy;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.service.SdkService;
@@ -299,6 +300,19 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
    */
   public BlobClientBuilder<C, S> withTracingPolicy(TracingPolicy tracingPolicy) {
     this.storeBuilder.withTracingPolicy(tracingPolicy);
+    return this;
+  }
+
+  /**
+   * Method to supply an opt-in publisher for cloud-agnostic client metrics (for example HTTP
+   * connection-pool saturation). Off by default; see {@link
+   * BlobStoreBuilder#withMetricsPublisher(MetricsPublisher)} for provider support details.
+   *
+   * @param metricsPublisher The publisher to receive client metrics, or {@code null} to disable.
+   * @return An instance of self
+   */
+  public BlobClientBuilder<C, S> withMetricsPublisher(MetricsPublisher metricsPublisher) {
+    this.storeBuilder.withMetricsPublisher(metricsPublisher);
     return this;
   }
 

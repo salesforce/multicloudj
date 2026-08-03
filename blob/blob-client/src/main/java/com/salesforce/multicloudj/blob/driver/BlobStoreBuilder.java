@@ -151,7 +151,9 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
    *       for both the synchronous and asynchronous clients. In addition to the four common
    *       connection-pool counters, AWS forwards its full native metric tree (for example
    *       request/acquisition latency and per-attempt metrics) as a provider-specific superset,
-   *       each tagged with the SDK layer that produced it.
+   *       each tagged with the SDK layer that produced it. Exception: the CRT-backed async client
+   *       (used when parallel downloads are enabled) uses a native HTTP stack rather than the
+   *       metric-publisher SPI, so no metrics are emitted on that path.
    *   <li><b>GCP</b>: supported. The GCP storage SDK provides no push callback, so the four
    *       connection-pool counters are sampled from the HTTP connection pool after each request and
    *       forwarded to this publisher.

@@ -92,6 +92,7 @@ import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
+import com.salesforce.multicloudj.common.observability.MetricsPublisher;
 import com.salesforce.multicloudj.common.provider.Provider;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -144,6 +145,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   private final MultipartUploadClient multipartUploadClient;
   private final TransferManager transferManager;
   private final GcpTransformer transformer;
+  private final MetricsPublisher metricsPublisher;
   private static final String TAG_PREFIX = "gcp-tag-";
   private static final String RESPONSE_CONTENT_DISPOSITION = "response-content-disposition";
 
@@ -161,6 +163,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     this.multipartUploadClient = mpuClient;
     this.transferManager = transferManager;
     this.transformer = builder.transformerSupplier.get(bucket);
+    this.metricsPublisher = builder.getMetricsPublisher();
   }
 
   @Override
@@ -1523,6 +1526,11 @@ public class GcpBlobStore extends AbstractBlobStore {
       if (storage != null) {
         storage.close();
       }
+      // The GCS SDK does not own the publisher, so release it here to honor the
+      // MetricsPublisher lifecycle contract (a buffered/threaded publisher must be shut down).
+      if (metricsPublisher != null) {
+        metricsPublisher.close();
+      }
     } catch (Exception e) {
       throw new SubstrateSdkException("Failed to close GCP storage clients", e);
     }
@@ -1628,7 +1636,10 @@ public class GcpBlobStore extends AbstractBlobStore {
       return builder.getProxyEndpoint() != null
           || builder.getMaxConnections() != null
           || builder.getSocketTimeout() != null
-          || builder.getIdleConnectionTimeout() != null;
+          || builder.getIdleConnectionTimeout() != null
+          // A metrics-only builder still needs the explicitly-owned transport so the pool-sampling
+          // interceptor in buildHttpClient() can be installed; otherwise metrics silently no-op.
+          || builder.getMetricsPublisher() != null;
     }
 
     /** Creates HttpTransportOptions with ApacheHttpTransport */

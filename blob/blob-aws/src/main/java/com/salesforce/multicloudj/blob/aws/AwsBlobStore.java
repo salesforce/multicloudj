@@ -36,6 +36,7 @@ import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.observability.MetricsPublisher;
 import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -98,6 +99,7 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
   private final S3Client s3Client;
   private final AwsTransformer transformer;
+  private final MetricsPublisher metricsPublisher;
 
   public AwsBlobStore() {
     this(new Builder(), null);
@@ -107,6 +109,7 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
     super(builder);
     this.s3Client = s3Client;
     this.transformer = builder.getTransformerSupplier().get(bucket);
+    this.metricsPublisher = builder.getMetricsPublisher();
   }
 
   /** Helper function to determine if any of the HttpClient configuration options have been set */
@@ -721,6 +724,12 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
   public void close() {
     if (s3Client != null) {
       s3Client.close();
+    }
+    // The AWS SDK v2 does not close MetricPublishers registered via addMetricPublisher
+    // (ownership stays with the caller), so release the publisher here to honor the
+    // MetricsPublisher lifecycle contract.
+    if (metricsPublisher != null) {
+      metricsPublisher.close();
     }
   }
 
