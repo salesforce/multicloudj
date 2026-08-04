@@ -1076,4 +1076,74 @@ public class AwsDocStoreTest {
     query2.initGet(List.of("SomeAttribute1", "SomeAttribute2"));
     Assertions.assertTrue(docStore.globalFieldIncluded(query2, gsi));
   }
+
+
+  @Test
+  void testItemSizeValidation_overLimit() {
+    // Create a document that definitely exceeds 400 KB
+    int targetSize = DynamoDbItemSizeCalculator.ITEM_SIZE_LIMIT_BYTES + 10000; // 10 KB over
+
+    StringBuilder largeData = new StringBuilder(targetSize);
+    for (int i = 0; i < targetSize; i++) {
+      largeData.append("a");
+    }
+
+    Book oversizedBook =
+        new Book(
+            largeData.toString(), // Large string as title
+            null,
+            "WA",
+            Timestamp.newBuilder().setNanos(1000).build(),
+            3.99f,
+            null,
+            null);
+
+    TestAction create =
+        new TestAction(ActionKind.ACTION_KIND_CREATE, new Document(oversizedBook), null, null);
+
+    // Should throw InvalidArgumentException
+    InvalidArgumentException exception =
+        Assertions.assertThrows(
+            InvalidArgumentException.class, () -> docStore.newPut(create, null));
+
+    Assertions.assertTrue(exception.getMessage().contains("exceeds DynamoDB item size limit"));
+    Assertions.assertTrue(exception.getMessage().contains("400 KB"));
+  }
+
+
+  @Test
+  void testItemSizeValidation_nestedPayloadNearLimit() {
+    // Keep a small safety margin so this remains below 400 KB after nested structure overhead.
+    int targetSize = DynamoDbItemSizeCalculator.ITEM_SIZE_LIMIT_BYTES - 8000;
+    StringBuilder largeTitle = new StringBuilder(targetSize);
+    for (int i = 0; i < targetSize; i++) {
+      largeTitle.append("n");
+    }
+
+    Map<String, Integer> nestedTableOfContents = new HashMap<>();
+    for (int i = 0; i < 200; i++) {
+      nestedTableOfContents.put("section-" + i, i);
+    }
+
+    Person nestedAuthor =
+        new Person(
+            List.of("alias-1", "alias-2", "alias-3", "alias-4"),
+            "Nested",
+            "Author",
+            Timestamp.newBuilder().setNanos(100).build());
+    Book nestedBook =
+        new Book(
+            largeTitle.toString(),
+            nestedAuthor,
+            "WA",
+            Timestamp.newBuilder().setNanos(1000).build(),
+            3.99f,
+            nestedTableOfContents,
+            null);
+
+    TestAction create =
+        new TestAction(ActionKind.ACTION_KIND_CREATE, new Document(nestedBook), null, null);
+
+    Assertions.assertDoesNotThrow(() -> docStore.newPut(create, null));
+  }
 }
