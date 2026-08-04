@@ -101,6 +101,7 @@ import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
+import com.salesforce.multicloudj.common.observability.MetricsPublisher;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.provider.Provider;
 import java.io.ByteArrayInputStream;
@@ -2346,6 +2347,32 @@ class GcpBlobStoreTest {
     Field field = httpClient.getClass().getDeclaredField("connManager");
     field.setAccessible(true);
     return (PoolingHttpClientConnectionManager) field.get(httpClient);
+  }
+  
+  @Test
+  void testBuildHttpClient_withMetricsUsesObservableDefaultPool() throws Exception {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withMetricsPublisher(metrics -> {});
+
+    try (CloseableHttpClient httpClient = invokeBuildHttpClient(builder)) {
+      PoolingHttpClientConnectionManager connectionManager =
+          extractConnectionManager(httpClient);
+
+      assertEquals(200, connectionManager.getMaxTotal());
+      assertEquals(20, connectionManager.getDefaultMaxPerRoute());
+    }
+  }
+  
+  @Test
+  void testShouldConfigureHttpClient_trueWhenMetricsPublisherSet() throws Exception {
+    MetricsPublisher publisher = metrics -> {};
+
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withMetricsPublisher(publisher);
+
+    assertTrue(invokeShouldConfigureHttpClient(builder));
   }
 
   @Test

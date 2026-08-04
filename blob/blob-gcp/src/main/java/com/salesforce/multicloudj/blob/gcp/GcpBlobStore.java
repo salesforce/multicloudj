@@ -129,6 +129,7 @@ import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1529,6 +1530,10 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Getter
   public static class Builder extends AbstractBlobStore.Builder<GcpBlobStore, Builder> {
+    // Match ApacheHttpTransport.newDefaultHttpClientBuilder(). Supplying an observable
+    // connection manager replaces the manager configured by that builder.
+    private static final int DEFAULT_MAX_CONNECTIONS = 200;
+    private static final int DEFAULT_MAX_CONNECTIONS_PER_ROUTE = 20;
 
     private Storage storage;
     private MultipartUploadClient mpuClient;
@@ -1627,7 +1632,8 @@ public class GcpBlobStore extends AbstractBlobStore {
       return builder.getProxyEndpoint() != null
           || builder.getMaxConnections() != null
           || builder.getSocketTimeout() != null
-          || builder.getIdleConnectionTimeout() != null;
+          || builder.getIdleConnectionTimeout() != null
+          || builder.getMetricsPublisher() != null;
     }
 
     /** Creates HttpTransportOptions with ApacheHttpTransport */
@@ -1746,7 +1752,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
       return configBuilder.build().getService();
     }
-
+    
     private static CloseableHttpClient buildHttpClient(Builder builder) {
       HttpClientBuilder httpClientBuilder = ApacheHttpTransport.newDefaultHttpClientBuilder();
       httpClientBuilder.setDefaultRequestConfig(buildRequestConfig(builder));
@@ -1763,11 +1769,38 @@ public class GcpBlobStore extends AbstractBlobStore {
         httpClientBuilder.setMaxConnTotal(maxConns);
         httpClientBuilder.setMaxConnPerRoute(maxConns);
       }
+      // Attach response interceptor to sample Apache HTTP connection pool state per request
+      if (builder.getMetricsPublisher() != null) {
+        PoolingHttpClientConnectionManager connectionManager = buildConnectionManager(builder);
+        httpClientBuilder.setConnectionManager(connectionManager);
+        httpClientBuilder.addInterceptorLast(
+            new GcpConnectionPoolMetricsInterceptor(
+                connectionManager::getTotalStats,
+                builder.getMetricsPublisher()));
+      }
       if (builder.getIdleConnectionTimeout() != null) {
         httpClientBuilder.evictIdleConnections(
             builder.getIdleConnectionTimeout().toMillis(), TimeUnit.MILLISECONDS);
       }
       return httpClientBuilder.build();
+    }
+
+    private static PoolingHttpClientConnectionManager buildConnectionManager(Builder builder) {
+      PoolingHttpClientConnectionManager connectionManager =
+          new PoolingHttpClientConnectionManager();
+
+      int maxTotal =
+          builder.getMaxConnections() != null
+              ? builder.getMaxConnections()
+              : DEFAULT_MAX_CONNECTIONS;
+      int maxPerRoute =
+          builder.getMaxConnections() != null
+              ? builder.getMaxConnections()
+              : DEFAULT_MAX_CONNECTIONS_PER_ROUTE;
+
+      connectionManager.setMaxTotal(maxTotal);
+      connectionManager.setDefaultMaxPerRoute(maxPerRoute);
+      return connectionManager;
     }
 
     private static RequestConfig buildRequestConfig(Builder builder) {
