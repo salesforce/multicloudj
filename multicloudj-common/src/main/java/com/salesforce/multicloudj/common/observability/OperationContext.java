@@ -1,5 +1,7 @@
 package com.salesforce.multicloudj.common.observability;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import java.util.regex.Pattern;
 import lombok.Builder;
 import lombok.Value;
 
@@ -65,21 +67,60 @@ public class OperationContext {
    * customizable; the service-id and tenant-id keys remain fixed. This field affects only the
    * stored metadata <em>key</em>; it does not change the correlation id value, the span attribute,
    * the MDC entry, or the value echoed back on responses.
+   *
+   * <p>When supplied and non-blank, the key must be a valid object-metadata key: it must contain
+   * only ASCII letters, digits, hyphens and underscores, and must not equal one of the SDK's
+   * reserved keys ({@link SdkLoggingMetadataKeys#SERVICE_ID} or {@link
+   * SdkLoggingMetadataKeys#TENANT_ID}) — reusing a reserved key would collide with the fixed
+   * service-id/tenant-id stamps and drop them. A key that violates either rule is rejected with an
+   * {@link InvalidArgumentException} when it is resolved during upload.
    */
   String correlationIdMetadataKey;
 
   /**
+   * Allowed shape for a custom correlation-id metadata key: ASCII letters, digits, hyphens and
+   * underscores only. This is the intersection that AWS S3, GCS and OSS all accept as a
+   * user-metadata key name, so a key that passes here is portable across every provider.
+   */
+  private static final Pattern VALID_METADATA_KEY = Pattern.compile("[A-Za-z0-9_-]+");
+
+  /**
    * Resolves the metadata key under which the correlation id should be stamped on a stored object:
    * the application-supplied {@link #correlationIdMetadataKey} when present, otherwise the default
-   * {@link SdkLoggingMetadataKeys#CORRELATION_ID}. Defined here so the fallback lives in one place
-   * and cannot drift across provider implementations.
+   * {@link SdkLoggingMetadataKeys#CORRELATION_ID}. Defined here so the fallback and validation live
+   * in one place and cannot drift across provider implementations.
+   *
+   * <p>When a custom key is supplied, it is validated before being returned: it must match {@link
+   * #VALID_METADATA_KEY} and must not equal a reserved key ({@link
+   * SdkLoggingMetadataKeys#SERVICE_ID} or {@link SdkLoggingMetadataKeys#TENANT_ID}). This fails
+   * fast with a clear SDK exception rather than surfacing a substrate error later or silently
+   * dropping the service-id/tenant-id stamp on a collision.
    *
    * @return the custom correlation-id metadata key when supplied and non-blank, else {@link
    *     SdkLoggingMetadataKeys#CORRELATION_ID}
+   * @throws InvalidArgumentException if a supplied custom key has an invalid shape or collides with
+   *     a reserved key
    */
   public String resolveCorrelationIdMetadataKey() {
-    return (correlationIdMetadataKey == null || correlationIdMetadataKey.trim().isEmpty())
-        ? SdkLoggingMetadataKeys.CORRELATION_ID
-        : correlationIdMetadataKey;
+    if (correlationIdMetadataKey == null || correlationIdMetadataKey.trim().isEmpty()) {
+      return SdkLoggingMetadataKeys.CORRELATION_ID;
+    }
+    if (SdkLoggingMetadataKeys.SERVICE_ID.equals(correlationIdMetadataKey)
+        || SdkLoggingMetadataKeys.TENANT_ID.equals(correlationIdMetadataKey)) {
+      throw new InvalidArgumentException(
+          "correlationIdMetadataKey must not equal a reserved SDK metadata key ('"
+              + SdkLoggingMetadataKeys.SERVICE_ID
+              + "' or '"
+              + SdkLoggingMetadataKeys.TENANT_ID
+              + "'): "
+              + correlationIdMetadataKey);
+    }
+    if (!VALID_METADATA_KEY.matcher(correlationIdMetadataKey).matches()) {
+      throw new InvalidArgumentException(
+          "correlationIdMetadataKey may contain only ASCII letters, digits, hyphens and"
+              + " underscores: "
+              + correlationIdMetadataKey);
+    }
+    return correlationIdMetadataKey;
   }
 }

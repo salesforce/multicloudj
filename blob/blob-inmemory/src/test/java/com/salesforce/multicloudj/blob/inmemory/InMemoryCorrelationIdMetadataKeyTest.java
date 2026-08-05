@@ -3,12 +3,17 @@ package com.salesforce.multicloudj.blob.inmemory;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.MultipartUpload;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -158,5 +163,70 @@ public class InMemoryCorrelationIdMetadataKeyTest {
         correlationIdValue,
         storedMetadata.get(DEFAULT_CORRELATION_KEY),
         "Default correlation key should have the correct value");
+  }
+
+  @Test
+  public void testCustomCorrelationIdKey_usedOnMultipartUpload() {
+    String key = "test-object-multipart-custom-key";
+    String customKey = "x-custom-corr";
+    String correlationIdValue = "req-mpu-123";
+
+    OperationContext context =
+        OperationContext.builder()
+            .correlationId(correlationIdValue)
+            .correlationIdMetadataKey(customKey)
+            .build();
+
+    MultipartUploadRequest mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(context)
+            .build();
+
+    MultipartUpload mpu = blobStore.initiateMultipartUpload(mpuRequest);
+
+    // The multipart handle carries the metadata that will land on the completed object; the custom
+    // correlation key must flow through the multipart path just as it does for single-shot upload.
+    Map<String, String> stampedMetadata = mpu.getMetadata();
+    assertEquals("user-value", stampedMetadata.get("user-key"));
+    assertEquals(
+        correlationIdValue,
+        stampedMetadata.get(customKey),
+        "Multipart upload should stamp the correlation id under the custom key");
+    assertFalse(
+        stampedMetadata.containsKey(DEFAULT_CORRELATION_KEY),
+        "Multipart upload should not use the default key when a custom key is provided");
+  }
+
+  @Test
+  public void testCustomCorrelationIdKey_collidingWithReservedKeyIsRejected() {
+    String key = "test-object-colliding-key";
+    byte[] content = "test content".getBytes(StandardCharsets.UTF_8);
+
+    // Reusing the reserved tenant-id key as the correlation key would silently drop the tenant id;
+    // the SDK must reject it up front rather than stamp a colliding value.
+    OperationContext context =
+        OperationContext.builder()
+            .correlationId("req-1")
+            .tenantId("tenant-42")
+            .correlationIdMetadataKey(SdkLoggingMetadataKeys.TENANT_ID)
+            .build();
+
+    UploadRequest uploadRequest =
+        new UploadRequest.Builder()
+            .withKey(key)
+            .withContentLength(content.length)
+            .withOperationContext(context)
+            .build();
+
+    try (InputStream inputStream = new ByteArrayInputStream(content)) {
+      assertThrows(
+          InvalidArgumentException.class,
+          () -> blobStore.upload(uploadRequest, inputStream),
+          "Upload must reject a custom correlation key that collides with a reserved key");
+    } catch (Exception e) {
+      // ByteArrayInputStream.close() cannot throw; present only to satisfy the checked signature.
+    }
   }
 }

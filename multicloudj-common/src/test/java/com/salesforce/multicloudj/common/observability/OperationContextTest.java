@@ -3,7 +3,10 @@ package com.salesforce.multicloudj.common.observability;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import org.junit.jupiter.api.Test;
 
 class OperationContextTest {
@@ -167,5 +170,59 @@ class OperationContextTest {
 
     assertEquals(a, b);
     assertNotEquals(a, c);
+  }
+
+  @Test
+  void resolveCorrelationIdMetadataKey_rejectsReservedServiceIdKey() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-1")
+            .correlationIdMetadataKey(SdkLoggingMetadataKeys.SERVICE_ID)
+            .build();
+    InvalidArgumentException ex =
+        assertThrows(InvalidArgumentException.class, ctx::resolveCorrelationIdMetadataKey);
+    assertTrue(ex.getMessage().contains(SdkLoggingMetadataKeys.SERVICE_ID));
+  }
+
+  @Test
+  void resolveCorrelationIdMetadataKey_rejectsReservedTenantIdKey() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-1")
+            .correlationIdMetadataKey(SdkLoggingMetadataKeys.TENANT_ID)
+            .build();
+    assertThrows(InvalidArgumentException.class, ctx::resolveCorrelationIdMetadataKey);
+  }
+
+  @Test
+  void resolveCorrelationIdMetadataKey_allowsDefaultKeyExplicitly() {
+    // The correlation-id default key is not reserved against itself; setting it explicitly is fine.
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationIdMetadataKey(SdkLoggingMetadataKeys.CORRELATION_ID)
+            .build();
+    assertEquals(SdkLoggingMetadataKeys.CORRELATION_ID, ctx.resolveCorrelationIdMetadataKey());
+  }
+
+  @Test
+  void resolveCorrelationIdMetadataKey_rejectsKeyWithIllegalCharacters() {
+    // Colons, spaces and non-ASCII are not portable across provider metadata-key rules.
+    for (String bad : new String[] {"has space", "has:colon", "café", "a/b", "x=y"}) {
+      OperationContext ctx =
+          OperationContext.builder().correlationIdMetadataKey(bad).build();
+      assertThrows(
+          InvalidArgumentException.class,
+          ctx::resolveCorrelationIdMetadataKey,
+          "expected rejection of key: " + bad);
+    }
+  }
+
+  @Test
+  void resolveCorrelationIdMetadataKey_allowsValidKeyShapes() {
+    for (String ok : new String[] {"x-custom-corr", "my_corr_key", "Trace-Id-123", "abc"}) {
+      OperationContext ctx =
+          OperationContext.builder().correlationIdMetadataKey(ok).build();
+      assertEquals(ok, ctx.resolveCorrelationIdMetadataKey(), "expected acceptance of key: " + ok);
+    }
   }
 }

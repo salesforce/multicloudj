@@ -928,6 +928,32 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testToCreateMultipartUploadRequest_customCorrelationIdKeyUsed() {
+    var ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .correlationIdMetadataKey("x-custom-corr")
+            .build();
+    var mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals("user-value", request.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        request.metadata().get("x-custom-corr"),
+        "multipart create must use the custom correlation id key when specified");
+    assertFalse(
+        request.metadata().containsKey("sdk-logging-correlation-id"),
+        "default key must not be used on multipart create when a custom key is specified");
+  }
+
+  @Test
   void testToCreateMultipartUploadRequest_serviceIdAndTenantIdInjectedIntoMetadata() {
     var ctx =
         OperationContext.builder()
