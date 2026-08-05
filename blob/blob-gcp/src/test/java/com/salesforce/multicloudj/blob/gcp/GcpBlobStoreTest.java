@@ -101,6 +101,7 @@ import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.provider.Provider;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -231,6 +232,18 @@ class GcpBlobStoreTest {
               .setMetadata(metadata.isEmpty() ? null : metadata)
               .build();
         });
+
+    // Delegate stampContextMetadata to a real transformer so store-level tests exercise the
+    // genuine stamping behavior through the same code path production uses.
+    GcpTransformer realTransformer = new GcpTransformer(TEST_BUCKET);
+    lenient()
+        .doAnswer(invocation -> {
+          Map<String, String> metadata = invocation.getArgument(0);
+          realTransformer.stampContextMetadata(metadata, invocation.getArgument(1));
+          return null;
+        })
+        .when(mockTransformer)
+        .stampContextMetadata(anyMap(), nullable(OperationContext.class));
 
     gcpBlobStore = new GcpBlobStore(builder, mockStorage, mpuClient, mockTransferManager);
   }
@@ -3245,6 +3258,164 @@ class GcpBlobStoreTest {
     assertEquals(TEST_BUCKET, capturedRequest.bucket());
     assertEquals(TEST_KEY, capturedRequest.key());
     // Don't verify kmsKeyName as it's an optional field
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_stampsOperationContextOntoObjectMetadata() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("keystone-boxoffice")
+            .tenantId("tenant-42")
+            .build();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+        .thenReturn(CreateMultipartUploadResponse.builder().uploadId("upload-ctx").build());
+
+    MultipartUpload result = gcpBlobStore.doInitiateMultipartUpload(request);
+
+    ArgumentCaptor<CreateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+    verify(mpuClient).createMultipartUpload(captor.capture());
+    Map<String, String> metadata = captor.getValue().metadata();
+
+    assertEquals("user-value", metadata.get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        metadata.get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "correlation id must be stamped onto the created object's metadata");
+    assertEquals(
+        "keystone-boxoffice",
+        metadata.get(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "service id must be stamped onto the created object's metadata");
+    assertEquals(
+        "tenant-42",
+        metadata.get(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "tenant id must be stamped onto the created object's metadata");
+
+    // The returned handle echoes the stamped metadata so it reflects what actually lands on the
+    // object, matching the create request and a subsequent getMetadata read-back.
+    Map<String, String> handleMetadata = result.getMetadata();
+    assertEquals("user-value", handleMetadata.get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        handleMetadata.get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "correlation id must be echoed onto the multipart upload handle metadata");
+    assertEquals(
+        "keystone-boxoffice",
+        handleMetadata.get(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "service id must be echoed onto the multipart upload handle metadata");
+    assertEquals(
+        "tenant-42",
+        handleMetadata.get(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "tenant id must be echoed onto the multipart upload handle metadata");
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_stampsContextEvenWhenNoUserMetadata() {
+    OperationContext ctx = OperationContext.builder().serviceId("svc-only").build();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey(TEST_KEY).withOperationContext(ctx).build();
+
+    when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+        .thenReturn(CreateMultipartUploadResponse.builder().uploadId("upload-svc").build());
+
+    gcpBlobStore.doInitiateMultipartUpload(request);
+
+    ArgumentCaptor<CreateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+    verify(mpuClient).createMultipartUpload(captor.capture());
+    assertEquals(
+        "svc-only",
+        captor.getValue().metadata().get(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "context must be stamped even when the caller supplied no metadata");
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_userSuppliedContextKeyNotOverwritten() {
+    OperationContext ctx = OperationContext.builder().correlationId("sdk-generated").build();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of(GcpTransformer.CORRELATION_ID_METADATA_KEY, "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+        .thenReturn(CreateMultipartUploadResponse.builder().uploadId("upload-user").build());
+
+    gcpBlobStore.doInitiateMultipartUpload(request);
+
+    ArgumentCaptor<CreateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+    verify(mpuClient).createMultipartUpload(captor.capture());
+    assertEquals(
+        "user-supplied",
+        captor.getValue().metadata().get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "an explicit metadata value from the caller must take precedence over the context");
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_noContextLeavesMetadataUnstamped() {
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .build();
+
+    when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+        .thenReturn(CreateMultipartUploadResponse.builder().uploadId("upload-noctx").build());
+
+    gcpBlobStore.doInitiateMultipartUpload(request);
+
+    ArgumentCaptor<CreateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+    verify(mpuClient).createMultipartUpload(captor.capture());
+    Map<String, String> metadata = captor.getValue().metadata();
+    assertEquals("user-value", metadata.get("user-key"));
+    assertFalse(metadata.containsKey(GcpTransformer.CORRELATION_ID_METADATA_KEY));
+    assertFalse(metadata.containsKey(GcpTransformer.SERVICE_ID_METADATA_KEY));
+    assertFalse(metadata.containsKey(GcpTransformer.TENANT_ID_METADATA_KEY));
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_blankContextIdsAreSkipped() {
+    // Blank/whitespace ids must be treated as absent: no metadata key should be stamped for them,
+    // while a non-blank id in the same context is still stamped.
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("   ")
+            .serviceId("")
+            .tenantId("tenant-present")
+            .build();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey(TEST_KEY).withOperationContext(ctx).build();
+
+    when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+        .thenReturn(CreateMultipartUploadResponse.builder().uploadId("upload-blank").build());
+
+    gcpBlobStore.doInitiateMultipartUpload(request);
+
+    ArgumentCaptor<CreateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+    verify(mpuClient).createMultipartUpload(captor.capture());
+    Map<String, String> metadata = captor.getValue().metadata();
+    assertFalse(
+        metadata.containsKey(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "a whitespace-only correlation id must not be stamped");
+    assertFalse(
+        metadata.containsKey(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "a blank service id must not be stamped");
+    assertEquals(
+        "tenant-present",
+        metadata.get(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "a non-blank id in the same context must still be stamped");
   }
 
   @Test

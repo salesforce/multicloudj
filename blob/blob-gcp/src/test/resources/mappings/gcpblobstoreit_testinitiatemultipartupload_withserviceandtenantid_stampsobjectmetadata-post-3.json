@@ -1,0 +1,42 @@
+{
+  "id" : "0a509bc3-ad5a-415a-8ccc-19caa89fc878",
+  "name" : "GcpBlobStoreIT_testInitiateMultipartUpload_withServiceAndTenantId_stampsObjectMetadata-POST-3",
+  "request" : {
+    "urlPath" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart%2FobservabilityMetadata",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "ABPnzm5YUy1dH1xvcoAoGnTO4ZURI5QIyBqQ_Py-_IZTVocT1rKHy5wGVk2LWXuz7W0g0UE"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>\"2b5c91ad399409ec9b409b66f5bb00fb\"</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><CompleteMultipartUploadResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Location>http://storage.googleapis.com/substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart/observabilityMetadata</Location><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart/observabilityMetadata</Key><ETag>\"aebfdb0863b86cd46f7eb8c55728eae3-1\"</ETag></CompleteMultipartUploadResult>",
+    "headers" : {
+      "x-goog-stored-content-length" : "5242880",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "x-goog-metageneration" : "1",
+      "X-GUploader-UploadID" : "AKhXX7K38EODjxcKZBXZvMJYdlYM9ASWR4ggES_WuQa_koIAEqsnH6qY181w50mK6_GpSbFddm-l_KU",
+      "Vary" : "Origin",
+      "x-goog-generation" : "1785262878792183",
+      "Date" : "Tue, 28 Jul 2026 18:21:18 GMT",
+      "Content-Type" : "text/html; charset=UTF-8",
+      "x-goog-hash" : "crc32c=OGE8Qg=="
+    }
+  },
+  "uuid" : "0a509bc3-ad5a-415a-8ccc-19caa89fc878",
+  "persistent" : true,
+  "insertionIndex" : 1466
+}

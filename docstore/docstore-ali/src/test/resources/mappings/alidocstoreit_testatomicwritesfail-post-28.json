@@ -1,11 +1,11 @@
 {
-  "id" : "b54862cd-dcb6-4386-87c3-1c5dd8460176",
+  "id" : "2e246c75-a8b8-4965-8b9f-e65fa17fd3d6",
   "name" : "AliDocstoreIT_testAtomicWritesFail-POST-28",
   "request" : {
     "url" : "/DeleteRow",
     "method" : "POST",
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"op\":\"DeleteRow\",\"table\":\"docstore_test_2\",\"rows\":[{\"pk\":{\"Game\":{\"t\":\"PK:STRING\",\"v\":\"testAtomicWritesFail\"},\"Player\":{\"t\":\"PK:STRING\",\"v\":\"testAtomicWritesFail6\"}},\"cells\":{},\"deleteMarker\":true}],\"condition\":\"0800\"}",
+      "equalToJson" : "{\"op\":\"DeleteRow\",\"table\":\"docstore_test_2\",\"rows\":[{\"pk\":{\"Game\":{\"t\":\"PK:STRING\",\"v\":\"testAtomicWritesFail\"},\"Player\":{\"t\":\"PK:STRING\",\"v\":\"testAtomicWritesFail8\"}},\"cells\":{},\"deleteMarker\":true}],\"condition\":\"0800\"}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -14,18 +14,15 @@
     "status" : 200,
     "base64Body" : "CgYKBAgBEAE=",
     "headers" : {
-      "x-ots-requestid" : "0006573a-7179-39c3-abad-ca0b11110838",
-      "Authorization" : "OTS STS.NXkaGqbYRYN1ubNDnFcFaPiHX:5KvLCJoKbvpQUZPGP/cTOgasZ2Q=",
-      "x-ots-date" : "2026-07-22T22:13:03.758589Z",
+      "x-ots-requestid" : "000657ed-c84c-e46b-5607-fe0a0b53e2f1",
+      "Authorization" : "OTS STS.NY3TWDAWC3sV57fGWmx8PCPqs:G/ex6z3zO73a2+Mqer2t2+ArAzU=",
+      "x-ots-date" : "2026-07-31T20:10:39.638525Z",
       "x-ots-contenttype" : "protocol buffer",
       "x-ots-contentmd5" : "bofsTfsxtvymDNQpw96K/Q==",
-      "Date" : "Wed, 22 Jul 2026 22:13:03 GMT"
+      "Date" : "Fri, 31 Jul 2026 20:10:39 GMT"
     }
   },
-  "uuid" : "b54862cd-dcb6-4386-87c3-1c5dd8460176",
+  "uuid" : "2e246c75-a8b8-4965-8b9f-e65fa17fd3d6",
   "persistent" : true,
-  "scenarioName" : "scenario-3-DeleteRow",
-  "requiredScenarioState" : "Started",
-  "newScenarioState" : "scenario-3-DeleteRow-2",
   "insertionIndex" : 212
 }

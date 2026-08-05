@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.sts.ali;
 
 import com.aliyuncs.DefaultAcsClient;
 import com.aliyuncs.IAcsClient;
+import com.aliyuncs.auth.AlibabaCloudCredentialsProvider;
 import com.aliyuncs.auth.BasicSessionCredentials;
 import com.aliyuncs.auth.DefaultCredentialsProvider;
 import com.aliyuncs.exceptions.ClientException;
@@ -70,7 +71,12 @@ public class AliSts extends AbstractSts {
       EnvironmentUtils.setNoProxy("");
     }
 
-    this.stsClient = new DefaultAcsClient(clientProfile);
+    // Attach the SDK's default credential chain so the client can authenticate from the ambient
+    // environment: a bare DefaultProfile has no credentials, so a client built without this fails
+    // every request with MissingAccessKeyId. DefaultCredentialsProvider resolves — and refreshes —
+    // per request across system properties, env vars (long-term AK/SK), OIDC/RRSA (re-reads the
+    // token file), profile file, and ECS instance RAM role.
+    this.stsClient = new DefaultAcsClient(clientProfile, buildCredentialsProvider());
   }
 
   public AliSts(Builder builder, IAcsClient stsClient) {
@@ -80,6 +86,32 @@ public class AliSts extends AbstractSts {
 
   public AliSts() {
     super(new Builder());
+  }
+
+  /**
+   * Builds the SDK default credential chain for the public-builder client path. Resolution is lazy:
+   * the returned provider is invoked per request by the client, so credentials are resolved — and
+   * refreshed — per request rather than snapshotted at build time. The chain covers system
+   * properties, env vars (long-term AK/SK), OIDC/RRSA (re-reading the token file on expiry), the
+   * profile file, and the ECS instance RAM role. If nothing resolves, it throws
+   * {@code ClientException("not found credentials")} at request time, surfaced via
+   * {@link #mapException(Throwable)}.
+   *
+   * @return the SDK default credentials provider
+   */
+  static AlibabaCloudCredentialsProvider buildCredentialsProvider() {
+    try {
+      // The DefaultCredentialsProvider ctor (aliyun-java-sdk-core 4.7.2) does no credential I/O —
+      // it only assembles the sub-provider list; resolution (incl. the ECS RAM-role IMDS fetch and
+      // the OIDC token-file read) happens lazily in getCredentials(). Its only constructor throw is
+      // for an empty ALIBABA_CLOUD_ECS_METADATA; surface that as an actionable argument error.
+      return new DefaultCredentialsProvider();
+    } catch (ClientException e) {
+      throw new InvalidArgumentException(
+          "Invalid Alibaba credentials configuration in the environment "
+              + "(check ALIBABA_CLOUD_ECS_METADATA)",
+          e);
+    }
   }
 
   // Alibaba STS client doesn't directly support the endpoints override but
@@ -411,7 +443,11 @@ public class AliSts extends AbstractSts {
     // ali-yun has a wierd chain where ServerException extends the ClientException
     if (t instanceof ClientException) {
       String errorCode = ((ClientException) t).getErrCode();
-      exceptionClass = ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
+      // A ClientException can carry a null error code (e.g. the SDK's own "not found credentials").
+      // Only look up when a code is present; otherwise keep the UnknownException default.
+      if (errorCode != null) {
+        exceptionClass = ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
+      }
     }
     // aliyuncs ClientException has no status/retry signal; rely on type-default retryability.
     return ExceptionHandler.build(exceptionClass, t, null);

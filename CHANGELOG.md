@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.4.4](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.3...multicloudj-v0.4.4) (2026-08-01)
+
+
+### Blob Store
+
+* add bucket-level versioning configuration in aws, gcp and ali ([#507](https://github.com/salesforce/multicloudj/issues/507)) ([a811cfa](https://github.com/salesforce/multicloudj/commit/a811cfae4dda23115e3ae15fa78e38057c83f834))
+* gcp: build UploadResponse from createFrom, drop redundant post-write GET ([#552](https://github.com/salesforce/multicloudj/issues/552)) ([dd34936](https://github.com/salesforce/multicloudj/commit/dd3493624c46ffa2a61cda6de5841c3dfa45ad2b))
+* gcp: dedupe BlobId lookup on the download path ([#557](https://github.com/salesforce/multicloudj/issues/557)) ([bf10187](https://github.com/salesforce/multicloudj/commit/bf10187bb5489e9773ef46857b36d296f6ac3333))
+* gcp: fix generation-pinned reads and remove duplicate BlobId lookup on download ([#529](https://github.com/salesforce/multicloudj/issues/529)) ([759d0fb](https://github.com/salesforce/multicloudj/commit/759d0fb0a0c72508ed2c3319ef8e8948a799ca17))
+
+
+### Document Store
+
+* apply DELETE inside atomic writes on Alibaba Tablestore ([#579](https://github.com/salesforce/multicloudj/issues/579)) ([301d8f5](https://github.com/salesforce/multicloudj/commit/301d8f5a887ff7d933687d5476ff2b1e20eecb4e))
+* enforce revision precondition on DELETE for Alibaba Tablestore ([#580](https://github.com/salesforce/multicloudj/issues/580)) ([4a64fc0](https://github.com/salesforce/multicloudj/commit/4a64fc04ebf1e2a2ed466bf93f02288631c0c8cb))
+* preserve Integer/Float types on untyped Ali decode ([#573](https://github.com/salesforce/multicloudj/issues/573)) ([378973b](https://github.com/salesforce/multicloudj/commit/378973bc615ec8c16f5977ef0c02957afc38f8be))
+* rework atomic-writes conformance tests to single-partition scenario ([#559](https://github.com/salesforce/multicloudj/issues/559)) ([88ea46d](https://github.com/salesforce/multicloudj/commit/88ea46d055d49ed93aa4afe35055994d985f2cc7))
+* surface non-conditional Ali write failures instead of swallowing them ([#575](https://github.com/salesforce/multicloudj/issues/575)) ([7f00988](https://github.com/salesforce/multicloudj/commit/7f00988a285a72d7586ca721c944f20ebab404e1))
+
+
+### STS
+
+* add signed-identity output and WIF signing options for GCP federation ([#563](https://github.com/salesforce/multicloudj/issues/563)) ([5da4128](https://github.com/salesforce/multicloudj/commit/5da41280dd6330fbc0f2fc54bbf5a4b3fec3f537))
+* resolve ambient credentials for the Ali STS public builder ([#568](https://github.com/salesforce/multicloudj/issues/568)) ([30eb209](https://github.com/salesforce/multicloudj/commit/30eb209d35c61e8e18a37eead4a29d572d3c964e))
+
 ## [0.4.3](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.2...multicloudj-v0.4.3) (2026-07-21)
 
 

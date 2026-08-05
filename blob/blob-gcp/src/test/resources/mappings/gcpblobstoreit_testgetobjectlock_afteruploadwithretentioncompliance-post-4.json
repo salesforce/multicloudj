@@ -1,0 +1,48 @@
+{
+  "id" : "3176e017-5e1d-4373-8640-2331a33e45de",
+  "name" : "GcpBlobStoreIT_testGetObjectLock_afterUploadWithRetentionCompliance-POST-4",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/objectlock/retention-compliance"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"crc32c\":\"4z8aNg==\",\"metadata\":{},\"name\":\"conformance-tests/objectlock/retention-compliance\",\"retention\":{\"mode\":\"Locked\",\"retainUntilTime\":\"2030-04-30T00:00:00.000Z\"},\"temporaryHold\":false}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AKhXX7LoZx4swqjmQy3fOybWCltT9k_zx86KPSW5sdLSi1rVGzdF1QZxMXqTBJG_cHgPSHINMgtM3gxi-zUhEM2OKc0xltlhE3Z4F3WoNEqASQ",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Mon, 03 Aug 2026 20:39:13 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/objectlock/retention-compliance&uploadType=resumable&upload_id=AKhXX7LoZx4swqjmQy3fOybWCltT9k_zx86KPSW5sdLSi1rVGzdF1QZxMXqTBJG_cHgPSHINMgtM3gxi-zUhEM2OKc0xltlhE3Z4F3WoNEqASQ",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "3176e017-5e1d-4373-8640-2331a33e45de",
+  "persistent" : true,
+  "insertionIndex" : 1491
+}

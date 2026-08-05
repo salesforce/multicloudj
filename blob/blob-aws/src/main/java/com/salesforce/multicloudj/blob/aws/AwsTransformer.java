@@ -230,20 +230,17 @@ public class AwsTransformer {
         ContentStreamProvider.fromInputStream(inputStream), OCTET_STREAM_MIME);
   }
 
-  public PutObjectRequest toRequest(UploadRequest request) {
-    List<Tag> tags =
-        request.getTags().entrySet().stream()
-            .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
-            .collect(Collectors.toList());
-
-    // Copy the application-supplied metadata and stamp the SDK's correlation id, service id and
-    // tenant id onto the stored object so they persist in S3 alongside the user's metadata and can
-    // be traced from the object's S3 access/audit logs. Each key is skipped when the request
-    // carries no operation context, when that context value is absent, or when the app has
-    // supplied the same key explicitly. The correlation id key is customizable.
-    Map<String, String> metadata = new HashMap<>(request.getMetadata());
-    if (request.getOperationContext() != null) {
-      OperationContext ctx = request.getOperationContext();
+  /**
+   * Returns a mutable copy of {@code appMetadata} with the SDK's correlation id, service id and
+   * tenant id stamped from {@code ctx}. Each key is skipped when {@code ctx} is null, when that
+   * context value is blank, or when the app has already supplied the same key — the caller's
+   * metadata always wins. The correlation id is stamped under the caller-customizable key resolved
+   * from {@code ctx}; the service id and tenant id keys are fixed.
+   */
+  private Map<String, String> stampContextMetadata(
+      Map<String, String> appMetadata, OperationContext ctx) {
+    Map<String, String> metadata = new HashMap<>(appMetadata);
+    if (ctx != null) {
       String correlationIdKey = ctx.resolveCorrelationIdMetadataKey();
       if (StringUtils.isNotBlank(ctx.getCorrelationId())
           && !metadata.containsKey(correlationIdKey)) {
@@ -258,6 +255,22 @@ public class AwsTransformer {
         metadata.put(TENANT_ID_METADATA_KEY, ctx.getTenantId());
       }
     }
+    return metadata;
+  }
+
+  public PutObjectRequest toRequest(UploadRequest request) {
+    List<Tag> tags =
+        request.getTags().entrySet().stream()
+            .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
+            .collect(Collectors.toList());
+
+    // Copy the application-supplied metadata and stamp the SDK's correlation id, service id and
+    // tenant id onto the stored object so they persist in S3 alongside the user's metadata and can
+    // be traced from the object's S3 access/audit logs. Each key is skipped when the request
+    // carries no operation context, when that context value is absent, or when the app has
+    // supplied the same key explicitly.
+    Map<String, String> metadata =
+        stampContextMetadata(request.getMetadata(), request.getOperationContext());
 
     PutObjectRequest.Builder builder =
         PutObjectRequest.builder()
@@ -598,11 +611,17 @@ public class AwsTransformer {
 
   public CreateMultipartUploadRequest toCreateMultipartUploadRequest(
       MultipartUploadRequest request) {
+    // Stamp the SDK's correlation id, service id and tenant id onto the multipart object so they
+    // persist in S3 alongside the user's metadata and can be traced from the object's S3
+    // access/audit logs, matching single-shot upload behavior.
+    Map<String, String> metadata =
+        stampContextMetadata(request.getMetadata(), request.getOperationContext());
+
     CreateMultipartUploadRequest.Builder builder =
         CreateMultipartUploadRequest.builder()
             .bucket(getBucket())
             .key(request.getKey())
-            .metadata(request.getMetadata());
+            .metadata(metadata);
 
     if (request.getTags() != null && !request.getTags().isEmpty()) {
       List<Tag> tags =
@@ -1034,7 +1053,10 @@ public class AwsTransformer {
         .bucket(response.bucket())
         .key(response.key())
         .id(response.uploadId())
-        .metadata(request.getMetadata())
+        // Echo the stamped metadata (user-supplied entries plus the SDK's correlation/service/
+        // tenant ids) so the handle reflects what actually lands on the multipart object, matching
+        // the create request and a subsequent getMetadata read-back.
+        .metadata(stampContextMetadata(request.getMetadata(), request.getOperationContext()))
         .tags(request.getTags())
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
@@ -1199,23 +1221,30 @@ public class AwsTransformer {
   }
 
   /**
-   * Converts GetObjectRetentionResponse and GetObjectLegalHoldResponse to ObjectLockInfo
+   * Converts GetObjectRetentionResponse and GetObjectLegalHoldResponse to ObjectLockInfo. Returns
+   * null only when both retention and legal hold are absent — a legal-hold-only object still
+   * surfaces as an ObjectLockInfo (with null mode/retainUntilDate) so callers observe the hold.
    */
   public ObjectLockInfo toObjectLockInfo(
       GetObjectRetentionResponse retentionResponse, GetObjectLegalHoldResponse legalHoldResponse) {
-    if (retentionResponse == null || retentionResponse.retention() == null) {
+    boolean legalHoldOn =
+        legalHoldResponse != null
+            && legalHoldResponse.legalHold() != null
+            && legalHoldResponse.legalHold().status() == ObjectLockLegalHoldStatus.ON;
+    boolean retentionPresent =
+        retentionResponse != null && retentionResponse.retention() != null;
+
+    if (!retentionPresent && !legalHoldOn) {
       return null;
     }
 
-    ObjectLockRetentionMode retentionMode = retentionResponse.retention().mode();
-    return ObjectLockInfo.builder()
-        .mode(toDriverRetentionMode(retentionMode))
-        .retainUntilDate(retentionResponse.retention().retainUntilDate())
-        .legalHold(
-            legalHoldResponse != null
-                && legalHoldResponse.legalHold() != null
-                && legalHoldResponse.legalHold().status() == ObjectLockLegalHoldStatus.ON)
-        .build();
+    ObjectLockInfo.ObjectLockInfoBuilder builder = ObjectLockInfo.builder().legalHold(legalHoldOn);
+    if (retentionPresent) {
+      builder
+          .mode(toDriverRetentionMode(retentionResponse.retention().mode()))
+          .retainUntilDate(retentionResponse.retention().retainUntilDate());
+    }
+    return builder.build();
   }
 
   /** Creates a {@link GetBucketVersioningRequest} for the bound bucket. */
