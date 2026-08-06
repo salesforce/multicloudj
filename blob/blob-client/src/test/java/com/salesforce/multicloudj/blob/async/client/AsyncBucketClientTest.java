@@ -4,6 +4,7 @@ import static com.salesforce.multicloudj.blob.async.driver.TestAsyncBlobStore.PR
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -25,6 +26,7 @@ import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -44,6 +46,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
@@ -269,7 +272,7 @@ public class AsyncBucketClientTest {
   void testDownloadOutputStream() throws ExecutionException, InterruptedException {
     OutputStream outputStream = mock(OutputStream.class);
     DownloadRequest request = new DownloadRequest.Builder().withKey("object-1").build();
-    DownloadResponse response = mock(DownloadResponse.class);
+    DownloadResponse response = DownloadResponse.builder().key("object-1").build();
     when(mockBlobStore.download(any(), any(OutputStream.class))).thenReturn(future(response));
     client.download(request, outputStream).get();
     verify(mockBlobStore, times(1)).download(eq(request), eq(outputStream));
@@ -279,7 +282,7 @@ public class AsyncBucketClientTest {
   void testDownloadByteArrayWrapper() throws ExecutionException, InterruptedException {
     ByteArray byteArray = new ByteArray();
     DownloadRequest request = new DownloadRequest.Builder().withKey("object-1").build();
-    DownloadResponse response = mock(DownloadResponse.class);
+    DownloadResponse response = DownloadResponse.builder().key("object-1").build();
     when(mockBlobStore.download(any(), any(ByteArray.class))).thenReturn(future(response));
     client.download(request, byteArray).get();
     verify(mockBlobStore, times(1)).download(eq(request), eq(byteArray));
@@ -289,7 +292,7 @@ public class AsyncBucketClientTest {
   void testDownloadFile() throws ExecutionException, InterruptedException {
     File file = new File("testFile.txt");
     DownloadRequest request = new DownloadRequest.Builder().withKey("object-1").build();
-    DownloadResponse response = mock(DownloadResponse.class);
+    DownloadResponse response = DownloadResponse.builder().key("object-1").build();
     when(mockBlobStore.download(any(), any(File.class))).thenReturn(future(response));
     client.download(request, file).get();
     verify(mockBlobStore, times(1)).download(eq(request), eq(file));
@@ -299,7 +302,7 @@ public class AsyncBucketClientTest {
   void testDownloadPath() throws ExecutionException, InterruptedException {
     Path output = mock(Path.class);
     DownloadRequest request = new DownloadRequest.Builder().withKey("object-1").build();
-    DownloadResponse response = mock(DownloadResponse.class);
+    DownloadResponse response = DownloadResponse.builder().key("object-1").build();
     when(mockBlobStore.download(any(), any(Path.class))).thenReturn(future(response));
     client.download(request, output).get();
     verify(mockBlobStore, times(1)).download(eq(request), eq(output));
@@ -624,6 +627,141 @@ public class AsyncBucketClientTest {
     client.getMetadata("object-1", "version-1", fullContext()).get();
     verify(mockBlobStore, times(1)).getMetadata(eq("object-1"), eq("version-1"));
     assertContextPropagated(captured);
+  }
+
+  /**
+   * The client stamps the resolved correlationId onto the {@link BlobMetadata} returned by the
+   * driver by rebuilding via {@code toBuilder()}. Populate every field to a distinct non-default
+   * value and assert that every field survives the rebuild — the only field that should differ is
+   * {@code correlationId}, which is overwritten with the caller's OperationContext value. Guards
+   * against a field being silently dropped from the rebuild path.
+   */
+  @Test
+  void testGetMetadataPreservesAllFieldsWhenStampingCorrelationId()
+      throws ExecutionException, InterruptedException {
+    Instant lastModified = Instant.parse("2026-01-15T10:30:00Z");
+    Instant createdTime = Instant.parse("2026-01-10T08:00:00Z");
+    Instant retainUntil = Instant.parse("2027-01-01T00:00:00Z");
+    byte[] md5 = new byte[] {1, 2, 3, 4};
+    Map<String, String> userMetadata = Map.of("meta-a", "value-a", "meta-b", "value-b");
+    ObjectLockInfo lockInfo =
+        ObjectLockInfo.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(true)
+            .useEventBasedHold(true)
+            .build();
+    Checksum checksum =
+        Checksum.builder().algorithm(ChecksumMethod.CRC32C).value("chk-value").build();
+    BlobMetadata fromDriver =
+        BlobMetadata.builder()
+            .key("object-1")
+            .versionId("v1")
+            .eTag("etag-1")
+            .objectSize(42L)
+            .metadata(userMetadata)
+            .lastModified(lastModified)
+            .createdTime(createdTime)
+            .md5(md5)
+            .contentType("application/octet-stream")
+            .objectLockInfo(lockInfo)
+            .checksum(checksum)
+            .correlationId("driver-supplied-id")
+            .build();
+    when(mockBlobStore.getMetadata("object-1", "v1")).thenReturn(future(fromDriver));
+
+    BlobMetadata actual = client.getMetadata("object-1", "v1", fullContext()).get();
+
+    assertEquals(fromDriver.getKey(), actual.getKey());
+    assertEquals(fromDriver.getVersionId(), actual.getVersionId());
+    assertEquals(fromDriver.getETag(), actual.getETag());
+    assertEquals(fromDriver.getObjectSize(), actual.getObjectSize());
+    assertEquals(fromDriver.getMetadata(), actual.getMetadata());
+    assertEquals(fromDriver.getLastModified(), actual.getLastModified());
+    assertEquals(fromDriver.getCreatedTime(), actual.getCreatedTime());
+    assertEquals(fromDriver.getMd5(), actual.getMd5());
+    assertEquals(fromDriver.getContentType(), actual.getContentType());
+    assertEquals(fromDriver.getObjectLockInfo(), actual.getObjectLockInfo());
+    assertEquals(fromDriver.getChecksum(), actual.getChecksum());
+    assertEquals("req-abc-123", actual.getCorrelationId());
+  }
+
+  /**
+   * The client stamps the resolved correlationId onto the {@link UploadResponse} returned by the
+   * driver by rebuilding via {@code toBuilder()}. Populate every field to a distinct non-default
+   * value and assert that every field survives the rebuild — the only field that should differ is
+   * {@code correlationId}, which is overwritten with the caller's OperationContext value. Guards
+   * against a field being silently dropped from the rebuild path.
+   */
+  @Test
+  void testUploadPreservesAllFieldsWhenStampingCorrelationId()
+      throws ExecutionException, InterruptedException {
+    UploadResponse fromDriver =
+        UploadResponse.builder()
+            .key("object-1")
+            .versionId("v1")
+            .eTag("etag-1")
+            .checksumValue("chk-value")
+            .correlationId("driver-supplied-id")
+            .build();
+    when(mockBlobStore.upload(any(UploadRequest.class), any(byte[].class)))
+        .thenReturn(future(fromDriver));
+    UploadRequest request =
+        UploadRequest.builder().withKey("object-1").withOperationContext(fullContext()).build();
+
+    UploadResponse actual = client.upload(request, "test data".getBytes()).get();
+
+    assertEquals(fromDriver.getKey(), actual.getKey());
+    assertEquals(fromDriver.getVersionId(), actual.getVersionId());
+    assertEquals(fromDriver.getETag(), actual.getETag());
+    assertEquals(fromDriver.getChecksumValue(), actual.getChecksumValue());
+    assertEquals("req-abc-123", actual.getCorrelationId());
+  }
+
+  /**
+   * The client stamps the resolved correlationId onto the {@link DownloadResponse} returned by
+   * the driver — both at the top level and on the nested {@link BlobMetadata}. Populate every
+   * field to a distinct non-default value and assert that every field survives the rebuild, that
+   * the top-level correlationId is overwritten with the caller's OperationContext value, and that
+   * the nested metadata's correlationId is also stamped. The nested rebuild is intentional — a
+   * plain {@code toBuilder().correlationId(...)} would shallow-copy the driver's original
+   * (unstamped) metadata. Guards against a field being silently dropped from the rebuild path.
+   */
+  @Test
+  void testDownloadPreservesAllFieldsWhenStampingCorrelationId()
+      throws ExecutionException, InterruptedException {
+    BlobMetadata nestedMetadata =
+        BlobMetadata.builder()
+            .key("object-1")
+            .versionId("v1")
+            .eTag("etag-1")
+            .correlationId("driver-supplied-md-id")
+            .build();
+    InputStream inputStream = mock(InputStream.class);
+    DownloadResponse fromDriver =
+        DownloadResponse.builder()
+            .key("object-1")
+            .metadata(nestedMetadata)
+            .inputStream(inputStream)
+            .correlationId("driver-supplied-dl-id")
+            .build();
+    when(mockBlobStore.download(any(DownloadRequest.class))).thenReturn(future(fromDriver));
+    DownloadRequest request =
+        new DownloadRequest.Builder()
+            .withKey("object-1")
+            .withOperationContext(fullContext())
+            .build();
+
+    DownloadResponse actual = client.download(request).get();
+
+    assertEquals(fromDriver.getKey(), actual.getKey());
+    assertNotNull(actual.getMetadata());
+    assertEquals(nestedMetadata.getKey(), actual.getMetadata().getKey());
+    assertEquals(nestedMetadata.getVersionId(), actual.getMetadata().getVersionId());
+    assertEquals(nestedMetadata.getETag(), actual.getMetadata().getETag());
+    assertEquals("req-abc-123", actual.getMetadata().getCorrelationId());
+    assertEquals(inputStream, actual.getInputStream());
+    assertEquals("req-abc-123", actual.getCorrelationId());
   }
 
   @Test
