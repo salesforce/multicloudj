@@ -62,8 +62,8 @@ public class MultipartUploadRequest {
   public Builder toBuilder() {
     return new Builder()
         .withKey(key)
-        .withMetadata(metadata != null ? metadata : Map.of())
-        .withTags(tags != null ? tags : Map.of())
+        .withMetadata(metadata)
+        .withTags(tags)
         .withKmsKeyId(kmsKeyId)
         .withUseKmsManagedKey(useKmsManagedKey)
         .withChecksumEnabled(checksumEnabled)
