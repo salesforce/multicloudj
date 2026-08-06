@@ -103,11 +103,17 @@ public class Main {
     // auto-generated; set whichever ones you have. serviceId / tenantId identify who is making the
     // call; correlationId ties this request together across the caller's own logs and traces and
     // is the only id echoed back on the response.
+    //
+    // correlationIdKey is optional too. Supplying it renames the correlation id on all three
+    // surfaces at once - object metadata, the SLF4J MDC entry, and the OpenTelemetry span
+    // attribute - so the SDK lines up with an existing convention. Left unset, the SDK uses
+    // "sdk-logging-correlation-id" for metadata and "correlation_id" for MDC and the span.
     OperationContext operationContext =
         OperationContext.builder()
             .serviceId("my-service")
             .tenantId("tenant-1234")
             .correlationId("request-abc-987")
+            // .correlationIdKey("x-request-id")
             .build();
 
     // Attach the context to the upload request via withOperationContext(...).

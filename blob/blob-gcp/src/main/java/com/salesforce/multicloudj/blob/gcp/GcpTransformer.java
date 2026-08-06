@@ -87,7 +87,9 @@ public class GcpTransformer {
   /**
    * Stamps the operation context's correlation id, service id and tenant id into the given metadata
    * map so they are persisted on the stored object in GCS. Each key is skipped when the context is
-   * null, when that context value is blank, or when the app has already supplied the same key.
+   * null, when that context value is blank, or when the app has already supplied the same key. The
+   * correlation id is stamped under the caller-customizable key resolved from {@code ctx}; the
+   * service id and tenant id keys are fixed.
    *
    * @param metadata the mutable metadata map to stamp into
    * @param ctx the per-call observability context (may be null)
@@ -96,9 +98,10 @@ public class GcpTransformer {
     if (ctx == null) {
       return;
     }
+    String correlationIdKey = ctx.getEffectiveCorrelationIdMetadataKey();
     if (StringUtils.isNotBlank(ctx.getCorrelationId())
-        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-      metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
+        && !metadata.containsKey(correlationIdKey)) {
+      metadata.put(correlationIdKey, ctx.getCorrelationId());
     }
     if (StringUtils.isNotBlank(ctx.getServiceId())
         && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {

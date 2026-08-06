@@ -153,15 +153,18 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   /**
    * Returns a mutable copy of the supplied metadata with the operation context's correlation id,
    * service id and tenant id stamped onto it. Each key is skipped when the context is absent, when
-   * that context value is blank, or when the caller has already supplied the same key.
+   * that context value is blank, or when the caller has already supplied the same key. The
+   * correlation id is stamped under the caller-customizable key resolved from the context; the
+   * service id and tenant id keys are fixed.
    */
   private static Map<String, String> stampContextMetadata(
       Map<String, String> source, OperationContext operationContext) {
     Map<String, String> metadata = source != null ? new HashMap<>(source) : new HashMap<>();
     if (operationContext != null) {
+      String correlationIdKey = operationContext.getEffectiveCorrelationIdMetadataKey();
       if (StringUtils.isNotBlank(operationContext.getCorrelationId())
-          && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-        metadata.put(CORRELATION_ID_METADATA_KEY, operationContext.getCorrelationId());
+          && !metadata.containsKey(correlationIdKey)) {
+        metadata.put(correlationIdKey, operationContext.getCorrelationId());
       }
       if (StringUtils.isNotBlank(operationContext.getServiceId())
           && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {
@@ -186,8 +189,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
     // Copy the application-supplied metadata and stamp the SDK's correlation id, service id and
     // tenant id on it so the values persist with the stored blob alongside the user's metadata.
-    Map<String, String> metadata = stampContextMetadata(uploadRequest.getMetadata(),
-        uploadRequest.getOperationContext());
+    Map<String, String> metadata =
+        stampContextMetadata(uploadRequest.getMetadata(), uploadRequest.getOperationContext());
 
     StoredBlob blob =
         new StoredBlob(

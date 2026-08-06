@@ -239,6 +239,59 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testUpload_customCorrelationIdKeyUsed() {
+    var key = "some-key";
+    var ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .correlationIdKey("x-custom-corr")
+            .build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        actual.metadata().get("x-custom-corr"),
+        "transformer must use the custom correlation id key when specified");
+    assertFalse(
+        actual.metadata().containsKey("sdk-logging-correlation-id"),
+        "default key must not be used when custom key is specified");
+  }
+
+  @Test
+  void testUpload_customCorrelationIdKeyNotOverwrittenWhenUserSupplied() {
+    var key = "some-key";
+    var ctx =
+        OperationContext.builder()
+            .correlationId("sdk-generated")
+            .correlationIdKey("x-custom-corr")
+            .build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("x-custom-corr", "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(
+        "user-supplied",
+        actual.metadata().get("x-custom-corr"),
+        "application's explicit custom correlation id metadata value"
+            + " must take precedence over the SDK's");
+  }
+
+  @Test
   void testUpload_serviceIdAndTenantIdInjectedIntoMetadata() {
     var key = "some-key";
     var ctx =
@@ -872,6 +925,32 @@ public class AwsTransformerTest {
         request.metadata().get("sdk-logging-correlation-id"),
         "application's explicit sdk-logging-correlation-id metadata value"
             + " must take precedence over the SDK's");
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequest_customCorrelationIdKeyUsed() {
+    var ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .correlationIdKey("x-custom-corr")
+            .build();
+    var mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals("user-value", request.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        request.metadata().get("x-custom-corr"),
+        "multipart create must use the custom correlation id key when specified");
+    assertFalse(
+        request.metadata().containsKey("sdk-logging-correlation-id"),
+        "default key must not be used on multipart create when a custom key is specified");
   }
 
   @Test

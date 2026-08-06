@@ -8,6 +8,12 @@ package com.salesforce.multicloudj.common.observability;
  * readable under the same key regardless of which cloud stored the object, so cloud audit logs can
  * be traced back to the originating request, tenant, and service. They are defined once here so the
  * providers that stamp them cannot drift apart.
+ *
+ * <p>{@link #CORRELATION_ID} is the <b>default</b> metadata key for the operation correlation id,
+ * used when the request's {@code OperationContext} supplies no custom name via {@code
+ * correlationIdKey}. When a custom name is supplied, that name replaces the default on all three
+ * observability surfaces: object metadata, MDC, and the OpenTelemetry span attribute. {@link
+ * #SERVICE_ID} and {@link #TENANT_ID} are fixed and not customizable.
  */
 public final class SdkLoggingMetadataKeys {
 
