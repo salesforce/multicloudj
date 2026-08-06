@@ -7,7 +7,7 @@ import lombok.Getter;
 import lombok.ToString;
 
 /** Wrapper object for download result metadata */
-@Builder
+@Builder(toBuilder = true)
 @Getter
 @EqualsAndHashCode
 @ToString
