@@ -989,6 +989,9 @@ public class BucketClient implements AutoCloseable {
     if (r == null) {
       return null;
     }
+    // The nested BlobMetadata rebuild is intentional — do not "simplify" it out. A plain
+    // toBuilder().correlationId(...).build() would shallow-copy the driver's original BlobMetadata,
+    // leaving its correlationId unstamped and defeating the purpose of this rebuild.
     return r.toBuilder()
         .metadata(withCorrelationId(r.getMetadata(), ctx))
         .correlationId(ctx.getCorrelationId())

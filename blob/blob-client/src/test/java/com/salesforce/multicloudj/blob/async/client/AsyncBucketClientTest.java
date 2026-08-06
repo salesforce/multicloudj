@@ -253,14 +253,15 @@ public class AsyncBucketClientTest {
     when(mockBlobStore.upload(any(), any(byte[].class))).thenReturn(failure);
     when(mockBlobStore.upload(any(), any(File.class))).thenReturn(failure);
     when(mockBlobStore.upload(any(), any(Path.class))).thenReturn(failure);
+    UploadRequest request = UploadRequest.builder().withKey("object-1").build();
 
-    var result = client.upload(mock(UploadRequest.class), mock(InputStream.class));
+    var result = client.upload(request, mock(InputStream.class));
     assertFailed(result, UnAuthorizedException.class);
-    result = client.upload(mock(UploadRequest.class), "Test data".getBytes());
+    result = client.upload(request, "Test data".getBytes());
     assertFailed(result, UnAuthorizedException.class);
-    result = client.upload(mock(UploadRequest.class), new File("test.txt"));
+    result = client.upload(request, new File("test.txt"));
     assertFailed(result, UnAuthorizedException.class);
-    result = client.upload(mock(UploadRequest.class), Paths.get("test.txt"));
+    result = client.upload(request, Paths.get("test.txt"));
     assertFailed(result, UnAuthorizedException.class);
   }
 
