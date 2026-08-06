@@ -31,6 +31,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
+import com.salesforce.multicloudj.common.aws.ExpiredCredentialsInterceptor;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -773,6 +774,7 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
               }
             });
       }
+      ExpiredCredentialsInterceptor.registerIfRefreshable(b, credentialsProvider);
 
       return b.build();
     }

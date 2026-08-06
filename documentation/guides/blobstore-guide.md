@@ -55,7 +55,7 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 | **Regional Support** | ⏱️ End of June'26 | ✅ Supported | ✅ Supported | Region-specific bucket operations |
 | **Endpoint Override** | ✅ Supported       | ✅ Supported | ✅ Supported | Custom endpoint configuration |
 | **Proxy Support** | ✅ Supported       | ✅ Supported | ✅ Supported | HTTP proxy configuration |
-| **Credentials Override** | ✅ Supported       | ✅ Supported | ✅ Supported | Custom credential providers via STS |
+| **Credentials Override** | ✅ Supported       | ✅ Supported | ✅ Supported | Custom credential providers via STS. See [Credentials and Long-Lived Clients](#credentials-and-long-lived-clients) |
 
 ### Provider-Specific Notes
 
@@ -84,6 +84,69 @@ bucketClient = BucketClient.builder("aws")
     .withProxyEndpoint(proxy)
     .build();
 ```
+
+---
+
+## Credentials and Long-Lived Clients
+
+A `BucketClient` holds a single underlying cloud connection for its whole lifetime. How you supply credentials therefore decides whether a client that outlives its credentials keeps working.
+
+### Prefer the default credential chain
+
+When the process already has an identity attached, such as a Kubernetes pod or a VM instance, supply no `CredentialsOverrider` at all. The cloud SDK's default credential chain then resolves and renews credentials on its own, and this remains the recommendation for those environments.
+
+```java
+BucketClient bucketClient = BucketClient.builder("aws")
+    .withRegion("us-west-2")
+    .withBucket("my-bucket")
+    .build();
+```
+
+### Session credentials supplied by value are fixed
+
+`withSessionCredentials(...)` freezes one set of credentials for the client's entire lifetime. That is fine for a client you build, use and discard. A client cached for the lifetime of the JVM, however, starts failing every call once the session token's TTL elapses, and only a restart recovers it.
+
+```java
+// Suitable only for a client that will not outlive these credentials.
+StsCredentials credentials = new StsCredentials(accessKeyId, accessKeySecret, sessionToken);
+CredentialsOverrider credsOverrider = new CredentialsOverrider.Builder(CredentialsType.SESSION)
+    .withSessionCredentials(credentials)
+    .build();
+```
+
+### Session credentials supplied by callback are renewed
+
+`withSessionCredentialsSupplier(...)` hands the SDK a `Supplier<StsCredentials>` instead of a value. The SDK invokes it again whenever the credentials it holds need renewing, so the client keeps working past the lifetime of any single set of credentials. When both forms are set on the same builder, the callback takes precedence.
+
+```java
+// secretBroker is your own component that holds currently valid session credentials.
+CredentialsOverrider credsOverrider = new CredentialsOverrider.Builder(CredentialsType.SESSION)
+    .withSessionCredentialsSupplier(() -> new StsCredentials(
+        secretBroker.accessKeyId(),
+        secretBroker.accessKeySecret(),
+        secretBroker.sessionToken(),
+        secretBroker.expiresAt()))
+    .build();
+
+BucketClient bucketClient = BucketClient.builder("aws")
+    .withRegion("us-west-2")
+    .withBucket("my-bucket")
+    .withCredentialsOverrider(credsOverrider)
+    .build();
+```
+
+Two things to get right in the callback:
+
+- **Populate the expiration.** The fourth `StsCredentials` constructor argument is a `java.time.Instant`, and supplying it lets renewal be scheduled ahead of expiry. Without it the SDK has nothing to schedule against: it treats the credentials as living for a fixed 15 minutes and renews on that cadence, so credentials that expire sooner will lapse before a renewal is due. The three-argument constructor leaves the expiration unset and remains supported.
+- **Be thread-safe and quick.** The callback runs on request threads. It is invoked once per renewal rather than once per request, but other threads can block on that invocation, so it should return promptly rather than performing a slow synchronous fetch.
+
+### Provider support for session credentials
+
+| Provider | By value | By callback |
+|----------|----------|-------------|
+| AWS | Supported | Supported |
+| GCP | Supported | Supported |
+| ALI | Supported | Not supported |
 
 ---
 

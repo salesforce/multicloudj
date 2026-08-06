@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.docstore.ali;
 
 import com.alicloud.openservices.tablestore.core.auth.CredentialsProvider;
 import com.alicloud.openservices.tablestore.core.auth.CredentialsProviderFactory;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 
@@ -14,6 +15,12 @@ public class TableStoreCredentialsProvider {
 
     switch (overrider.getType()) {
       case SESSION:
+        if (overrider.getSessionCredentialsSupplier() != null) {
+          throw new InvalidArgumentException(
+              "Session credentials supplied through withSessionCredentialsSupplier are not"
+                  + " supported by this provider. Supply them by value with"
+                  + " withSessionCredentials instead, and rebuild the client before they expire.");
+        }
         StsCredentials stsCredentials = overrider.getSessionCredentials();
         return CredentialsProviderFactory.newDefaultCredentialProvider(
             stsCredentials.getAccessKeyId(),

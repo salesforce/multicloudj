@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.blob.driver.BucketInfo;
 import com.salesforce.multicloudj.blob.driver.ListBucketsResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
+import com.salesforce.multicloudj.common.aws.ExpiredCredentialsInterceptor;
 import java.time.Duration;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -126,6 +127,7 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> implements 
             }
           });
     }
+    ExpiredCredentialsInterceptor.registerIfRefreshable(b, credentialsProvider);
 
     return b.build();
   }

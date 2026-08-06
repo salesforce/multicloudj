@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.ali;
 
 import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
 import com.aliyun.sdk.service.oss2.credentials.StaticCredentialsProvider;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -39,6 +40,23 @@ public class OssCredentialsProviderTest {
     Assertions.assertNotNull(provider);
     Assertions.assertInstanceOf(
         OssCredentialsProvider.AssumeRoleCredentialsProvider.class, provider);
+  }
+
+  @Test
+  public void testSessionCredentialsSupplierIsRejected() {
+    CredentialsOverrider credentialsOverrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentialsSupplier(() -> new StsCredentials("key", "secret", "token"))
+            .build();
+
+    InvalidArgumentException failure =
+        Assertions.assertThrows(
+            InvalidArgumentException.class,
+            () ->
+                OssCredentialsProvider.getCredentialsProvider(credentialsOverrider, "cn-shanghai"));
+    Assertions.assertTrue(
+        failure.getMessage().contains("withSessionCredentialsSupplier"),
+        "unexpected message: " + failure.getMessage());
   }
 
   @Test

@@ -8,12 +8,17 @@ import com.google.auth.oauth2.IdentityPoolCredentials;
 import com.google.auth.oauth2.ImpersonatedCredentials;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.IOException;
 import java.util.List;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GcpCredentialsProvider {
+
+  private static final Logger logger = LoggerFactory.getLogger(GcpCredentialsProvider.class);
 
   // Google Security Token Service endpoint used to exchange a federated subject token
   // for a short-lived GCP access token under Workload Identity Federation.
@@ -26,13 +31,27 @@ public class GcpCredentialsProvider {
     if (overrider == null || overrider.getType() == null) {
       return null;
     }
+    Credentials credentials = resolveCredentials(overrider);
+    if (credentials != null) {
+      String message = "Resolved GCP credentials. credentialsType={}, credentialsClass={}";
+      String credentialsClass = credentials.getClass().getName();
+      // Session credentials are the only type whose credentials class tells an operator something
+      // they cannot infer, namely whether an expired-credentials report came from credentials that
+      // renew themselves or ones fixed for the client's whole lifetime. The rest is debug-level
+      // noise.
+      if (overrider.getType() == CredentialsType.SESSION) {
+        logger.info(message, overrider.getType(), credentialsClass);
+      } else {
+        logger.debug(message, overrider.getType(), credentialsClass);
+      }
+    }
+    return credentials;
+  }
+
+  private static Credentials resolveCredentials(CredentialsOverrider overrider) {
     switch (overrider.getType()) {
       case SESSION:
-        StsCredentials stsCredentials = overrider.getSessionCredentials();
-        return GoogleCredentials.newBuilder()
-            .setAccessToken(
-                AccessToken.newBuilder().setTokenValue(stsCredentials.getSecurityToken()).build())
-            .build();
+        return buildSessionCredentials(overrider);
       case ASSUME_ROLE:
         GoogleCredentials sourceCredentials = null;
         try {
@@ -71,6 +90,31 @@ public class GcpCredentialsProvider {
       default:
         return null;
     }
+  }
+
+  /**
+   * Builds session credentials from the overrider.
+   *
+   * <p>When a session credentials supplier is present the credentials renew themselves by calling
+   * back into it, which keeps a client working past the lifetime of any single set of credentials.
+   *
+   * <p>Otherwise the caller's credentials are held as a single fixed access token that cannot be
+   * renewed, and the client stops working once they lapse. The declared expiration is deliberately
+   * not carried onto that token: the auth library treats a token inside its refresh margin as
+   * expired and reaches for a renewal that a fixed token cannot provide, so honouring the
+   * expiration would fail calls minutes before the credentials actually lapse, and would fail them
+   * with an auth-library error that call sites neither expect nor map. An expiration is only
+   * actionable when there is a callback to renew from.
+   */
+  private static GoogleCredentials buildSessionCredentials(CredentialsOverrider overrider) {
+    Supplier<StsCredentials> sessionCredentialsSupplier = overrider.getSessionCredentialsSupplier();
+    if (sessionCredentialsSupplier != null) {
+      return new RefreshableSessionCredentials(sessionCredentialsSupplier);
+    }
+    StsCredentials stsCredentials = overrider.getSessionCredentials();
+    AccessToken accessToken =
+        AccessToken.newBuilder().setTokenValue(stsCredentials.getSecurityToken()).build();
+    return GoogleCredentials.newBuilder().setAccessToken(accessToken).build();
   }
 
   /**

@@ -1,8 +1,11 @@
 package com.salesforce.multicloudj.common.aws;
 
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -15,14 +18,38 @@ import software.amazon.awssdk.services.sts.auth.StsAssumeRoleWithWebIdentityCred
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 
 public class CredentialsProvider {
+
+  private static final Logger log = LoggerFactory.getLogger(CredentialsProvider.class);
+
   public static AwsCredentialsProvider getCredentialsProvider(
       CredentialsOverrider overrider, Region region) {
     if (overrider == null || overrider.getType() == null) {
       return null;
     }
+    AwsCredentialsProvider provider = resolveCredentialsProvider(overrider, region);
+    String message =
+        "MultiCloudJ AWS credentials provider selected: credentialsType={}, providerClass={}";
+    String providerClass = provider == null ? "none" : provider.getClass().getName();
+    // Session credentials are the only type whose provider class tells an operator something they
+    // cannot infer, namely whether an expired-credentials report came from a client that renews
+    // credentials or one that holds them for its whole lifetime. The rest is debug-level noise.
+    if (overrider.getType() == CredentialsType.SESSION) {
+      log.info(message, overrider.getType(), providerClass);
+    } else {
+      log.debug(message, overrider.getType(), providerClass);
+    }
+    return provider;
+  }
+
+  private static AwsCredentialsProvider resolveCredentialsProvider(
+      CredentialsOverrider overrider, Region region) {
     switch (overrider.getType()) {
       case SESSION:
         {
+          if (overrider.getSessionCredentialsSupplier() != null) {
+            return new RefreshingSessionCredentialsProvider(
+                overrider.getSessionCredentialsSupplier());
+          }
           StsCredentials stsCredentials = overrider.getSessionCredentials();
           if (StringUtils.isBlank(stsCredentials.getSecurityToken())) {
             return StaticCredentialsProvider.create(

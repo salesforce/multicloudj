@@ -1048,6 +1048,65 @@ public class Main {
     return builder.build();
   }
 
+  /**
+   * Builds a {@link BucketClient} whose session credentials are supplied through a callback instead
+   * of by value, which is what a client that is built once and kept for the lifetime of the process
+   * needs.
+   *
+   * <p>{@code withSessionCredentials(...)}, as used by {@link #getBucketClient(String)} above,
+   * freezes one set of credentials for the client's whole lifetime, so every call starts failing
+   * once the session token's TTL elapses. {@code withSessionCredentialsSupplier(...)} hands the SDK
+   * a callback that it invokes again whenever the credentials need renewing. When both are set on
+   * the same builder, the callback takes precedence.
+   *
+   * <p>Populate the expiration on {@link StsCredentials} so that renewal can be scheduled ahead of
+   * expiry; without it, renewal falls back to a fixed 15 minute interval.
+   */
+  public static BucketClient getBucketClientWithRenewableSessionCredentials(String provider) {
+    String bucketName = System.getProperty("bucket.name", System.getenv("BUCKET_NAME"));
+    String region = System.getProperty("bucket.region", System.getenv("BUCKET_REGION"));
+
+    if (bucketName == null || bucketName.trim().isEmpty()) {
+      throw new IllegalArgumentException(
+          "Bucket name must be provided via 'bucket.name' system property or 'BUCKET_NAME'"
+              + " environment variable");
+    }
+
+    CredentialsOverrider credsOverrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentialsSupplier(Main::currentSessionCredentials)
+            .build();
+
+    BucketClient.BlobBuilder builder =
+        BucketClient.builder(provider)
+            .withBucket(bucketName)
+            .withCredentialsOverrider(credsOverrider);
+
+    if (region != null && !region.trim().isEmpty()) {
+      builder.withRegion(region);
+    }
+
+    return builder.build();
+  }
+
+  /**
+   * The callback handed to {@code withSessionCredentialsSupplier(...)}. It runs on request threads,
+   * so it must be thread-safe and return promptly. The SDK invokes it once per renewal rather than
+   * once per request, but other threads can block on that invocation, so it should read from
+   * something already in memory rather than performing a slow synchronous fetch.
+   *
+   * <p>Reading the environment stands in for the caller's own credential source here. Replace it
+   * with whatever issues your session credentials, and return the expiration that source reports
+   * rather than a fabricated one.
+   */
+  private static StsCredentials currentSessionCredentials() {
+    return new StsCredentials(
+        System.getenv("AWS_ACCESS_KEY_ID"),
+        System.getenv("AWS_SECRET_ACCESS_KEY"),
+        System.getenv("AWS_SESSION_TOKEN"),
+        Instant.now().plus(Duration.ofHours(1)));
+  }
+
   private static AsyncBucketClient getAsyncBucketClient(String provider) {
     // Get configuration from environment variables or system properties
     String bucketName = System.getProperty("bucket.name", System.getenv("BUCKET_NAME"));

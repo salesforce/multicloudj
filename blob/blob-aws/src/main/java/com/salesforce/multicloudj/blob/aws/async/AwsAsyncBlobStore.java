@@ -34,6 +34,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
+import com.salesforce.multicloudj.common.aws.ExpiredCredentialsInterceptor;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
@@ -741,6 +742,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                     config.getExecutorService())
                 .build());
       }
+
+      ExpiredCredentialsInterceptor.registerIfRefreshable(builder, credentialsProvider);
     }
 
     private static void applyCommonConfig(
@@ -749,6 +752,9 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       builder.region(regionObj);
 
       // Configure credentials
+      // S3CrtAsyncClientBuilder exposes no execution-interceptor hook, so a rejected-credentials
+      // failure cannot invalidate the cached credentials here; renewal is driven purely by the
+      // expiration the credentials source reports.
       AwsCredentialsProvider credentialsProvider =
           CredentialsProvider.getCredentialsProvider(config.getCredentialsOverrider(), regionObj);
       if (credentialsProvider != null) {

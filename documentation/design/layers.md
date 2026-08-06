@@ -49,6 +49,11 @@ String region = "us-east-1"
 // these are optional and ideally in prod, this is not required
 // since the k8s pods are set with default credentials and Substrate SDK
 // uses the default credentials in that case.
+//
+// A client holds one connection for its whole lifetime, so credentials passed by value
+// here are fixed for that lifetime and calls start failing once they expire. A client
+// that outlives its credentials should pass a callback via
+// withSessionCredentialsSupplier(...) instead, which the SDK re-invokes to renew them.
 StsCredentials credentials = new StsCredentials(
         "accessKeyId",
         "accessKeySecret",
@@ -71,6 +76,8 @@ UploadResponse response = client.upload(uploadRequest, "dummy-content");
 ```
 
 The above example demonstrates that the end user wants to open the client for the blob storage in the AWS substrate to the bucket "chameleon-java" in the region "us-east-1". The client is used to upload/write the blob in the bucket. 
+
+The credentials in this snippet are supplied by value purely to keep the example short. For the trade-off between passing credentials by value and passing a callback that the SDK re-invokes to renew them, see [Credentials and Long-Lived Clients](../guides/blobstore-guide.md#credentials-and-long-lived-clients).
 
 In this example, the portable fulfills all the requirements as discussed above:
 

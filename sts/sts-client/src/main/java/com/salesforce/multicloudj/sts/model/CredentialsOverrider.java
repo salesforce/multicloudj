@@ -12,6 +12,13 @@ import lombok.Getter;
  * we cover the two listed above. If the service supplies both, the session credentialsOverrider and
  * the details for assume role, the session credentialsOverrider takes precedence over the assume
  * role.
+ *
+ * <p>Session credentials can be supplied either by value through {@link
+ * Builder#withSessionCredentials} or by callback through {@link
+ * Builder#withSessionCredentialsSupplier}. Clients hold a single underlying cloud connection for
+ * their entire lifetime, so credentials supplied by value are fixed for that lifetime and any
+ * service call made after they expire fails. Long-lived clients should supply a callback instead so
+ * that expiring credentials can be renewed in place. When both are set, the callback wins.
  */
 @Getter
 public class CredentialsOverrider {
@@ -21,6 +28,7 @@ public class CredentialsOverrider {
   protected Integer durationSeconds;
   protected String sessionName;
   protected Supplier<String> webIdentityTokenSupplier;
+  protected Supplier<StsCredentials> sessionCredentialsSupplier;
 
   public CredentialsOverrider(Builder builder) {
     this.type = builder.type;
@@ -29,6 +37,7 @@ public class CredentialsOverrider {
     this.durationSeconds = builder.durationSeconds;
     this.webIdentityTokenSupplier = builder.webIdentityTokenSupplier;
     this.sessionName = builder.sessionName;
+    this.sessionCredentialsSupplier = builder.sessionCredentialsSupplier;
   }
 
   public static class Builder {
@@ -38,6 +47,7 @@ public class CredentialsOverrider {
     private Integer durationSeconds;
     protected String sessionName;
     protected Supplier<String> webIdentityTokenSupplier;
+    protected Supplier<StsCredentials> sessionCredentialsSupplier;
 
     public Builder(CredentialsType type) {
       this.type = type;
@@ -45,6 +55,23 @@ public class CredentialsOverrider {
 
     public Builder withSessionCredentials(StsCredentials sessionCredentials) {
       this.sessionCredentials = sessionCredentials;
+      return this;
+    }
+
+    /**
+     * Supplies session credentials through a callback that is invoked again whenever the current
+     * credentials need renewing, which keeps a long-lived client working past the lifetime of any
+     * single set of credentials. Populate {@link StsCredentials#getExpiration()} so renewal can be
+     * scheduled ahead of expiry; otherwise renewal falls back to a fixed interval.
+     *
+     * <p>The supplier is called from request threads and must be thread-safe and reasonably fast.
+     *
+     * @param sessionCredentialsSupplier callback returning currently valid session credentials
+     * @return this builder
+     */
+    public Builder withSessionCredentialsSupplier(
+        Supplier<StsCredentials> sessionCredentialsSupplier) {
+      this.sessionCredentialsSupplier = sessionCredentialsSupplier;
       return this;
     }
 
