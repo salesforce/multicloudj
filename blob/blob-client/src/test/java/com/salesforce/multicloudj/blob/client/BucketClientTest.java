@@ -23,6 +23,8 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.Checksum;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -186,7 +188,7 @@ public class BucketClientTest {
     when(mockBlobStore.upload(any(), any(byte[].class))).thenThrow(RuntimeException.class);
     when(mockBlobStore.upload(any(), any(File.class))).thenThrow(RuntimeException.class);
     when(mockBlobStore.upload(any(), any(Path.class))).thenThrow(RuntimeException.class);
-    UploadRequest request = mock(UploadRequest.class);
+    UploadRequest request = UploadRequest.builder().withKey("object-1").build();
 
     try (InputStream inputStream = mock(InputStream.class)) {
       assertThrows(
@@ -654,6 +656,62 @@ public class BucketClientTest {
     verify(mockBlobStore, times(1)).getMetadata(eq("object-1"), eq("v1"));
     assertEquals("object-1", actual.getKey());
     assertContextPropagated(captured);
+  }
+
+  /**
+   * The client stamps the resolved correlationId onto the {@link BlobMetadata} returned by the
+   * driver by rebuilding via {@code toBuilder()}. Populate every field to a distinct non-default
+   * value and assert that every field survives the rebuild — the only field that should differ
+   * is {@code correlationId}, which is overwritten with the caller's OperationContext value.
+   * Guards against a field being silently dropped from the rebuild path.
+   */
+  @Test
+  void testGetMetadataPreservesAllFieldsWhenStampingCorrelationId() {
+    Instant lastModified = Instant.parse("2026-01-15T10:30:00Z");
+    Instant createdTime = Instant.parse("2026-01-10T08:00:00Z");
+    Instant retainUntil = Instant.parse("2027-01-01T00:00:00Z");
+    byte[] md5 = new byte[] {1, 2, 3, 4};
+    Map<String, String> userMetadata = Map.of("meta-a", "value-a", "meta-b", "value-b");
+    ObjectLockInfo lockInfo =
+        ObjectLockInfo.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(true)
+            .useEventBasedHold(true)
+            .build();
+    Checksum checksum =
+        Checksum.builder().algorithm(ChecksumMethod.CRC32C).value("chk-value").build();
+    BlobMetadata fromDriver =
+        BlobMetadata.builder()
+            .key("object-1")
+            .versionId("v1")
+            .eTag("etag-1")
+            .objectSize(42L)
+            .metadata(userMetadata)
+            .lastModified(lastModified)
+            .createdTime(createdTime)
+            .md5(md5)
+            .contentType("application/octet-stream")
+            .objectLockInfo(lockInfo)
+            .checksum(checksum)
+            .correlationId("driver-supplied-id")
+            .build();
+    when(mockBlobStore.getMetadata("object-1", "v1")).thenReturn(fromDriver);
+
+    BlobMetadata actual = client.getMetadata("object-1", "v1", fullContext());
+
+    assertEquals(fromDriver.getKey(), actual.getKey());
+    assertEquals(fromDriver.getVersionId(), actual.getVersionId());
+    assertEquals(fromDriver.getETag(), actual.getETag());
+    assertEquals(fromDriver.getObjectSize(), actual.getObjectSize());
+    assertEquals(fromDriver.getMetadata(), actual.getMetadata());
+    assertEquals(fromDriver.getLastModified(), actual.getLastModified());
+    assertEquals(fromDriver.getCreatedTime(), actual.getCreatedTime());
+    assertEquals(fromDriver.getMd5(), actual.getMd5());
+    assertEquals(fromDriver.getContentType(), actual.getContentType());
+    assertEquals(fromDriver.getObjectLockInfo(), actual.getObjectLockInfo());
+    assertEquals(fromDriver.getChecksum(), actual.getChecksum());
+    assertEquals("req-abc-123", actual.getCorrelationId());
   }
 
   @Test

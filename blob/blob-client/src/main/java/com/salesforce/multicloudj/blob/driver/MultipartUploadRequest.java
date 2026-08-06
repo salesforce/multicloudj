@@ -53,6 +53,26 @@ public class MultipartUploadRequest {
     return tags == null ? Map.of() : unmodifiableMap(tags);
   }
 
+  /**
+   * Returns a {@link Builder} pre-populated with this request's current field values, so callers
+   * can produce a modified copy without restating every field. Adding a new field to
+   * {@link MultipartUploadRequest} requires only extending this method (and the corresponding
+   * builder setter) — not every callsite that copies a request.
+   */
+  public Builder toBuilder() {
+    return new Builder()
+        .withKey(key)
+        .withMetadata(metadata != null ? metadata : Map.of())
+        .withTags(tags != null ? tags : Map.of())
+        .withKmsKeyId(kmsKeyId)
+        .withUseKmsManagedKey(useKmsManagedKey)
+        .withChecksumEnabled(checksumEnabled)
+        .withChecksumAlgorithm(checksumAlgorithm)
+        .withObjectLock(objectLock)
+        .withContentType(contentType)
+        .withOperationContext(operationContext);
+  }
+
   public static class Builder {
     private String key;
     private Map<String, String> metadata = Collections.emptyMap();
