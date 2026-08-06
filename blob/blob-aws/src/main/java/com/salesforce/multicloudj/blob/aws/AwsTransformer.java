@@ -241,7 +241,7 @@ public class AwsTransformer {
       Map<String, String> appMetadata, OperationContext ctx) {
     Map<String, String> metadata = new HashMap<>(appMetadata);
     if (ctx != null) {
-      String correlationIdKey = ctx.resolveCorrelationIdMetadataKey();
+      String correlationIdKey = ctx.getEffectiveCorrelationIdMetadataKey();
       if (StringUtils.isNotBlank(ctx.getCorrelationId())
           && !metadata.containsKey(correlationIdKey)) {
         metadata.put(correlationIdKey, ctx.getCorrelationId());

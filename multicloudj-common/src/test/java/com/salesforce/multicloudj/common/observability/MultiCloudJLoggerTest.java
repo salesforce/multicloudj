@@ -496,7 +496,9 @@ class MultiCloudJLoggerTest {
           return null;
         });
 
-    assertNotNull(resolved.get().getCorrelationId(), "correlation_id is always generated");
+    assertNotNull(
+        resolved.get().getCorrelationId(),
+        "correlation_id defaults to empty string when not supplied");
     assertNull(resolved.get().getTenantId(), "tenant_id must NOT be auto-generated");
   }
 
@@ -789,5 +791,322 @@ class MultiCloudJLoggerTest {
         MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID),
         "prior MDC must be restored after async trace");
     assertEquals("outer-tenant", MDC.get(MultiCloudJLogger.MDC_TENANT_ID));
+  }
+
+  // --- Custom correlation ID key -------------------------------------------
+
+  @Test
+  void customCorrelationKey_usedForSpanAttribute() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-123")
+            .correlationIdKey("x-request-id")
+            .build();
+
+    logger.traceOperation("blob.test", null, ctx, c -> null);
+
+    SpanData span = otel.getSpans().get(0);
+    assertEquals(
+        "req-123",
+        span.getAttributes().get(AttributeKey.stringKey("x-request-id")),
+        "custom correlation key should be used as span attribute");
+    assertNull(
+        span.getAttributes().get(AttributeKey.stringKey("correlation_id")),
+        "default correlation_id attribute should NOT be set when custom key is used");
+  }
+
+  @Test
+  void customCorrelationKey_usedForMdc() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-456")
+            .correlationIdKey("my-trace-id")
+            .build();
+    AtomicReference<String> capturedCustomKey = new AtomicReference<>();
+    AtomicReference<String> capturedDefaultKey = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        ctx,
+        c -> {
+          capturedCustomKey.set(MDC.get("my-trace-id"));
+          capturedDefaultKey.set(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
+          return null;
+        });
+
+    assertEquals(
+        "req-456",
+        capturedCustomKey.get(),
+        "custom correlation key should be set in MDC during operation");
+    assertNull(
+        capturedDefaultKey.get(),
+        "default correlation_id MDC key should NOT be set when custom key is used");
+    assertNull(MDC.get("my-trace-id"), "custom key must be cleared after operation");
+  }
+
+  @Test
+  void noCustomKey_defaultKeysUsed() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    OperationContext ctx = OperationContext.builder().correlationId("req-789").build();
+    AtomicReference<String> capturedMdc = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        ctx,
+        c -> {
+          capturedMdc.set(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
+          return null;
+        });
+
+    SpanData span = otel.getSpans().get(0);
+    assertEquals(
+        "req-789",
+        span.getAttributes().get(AttributeKey.stringKey("correlation_id")),
+        "default correlation_id span attribute should be used when no custom key");
+    assertEquals(
+        "req-789",
+        capturedMdc.get(),
+        "default correlation_id MDC key should be used when no custom key");
+  }
+
+  @Test
+  void priorMdcUnderCustomKey_isRestoredAfterTrace() {
+    MDC.put("my-correlation", "outer-value");
+
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("inner-value")
+            .correlationIdKey("my-correlation")
+            .build();
+    AtomicReference<String> capturedInside = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        ctx,
+        c -> {
+          capturedInside.set(MDC.get("my-correlation"));
+          return null;
+        });
+
+    assertEquals(
+        "inner-value",
+        capturedInside.get(),
+        "SDK's value should be visible inside the lambda");
+    assertEquals(
+        "outer-value",
+        MDC.get("my-correlation"),
+        "prior value under custom key must be restored after trace");
+  }
+
+  @Test
+  void priorMdcUnderCustomKey_removedIfNoPriorValue() {
+    assertNull(MDC.get("new-key"), "precondition: key not in MDC initially");
+
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    OperationContext ctx =
+        OperationContext.builder().correlationId("val").correlationIdKey("new-key").build();
+    AtomicReference<String> capturedInside = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        ctx,
+        c -> {
+          capturedInside.set(MDC.get("new-key"));
+          return null;
+        });
+
+    assertEquals("val", capturedInside.get(), "SDK's value should be visible inside lambda");
+    assertNull(
+        MDC.get("new-key"),
+        "custom key must be REMOVED after trace when it had no prior value");
+  }
+
+  @Test
+  void customKey_asyncSuccess_restoresOnCompletionThread() {
+    MDC.put("async-key", "outer-async");
+
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("inner-async")
+            .correlationIdKey("async-key")
+            .build();
+
+    CompletableFuture<String> future =
+        logger.traceAsyncOperation(
+            "blob.test.async",
+            null,
+            ctx,
+            c -> CompletableFuture.completedFuture("ok"));
+
+    assertEquals("ok", future.join());
+    assertEquals(
+        "outer-async",
+        MDC.get("async-key"),
+        "prior value under custom key must be restored after async success");
+  }
+
+  @Test
+  void customKey_asyncFailure_restoresOnCompletionThread() {
+    MDC.put("fail-key", "outer-fail");
+
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("inner-fail")
+            .correlationIdKey("fail-key")
+            .build();
+    CompletableFuture<String> failing = new CompletableFuture<>();
+    failing.completeExceptionally(new IllegalStateException("boom"));
+
+    CompletableFuture<String> future =
+        logger.traceAsyncOperation("blob.test.async", null, ctx, c -> failing);
+
+    assertThrows(ExecutionException.class, future::get);
+    assertEquals(
+        "outer-fail",
+        MDC.get("fail-key"),
+        "prior value under custom key must be restored after async failure");
+  }
+
+  @Test
+  void customKey_disabledPolicy_setInMdc() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.DISABLED, "blob", "aws");
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("disabled-val")
+            .correlationIdKey("disabled-key")
+            .build();
+    AtomicReference<String> capturedCustomKey = new AtomicReference<>();
+    AtomicReference<String> capturedDefaultKey = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        ctx,
+        c -> {
+          capturedCustomKey.set(MDC.get("disabled-key"));
+          capturedDefaultKey.set(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
+          return null;
+        });
+
+    assertEquals(
+        "disabled-val",
+        capturedCustomKey.get(),
+        "custom key should be in MDC under DISABLED policy");
+    assertNull(
+        capturedDefaultKey.get(),
+        "default key should NOT be set when custom key is used under DISABLED");
+    assertTrue(otel.getSpans().isEmpty(), "no spans under DISABLED");
+    assertNull(MDC.get("disabled-key"), "custom key must be cleared after DISABLED trace");
+  }
+
+  @Test
+  void customKey_joinOnlyNoParent_setInMdc() {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.JOIN_ONLY, "blob", "aws");
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("join-val")
+            .correlationIdKey("join-key")
+            .build();
+    AtomicReference<String> capturedCustomKey = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        ctx,
+        c -> {
+          capturedCustomKey.set(MDC.get("join-key"));
+          return null;
+        });
+
+    assertEquals(
+        "join-val",
+        capturedCustomKey.get(),
+        "custom key should be in MDC under JOIN_ONLY with no parent");
+    assertTrue(otel.getSpans().isEmpty(), "no span when JOIN_ONLY with no parent");
+    assertNull(MDC.get("join-key"), "custom key must be cleared after JOIN_ONLY quiet path");
+  }
+
+  @Test
+  void customKey_asyncQuietPath_restoresOnCompletionThread() {
+    MDC.put("quiet-async-key", "outer-quiet");
+
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.DISABLED, "blob", "aws");
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("inner-quiet")
+            .correlationIdKey("quiet-async-key")
+            .build();
+
+    CompletableFuture<String> future =
+        logger.traceAsyncOperation(
+            "blob.test.async",
+            null,
+            ctx,
+            c -> CompletableFuture.completedFuture("ok"));
+
+    assertEquals("ok", future.join());
+    assertEquals(
+        "outer-quiet",
+        MDC.get("quiet-async-key"),
+        "prior value under custom key must be restored after async quiet path");
+    assertTrue(otel.getSpans().isEmpty(), "no spans under DISABLED");
+  }
+
+  /**
+   * Guards the async MDC-leak risk on a genuinely different thread. The other async tests complete
+   * their future inline, so {@code whenComplete} runs on the calling thread and never exercises the
+   * completion-thread snapshot. Here the future completes on a separate thread that has NO prior
+   * value for the custom key, so a missing completion-thread snapshot would leave the SDK's
+   * correlation id stranded in that thread's MDC after the operation finishes.
+   */
+  @Test
+  void customKey_asyncCompletionOnOtherThread_leavesNoMdcResidue() throws Exception {
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("inner-cross-thread")
+            .correlationIdKey("cross-thread-key")
+            .build();
+
+    CompletableFuture<String> pending = new CompletableFuture<>();
+    AtomicReference<String> keyDuringCompletion = new AtomicReference<>();
+    AtomicReference<String> keyAfterCompletion = new AtomicReference<>();
+
+    CompletableFuture<String> traced =
+        logger.traceAsyncOperation("blob.test.async", null, ctx, c -> pending);
+
+    // Observe the completing thread's MDC from inside the SDK's own whenComplete chain, then
+    // again after the SDK has restored, all on a thread that never had the custom key set.
+    CompletableFuture<Void> observer =
+        traced.whenComplete((r, t) -> keyAfterCompletion.set(MDC.get("cross-thread-key")))
+            .thenAccept(r -> {});
+
+    Thread completer =
+        new Thread(
+            () -> {
+              keyDuringCompletion.set(MDC.get("cross-thread-key"));
+              pending.complete("ok");
+            },
+            "completer-thread");
+    completer.start();
+    completer.join();
+
+    assertEquals("ok", traced.join(), "traced future must complete with the operation's value");
+    observer.join();
+    assertNull(
+        keyDuringCompletion.get(),
+        "completing thread must not see the custom key before the SDK sets it");
+    assertNull(
+        keyAfterCompletion.get(),
+        "SDK must remove the custom key from the completing thread's MDC, not leak it");
   }
 }

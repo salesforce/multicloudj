@@ -216,7 +216,7 @@ public class AliTransformerTest {
   void testToPutObjectRequest_customCorrelationIdKeyUsed() {
     var ctx = OperationContext.builder()
         .correlationId("req-abc-123")
-        .correlationIdMetadataKey("x-custom-corr")
+        .correlationIdKey("x-custom-corr")
         .build();
     var request = UploadRequest.builder()
         .withKey("some-key")
@@ -242,7 +242,7 @@ public class AliTransformerTest {
   void testToPutObjectRequest_customKeyNotOverwrittenWhenAppSuppliesIt() {
     var ctx = OperationContext.builder()
         .correlationId("sdk-generated")
-        .correlationIdMetadataKey("x-custom-corr")
+        .correlationIdKey("x-custom-corr")
         .build();
     var request = UploadRequest.builder()
         .withKey("some-key")

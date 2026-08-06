@@ -161,7 +161,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       Map<String, String> source, OperationContext operationContext) {
     Map<String, String> metadata = source != null ? new HashMap<>(source) : new HashMap<>();
     if (operationContext != null) {
-      String correlationIdKey = operationContext.resolveCorrelationIdMetadataKey();
+      String correlationIdKey = operationContext.getEffectiveCorrelationIdMetadataKey();
       if (StringUtils.isNotBlank(operationContext.getCorrelationId())
           && !metadata.containsKey(correlationIdKey)) {
         metadata.put(correlationIdKey, operationContext.getCorrelationId());

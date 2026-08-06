@@ -1038,10 +1038,11 @@ public class BucketClient implements AutoCloseable {
 
   /**
    * Returns a copy of {@code req} with the resolved {@link OperationContext} attached so the
-   * provider's transformer can read the same correlation id that this call's trace/log/MDC
-   * emit (an empty string when the caller didn't supply one; the correlation id is never
-   * auto-generated). The transformer then persists that id onto the stored object metadata under
-   * {@link com.salesforce.multicloudj.blob.driver.BlobMetadataKeys#CORRELATION_ID}.
+   * provider's transformer can read the same correlation id that this call's trace/log/MDC emit (an
+   * empty string when the caller didn't supply one; the correlation id is never auto-generated).
+   * The transformer then persists that id onto the stored object metadata under {@link
+   * com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys#CORRELATION_ID}, or
+   * under the caller's own key when {@code correlationIdKey} is supplied.
    */
   static UploadRequest withResolvedContext(UploadRequest req, OperationContext ctx) {
     if (ctx == req.getOperationContext()) {

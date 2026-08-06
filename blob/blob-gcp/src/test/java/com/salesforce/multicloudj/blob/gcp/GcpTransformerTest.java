@@ -297,7 +297,7 @@ class GcpTransformerTest {
     OperationContext ctx =
         OperationContext.builder()
             .correlationId("req-abc-123")
-            .correlationIdMetadataKey("x-custom-corr")
+            .correlationIdKey("x-custom-corr")
             .build();
     UploadRequest uploadRequest =
         UploadRequest.builder()
@@ -323,7 +323,7 @@ class GcpTransformerTest {
     OperationContext ctx =
         OperationContext.builder()
             .correlationId("sdk-generated")
-            .correlationIdMetadataKey("x-custom-corr")
+            .correlationIdKey("x-custom-corr")
             .build();
     UploadRequest uploadRequest =
         UploadRequest.builder()

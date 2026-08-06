@@ -136,7 +136,7 @@ public class AliTransformer {
         : new HashMap<>();
     if (uploadRequest.getOperationContext() != null) {
       OperationContext ctx = uploadRequest.getOperationContext();
-      String correlationIdKey = ctx.resolveCorrelationIdMetadataKey();
+      String correlationIdKey = ctx.getEffectiveCorrelationIdMetadataKey();
       if (StringUtils.isNotBlank(ctx.getCorrelationId())
           && !metadata.containsKey(correlationIdKey)) {
         metadata.put(correlationIdKey, ctx.getCorrelationId());

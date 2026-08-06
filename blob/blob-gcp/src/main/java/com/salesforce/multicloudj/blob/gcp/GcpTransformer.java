@@ -98,7 +98,7 @@ public class GcpTransformer {
     if (ctx == null) {
       return;
     }
-    String correlationIdKey = ctx.resolveCorrelationIdMetadataKey();
+    String correlationIdKey = ctx.getEffectiveCorrelationIdMetadataKey();
     if (StringUtils.isNotBlank(ctx.getCorrelationId())
         && !metadata.containsKey(correlationIdKey)) {
       metadata.put(correlationIdKey, ctx.getCorrelationId());

@@ -1,9 +1,11 @@
 package com.salesforce.multicloudj.common.observability;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.Builder;
 import lombok.Value;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Per-operation observability context attached to SDK requests.
@@ -24,19 +26,44 @@ import lombok.Value;
  *
  * <p>When present, each identifier is set as a span attribute and MDC entry for the duration of
  * the operation. On upload, the {@code aws}, {@code gcp}, and {@code inmemory} providers
- * additionally stamp all three identifiers onto the stored object's metadata (under {@code
- * sdk-logging-*} keys) so cloud audit logs can be traced back to the originating request, tenant,
- * and service.
- *
- * <p>The metadata key under which the correlation id is stamped is customizable via {@code
- * correlationIdMetadataKey}; when it is not supplied the providers fall back to the default {@link
- * SdkLoggingMetadataKeys#CORRELATION_ID}. The stamped <em>value</em> is always {@code
- * correlationId}. This lets a caller align the stored key with an existing metadata convention
- * while leaving the service-id and tenant-id keys fixed.
+ * additionally stamp all three identifiers onto the stored object's metadata. By default, the
+ * correlation id is stored under {@code sdk-logging-correlation-id} (metadata key) and {@code
+ * correlation_id} (MDC + span attribute); tenant and service ids are stored under {@code
+ * sdk-logging-tenant-id} and {@code sdk-logging-service-id}. A custom {@code correlationIdKey}
+ * replaces both defaults on all three surfaces (metadata, MDC, span), allowing callers to
+ * align the SDK's tracing with their own naming conventions.
  */
 @Value
 @Builder(toBuilder = true)
 public class OperationContext {
+
+  /**
+   * Regex pattern for validating custom correlation ID key names. Lowercase alphanumeric only to
+   * prevent casing drift (S3 and GCS lowercase user-metadata keys on read). Safe subset of RFC
+   * 7230 header tokens that also works as MDC key and OTel attribute name.
+   */
+  private static final Pattern VALID_KEY_PATTERN = Pattern.compile("^[a-z0-9][a-z0-9_-]{0,127}$");
+
+  /**
+   * Reserved key names that cannot be used as custom correlation ID keys. These collide with the
+   * SDK's own identifiers (tenant, service, trace/span ids) or provider-specific stamping, so
+   * allowing them would corrupt the cross-provider metadata contract. Case-insensitive matching
+   * is belt-and-braces given VALID_KEY_PATTERN already rejects uppercase, but implemented anyway
+   * to catch any future pattern relaxations.
+   */
+  private static final Set<String> RESERVED_KEYS =
+      Set.of(
+          // MDC and span attribute keys (from MultiCloudJLogger)
+          MultiCloudJLogger.MDC_TRACE_ID,
+          MultiCloudJLogger.MDC_SPAN_ID,
+          MultiCloudJLogger.MDC_SDK_SERVICE,
+          MultiCloudJLogger.MDC_SDK_PROVIDER,
+          MultiCloudJLogger.MDC_TENANT_ID,
+          MultiCloudJLogger.MDC_SERVICE_ID,
+          // Metadata keys (from SdkLoggingMetadataKeys) for tenant and service.
+          // Correlation id defaults are ALLOWED, as explicit restatements of a default.
+          SdkLoggingMetadataKeys.SERVICE_ID,
+          SdkLoggingMetadataKeys.TENANT_ID);
 
   /**
    * Application-supplied correlation ID used to correlate this operation's logs and traces.
@@ -61,66 +88,96 @@ public class OperationContext {
   String serviceId;
 
   /**
-   * Application-supplied metadata key under which providers stamp the {@link #correlationId} value
-   * onto a stored object during upload. Optional; when {@code null} or blank, providers fall back
-   * to the default {@link SdkLoggingMetadataKeys#CORRELATION_ID}. Only the correlation-id key is
-   * customizable; the service-id and tenant-id keys remain fixed. This field affects only the
-   * stored metadata <em>key</em>; it does not change the correlation id value, the span attribute,
-   * the MDC entry, or the value echoed back on responses.
+   * Optional custom key name for the correlation ID on all three surfaces: stored object metadata,
+   * SLF4J MDC, and OTel span attributes. When {@code null} or blank, the SDK uses its own defaults
+   * ({@code sdk-logging-correlation-id} for metadata, {@code correlation_id} for MDC and span).
+   * When supplied, this name replaces the defaults everywhere, allowing callers to align the SDK's
+   * tracing with their own naming conventions (e.g., {@code x-request-id}, {@code trace-id}).
    *
-   * <p>When supplied and non-blank, the key must be a valid object-metadata key: it must contain
-   * only ASCII letters, digits, hyphens and underscores, and must not equal one of the SDK's
-   * reserved keys ({@link SdkLoggingMetadataKeys#SERVICE_ID} or {@link
-   * SdkLoggingMetadataKeys#TENANT_ID}) — reusing a reserved key would collide with the fixed
-   * service-id/tenant-id stamps and drop them. A key that violates either rule is rejected with an
-   * {@link InvalidArgumentException} when it is resolved during upload.
+   * <p>Validation: must match {@code ^[a-z0-9][a-z0-9_-]{0,127}$} and must not collide with
+   * reserved keys ({@code trace_id}, {@code span_id}, {@code tenant_id}, {@code service_id}, etc.).
+   * Explicit restatements of the defaults ({@code correlation_id}, {@code
+   * sdk-logging-correlation-id}) are allowed.
    */
-  String correlationIdMetadataKey;
+  String correlationIdKey;
 
   /**
-   * Allowed shape for a custom correlation-id metadata key: ASCII letters, digits, hyphens and
-   * underscores only. This is the intersection that AWS S3, GCS and OSS all accept as a
-   * user-metadata key name, so a key that passes here is portable across every provider.
+   * Hand-written all-args constructor to intercept Lombok's generated {@code build()} call and
+   * enforce validation on every construction path, including {@code toBuilder()}.
+   *
+   * @param correlationId the correlation id value
+   * @param tenantId the tenant id
+   * @param serviceId the service id
+   * @param correlationIdKey the custom correlation id key name (validated)
+   * @throws InvalidArgumentException if correlationIdKey violates format or reserved-name rules
    */
-  private static final Pattern VALID_METADATA_KEY = Pattern.compile("[A-Za-z0-9_-]+");
+  OperationContext(
+      String correlationId, String tenantId, String serviceId, String correlationIdKey) {
+    this.correlationId = correlationId;
+    this.tenantId = tenantId;
+    this.serviceId = serviceId;
+    this.correlationIdKey = correlationIdKey;
+
+    // Validate correlationIdKey if present (null or blank is valid, means "use defaults")
+    if (StringUtils.isNotBlank(correlationIdKey)) {
+      if (!VALID_KEY_PATTERN.matcher(correlationIdKey).matches()) {
+        // Check common failure modes and give actionable error messages
+        if (correlationIdKey.length() > 128) {
+          throw new InvalidArgumentException(
+              "correlationIdKey exceeds 128 characters: " + correlationIdKey);
+        }
+        if (!correlationIdKey.equals(correlationIdKey.toLowerCase())) {
+          throw new InvalidArgumentException(
+              "correlationIdKey must be lowercase (S3 and GCS lowercase user-metadata keys on "
+                  + "read, which would cause casing drift). Rejected: "
+                  + correlationIdKey
+                  + "; try: "
+                  + correlationIdKey.toLowerCase());
+        }
+        if (correlationIdKey.startsWith("-") || correlationIdKey.startsWith("_")) {
+          throw new InvalidArgumentException(
+              "correlationIdKey must start with an alphanumeric character. Rejected: "
+                  + correlationIdKey);
+        }
+        throw new InvalidArgumentException(
+            "correlationIdKey contains invalid characters (allowed: [a-z0-9_-], must start with"
+                + " [a-z0-9]). Rejected: "
+                + correlationIdKey);
+      }
+
+      if (RESERVED_KEYS.contains(correlationIdKey.toLowerCase())) {
+        throw new InvalidArgumentException(
+            "correlationIdKey collides with reserved SDK identifier. Rejected: "
+                + correlationIdKey
+                + "; reserved keys: "
+                + RESERVED_KEYS);
+      }
+    }
+  }
 
   /**
-   * Resolves the metadata key under which the correlation id should be stamped on a stored object:
-   * the application-supplied {@link #correlationIdMetadataKey} when present, otherwise the default
-   * {@link SdkLoggingMetadataKeys#CORRELATION_ID}. Defined here so the fallback and validation live
-   * in one place and cannot drift across provider implementations.
+   * Resolves the effective correlation ID key for stored object metadata. When a custom {@code
+   * correlationIdKey} is supplied, it replaces the default on all three surfaces (metadata, MDC,
+   * span). When {@code null} or blank, returns the default metadata key.
    *
-   * <p>When a custom key is supplied, it is validated before being returned: it must match {@link
-   * #VALID_METADATA_KEY} and must not equal a reserved key ({@link
-   * SdkLoggingMetadataKeys#SERVICE_ID} or {@link SdkLoggingMetadataKeys#TENANT_ID}). This fails
-   * fast with a clear SDK exception rather than surfacing a substrate error later or silently
-   * dropping the service-id/tenant-id stamp on a collision.
-   *
-   * @return the custom correlation-id metadata key when supplied and non-blank, else {@link
-   *     SdkLoggingMetadataKeys#CORRELATION_ID}
-   * @throws InvalidArgumentException if a supplied custom key has an invalid shape or collides with
-   *     a reserved key
+   * @return the metadata key under which the correlation id should be stamped
    */
-  public String resolveCorrelationIdMetadataKey() {
-    if (correlationIdMetadataKey == null || correlationIdMetadataKey.trim().isEmpty()) {
-      return SdkLoggingMetadataKeys.CORRELATION_ID;
-    }
-    if (SdkLoggingMetadataKeys.SERVICE_ID.equals(correlationIdMetadataKey)
-        || SdkLoggingMetadataKeys.TENANT_ID.equals(correlationIdMetadataKey)) {
-      throw new InvalidArgumentException(
-          "correlationIdMetadataKey must not equal a reserved SDK metadata key ('"
-              + SdkLoggingMetadataKeys.SERVICE_ID
-              + "' or '"
-              + SdkLoggingMetadataKeys.TENANT_ID
-              + "'): "
-              + correlationIdMetadataKey);
-    }
-    if (!VALID_METADATA_KEY.matcher(correlationIdMetadataKey).matches()) {
-      throw new InvalidArgumentException(
-          "correlationIdMetadataKey may contain only ASCII letters, digits, hyphens and"
-              + " underscores: "
-              + correlationIdMetadataKey);
-    }
-    return correlationIdMetadataKey;
+  public String getEffectiveCorrelationIdMetadataKey() {
+    return StringUtils.isNotBlank(correlationIdKey)
+        ? correlationIdKey
+        : SdkLoggingMetadataKeys.CORRELATION_ID;
+  }
+
+  /**
+   * Resolves the effective correlation ID key for MDC entries and OTel span attributes. When a
+   * custom {@code correlationIdKey} is supplied, it replaces the default on all three surfaces
+   * (metadata, MDC, span). When {@code null} or blank, returns the default MDC/span key.
+   *
+   * @return the MDC and span attribute key under which the correlation id should be set
+   */
+  public String getEffectiveCorrelationIdAttributeKey() {
+    return StringUtils.isNotBlank(correlationIdKey)
+        ? correlationIdKey
+        : MultiCloudJLogger.ATTR_CORRELATION_ID;
   }
 }

@@ -161,6 +161,72 @@ bucketClient.setTags("object-key", Map.of("env", "prod"));
 
 ---
 
+## Observability: Correlation, Tenant, and Service IDs
+
+MulticloudJ blob operations support attaching observability identifiers to each request via
+`OperationContext`. When supplied, these identifiers are stamped onto three surfaces: the stored
+object's metadata, the SLF4J MDC (making them available to your logging framework), and the
+OpenTelemetry span as attributes.
+
+### Stamping Correlation, Tenant, and Service IDs
+
+```java
+OperationContext context = OperationContext.builder()
+    .correlationId("request-xyz-456")   // ties logs/traces to this request
+    .tenantId("tenant-1234")            // identifies the tenant
+    .serviceId("my-service")            // identifies the calling service
+    .build();
+
+UploadRequest request = new UploadRequest.Builder()
+    .withKey("object-key")
+    .withOperationContext(context)
+    .build();
+
+bucketClient.upload(request, inputStream);
+```
+
+After upload, the stored object's metadata will include:
+
+- `sdk-logging-correlation-id=request-xyz-456` (or your custom key; see below)
+- `sdk-logging-tenant-id=tenant-1234`
+- `sdk-logging-service-id=my-service`
+
+The same identifiers appear in your application's logs (via SLF4J MDC keys) and in the
+OpenTelemetry trace span for the operation.
+
+### Customizing the Correlation ID Key
+
+By default, the correlation id is stamped under the key `sdk-logging-correlation-id` in object
+metadata, and under `correlation_id` in MDC and the span attribute. If your organization has an
+existing correlation-id convention (e.g., `X-Request-Id`), you can customize the key name:
+
+```java
+OperationContext context = OperationContext.builder()
+    .correlationId("abc-123")
+    .correlationIdKey("x-request-id")  // custom key name (must be lowercase)
+    .build();
+```
+
+**When a custom key is supplied:**
+
+- All three surfaces (object metadata, MDC, span attribute) use that custom name.
+- The default keys (`sdk-logging-correlation-id` / `correlation_id`) are **not** also stamped
+  (replace semantics, not dual stamping).
+- The key must match `^[a-z0-9][a-z0-9_-]{0,127}$` (lowercase-only; S3 and GCS lowercase
+  user-metadata keys on read, so uppercase would round-trip inconsistently).
+- Reserved SDK keys (`trace_id`, `span_id`, `tenant_id`, `service_id`, etc.) are rejected to
+  prevent collision with the SDK's own observability schema.
+
+**Important:** Choosing a custom correlation key opts you out of any shared MulticloudJ dashboards
+or alerts keyed on `correlation_id`. We recommend setting the key once per deployment (e.g., in
+your service's configuration) rather than varying it per request.
+
+**Note:** Only the correlation-id key is customizable. `sdk-logging-tenant-id` and
+`sdk-logging-service-id` remain fixed across all deployments to maintain the cross-provider
+wire contract.
+
+---
+
 ## Presigned URLs
 
 ```java
