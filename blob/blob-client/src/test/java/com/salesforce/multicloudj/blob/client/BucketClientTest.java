@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.blob.client;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,6 +37,7 @@ import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
@@ -898,6 +900,104 @@ public class BucketClientTest {
                     "object-1".equals(req.getKey())
                         && req.getOperationContext() != null
                         && req.getOperationContext().getCorrelationId() != null));
+  }
+
+  /**
+   * Directly exercises the rebuild branch of {@link BucketClient#withResolvedContext(UploadRequest,
+   * OperationContext)}: when the resolved context differs from the request's own, the request is
+   * rebuilt via {@link UploadRequest#toBuilder()}. Populates every field to a distinct non-default
+   * value and asserts each survives — a dropped field in the hand-written {@code toBuilder} would
+   * silently lose upload configuration (KMS keys, checksum, object-lock retention) on every
+   * enriched upload call.
+   */
+  @Test
+  void testWithResolvedContextUploadRebuildPreservesAllFields() {
+    Map<String, String> metadata = Map.of("meta-1", "meta-value-1");
+    Map<String, String> tags = Map.of("tag-1", "tag-value-1");
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2030-01-01T00:00:00Z"))
+            .legalHold(true)
+            .build();
+    UploadRequest request =
+        UploadRequest.builder()
+            .withKey("object-1")
+            .withContentLength(1024L)
+            .withMetadata(metadata)
+            .withTags(tags)
+            .withStorageClass("NEARLINE")
+            .withKmsKeyId("kms-key-1")
+            .withUseKmsManagedKey(true)
+            .withObjectLock(objectLock)
+            .withChecksumValue("chk-value")
+            .withChecksumAlgorithm(ChecksumMethod.SHA256)
+            .withContentType("application/json")
+            .withOperationContext(OperationContext.builder().correlationId("original").build())
+            .build();
+
+    // A distinct context instance forces the rebuild branch (not the identity short-circuit).
+    OperationContext resolved = fullContext();
+    UploadRequest rebuilt = BucketClient.withResolvedContext(request, resolved);
+
+    assertSame(resolved, rebuilt.getOperationContext());
+    assertEquals("object-1", rebuilt.getKey());
+    assertEquals(1024L, rebuilt.getContentLength());
+    assertEquals(metadata, rebuilt.getMetadata());
+    assertEquals(tags, rebuilt.getTags());
+    assertEquals("NEARLINE", rebuilt.getStorageClass());
+    assertEquals("kms-key-1", rebuilt.getKmsKeyId());
+    assertTrue(rebuilt.isUseKmsManagedKey());
+    assertSame(objectLock, rebuilt.getObjectLock());
+    assertEquals("chk-value", rebuilt.getChecksumValue());
+    assertEquals(ChecksumMethod.SHA256, rebuilt.getChecksumAlgorithm());
+    assertEquals("application/json", rebuilt.getContentType());
+  }
+
+  /**
+   * Directly exercises the rebuild branch of {@link
+   * BucketClient#withResolvedContext(MultipartUploadRequest, OperationContext)}: when the resolved
+   * context differs from the request's own, the request is rebuilt via
+   * {@link MultipartUploadRequest#toBuilder()}. Populates every field to a distinct non-default
+   * value and asserts each survives.
+   */
+  @Test
+  void testWithResolvedContextMultipartRebuildPreservesAllFields() {
+    Map<String, String> metadata = Map.of("meta-1", "meta-value-1");
+    Map<String, String> tags = Map.of("tag-1", "tag-value-1");
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2030-01-01T00:00:00Z"))
+            .legalHold(true)
+            .build();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(metadata)
+            .withTags(tags)
+            .withKmsKeyId("kms-key-1")
+            .withUseKmsManagedKey(true)
+            .withChecksumEnabled(true)
+            .withChecksumAlgorithm(ChecksumMethod.SHA256)
+            .withObjectLock(objectLock)
+            .withContentType("application/json")
+            .withOperationContext(OperationContext.builder().correlationId("original").build())
+            .build();
+
+    OperationContext resolved = fullContext();
+    MultipartUploadRequest rebuilt = BucketClient.withResolvedContext(request, resolved);
+
+    assertSame(resolved, rebuilt.getOperationContext());
+    assertEquals("object-1", rebuilt.getKey());
+    assertEquals(metadata, rebuilt.getMetadata());
+    assertEquals(tags, rebuilt.getTags());
+    assertEquals("kms-key-1", rebuilt.getKmsKeyId());
+    assertTrue(rebuilt.isUseKmsManagedKey());
+    assertTrue(rebuilt.isChecksumEnabled());
+    assertEquals(ChecksumMethod.SHA256, rebuilt.getChecksumAlgorithm());
+    assertSame(objectLock, rebuilt.getObjectLock());
+    assertEquals("application/json", rebuilt.getContentType());
   }
 
   @Test

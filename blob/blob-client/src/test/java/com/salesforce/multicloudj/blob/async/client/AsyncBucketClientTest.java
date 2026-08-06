@@ -997,6 +997,59 @@ public class AsyncBucketClientTest {
   }
 
   /**
+   * Direct rebuild test for {@link AsyncBucketClient#withResolvedContext(UploadRequest,
+   * OperationContext)} — companion to
+   * {@link #testWithResolvedContextMultipartRebuildPreservesAllFields}. Populates every
+   * {@link UploadRequest} field to a distinct non-default value and asserts each survives
+   * {@link UploadRequest#toBuilder()}. A dropped field in the hand-written {@code toBuilder} would
+   * silently lose upload configuration (KMS keys, checksum, object-lock retention) on every
+   * enriched upload call.
+   */
+  @Test
+  void testWithResolvedContextUploadRebuildPreservesAllFields() {
+    Map<String, String> metadata = Map.of("meta-1", "meta-value-1");
+    Map<String, String> tags = Map.of("tag-1", "tag-value-1");
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2030-01-01T00:00:00Z"))
+            .legalHold(true)
+            .build();
+    UploadRequest request =
+        UploadRequest.builder()
+            .withKey("object-1")
+            .withContentLength(1024L)
+            .withMetadata(metadata)
+            .withTags(tags)
+            .withStorageClass("NEARLINE")
+            .withKmsKeyId("kms-key-1")
+            .withUseKmsManagedKey(true)
+            .withObjectLock(objectLock)
+            .withChecksumValue("chk-value")
+            .withChecksumAlgorithm(ChecksumMethod.SHA256)
+            .withContentType("application/json")
+            .withOperationContext(OperationContext.builder().correlationId("original").build())
+            .build();
+
+    // A distinct context instance forces the rebuild branch (not the identity short-circuit).
+    OperationContext resolved = fullContext();
+    UploadRequest rebuilt = AsyncBucketClient.withResolvedContext(request, resolved);
+
+    assertSame(resolved, rebuilt.getOperationContext());
+    assertEquals("object-1", rebuilt.getKey());
+    assertEquals(1024L, rebuilt.getContentLength());
+    assertEquals(metadata, rebuilt.getMetadata());
+    assertEquals(tags, rebuilt.getTags());
+    assertEquals("NEARLINE", rebuilt.getStorageClass());
+    assertEquals("kms-key-1", rebuilt.getKmsKeyId());
+    assertTrue(rebuilt.isUseKmsManagedKey());
+    assertSame(objectLock, rebuilt.getObjectLock());
+    assertEquals("chk-value", rebuilt.getChecksumValue());
+    assertEquals(ChecksumMethod.SHA256, rebuilt.getChecksumAlgorithm());
+    assertEquals("application/json", rebuilt.getContentType());
+  }
+
+  /**
    * When the resolved context is the very same instance already on the request, {@code
    * withResolvedContext} returns the request unchanged rather than rebuilding it.
    */

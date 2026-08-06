@@ -23,6 +23,17 @@ public class BlobMetadata {
   private final String eTag;
   private final long objectSize;
 
+  /**
+   * User-supplied metadata associated with the blob.
+   *
+   * <p><b>Builder accumulation note:</b> because this field is annotated with Lombok's
+   * {@code @Singular("metadata")}, the generated builder setter {@code .metadata(Map)}
+   * <i>accumulates</i> entries rather than replacing them. On a builder produced by
+   * {@link #toBuilder()}, calling {@code .metadata(newMap)} unions {@code newMap} with the entries
+   * already copied from the original — it does not replace them. To replace the map wholesale,
+   * call {@code .clearMetadata()} first, then {@code .metadata(newMap)}. To append a single entry,
+   * use {@code .metadata(key, value)}.
+   */
   @Singular("metadata")
   private final Map<String, String> metadata;
 
