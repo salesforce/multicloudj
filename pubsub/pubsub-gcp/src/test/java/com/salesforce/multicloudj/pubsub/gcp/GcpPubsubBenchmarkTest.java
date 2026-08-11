@@ -39,12 +39,6 @@ public class GcpPubsubBenchmarkTest extends AbstractPubsubBenchmarkTest {
     return "gcp";
   }
 
-  @Override
-  protected int getMaxBatchAckSize() {
-    // GCP supports up to 1000 messages per batch ack (vs AWS limit of 10)
-    return 1000;
-  }
-
   /**
    * GCP NACK-and-redelivery benchmark.
    *
