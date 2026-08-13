@@ -64,13 +64,14 @@ public abstract class AbstractDBBackupRestoreBenchmarkTest {
     }
 
     /**
-     * A statically-known restore ID to exercise {@link #benchmarkGetRestoreJob(Blackhole)}. When
-     * unset, setup does NOT create one (that would spawn an uncleaned-up restore job on every
-     * trial, since {@code @Setup(Level.Trial)} runs once per fork per benchmark method and there is
-     * no delete API); the get-restore-job benchmark simply skips itself.
+     * A statically-known restore ID to exercise {@link #benchmarkGetRestoreJob(Blackhole)}, read
+     * from {@code DBBACKUPRESTORE_BENCHMARK_RESTORE_ID}. When unset, setup does NOT create one
+     * (that would spawn an uncleaned-up restore job on every trial, since {@code @Setup} runs once
+     * per fork per benchmark method and there is no delete API), and the get-restore-job benchmark
+     * is dropped from the sweep rather than timing an empty method.
      */
     default String getKnownRestoreId() {
-      return null;
+      return optionalEnv("DBBACKUPRESTORE_BENCHMARK_RESTORE_ID");
     }
 
     default String getRoleId() {
@@ -83,6 +84,15 @@ public abstract class AbstractDBBackupRestoreBenchmarkTest {
 
     default String getKmsEncryptionKeyId() {
       return null;
+    }
+
+    /**
+     * Opt-in switch for the destructive {@link #benchmarkRestoreKickoff(Blackhole)}. Defaults to
+     * the {@code DBBACKUPRESTORE_BENCHMARK_ALLOW_DESTRUCTIVE} flag so an operator with a disposable
+     * target can enable it explicitly; false everywhere else.
+     */
+    default boolean isDestructiveEnabled() {
+      return Boolean.parseBoolean(optionalEnv("DBBACKUPRESTORE_BENCHMARK_ALLOW_DESTRUCTIVE"));
     }
   }
 
@@ -206,10 +216,20 @@ public abstract class AbstractDBBackupRestoreBenchmarkTest {
    * the restore itself takes (restores run async on the provider side and can take minutes to
    * hours). Excluded from the default sweep in {@link #runBenchmarks()} since each invocation
    * leaves an uncleaned-up restore; kept as a {@code @Benchmark} so an operator with a disposable
-   * target can run it explicitly.
+   * target can run it explicitly via {@code DBBACKUPRESTORE_BENCHMARK_ALLOW_DESTRUCTIVE=true}. The
+   * in-method destructive guard is the real fence — the {@code .exclude()} in the launcher only
+   * covers callers that reuse it.
    */
   @Benchmark
   public void benchmarkRestoreKickoff(Blackhole bh) {
+    // Hard guard, not just a launcher .exclude(): every invocation kicks off a real restore with no
+    // delete API to clean it up. Refuse unless the operator explicitly opts in, so a runner that
+    // builds its own Options (or the unconditional generated BenchmarkList) can't storm the target.
+    if (!harness.isDestructiveEnabled()) {
+      throw new IllegalStateException(
+          "benchmarkRestoreKickoff is destructive (creates an uncleaned-up restore per "
+              + "invocation); set DBBACKUPRESTORE_BENCHMARK_ALLOW_DESTRUCTIVE=true to run it");
+    }
     try {
       String newRestoreId = client.restoreBackup(buildRestoreRequest());
       bh.consume(newRestoreId);
@@ -246,12 +266,27 @@ public abstract class AbstractDBBackupRestoreBenchmarkTest {
       }
     }
 
-    // Exclude benchmarkRestoreKickoff from the swept set: each invocation kicks off a real,
-    // uncleaned-up restore, so it must never run in a warmup/measurement loop.
+    // Capability-driven exclusions: what gets swept depends on what the harness can actually
+    // exercise, rather than a fixed regex.
+    Harness capabilities = createHarness();
+
+    OptionsBuilder builder = new OptionsBuilder();
+    builder.include(".*" + this.getClass().getName() + ".*");
+
+    // benchmarkRestoreKickoff kicks off a real, uncleaned-up restore on every invocation, so it
+    // must never run in a warmup/measurement loop unless the operator explicitly opts in.
+    if (!capabilities.isDestructiveEnabled()) {
+      builder.exclude(".*benchmarkRestoreKickoff.*");
+    }
+
+    // benchmarkGetRestoreJob needs a known restore ID; with none configured it would only time an
+    // empty method and publish a meaningless throughput number. Drop it from the sweep instead.
+    if (StringUtils.isBlank(capabilities.getKnownRestoreId())) {
+      builder.exclude(".*benchmarkGetRestoreJob.*");
+    }
+
     Options opt =
-        new OptionsBuilder()
-            .include(".*" + this.getClass().getName() + ".*")
-            .exclude(".*benchmarkRestoreKickoff.*")
+        builder
             .forks(1)
             .resultFormat(ResultFormatType.JSON)
             .result("target/jmh-dbbackuprestore-results-" + getProviderId() + ".json")

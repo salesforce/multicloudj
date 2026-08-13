@@ -27,6 +27,9 @@ public class GcpFirestoreDBBackupRestoreBenchmarkTest extends AbstractDBBackupRe
 
   public static class HarnessImpl implements Harness {
 
+    // Full parent path projects/{project}/locations/{location}, not a bare location: this value is
+    // passed straight to Firestore listBackups(parent), which rejects a bare location with
+    // INVALID_ARGUMENT.
     private final String location = requireEnv("DBBACKUPRESTORE_BENCHMARK_GCP_LOCATION");
     private final String databaseName = requireEnv("DBBACKUPRESTORE_BENCHMARK_GCP_DATABASE_NAME");
     private FirestoreAdminClient firestoreAdminClient;
