@@ -29,7 +29,7 @@ import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.results.format.ResultFormatType;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
-import org.openjdk.jmh.runner.options.Options;
+import org.openjdk.jmh.runner.options.ChainedOptionsBuilder;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 /**
@@ -66,19 +66,44 @@ public abstract class AbstractStsBenchmarkTest {
   protected abstract String getProviderId();
 
   /**
+   * Whether this provider can issue a short-lived token under the credentials the run uses. When
+   * false, the token-issuance benchmark is dropped from the sweep (see runBenchmarks) rather than
+   * timing a call the provider will reject.
+   */
+  protected abstract boolean supportsGetAccessToken();
+
+  /**
+   * Whether a web-identity (OIDC) token is available for the federation benchmark. Requires an
+   * external token minted by a trusted identity provider; when absent the benchmark is dropped
+   * from the sweep rather than timing an empty method.
+   */
+  protected boolean supportsWebIdentity(Harness probe) {
+    return StringUtils.isNotBlank(probe.getWebIdentityToken());
+  }
+
+  /**
    * Reads a required config value from OS environment first, then from -D system properties.
    * Fails fast with a clear error if neither is set — avoids silent misconfiguration producing
    * garbage benchmark results.
    */
   protected static String requireEnv(String name) {
-    String value = System.getenv(name);
-    if (StringUtils.isBlank(value)) {
-      value = System.getProperty(name);
-    }
+    String value = optionalEnv(name);
     if (StringUtils.isBlank(value)) {
       throw new IllegalStateException("Required environment variable not set: " + name);
     }
     return value;
+  }
+
+  /**
+   * Reads an optional config value from OS environment first, then from -D system properties.
+   * Returns null if neither is set — callers decide whether the absence disables a code path.
+   */
+  protected static String optionalEnv(String name) {
+    String value = System.getenv(name);
+    if (StringUtils.isBlank(value)) {
+      value = System.getProperty(name);
+    }
+    return StringUtils.isBlank(value) ? null : value;
   }
 
   @Setup(Level.Trial)
@@ -115,23 +140,16 @@ public abstract class AbstractStsBenchmarkTest {
   }
 
   /**
-   * Assume role via web identity federation. No-ops when the harness doesn't provide a web
-   * identity token, since not every provider supports this flow in a benchmarkable way. JMH's
-   * Runner doesn't understand JUnit assumptions, so we skip manually instead of using
-   * Assumptions.assumeTrue.
+   * Assume role via web identity federation. Requires an external OIDC token supplied by the
+   * harness; when none is available the benchmark is dropped from the sweep (see runBenchmarks)
+   * rather than timed as an empty method.
    */
   @Benchmark
   public void benchmarkGetAssumeRoleWithWebIdentity(Blackhole bh) {
-    String webIdentityToken = harness.getWebIdentityToken();
-    if (webIdentityToken == null) {
-      bh.consume(webIdentityToken);
-      return;
-    }
-
     AssumeRoleWebIdentityRequest request =
         AssumeRoleWebIdentityRequest.builder()
             .role(harness.getRoleName())
-            .webIdentityToken(webIdentityToken)
+            .webIdentityToken(harness.getWebIdentityToken())
             .sessionName("mcj-benchmark-web-identity-session")
             .expiration(3600)
             .build();
@@ -140,10 +158,8 @@ public abstract class AbstractStsBenchmarkTest {
   }
 
   /**
-   * Short-lived access/session token issuance. Excluded from the default sweep (see
-   * runBenchmarks): AWS GetSessionToken rejects temporary/session credentials, so it cannot run
-   * under the assumed-role creds the pipeline uses. Kept for anyone running with long-term
-   * IAM-user creds. (Mirrors multicloud-py's supports_get_access_token capability gate.)
+   * Short-lived token issuance. Dropped from the default sweep on providers that report they
+   * cannot issue one under the run's credentials (see runBenchmarks and supportsGetAccessToken).
    */
   @Benchmark
   public void benchmarkGetAccessToken(Blackhole bh) {
@@ -167,6 +183,21 @@ public abstract class AbstractStsBenchmarkTest {
     bh.consume(credentials);
   }
 
+  /**
+   * Benchmark-name regexes to exclude from the sweep for this provider, derived from its declared
+   * capabilities. Pulled out of the JMH wiring so the gating is unit-testable without a live run.
+   */
+  List<String> computeExcludes(Harness probe) {
+    List<String> excludes = new ArrayList<>();
+    if (!supportsGetAccessToken()) {
+      excludes.add(".*benchmarkGetAccessToken.*");
+    }
+    if (!supportsWebIdentity(probe)) {
+      excludes.add(".*benchmarkGetAssumeRoleWithWebIdentity.*");
+    }
+    return excludes;
+  }
+
   @Test
   @EnabledIfSystemProperty(named = "runBenchmarks", matches = "true")
   public void runBenchmarks() throws RunnerException {
@@ -177,17 +208,25 @@ public abstract class AbstractStsBenchmarkTest {
       }
     }
 
-    Options opt =
+    ChainedOptionsBuilder builder =
         new OptionsBuilder()
             .include(".*" + this.getClass().getName() + ".*")
-            // GetSessionToken can't be called with session creds; unexercisable in the pipeline.
-            .exclude(".*benchmarkGetAccessToken.*")
             .forks(1)
             .resultFormat(ResultFormatType.JSON)
             .result("target/jmh-sts-results-" + getProviderId() + ".json")
-            .jvmArgsAppend(forwardedArgs.toArray(new String[0]))
-            .build();
+            .jvmArgsAppend(forwardedArgs.toArray(new String[0]));
 
-    new Runner(opt).run();
+    // JMH has no per-method skip and ignores JUnit assumptions under Runner, so unexercisable
+    // benchmarks are excluded here. A throwaway probe harness answers the capability questions;
+    // the live harness is created inside the fork by @Setup.
+    try (Harness probe = createHarness()) {
+      for (String pattern : computeExcludes(probe)) {
+        builder.exclude(pattern);
+      }
+    } catch (Exception e) {
+      throw new RunnerException("Failed to probe harness capabilities", e);
+    }
+
+    new Runner(builder.build()).run();
   }
 }

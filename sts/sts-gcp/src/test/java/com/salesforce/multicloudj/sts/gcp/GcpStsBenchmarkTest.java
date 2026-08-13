@@ -18,9 +18,15 @@ public class GcpStsBenchmarkTest extends AbstractStsBenchmarkTest {
     return GcpConstants.PROVIDER_ID;
   }
 
+  @Override
+  protected boolean supportsGetAccessToken() {
+    return true;
+  }
+
   public static class HarnessImpl implements Harness {
 
     private final String serviceAccount = requireEnv("STS_BENCHMARK_GCP_SERVICE_ACCOUNT");
+    private final String webIdentityToken = optionalEnv("STS_BENCHMARK_GCP_WEB_IDENTITY_TOKEN");
 
     @Override
     public StsClient createStsClient() {
@@ -34,8 +40,8 @@ public class GcpStsBenchmarkTest extends AbstractStsBenchmarkTest {
 
     @Override
     public String getWebIdentityToken() {
-      // GCP token exchange requires an external OIDC token; not benchmarkable here.
-      return null;
+      // External OIDC token exchanged for a GCP access token; supplied via env when available.
+      return webIdentityToken;
     }
 
     @Override
