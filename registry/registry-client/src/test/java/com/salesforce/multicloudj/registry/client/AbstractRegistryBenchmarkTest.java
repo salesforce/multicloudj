@@ -47,7 +47,6 @@ public abstract class AbstractRegistryBenchmarkTest {
   private static final int COPY_BUFFER_SIZE = 8192;
 
   protected ContainerRegistryClient client;
-  private Image preloadedImage;
   private String smallImageRef;
   private String multiArchImageRef;
 
@@ -59,6 +58,11 @@ public abstract class AbstractRegistryBenchmarkTest {
 
     // May return null if the provider has no multi-arch test image available.
     String getMultiArchImageRef();
+
+    // Whether a multi-arch test image is configured; drives the benchmarkPullMultiArch exclude.
+    default boolean supportsMultiArch() {
+      return getMultiArchImageRef() != null;
+    }
   }
 
   protected Harness harness;
@@ -100,9 +104,6 @@ public abstract class AbstractRegistryBenchmarkTest {
     client = harness.createClient();
     smallImageRef = harness.getSmallImageRef();
     multiArchImageRef = harness.getMultiArchImageRef();
-
-    // Pre-pull so benchmarkExtractLayers measures decompression, not manifest fetch.
-    preloadedImage = client.pull(smallImageRef);
   }
 
   @TearDown(Level.Trial)
@@ -129,31 +130,14 @@ public abstract class AbstractRegistryBenchmarkTest {
   }
 
   /**
-   * Multi-arch pull, exercising selectPlatformFromIndex plus the second manifest fetch. Guarded:
-   * providers without a multi-arch test image skip the pull but the method still runs so JMH
-   * doesn't fail; results read as ~0 until a real multi-arch fixture is wired up.
+   * Multi-arch pull, exercising selectPlatformFromIndex plus the second manifest fetch. Excluded by
+   * {@link #runBenchmarks()} when the provider has no multi-arch fixture, so this never publishes a
+   * datapoint for work that didn't run.
    */
   @Benchmark
   public void benchmarkPullMultiArch(Blackhole bh) {
-    if (multiArchImageRef == null) {
-      bh.consume(0);
-      return;
-    }
     Image image = client.pull(multiArchImageRef);
     bh.consume(image.getDigest());
-  }
-
-  /**
-   * Layer decompression throughput for a pre-pulled image. Drains the full tar stream so the
-   * measured time reflects decompress + whiteout-flatten cost, not just the first read.
-   */
-  @Benchmark
-  public void benchmarkExtractLayers(Blackhole bh) {
-    try (InputStream tar = client.extract(preloadedImage)) {
-      bh.consume(drain(tar));
-    } catch (IOException e) {
-      throw new RuntimeException("Benchmark extract layers failed", e);
-    }
   }
 
   /**
@@ -191,15 +175,20 @@ public abstract class AbstractRegistryBenchmarkTest {
       }
     }
 
-    Options opt =
-        new OptionsBuilder()
-            .include(".*" + this.getClass().getName() + ".*")
-            .forks(1)
-            .resultFormat(ResultFormatType.JSON)
-            .result("target/jmh-registry-results-" + getProviderId() + ".json")
-            .jvmArgsAppend(forwardedArgs.toArray(new String[0]))
-            .build();
+    OptionsBuilder builder = new OptionsBuilder();
+    builder
+        .include(".*" + this.getClass().getName() + ".*")
+        .forks(1)
+        .resultFormat(ResultFormatType.JSON)
+        .result("target/jmh-registry-results-" + getProviderId() + ".json")
+        .jvmArgsAppend(forwardedArgs.toArray(new String[0]));
 
-    new Runner(opt).run();
+    // Skip the multi-arch benchmark on providers without a multi-arch fixture, rather than
+    // publishing an empty-method datapoint under the name of a real pull.
+    if (!createHarness().supportsMultiArch()) {
+      builder.exclude(".*benchmarkPullMultiArch.*");
+    }
+
+    new Runner(builder.build()).run();
   }
 }
