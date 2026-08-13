@@ -62,15 +62,9 @@ public abstract class AbstractPubsubBenchmarkTest {
   protected static final int MEDIUM_MESSAGE = 10240; // 10KB
   protected static final int LARGE_MESSAGE = 102400; // 100KB
 
-  protected static final int BATCH_SIZE_SMALL = 10;
-
   // Pre-population constants — kept small to avoid long setup (each SNS publish ~3-5s round-trip)
   protected static final int PREPOPULATE_RECEIVE = 50;
   protected static final int MESSAGE_AVAILABILITY_DELAY_MS = 1000;
-
-  // @Param for batch ack benchmarks — drives both benchmarkBatchAck and benchmarkLargeBatchAck
-  @Param({"1", "10"})
-  protected int batchSize;
 
   protected TopicClient topicClient;
   protected SubscriptionClient subscriptionClient;
@@ -104,14 +98,6 @@ public abstract class AbstractPubsubBenchmarkTest {
       throw new IllegalStateException("Required environment variable not set: " + name);
     }
     return value;
-  }
-
-  /**
-   * Returns the maximum number of messages allowed in a single batch ack call.
-   * AWS: 10 messages per batch, GCP: 1000 messages per batch.
-   */
-  protected int getMaxBatchAckSize() {
-    return BATCH_SIZE_SMALL;
   }
 
   @Setup(Level.Trial)
@@ -376,24 +362,31 @@ public abstract class AbstractPubsubBenchmarkTest {
     }
   }
 
+  /** Scopes the batchSize {@code @Param} to the batch-ack benchmark only, not the whole class. */
+  @State(Scope.Benchmark)
+  public static class BatchParams {
+    @Param({"1", "10"})
+    public int batchSize;
+  }
+
   /**
    * Batch acknowledgment benchmark.
    *
    * <p>Publishes {@code batchSize} messages then receives and acks them in a single batch call.
-   * Parameterised via {@link #batchSize} ({@code @Param({"1","10"})}).
+   * Parameterised via {@link BatchParams#batchSize} ({@code @Param({"1","10"})}).
    *
    * <p>Note: {@code sendAcks()} enqueues the batch ack asynchronously; the underlying RPC cost is
    * NOT captured in this benchmark's latency measurement.
    */
   @Benchmark
   @Threads(4)
-  public void benchmarkBatchAck(Blackhole bh) {
+  public void benchmarkBatchAck(BatchParams params, Blackhole bh) {
     try {
-      for (int i = 0; i < batchSize; i++) {
+      for (int i = 0; i < params.batchSize; i++) {
         topicClient.send(createMessage(SMALL_MESSAGE));
       }
       List<AckID> ackIds = new ArrayList<>();
-      for (int i = 0; i < batchSize; i++) {
+      for (int i = 0; i < params.batchSize; i++) {
         Message msg = subscriptionClient.receive();
         ackIds.add(msg.getAckID());
         bh.consume(msg);
@@ -403,38 +396,6 @@ public abstract class AbstractPubsubBenchmarkTest {
     } catch (Exception e) {
       logger.error(">>> Benchmark batch ack FAILED: {}", e.getMessage());
       throw new RuntimeException("Benchmark batch ack failed", e);
-    }
-  }
-
-  /**
-   * Large batch acknowledgment benchmark — shows provider scaling advantage.
-   *
-   * <p>Publishes then receives {@code Math.min(batchSize, getMaxBatchAckSize())} messages in one
-   * batch ack (AWS: 10, GCP: 1000). Parameterised via {@link #batchSize}
-   * ({@code @Param({"1","10"})}).
-   *
-   * <p>Note: {@code sendAcks()} enqueues the batch ack asynchronously; the underlying RPC cost is
-   * NOT captured in this benchmark's latency measurement.
-   */
-  @Benchmark
-  @Threads(4)
-  public void benchmarkLargeBatchAck(Blackhole bh) {
-    int effectiveBatch = Math.min(batchSize, getMaxBatchAckSize());
-    try {
-      for (int i = 0; i < effectiveBatch; i++) {
-        topicClient.send(createMessage(SMALL_MESSAGE));
-      }
-      List<AckID> ackIds = new ArrayList<>();
-      for (int i = 0; i < effectiveBatch; i++) {
-        Message msg = subscriptionClient.receive();
-        ackIds.add(msg.getAckID());
-        bh.consume(msg);
-      }
-      subscriptionClient.sendAcks(ackIds);
-      bh.consume(ackIds.size());
-    } catch (Exception e) {
-      logger.error(">>> Benchmark large batch ack FAILED: {}", e.getMessage());
-      throw new RuntimeException("Benchmark large batch ack failed", e);
     }
   }
 
