@@ -82,11 +82,6 @@ public class FSEncoderTest {
     Assertions.assertEquals(com.google.protobuf.NullValue.NULL_VALUE, got.getNullValue());
   }
 
-  /**
-   * Verifies that sibling nested maps are encoded independently: each keeps its own backing
-   * collection, so {@code {"a": {"x": 1}, "b": {"y": 2}}} round-trips with "a" and "b" holding
-   * exactly their own single field.
-   */
   @Test
   public void testSiblingMapsDoNotMerge() {
     Map<String, Object> doc = new LinkedHashMap<>();
@@ -110,5 +105,35 @@ public class FSEncoderTest {
     Assertions.assertTrue(b.hasMapValue());
     Assertions.assertEquals(1, b.getMapValue().getFieldsCount());
     Assertions.assertEquals(2, b.getMapValue().getFieldsMap().get("y").getIntegerValue());
+  }
+
+  @Test
+  public void testMixedMapAndListSiblings() {
+    Map<String, Object> doc = new LinkedHashMap<>();
+    doc.put("id", "test123");
+    doc.put("features", new LinkedHashMap<>(Map.of("color", "red")));
+    doc.put("ratings", Arrays.asList(1, 2, 3));
+
+    FSEncoder encoder = new FSEncoder();
+    Codec.encode(doc, encoder);
+    Value result = encoder.getValue();
+
+    Assertions.assertTrue(result.hasMapValue());
+    Map<String, Value> fields = result.getMapValue().getFieldsMap();
+    Assertions.assertEquals(3, fields.size());
+    Assertions.assertEquals("test123", fields.get("id").getStringValue());
+
+    Value features = fields.get("features");
+    Assertions.assertTrue(features.hasMapValue());
+    Assertions.assertEquals(1, features.getMapValue().getFieldsCount());
+    Assertions.assertEquals(
+        "red", features.getMapValue().getFieldsMap().get("color").getStringValue());
+
+    Value ratings = fields.get("ratings");
+    Assertions.assertTrue(ratings.hasArrayValue());
+    Assertions.assertEquals(3, ratings.getArrayValue().getValuesCount());
+    Assertions.assertEquals(1, ratings.getArrayValue().getValues(0).getIntegerValue());
+    Assertions.assertEquals(2, ratings.getArrayValue().getValues(1).getIntegerValue());
+    Assertions.assertEquals(3, ratings.getArrayValue().getValues(2).getIntegerValue());
   }
 }
