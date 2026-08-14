@@ -219,8 +219,15 @@ public abstract class AbstractDBBackupRestoreBenchmarkTest {
    * target can run it explicitly via {@code DBBACKUPRESTORE_BENCHMARK_ALLOW_DESTRUCTIVE=true}. The
    * in-method destructive guard is the real fence — the {@code .exclude()} in the launcher only
    * covers callers that reuse it.
+   *
+   * <p>Pinned to a single shot (method-level annotations override the class-level sweep): each
+   * invocation creates an uncleaned-up restore, so even when opted in this must fire exactly once,
+   * never the class-level warmup+measurement loop.
    */
   @Benchmark
+  @BenchmarkMode(Mode.SingleShotTime)
+  @Warmup(iterations = 0)
+  @Measurement(iterations = 1)
   public void benchmarkRestoreKickoff(Blackhole bh) {
     // Hard guard, not just a launcher .exclude(): every invocation kicks off a real restore with no
     // delete API to clean it up. Refuse unless the operator explicitly opts in, so a runner that
