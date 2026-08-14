@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -41,9 +42,9 @@ import org.slf4j.LoggerFactory;
 /**
  * JMH benchmarks for IAM control-plane operations via {@link IamClient}.
  *
- * <p>IAM is latency-primary: the SetIamPolicy/GetIamPolicy backend throttles hard, so throughput
- * mostly reflects the provider's rate limiter. The {@code SampleTime} percentiles are the signal;
- * {@code Throughput} is kept only for trend comparison.
+ * <p>IAM is latency-primary: the policy backend throttles hard, so throughput mostly reflects the
+ * provider's rate limiter. The {@code SampleTime} percentiles are the signal; {@code Throughput}
+ * is kept only for trend comparison.
  */
 @BenchmarkMode({Mode.Throughput, Mode.SampleTime})
 @OutputTimeUnit(TimeUnit.SECONDS)
@@ -52,23 +53,24 @@ import org.slf4j.LoggerFactory;
 @Measurement(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
 @Fork(1)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-// No @Threads: benchmarks read-modify-write a single shared IAM policy (project or role), so
-// concurrent invocations would race on GetIamPolicy/SetIamPolicy and corrupt each other's bindings.
+// No @Threads: benchmarks read-modify-write one shared IAM policy; concurrent invocations would
+// race and corrupt each other's bindings.
 public abstract class AbstractIamBenchmarkTest {
 
   private static final Logger logger = LoggerFactory.getLogger(AbstractIamBenchmarkTest.class);
 
-  // Identities minted during setup; drained in @TearDown so a run never leaks real cloud
-  // principals (e.g. GCP soft-deleted service accounts count against the 100/project quota
-  // for 30 days). ConcurrentHashMap.newKeySet() mirrors AbstractDocstoreBenchmarkTest's pattern.
+  // Minted during setup, drained in cleanup() so a run never leaks real principals (a deleted
+  // identity may still count against an account quota during a retention window).
   private final Set<String> createdIdentities = ConcurrentHashMap.newKeySet();
 
-  // Lifecycle identity created once in @Setup and reused by benchmarkAttachRemovePolicy so the
-  // create RPC and its eventual-consistency wait stay OUT of the timed region.
   private String lifecycleIdentityName;
   private String lifecyclePolicyMember;
 
-  // Harness interface
+  // cleanup() runs from both @TearDown and a shutdown hook (JMH skips @TearDown on an aborted
+  // trial); this guard makes whichever loses the race a no-op.
+  private final AtomicBoolean cleaned = new AtomicBoolean(false);
+  private Thread cleanupHook;
+
   public interface Harness extends AutoCloseable {
     IamClient createIamClient();
 
@@ -92,25 +94,17 @@ public abstract class AbstractIamBenchmarkTest {
       return "";
     }
 
-    // Kept short: GCP service-account ids cap at 30 chars, and callers append a numeric suffix.
+    // Kept short: some providers cap identity ids (~30 chars); callers append a numeric suffix.
     default String getLifecycleIdentityPrefix() {
       return "iam-bench-lc-";
     }
 
-    /**
-     * Converts a raw identity name/id into the form the provider's attach/remove policy calls
-     * expect as {@code identityName} (e.g. GCP needs a "serviceAccount:email" member string,
-     * not the bare account id used to create the identity).
-     */
+    /** Identity form the attach/remove calls expect; providers needing a typed member override. */
     default String toPolicyMember(String identityName, String identityId) {
       return identityName;
     }
 
-    /**
-     * The member string for the pre-seeded read identity ({@link #getIdentityName()}) as
-     * attach/remove/get-policy expect it. GCP needs "serviceAccount:email" here, not the bare
-     * email that {@code getIdentity} consumes; AWS is role-scoped and unaffected.
-     */
+    /** Pre-seeded read identity ({@link #getIdentityName()}) as the policy calls expect it. */
     default String getPolicyMemberName() {
       return toPolicyMember(getIdentityName(), getIdentityName());
     }
@@ -140,16 +134,18 @@ public abstract class AbstractIamBenchmarkTest {
 
   @Setup(Level.Trial)
   public void setupBenchmark() throws Exception {
+    // Arm before any RPC that can throw: identities are registered as minted, so the hook drains
+    // them even if setup fails partway.
+    cleanupHook = new Thread(this::cleanup, "iam-benchmark-cleanup");
+    Runtime.getRuntime().addShutdownHook(cleanupHook);
     try {
       harness = createHarness();
       iamClient = harness.createIamClient();
 
-      // Seed the inline policy that benchmarkGetAttachedPolicies / benchmarkGetInlinePolicyDetails
-      // read. Use the member form (GCP needs "serviceAccount:email"): with the bare identity name
-      // the GCP SetIamPolicy is rejected, and both read benchmarks would then measure a
-      // silently-empty lookup instead of a populated policy. Tolerate an already-attached policy
-      // (e.g. left over from an aborted trial) but log it: on AWS a missing seed throws loudly, on
-      // GCP it is silent, so an unlogged swallow hides the failure on the provider where it bites.
+      // Seed the inline policy the read benchmarks consume, via the member form: seeding with the
+      // bare name is rejected on providers needing a typed member, leaving the reads measuring an
+      // empty lookup. Tolerate an already-attached policy (aborted trial) but log it — some
+      // providers fail the seed silently.
       try {
         iamClient.attachInlinePolicy(
             AttachInlinePolicyRequest.builder()
@@ -163,10 +159,8 @@ public abstract class AbstractIamBenchmarkTest {
             "Seed attachInlinePolicy failed (may already be attached): {}", e.getMessage());
       }
 
-      // Create the lifecycle identity ONCE here, absorbing create + eventual-consistency lag
-      // outside any timed region, so benchmarkAttachRemovePolicy times only attach/remove against
-      // an already-propagated principal. Suffix with nanoTime so re-runs (and forks, which restart
-      // JMH counters at 0) never collide on names.
+      // Create the lifecycle identity once here, outside any timed region; nanoTime suffix so
+      // re-runs and forks never collide on names.
       String identityName =
           harness.getLifecycleIdentityPrefix() + (System.nanoTime() & 0xFFFFFFFFL);
       String identityId =
@@ -181,8 +175,7 @@ public abstract class AbstractIamBenchmarkTest {
       lifecycleIdentityName = identityName;
       lifecyclePolicyMember = harness.toPolicyMember(identityName, identityId);
 
-      // Prime propagation here (not in the benchmark): attach then remove once, retrying the
-      // create->attach eventual-consistency window so the timed benchmark never pays for it.
+      // Prime propagation here, not in the benchmark, so the timed region never pays for it.
       attachWithPropagationRetry(harness.getPolicyName(), lifecyclePolicyMember);
       iamClient.removePolicy(
           lifecyclePolicyMember,
@@ -195,9 +188,27 @@ public abstract class AbstractIamBenchmarkTest {
   }
 
   @TearDown(Level.Trial)
-  public void teardownBenchmark() throws Exception {
-    try {
-      if (iamClient != null) {
+  public void teardownBenchmark() {
+    cleanup();
+    if (cleanupHook != null) {
+      try {
+        Runtime.getRuntime().removeShutdownHook(cleanupHook);
+      } catch (IllegalStateException e) {
+        // Shutdown already in progress — the hook is running/ran; nothing to remove.
+      }
+    }
+  }
+
+  /**
+   * Removes the seed policy, drains minted identities, closes client/harness. Runs once (guarded
+   * by {@link #cleaned}); swallows per-step failures so one bad delete can't strand the rest.
+   */
+  private void cleanup() {
+    if (!cleaned.compareAndSet(false, true)) {
+      return;
+    }
+    if (iamClient != null) {
+      if (harness != null) {
         try {
           iamClient.removePolicy(
               harness.getPolicyMemberName(),
@@ -205,29 +216,32 @@ public abstract class AbstractIamBenchmarkTest {
               harness.getTenantId(),
               harness.getRegion());
         } catch (Exception e) {
-          logger.warn("Failed to remove seed policy in teardown: {}", e.getMessage());
+          logger.warn("Failed to remove seed policy in cleanup: {}", e.getMessage());
         }
+      }
 
-        // Drain every identity minted this run so nothing leaks (mirrors
-        // AbstractDocstoreBenchmarkTest). GCP soft-deleted service accounts count against the
-        // 100/project quota for 30 days, so a leaked identity is not merely cosmetic.
-        for (String identityName : createdIdentities) {
-          try {
-            iamClient.deleteIdentity(identityName, harness.getTenantId(), harness.getRegion());
-          } catch (Exception e) {
-            logger.warn("Failed to delete benchmark identity {}: {}", identityName, e.getMessage());
-          }
+      for (String identityName : createdIdentities) {
+        try {
+          iamClient.deleteIdentity(identityName, harness.getTenantId(), harness.getRegion());
+        } catch (Exception e) {
+          logger.warn("Failed to delete benchmark identity {}: {}", identityName, e.getMessage());
         }
-        createdIdentities.clear();
+      }
+      createdIdentities.clear();
 
+      try {
         iamClient.close();
+      } catch (Exception e) {
+        logger.warn("Failed to close IAM client in cleanup: {}", e.getMessage());
       }
+    }
 
-      if (harness != null) {
+    if (harness != null) {
+      try {
         harness.close();
+      } catch (Exception e) {
+        logger.warn("Failed to close harness in cleanup: {}", e.getMessage());
       }
-    } catch (Exception e) {
-      throw new RuntimeException("Error closing harness", e);
     }
   }
 
@@ -297,14 +311,10 @@ public abstract class AbstractIamBenchmarkTest {
   }
 
   /**
-   * Attach then remove an inline policy on an already-propagated identity.
-   *
-   * <p>Times only the two mutating control-plane RPCs. The identity's create and its
-   * eventual-consistency wait happen once in {@link #setupBenchmark()}, and its delete in
-   * {@link #teardownBenchmark()} — none of that RPC cost bleeds into this measurement, and no
-   * {@code Thread.sleep} backoff runs inside the timed region. Reuses {@code getPolicyName()} for
-   * both calls because GCP's removePolicy matches on the role translated from the policy actions,
-   * not the document name, so attach and remove must name the same role.
+   * Attach then remove an inline policy on an already-propagated identity — times only the two
+   * mutating RPCs; create and delete happen in setup/cleanup. Reuses {@code getPolicyName()} for
+   * both calls: some providers match removePolicy on the role translated from the actions, not the
+   * document name, so attach and remove must name the same role.
    */
   @Benchmark
   public void benchmarkAttachRemovePolicy(Blackhole bh) {
@@ -321,7 +331,7 @@ public abstract class AbstractIamBenchmarkTest {
     bh.consume(lifecycleIdentityName);
   }
 
-  // Bounded retry to absorb create->attach eventual-consistency lag (identity not yet propagated).
+  // Bounded retry to absorb create->attach propagation lag on eventually-consistent providers.
   private static final int ATTACH_MAX_ATTEMPTS = 5;
   private static final long ATTACH_RETRY_BASE_MILLIS = 500L;
 
