@@ -7,7 +7,7 @@ import lombok.Getter;
 import lombok.Singular;
 
 /** Blob metadata data object */
-@Builder
+@Builder(toBuilder = true)
 @Getter
 public class BlobMetadata {
 
