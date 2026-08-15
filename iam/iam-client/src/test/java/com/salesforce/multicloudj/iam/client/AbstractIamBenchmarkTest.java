@@ -163,6 +163,10 @@ public abstract class AbstractIamBenchmarkTest {
       // re-runs and forks never collide on names.
       String identityName =
           harness.getLifecycleIdentityPrefix() + (System.nanoTime() & 0xFFFFFFFFL);
+      // Track before creating: a create RPC can commit server-side and still surface an error to
+      // the client, so the name must be drainable even if createIdentity throws. Deleting a
+      // never-created name is swallowed downstream.
+      createdIdentities.add(identityName);
       String identityId =
           iamClient.createIdentity(
               identityName,
@@ -171,7 +175,6 @@ public abstract class AbstractIamBenchmarkTest {
               harness.getRegion(),
               Optional.empty(),
               Optional.empty());
-      createdIdentities.add(identityName);
       lifecycleIdentityName = identityName;
       lifecyclePolicyMember = harness.toPolicyMember(identityName, identityId);
 
