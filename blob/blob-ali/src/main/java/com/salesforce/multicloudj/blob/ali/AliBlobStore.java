@@ -578,10 +578,7 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
       HeadObjectResult headResult =
           ossClient.headObject(headRequest,
               OperationOptions.defaults());
-      return CopyResponse.builder()
-          .key(response.getKey())
-          .versionId(response.getVersionId())
-          .eTag(response.getETag())
+      return response.toBuilder()
           .lastModified(transformer.parseLastModified(headResult.lastModified()))
           .build();
     }
