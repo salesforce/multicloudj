@@ -6,7 +6,7 @@ import lombok.ToString;
 import lombok.Value;
 
 /** Wrapper object for upload result data */
-@Builder
+@Builder(toBuilder = true)
 @Value
 public class UploadResponse {
   String key;
