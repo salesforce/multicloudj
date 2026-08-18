@@ -922,11 +922,14 @@ public class AwsTransformer {
 
     boolean hasTags = request.getTags() != null && !request.getTags().isEmpty();
     boolean hasObjectLock = request.getObjectLock() != null;
+    boolean hasKmsKeyId = StringUtils.isNotEmpty(request.getKmsKeyId());
+    boolean useKmsManagedKey = request.isUseKmsManagedKey();
+    boolean hasKms = hasKmsKeyId || useKmsManagedKey;
     boolean transferStatusLoggingEnabled =
         request.isTransferStatusLoggingEnabled() && totalBytesTransferred != null;
     boolean countRequested = totalBytesRequested != null;
 
-    if (!hasTags && !hasObjectLock && !transferStatusLoggingEnabled && !countRequested) {
+    if (!hasTags && !hasObjectLock && !hasKms && !transferStatusLoggingEnabled && !countRequested) {
       return builder.build();
     }
 
@@ -937,11 +940,12 @@ public class AwsTransformer {
               .collect(Collectors.toList())
             : null;
     ObjectLockConfiguration lockConfig = request.getObjectLock();
+    String kmsKeyId = request.getKmsKeyId();
     S3LoggingTransferListener transferListener =
         transferStatusLoggingEnabled
             ? S3LoggingTransferListener.create(totalBytesTransferred)
             : null;
-    // Merge tags / object lock into the existing PutObjectRequest per file;
+    // Merge tags / object lock / SSE-KMS into the existing PutObjectRequest per file;
     // putObjectRequest(Consumer) would replace it and drop bucket/key.
     // S3 Transfer Manager doesn't expose a directory-listing filter for uploads, so this
     // per-file hook is also where we stat each source's planned size into
@@ -950,7 +954,7 @@ public class AwsTransformer {
     // over-count; the same trade-off applies as the download filter above.
     builder.uploadFileRequestTransformer(
         fileRequestBuilder -> {
-          if (hasTags || hasObjectLock) {
+          if (hasTags || hasObjectLock || hasKms) {
             PutObjectRequest existing = fileRequestBuilder.build().putObjectRequest();
             PutObjectRequest.Builder putBuilder = existing.toBuilder();
             if (hasTags) {
@@ -958,6 +962,13 @@ public class AwsTransformer {
             }
             if (hasObjectLock) {
               applyObjectLockToPutObjectBuilder(putBuilder, lockConfig);
+            }
+            if (hasKmsKeyId) {
+              putBuilder
+                  .serverSideEncryption(ServerSideEncryption.AWS_KMS)
+                  .ssekmsKeyId(kmsKeyId);
+            } else if (useKmsManagedKey) {
+              putBuilder.serverSideEncryption(ServerSideEncryption.AWS_KMS);
             }
             fileRequestBuilder.putObjectRequest(putBuilder.build());
           }

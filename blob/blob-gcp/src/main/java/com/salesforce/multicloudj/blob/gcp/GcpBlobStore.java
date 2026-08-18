@@ -1083,7 +1083,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       // BlobInfo, so failures returned by the TransferManager can be attributed back
       // to the originating file.
       final Map<String, Path> keyToSource = new ConcurrentHashMap<>();
-      ParallelUploadConfig uploadConfig =
+      ParallelUploadConfig.Builder configBuilder =
           ParallelUploadConfig.newBuilder()
               .setBucketName(getBucket())
               .setUploadBlobInfoFactory(
@@ -1092,8 +1092,18 @@ public class GcpBlobStore extends AbstractBlobStore {
                       prefix,
                       metadata,
                       keyToSource,
-                      directoryUploadRequest.getObjectLock()))
-              .build();
+                      directoryUploadRequest.getObjectLock()));
+
+      // GCS CMEK is expressed on each write via BlobWriteOption.kmsKeyName. BlobInfo.kmsKeyName is
+      // read-back-only, so the KMS key must be threaded through ParallelUploadConfig rather than
+      // the UploadBlobInfoFactory.
+      String kmsKeyId = directoryUploadRequest.getKmsKeyId();
+      if (kmsKeyId != null && !kmsKeyId.isEmpty()) {
+        configBuilder.setWriteOptsPerRequest(
+            List.of(Storage.BlobWriteOption.kmsKeyName(kmsKeyId)));
+      }
+
+      ParallelUploadConfig uploadConfig = configBuilder.build();
 
       UploadJob job = transferManager.uploadFiles(filePaths, uploadConfig);
       return DirectoryUploadResponse.builder()

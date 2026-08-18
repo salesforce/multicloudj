@@ -84,6 +84,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.services.s3.model.StorageClass;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.Tagging;
@@ -1509,6 +1510,106 @@ public class AwsTransformerTest {
     assertEquals(retainUntil, putRequest.objectLockRetainUntilDate());
     assertEquals(ObjectLockLegalHoldStatus.ON, putRequest.objectLockLegalHoldStatus());
     assertNotNull(putRequest.tagging());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_WithKmsKeyId() {
+    String kmsKeyId = "arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab";
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .includeSubFolders(true)
+            .kmsKeyId(kmsKeyId)
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
+
+    assertNotNull(request);
+    // The KMS-only request must not be dropped by the early-return guard.
+    assertNotNull(request.uploadFileRequestTransformer());
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertEquals(ServerSideEncryption.AWS_KMS, putRequest.serverSideEncryption());
+    assertEquals(kmsKeyId, putRequest.ssekmsKeyId());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_WithUseKmsManagedKey() {
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .includeSubFolders(true)
+            .useKmsManagedKey(true)
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
+
+    assertNotNull(request);
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertEquals(ServerSideEncryption.AWS_KMS, putRequest.serverSideEncryption());
+    assertNull(putRequest.ssekmsKeyId());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_KmsKeyIdWinsOverUseKmsManagedKey() {
+    String kmsKeyId = "arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab";
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .kmsKeyId(kmsKeyId)
+            .useKmsManagedKey(true)
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
+
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertEquals(ServerSideEncryption.AWS_KMS, putRequest.serverSideEncryption());
+    assertEquals(kmsKeyId, putRequest.ssekmsKeyId());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_NoKmsLeavesEncryptionUnset() {
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .tags(Map.of("env", "prod"))
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
+
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertNull(putRequest.serverSideEncryption());
+    assertNull(putRequest.ssekmsKeyId());
   }
 
   @Test

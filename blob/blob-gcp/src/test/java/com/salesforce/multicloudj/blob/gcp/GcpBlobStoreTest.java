@@ -2509,6 +2509,64 @@ class GcpBlobStoreTest {
     }
   }
 
+  @Test
+  void testUploadDirectory_WithKmsKeyId() throws Exception {
+    String kmsKeyId = "projects/p/locations/us/keyRings/r/cryptoKeys/k";
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix("uploads/")
+            .includeSubFolders(true)
+            .kmsKeyId(kmsKeyId)
+            .build();
+
+    Path file1 = tempDir.resolve("file1.txt");
+    when(mockTransformer.toFilePaths(request)).thenReturn(List.of(file1));
+
+    UploadJob mockJob = mock(UploadJob.class);
+    when(mockJob.getUploadResults())
+        .thenReturn(List.of(makeUploadResult("uploads/file1.txt", TransferStatus.SUCCESS, null)));
+    when(mockTransferManager.uploadFiles(anyList(), any(ParallelUploadConfig.class)))
+        .thenReturn(mockJob);
+
+    gcpBlobStore.uploadDirectory(request);
+
+    ArgumentCaptor<ParallelUploadConfig> configCaptor =
+        ArgumentCaptor.forClass(ParallelUploadConfig.class);
+    verify(mockTransferManager).uploadFiles(anyList(), configCaptor.capture());
+    List<Storage.BlobWriteOption> writeOpts = configCaptor.getValue().getWriteOptsPerRequest();
+    assertNotNull(writeOpts);
+    assertEquals(1, writeOpts.size());
+    assertEquals(Storage.BlobWriteOption.kmsKeyName(kmsKeyId), writeOpts.get(0));
+  }
+
+  @Test
+  void testUploadDirectory_WithoutKmsKeyId_NoWriteOpts() throws Exception {
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix("uploads/")
+            .includeSubFolders(true)
+            .build();
+
+    Path file1 = tempDir.resolve("file1.txt");
+    when(mockTransformer.toFilePaths(request)).thenReturn(List.of(file1));
+
+    UploadJob mockJob = mock(UploadJob.class);
+    when(mockJob.getUploadResults())
+        .thenReturn(List.of(makeUploadResult("uploads/file1.txt", TransferStatus.SUCCESS, null)));
+    when(mockTransferManager.uploadFiles(anyList(), any(ParallelUploadConfig.class)))
+        .thenReturn(mockJob);
+
+    gcpBlobStore.uploadDirectory(request);
+
+    ArgumentCaptor<ParallelUploadConfig> configCaptor =
+        ArgumentCaptor.forClass(ParallelUploadConfig.class);
+    verify(mockTransferManager).uploadFiles(anyList(), configCaptor.capture());
+    List<Storage.BlobWriteOption> writeOpts = configCaptor.getValue().getWriteOptsPerRequest();
+    assertTrue(writeOpts == null || writeOpts.isEmpty());
+  }
+
   /**
    * Regression test for the relative-source-directory case. The real GCS TransferManager
    * always calls our factory with {@code sourceFile.toAbsolutePath().toString()} as the
