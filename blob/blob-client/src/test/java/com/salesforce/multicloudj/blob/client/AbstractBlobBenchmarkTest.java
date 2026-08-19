@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.client;
 
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
+import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -96,6 +97,9 @@ public abstract class AbstractBlobBenchmarkTest {
   protected static final String WRITE_READ_DELETE_PREFIX = "bench-write-read-delete/";
   protected static final String MULTIPART_PREFIX = "bench-multipart/";
   protected static final String COPY_DEST_PREFIX = "bench-copy-dest/";
+  protected static final String BULK_DELETE_PREFIX = "bench-bulk-delete/";
+
+  private static final int BULK_DELETE_BATCH = 25;
 
   private static final int SMALL_COUNT = 100;
   private static final int MEDIUM_COUNT = 20;
@@ -118,6 +122,7 @@ public abstract class AbstractBlobBenchmarkTest {
   private final AtomicInteger nextWriteReadDeleteId = new AtomicInteger(0);
   private final AtomicInteger nextMultipartUploadId = new AtomicInteger(0);
   private final AtomicInteger nextCopyId = new AtomicInteger(0);
+  private final AtomicInteger nextBulkDeleteId = new AtomicInteger(0);
 
   private final ConcurrentLinkedQueue<String> copyDestKeys = new ConcurrentLinkedQueue<>();
 
@@ -228,7 +233,7 @@ public abstract class AbstractBlobBenchmarkTest {
     String[] prefixes = {
         DOWNLOAD_BLOBS_PREFIX, UPLOAD_SMALL_PREFIX, UPLOAD_MEDIUM_PREFIX,
         UPLOAD_LARGE_PREFIX, WRITE_READ_DELETE_PREFIX, MULTIPART_PREFIX,
-        COPY_DEST_PREFIX
+        COPY_DEST_PREFIX, BULK_DELETE_PREFIX
     };
     for (String prefix : prefixes) {
       try {
@@ -449,6 +454,33 @@ public abstract class AbstractBlobBenchmarkTest {
       copyDestKeys.add(destKey);
     } catch (Exception e) {
       throw new RuntimeException("Benchmark copy failed", e);
+    }
+  }
+
+  /**
+   * Bulk-delete lifecycle: upload a batch then delete it in one {@code delete(Collection)} call.
+   * The bulk-delete API had no benchmark; it guards the {@literal >}1000-object batching path.
+   * Single-threaded and upload-bundled by design — the shared @State precludes per-invocation
+   * staging of delete-only targets, so upload cost is included and documented rather than hidden.
+   */
+  @Benchmark
+  @Threads(1)
+  public void benchmarkBulkDelete(Blackhole bh) {
+    List<BlobIdentifier> ids = new ArrayList<>(BULK_DELETE_BATCH);
+    try {
+      for (int i = 0; i < BULK_DELETE_BATCH; i++) {
+        String key = BULK_DELETE_PREFIX + nextBulkDeleteId.incrementAndGet() + ".dat";
+        try (InputStream is = new ByteArrayInputStream(smallBlob)) {
+          UploadRequest request =
+              new UploadRequest.Builder().withKey(key).withContentLength(smallBlob.length).build();
+          bucketClient.upload(request, is);
+        }
+        ids.add(new BlobIdentifier(key, null));
+      }
+      bucketClient.delete(ids);
+      bh.consume(ids.size());
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark bulk delete failed", e);
     }
   }
 

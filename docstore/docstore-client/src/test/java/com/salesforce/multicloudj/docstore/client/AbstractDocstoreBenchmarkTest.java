@@ -470,6 +470,42 @@ public abstract class AbstractDocstoreBenchmarkTest {
     benchmarkGetByList(bh, largePlayerKeys, "Large");
   }
 
+  /**
+   * Conditional create (fail-if-exists). Distinct backend cost from benchmarkPut: providers add a
+   * not-exists precondition (DynamoDB attribute_not_exists ConditionExpression, Firestore create).
+   * Unique key per invocation, tracked for teardown.
+   */
+  @Benchmark
+  @Threads(4)
+  public void benchmarkCreate(Blackhole bh) {
+    try {
+      String key = "benchmarkcreate-player-" + ThreadLocalRandom.current().nextLong();
+      benchmarkCreatedKeys.add(key);
+      Player player = createPlayer(key, 0, 500);
+      docStoreClient.create(new Document(player));
+      bh.consume(player.getPName());
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark create failed", e);
+    }
+  }
+
+  /**
+   * Conditional replace (fail-if-not-exists). Distinct backend cost from benchmarkPut: providers
+   * add an exists precondition. Overwrites a pre-seeded key so no new docs accumulate.
+   */
+  @Benchmark
+  @Threads(4)
+  public void benchmarkReplace(Blackhole bh) {
+    try {
+      String key = smallPlayerKeys.get(ThreadLocalRandom.current().nextInt(smallPlayerKeys.size()));
+      Player player = createPlayer(key, ThreadLocalRandom.current().nextInt(1000), 500);
+      docStoreClient.replace(new Document(player));
+      bh.consume(player.getPName());
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark replace failed", e);
+    }
+  }
+
   /** Benchmark atomic writes */
   @Benchmark
   @Threads(1)
