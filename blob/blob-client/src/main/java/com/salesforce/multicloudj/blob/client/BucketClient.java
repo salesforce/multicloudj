@@ -982,23 +982,18 @@ public class BucketClient implements AutoCloseable {
     if (r == null) {
       return null;
     }
-    return UploadResponse.builder()
-        .key(r.getKey())
-        .versionId(r.getVersionId())
-        .eTag(r.getETag())
-        .checksumValue(r.getChecksumValue())
-        .correlationId(ctx.getCorrelationId())
-        .build();
+    return r.toBuilder().correlationId(ctx.getCorrelationId()).build();
   }
 
   private static DownloadResponse withCorrelationId(DownloadResponse r, OperationContext ctx) {
     if (r == null) {
       return null;
     }
-    return DownloadResponse.builder()
-        .key(r.getKey())
+    // The nested BlobMetadata rebuild is intentional — do not "simplify" it out. A plain
+    // toBuilder().correlationId(...).build() would shallow-copy the driver's original BlobMetadata,
+    // leaving its correlationId unstamped and defeating the purpose of this rebuild.
+    return r.toBuilder()
         .metadata(withCorrelationId(r.getMetadata(), ctx))
-        .inputStream(r.getInputStream())
         .correlationId(ctx.getCorrelationId())
         .build();
   }
@@ -1007,33 +1002,14 @@ public class BucketClient implements AutoCloseable {
     if (m == null) {
       return null;
     }
-    return BlobMetadata.builder()
-        .key(m.getKey())
-        .versionId(m.getVersionId())
-        .eTag(m.getETag())
-        .checksum(m.getChecksum())
-        .objectSize(m.getObjectSize())
-        .metadata(m.getMetadata())
-        .lastModified(m.getLastModified())
-        .createdTime(m.getCreatedTime())
-        .md5(m.getMd5())
-        .contentType(m.getContentType())
-        .objectLockInfo(m.getObjectLockInfo())
-        .correlationId(ctx.getCorrelationId())
-        .build();
+    return m.toBuilder().correlationId(ctx.getCorrelationId()).build();
   }
 
   private static CopyResponse withCorrelationId(CopyResponse r, OperationContext ctx) {
     if (r == null) {
       return null;
     }
-    return CopyResponse.builder()
-        .key(r.getKey())
-        .versionId(r.getVersionId())
-        .eTag(r.getETag())
-        .lastModified(r.getLastModified())
-        .correlationId(ctx.getCorrelationId())
-        .build();
+    return r.toBuilder().correlationId(ctx.getCorrelationId()).build();
   }
 
   /**
@@ -1047,20 +1023,7 @@ public class BucketClient implements AutoCloseable {
     if (ctx == req.getOperationContext()) {
       return req;
     }
-    return UploadRequest.builder()
-        .withKey(req.getKey())
-        .withContentLength(req.getContentLength())
-        .withMetadata(req.getMetadata())
-        .withTags(req.getTags())
-        .withStorageClass(req.getStorageClass())
-        .withKmsKeyId(req.getKmsKeyId())
-        .withUseKmsManagedKey(req.isUseKmsManagedKey())
-        .withObjectLock(req.getObjectLock())
-        .withChecksumValue(req.getChecksumValue())
-        .withChecksumAlgorithm(req.getChecksumAlgorithm())
-        .withContentType(req.getContentType())
-        .withOperationContext(ctx)
-        .build();
+    return req.toBuilder().withOperationContext(ctx).build();
   }
 
   /**
@@ -1075,18 +1038,7 @@ public class BucketClient implements AutoCloseable {
     if (ctx == req.getOperationContext()) {
       return req;
     }
-    return new MultipartUploadRequest.Builder()
-        .withKey(req.getKey())
-        .withMetadata(req.getMetadata())
-        .withTags(req.getTags())
-        .withKmsKeyId(req.getKmsKeyId())
-        .withUseKmsManagedKey(req.isUseKmsManagedKey())
-        .withChecksumEnabled(req.isChecksumEnabled())
-        .withChecksumAlgorithm(req.getChecksumAlgorithm())
-        .withObjectLock(req.getObjectLock())
-        .withContentType(req.getContentType())
-        .withOperationContext(ctx)
-        .build();
+    return req.toBuilder().withOperationContext(ctx).build();
   }
 
   public static class BlobBuilder {
