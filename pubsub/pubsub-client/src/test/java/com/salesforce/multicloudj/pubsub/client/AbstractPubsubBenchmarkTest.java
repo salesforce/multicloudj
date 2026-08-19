@@ -400,6 +400,23 @@ public abstract class AbstractPubsubBenchmarkTest {
   }
 
   /**
+   * Subscription getAttributes benchmark — control-plane metadata read. Single-threaded because
+   * this is a low-QPS admin call that providers rate-limit; concurrency would measure the throttle,
+   * not the SDK.
+   */
+  @Benchmark
+  @Threads(1)
+  public void benchmarkGetAttributes(Blackhole bh) {
+    try {
+      GetAttributeResult result = subscriptionClient.getAttributes();
+      bh.consume(result);
+    } catch (Exception e) {
+      logger.error(">>> Benchmark get attributes FAILED: {}", e.getMessage());
+      throw new RuntimeException("Benchmark get attributes failed", e);
+    }
+  }
+
+  /**
    * High-throughput pipeline benchmark.
    *
    * <p>4 publisher threads and 4 consumer threads run concurrently via JMH {@code @Group} to
