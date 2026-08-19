@@ -16,9 +16,9 @@ public class FSEncoder implements Encoder {
 
   private List<Value> list = new ArrayList<>();
 
-  private final Map<String, Value> map = new HashMap<>();
+  private Map<String, Value> map = new HashMap<>();
 
-  private Value value;
+  protected Value value;
 
   @Override
   public void encodeNil() {
@@ -57,10 +57,8 @@ public class FSEncoder implements Encoder {
 
   @Override
   public Encoder encodeList(int n) {
-    this.value =
-        Value.newBuilder()
-            .setArrayValue(ArrayValue.newBuilder().addAllValues(list).build())
-            .build();
+    list = new ArrayList<>();
+    value = arrayValue(list);
     return new ListEncoder(list);
   }
 
@@ -71,8 +69,8 @@ public class FSEncoder implements Encoder {
 
   @Override
   public Encoder encodeMap(int n) {
-    this.value =
-        Value.newBuilder().setMapValue(MapValue.newBuilder().putAllFields(map).build()).build();
+    map = new HashMap<>();
+    value = mapValue(map);
     return new MapEncoder(map);
   }
 
@@ -84,6 +82,15 @@ public class FSEncoder implements Encoder {
   @Override
   public Encoder encodeArray(int n) {
     return null;
+  }
+
+  public Value getValue() {
+    if (value.getValueTypeCase() == Value.ValueTypeCase.MAP_VALUE) {
+      value = mapValue(map);
+    } else if (value.getValueTypeCase() == Value.ValueTypeCase.ARRAY_VALUE) {
+      value = arrayValue(list);
+    }
+    return value;
   }
 
   public static class MapEncoder extends FSEncoder {
@@ -99,21 +106,6 @@ public class FSEncoder implements Encoder {
     }
   }
 
-  public Value getValue() {
-    if (value.getValueTypeCase() == Value.ValueTypeCase.MAP_VALUE) {
-      // The change to map is stored in the map field. Set the value with map again.
-      this.value =
-          Value.newBuilder().setMapValue(MapValue.newBuilder().putAllFields(map).build()).build();
-    } else if (value.getValueTypeCase() == Value.ValueTypeCase.ARRAY_VALUE) {
-      // The change to list is stored in the list field. Set the value with list again.
-      this.value =
-          Value.newBuilder()
-              .setArrayValue(ArrayValue.newBuilder().addAllValues(list).build())
-              .build();
-    }
-    return this.value;
-  }
-
   public static class ListEncoder extends FSEncoder {
     private final List<Value> l;
 
@@ -125,5 +117,17 @@ public class FSEncoder implements Encoder {
     public void listIndex(int i) {
       l.add(i, getValue());
     }
+  }
+
+  private static Value mapValue(Map<String, Value> fields) {
+    return Value.newBuilder()
+        .setMapValue(MapValue.newBuilder().putAllFields(fields).build())
+        .build();
+  }
+
+  private static Value arrayValue(List<Value> values) {
+    return Value.newBuilder()
+        .setArrayValue(ArrayValue.newBuilder().addAllValues(values).build())
+        .build();
   }
 }

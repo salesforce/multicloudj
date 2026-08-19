@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.async.client;
 
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
+import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -122,6 +123,11 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   protected static final String WRITE_READ_DELETE_PREFIX = "bench-write-read-delete/";
   protected static final String MULTIPART_PREFIX = "bench-multipart/";
   protected static final String COPY_DEST_PREFIX = "bench-copy-dest/";
+  protected static final String BULK_DELETE_PREFIX = "bench-bulk-delete/";
+  protected static final String DELETE_DIR_PREFIX = "bench-delete-dir/";
+
+  private static final int BULK_DELETE_BATCH = 25;
+  private static final int DELETE_DIR_FILE_COUNT = 20;
 
   // Number of pre-staged download corpus prefixes; matches the highest @Threads value below
   // so each thread reads from a distinct prefix to avoid hot-key effects under concurrent load.
@@ -163,6 +169,8 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   private final AtomicInteger nextWriteReadDeleteId = new AtomicInteger(0);
   private final AtomicInteger nextMultipartUploadId = new AtomicInteger(0);
   private final AtomicInteger nextCopyId = new AtomicInteger(0);
+  private final AtomicInteger nextBulkDeleteId = new AtomicInteger(0);
+  private final AtomicInteger nextDeleteDirId = new AtomicInteger(0);
 
   private String bucketName;
   private Harness harness;
@@ -585,6 +593,48 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
     bh.consume(response);
   }
 
+  /**
+   * Delete-directory lifecycle: upload a small file set under a unique prefix, then delete the
+   * whole prefix in one {@code deleteDirectory} call. Async-only API with no prior benchmark.
+   * Single-threaded and upload-bundled — the shared @State precludes per-invocation staging of a
+   * delete-only prefix, so upload cost is included and documented rather than hidden.
+   */
+  @Benchmark
+  @Threads(1)
+  public void benchmarkDeleteDirectory(Blackhole bh) {
+    String prefix = DELETE_DIR_PREFIX + nextDeleteDirId.incrementAndGet() + "/";
+    for (int i = 0; i < DELETE_DIR_FILE_COUNT; i++) {
+      UploadRequest request =
+          new UploadRequest.Builder()
+              .withKey(prefix + "blob_" + i + ".dat")
+              .withContentLength(smallBlob.length)
+              .build();
+      asyncClient.upload(request, smallBlob).orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
+    }
+    asyncClient.deleteDirectory(prefix).orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
+    bh.consume(prefix);
+  }
+
+  /**
+   * Bulk-delete lifecycle: upload a batch then delete it in one {@code delete(Collection)} call.
+   * Mirrors the sync suite's benchmarkBulkDelete for cross-suite parity. Single-threaded and
+   * upload-bundled by design (shared @State precludes delete-only staging).
+   */
+  @Benchmark
+  @Threads(1)
+  public void benchmarkBulkDelete(Blackhole bh) {
+    List<BlobIdentifier> ids = new ArrayList<>(BULK_DELETE_BATCH);
+    for (int i = 0; i < BULK_DELETE_BATCH; i++) {
+      String key = BULK_DELETE_PREFIX + nextBulkDeleteId.incrementAndGet() + ".dat";
+      UploadRequest request =
+          new UploadRequest.Builder().withKey(key).withContentLength(smallBlob.length).build();
+      asyncClient.upload(request, smallBlob).orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
+      ids.add(new BlobIdentifier(key, null));
+    }
+    asyncClient.delete(ids).orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
+    bh.consume(ids.size());
+  }
+
   // ─── Single-object data setup/teardown helpers ───
 
   private void setupSingleObjectData() {
@@ -638,7 +688,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
     String[] prefixes = {
         DOWNLOAD_BLOBS_PREFIX, UPLOAD_SMALL_PREFIX, UPLOAD_MEDIUM_PREFIX,
         UPLOAD_LARGE_PREFIX, WRITE_READ_DELETE_PREFIX, MULTIPART_PREFIX,
-        COPY_DEST_PREFIX
+        COPY_DEST_PREFIX, BULK_DELETE_PREFIX, DELETE_DIR_PREFIX
     };
     for (String prefix : prefixes) {
       try {
