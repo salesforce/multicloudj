@@ -5,10 +5,11 @@ import com.alicloud.openservices.tablestore.core.protocol.PlainBufferCell;
 import com.alicloud.openservices.tablestore.core.protocol.PlainBufferCodedInputStream;
 import com.alicloud.openservices.tablestore.core.protocol.PlainBufferInputStream;
 import com.alicloud.openservices.tablestore.core.protocol.PlainBufferRow;
-import com.aliyun.ots.thirdparty.com.google.protobuf.ByteString;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.protobuf.CodedInputStream;
+import com.google.protobuf.WireFormat;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -65,25 +66,59 @@ public final class TablestoreBodyCanonicalizer {
     try {
       int q = url.indexOf('?');
       String path = q >= 0 ? url.substring(0, q) : url;
+      boolean isPut = path.endsWith("/PutRow");
+
+      // Extract fields using standard CodedInputStream so no shaded protobuf class is loaded at
+      // runtime. The FIELD_NUMBER constants are primitive compile-time literals (ConstantValue
+      // attributes in the bytecode) so referencing them here never triggers class loading of
+      // OtsInternalApi or its GeneratedMessage base.
+      //   PutRowRequest:   table_name=1, row=2,         condition=3
+      //   DeleteRowRequest: table_name=1, primary_key=2, condition=3
+      int rowField = isPut
+          ? OtsInternalApi.PutRowRequest.ROW_FIELD_NUMBER
+          : OtsInternalApi.DeleteRowRequest.PRIMARY_KEY_FIELD_NUMBER;
+      int conditionField = isPut
+          ? OtsInternalApi.PutRowRequest.CONDITION_FIELD_NUMBER
+          : OtsInternalApi.DeleteRowRequest.CONDITION_FIELD_NUMBER;
+      int tableNameField = isPut
+          ? OtsInternalApi.PutRowRequest.TABLE_NAME_FIELD_NUMBER
+          : OtsInternalApi.DeleteRowRequest.TABLE_NAME_FIELD_NUMBER;
+
+      String tableName = null;
+      byte[] rowBytes = null;
+      byte[] conditionBytes = null;
+
+      CodedInputStream cin = CodedInputStream.newInstance(body);
+      int tag;
+      while ((tag = cin.readTag()) != 0) {
+        int fieldNumber = WireFormat.getTagFieldNumber(tag);
+        if (fieldNumber == tableNameField) {
+          tableName = cin.readString();
+        } else if (fieldNumber == rowField) {
+          rowBytes = cin.readByteArray();
+        } else if (fieldNumber == conditionField) {
+          conditionBytes = cin.readByteArray();
+        } else {
+          cin.skipField(tag);
+        }
+      }
+
+      // Both table_name and row/primary_key are mandatory fields in every valid Tablestore write
+      // request. If either is absent the body is malformed — return it unchanged per the contract
+      // ("or the original bytes unchanged if it cannot be parsed as one"), so that two different
+      // malformed bodies do not collapse into the same stub-matching JSON.
+      if (tableName == null || rowBytes == null) {
+        return body;
+      }
+
       ObjectNode root = MAPPER.createObjectNode();
-      if (path.endsWith("/PutRow")) {
-        OtsInternalApi.PutRowRequest req = OtsInternalApi.PutRowRequest.parseFrom(body);
-        root.put("op", "PutRow");
-        root.put("table", req.getTableName());
-        appendRow(root, req.getRow());
-        if (req.hasCondition()) {
-          // The serialized column-condition filter is order-stable (single revision column);
-          // include its bytes as hex to preserve precondition semantics in the match.
-          root.put("condition", base16(req.getCondition().toByteArray()));
-        }
-      } else {
-        OtsInternalApi.DeleteRowRequest req = OtsInternalApi.DeleteRowRequest.parseFrom(body);
-        root.put("op", "DeleteRow");
-        root.put("table", req.getTableName());
-        appendRow(root, req.getPrimaryKey());
-        if (req.hasCondition()) {
-          root.put("condition", base16(req.getCondition().toByteArray()));
-        }
+      root.put("op", isPut ? "PutRow" : "DeleteRow");
+      root.put("table", tableName);
+      appendRow(root, rowBytes);
+      if (conditionBytes != null) {
+        // The serialized column-condition filter is order-stable (single revision column);
+        // include its bytes as hex to preserve precondition semantics in the match.
+        root.put("condition", base16(conditionBytes));
       }
       return MAPPER.writeValueAsBytes(root);
     } catch (Exception e) {
@@ -92,9 +127,9 @@ public final class TablestoreBodyCanonicalizer {
     }
   }
 
-  private static void appendRow(ObjectNode root, ByteString rowBytes) throws Exception {
+  private static void appendRow(ObjectNode root, byte[] rowBytes) throws Exception {
     PlainBufferCodedInputStream in =
-        new PlainBufferCodedInputStream(new PlainBufferInputStream(rowBytes.toByteArray()));
+        new PlainBufferCodedInputStream(new PlainBufferInputStream(rowBytes));
     List<PlainBufferRow> rows = in.readRowsWithHeader();
 
     // A write request carries a single row; represent PK and cells as keyed objects so
