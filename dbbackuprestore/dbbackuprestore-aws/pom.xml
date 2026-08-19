@@ -56,6 +56,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common</artifactId>
         </dependency>
