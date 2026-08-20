@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.docstore.ali;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -15,6 +16,8 @@ import com.alicloud.openservices.tablestore.model.PutRowRequest;
 import com.alicloud.openservices.tablestore.model.RowDeleteChange;
 import com.alicloud.openservices.tablestore.model.RowPutChange;
 import com.alicloud.openservices.tablestore.model.condition.SingleColumnValueCondition;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.matching.EqualToJsonPattern;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -165,27 +168,31 @@ class TablestoreBodyCanonicalizerTest {
   }
 
   @Test
-  void deleteRowCanonicalizesCorrectly() {
+  void deleteRowCanonicalizesCorrectly() throws Exception {
     // A DeleteRow carries only primary-key cells (no data cells). Verify the canonicalizer extracts
-    // table + pk correctly and produces a valid canonical JSON.
+    // table + pk correctly and produces a structurally valid canonical JSON.
     byte[] body = deleteBody("docstore_test_2", "Game", "test-game", null);
 
-    String canonical =
-        new String(
-            TablestoreBodyCanonicalizer.canonicalize("/DeleteRow", body), StandardCharsets.UTF_8);
+    JsonNode root = new ObjectMapper().readTree(
+        TablestoreBodyCanonicalizer.canonicalize("/DeleteRow", body));
 
-    assertTrue(canonical.contains("\"DeleteRow\""), "op must be DeleteRow");
-    assertTrue(canonical.contains("\"docstore_test_2\""), "table name must be present");
-    assertTrue(canonical.contains("\"test-game\""), "pk value must be present");
+    assertEquals("DeleteRow", root.get("op").asText(), "op must be DeleteRow");
+    assertEquals("docstore_test_2", root.get("table").asText(), "table must be docstore_test_2");
+    JsonNode rows = root.get("rows");
+    assertTrue(rows.isArray() && rows.size() > 0, "rows array must be present");
+    assertEquals(
+        "test-game",
+        root.get("rows").get(0).get("pk").get("Game").get("v").asText(),
+        "pk value must be present under rows[0].pk");
     // The SDK serialises a condition field even for unconditional deletes; the canonical form
     // must include it so that bare-delete stubs differ from revision-conditional ones.
-    assertTrue(
-        canonical.contains("\"condition\""),
-        "bare delete must still carry the condition field");
+    assertFalse(
+        root.path("condition").isMissingNode(),
+        "bare delete must carry the condition field");
   }
 
   @Test
-  void conditionFieldDistinguishesRevisions() {
+  void conditionFieldDistinguishesRevisions() throws Exception {
     // A revision-conditional delete carries a Condition with a SingleColumnValueCondition on the
     // revision column. Deletes with different revision conditions must produce different canonical
     // forms so that WireMock stubs from different revision epochs do not match each other.
@@ -210,13 +217,16 @@ class TablestoreBodyCanonicalizerTest {
     byte[] bodyA = deleteBody("docstore_test_1", "pName", "LeoDel", conditionA);
     byte[] bodyB = deleteBody("docstore_test_1", "pName", "LeoDel", conditionB);
 
-    String canonicalA =
-        new String(
-            TablestoreBodyCanonicalizer.canonicalize("/DeleteRow", bodyA), StandardCharsets.UTF_8);
+    JsonNode rootA = new ObjectMapper().readTree(
+        TablestoreBodyCanonicalizer.canonicalize("/DeleteRow", bodyA));
 
-    // The condition bytes must be present in the canonical form.
-    assertTrue(
-        canonicalA.contains("\"condition\""), "condition field must appear in canonical form");
+    // The condition bytes must appear as a non-empty hex string at the top level.
+    assertFalse(
+        rootA.path("condition").isMissingNode(),
+        "condition field must appear in canonical form");
+    assertFalse(
+        rootA.path("condition").asText().isEmpty(),
+        "condition hex value must be non-empty");
 
     // Deletes with different revision conditions must produce different canonical forms.
     assertFalse(
