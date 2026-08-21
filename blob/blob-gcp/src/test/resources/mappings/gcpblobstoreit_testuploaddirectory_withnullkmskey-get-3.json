@@ -1,0 +1,38 @@
+{
+  "id" : "70a48f33-ca25-48c5-bf2b-dc896f4e3392",
+  "name" : "GcpBlobStoreIT_testUploadDirectory_withNullKmsKey-GET-3",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fupload-kms-null-v1%2Fnull-kms.txt",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/directory/upload-kms-null-v1/null-kms.txt/1787084541736790\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fupload-kms-null-v1%2Fnull-kms.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fupload-kms-null-v1%2Fnull-kms.txt?generation=1787084541736790&alt=media\",\n  \"name\": \"conformance-tests/directory/upload-kms-null-v1/null-kms.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1787084541736790\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"16\",\n  \"md5Hash\": \"8jr579kC73tw8JqQxhc2xA==\",\n  \"crc32c\": \"tAW5Zg==\",\n  \"etag\": \"CNburNqAq5YDEAE=\",\n  \"timeCreated\": \"2026-08-18T20:22:21.791Z\",\n  \"updated\": \"2026-08-18T20:22:21.791Z\",\n  \"timeStorageClassUpdated\": \"2026-08-18T20:22:21.791Z\",\n  \"timeFinalized\": \"2026-08-18T20:22:21.791Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CNburNqAq5YDEAE=",
+      "X-GUploader-UploadID" : "AJjja9ZOxYGf21Og6v-nfA18kXkVnb_mcU5CqBRJpTDvaqcLbL7nzWyXSRU4mxcL9wLucHLokp_FAA",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Tue, 18 Aug 2026 20:22:22 GMT",
+      "Date" : "Tue, 18 Aug 2026 20:22:22 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "70a48f33-ca25-48c5-bf2b-dc896f4e3392",
+  "persistent" : true,
+  "insertionIndex" : 1497
+}

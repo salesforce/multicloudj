@@ -5826,6 +5826,107 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
+  public void testUploadDirectory_withKmsKey(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+
+    String kmsKeyId = harness.getKmsKeyId();
+    Assumptions.assumeTrue(
+        kmsKeyId != null && !kmsKeyId.isEmpty(), "KMS key not configured for this harness");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    Path file1 = tempDir.resolve("kms-file1.txt");
+    Path subdir = tempDir.resolve("subdir");
+    Files.createDirectories(subdir);
+    Path file2 = subdir.resolve("kms-file2.txt");
+
+    byte[] content1 = "kms-directory-content-1".getBytes(StandardCharsets.UTF_8);
+    byte[] content2 = "kms-directory-content-2".getBytes(StandardCharsets.UTF_8);
+    Files.write(file1, content1);
+    Files.write(file2, content2);
+
+    String prefix = "conformance-tests/directory/upload-kms-v1";
+    String key1 = prefix + "/kms-file1.txt";
+    String key2 = prefix + "/subdir/kms-file2.txt";
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .kmsKeyId(kmsKeyId)
+            .build();
+
+    try {
+      DirectoryUploadResponse response = blobStore.uploadDirectory(request);
+      Assertions.assertNotNull(response);
+      Assertions.assertTrue(
+          response.getFailedTransfers().isEmpty(),
+          "Upload with KMS key should succeed without failures");
+
+      for (Map.Entry<String, byte[]> entry :
+          Map.of(key1, content1, key2, content2).entrySet()) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+          DownloadRequest downloadRequest =
+              new DownloadRequest.Builder().withKey(entry.getKey()).build();
+          bucketClient.download(downloadRequest, out);
+          Assertions.assertArrayEquals(
+              entry.getValue(),
+              out.toByteArray(),
+              "Content roundtrip should succeed for " + entry.getKey());
+        }
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key1, key2);
+    }
+
+    blobStore.close();
+  }
+
+  @Test
+  public void testUploadDirectory_withNullKmsKey(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    Path file1 = tempDir.resolve("null-kms.txt");
+    byte[] content = "null-kms-content".getBytes(StandardCharsets.UTF_8);
+    Files.write(file1, content);
+
+    String prefix = "conformance-tests/directory/upload-kms-null-v1";
+    String key1 = prefix + "/null-kms.txt";
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .kmsKeyId(null)
+            .build();
+
+    try {
+      DirectoryUploadResponse response = blobStore.uploadDirectory(request);
+      Assertions.assertNotNull(response);
+      Assertions.assertTrue(
+          response.getFailedTransfers().isEmpty(),
+          "Upload with null KMS key should fall back to bucket defaults without error");
+
+      try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+        bucketClient.download(new DownloadRequest.Builder().withKey(key1).build(), out);
+        Assertions.assertArrayEquals(content, out.toByteArray(), "Content roundtrip should match");
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key1);
+    }
+
+    blobStore.close();
+  }
+
+  @Test
   public void testDownloadDirectory_basic(@TempDir Path tempDir) throws Exception {
     Assumptions.assumeTrue(
         harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
