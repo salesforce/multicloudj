@@ -5,11 +5,9 @@ import com.alicloud.openservices.tablestore.core.protocol.PlainBufferCell;
 import com.alicloud.openservices.tablestore.core.protocol.PlainBufferCodedInputStream;
 import com.alicloud.openservices.tablestore.core.protocol.PlainBufferInputStream;
 import com.alicloud.openservices.tablestore.core.protocol.PlainBufferRow;
-import com.aliyun.ots.thirdparty.com.google.protobuf.ByteString;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -36,6 +34,12 @@ import java.util.List;
  * <p>It never re-serializes PlainBuffer (no CRC recomputation); it only reads. If the body is not a
  * recognized Tablestore write request it returns the original bytes unchanged, so non-write ops and
  * other providers are unaffected.
+ *
+ * <p><b>Dependency note:</b> this class uses the generated {@code OtsInternalApi} parser (via
+ * {@code parseFrom}) which requires the Tablestore SDK's shaded protobuf classes at runtime. The
+ * {@code ByteString} type returned by {@code getRow()}/{@code getPrimaryKey()} is never named in
+ * this source — {@code .toByteArray()} is called inline — so there is no compile-time dependency
+ * on the shaded jar, only a runtime one.
  */
 public final class TablestoreBodyCanonicalizer {
 
@@ -70,7 +74,7 @@ public final class TablestoreBodyCanonicalizer {
         OtsInternalApi.PutRowRequest req = OtsInternalApi.PutRowRequest.parseFrom(body);
         root.put("op", "PutRow");
         root.put("table", req.getTableName());
-        appendRow(root, req.getRow());
+        appendRow(root, req.getRow().toByteArray());
         if (req.hasCondition()) {
           // The serialized column-condition filter is order-stable (single revision column);
           // include its bytes as hex to preserve precondition semantics in the match.
@@ -80,7 +84,7 @@ public final class TablestoreBodyCanonicalizer {
         OtsInternalApi.DeleteRowRequest req = OtsInternalApi.DeleteRowRequest.parseFrom(body);
         root.put("op", "DeleteRow");
         root.put("table", req.getTableName());
-        appendRow(root, req.getPrimaryKey());
+        appendRow(root, req.getPrimaryKey().toByteArray());
         if (req.hasCondition()) {
           root.put("condition", base16(req.getCondition().toByteArray()));
         }
@@ -92,9 +96,9 @@ public final class TablestoreBodyCanonicalizer {
     }
   }
 
-  private static void appendRow(ObjectNode root, ByteString rowBytes) throws Exception {
+  private static void appendRow(ObjectNode root, byte[] rowBytes) throws Exception {
     PlainBufferCodedInputStream in =
-        new PlainBufferCodedInputStream(new PlainBufferInputStream(rowBytes.toByteArray()));
+        new PlainBufferCodedInputStream(new PlainBufferInputStream(rowBytes));
     List<PlainBufferRow> rows = in.readRowsWithHeader();
 
     // A write request carries a single row; represent PK and cells as keyed objects so
