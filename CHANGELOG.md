@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.4.5](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.4...multicloudj-v0.4.5) (2026-08-21)
+
+
+### Document Store
+
+* fix - combination of Lists and Maps in the document getting intermingled in the firestore ([#596](https://github.com/salesforce/multicloudj/issues/596)) ([e4a677e](https://github.com/salesforce/multicloudj/commit/e4a677ed285c2d23326647a975e56d7f9a6984b9))
+* remove compile-time shaded protobuf dep from Ali canonicalizer ([#599](https://github.com/salesforce/multicloudj/issues/599)) ([46e448e](https://github.com/salesforce/multicloudj/commit/46e448e5246a6ad0654a9d3ce1c81941398cb22b))
+
+
+### STS
+
+* add JMH benchmark suite ([#588](https://github.com/salesforce/multicloudj/issues/588)) ([9771239](https://github.com/salesforce/multicloudj/commit/977123928ba694486e6c65fc925cb826ab628c41))
+
+
+### IAM
+
+* add JMH benchmark suite ([#589](https://github.com/salesforce/multicloudj/issues/589)) ([fccfb07](https://github.com/salesforce/multicloudj/commit/fccfb07720d7bd180d433f38b0bfcf6d5654b613))
+
+
+### DB Backup Restore
+
+* add JMH benchmark suite ([#591](https://github.com/salesforce/multicloudj/issues/591)) ([2ab9926](https://github.com/salesforce/multicloudj/commit/2ab992648aec508007edd5fac978634418856d70))
+
 ## [0.4.4](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.3...multicloudj-v0.4.4) (2026-08-01)
 
 
