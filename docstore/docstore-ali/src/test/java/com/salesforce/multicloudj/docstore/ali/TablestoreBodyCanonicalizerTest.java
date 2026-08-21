@@ -1,24 +1,21 @@
 package com.salesforce.multicloudj.docstore.ali;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.alicloud.openservices.tablestore.core.protocol.OTSProtocolBuilder;
+import com.alicloud.openservices.tablestore.core.protocol.PlainBufferBuilder;
 import com.alicloud.openservices.tablestore.model.ColumnValue;
-import com.alicloud.openservices.tablestore.model.Condition;
-import com.alicloud.openservices.tablestore.model.DeleteRowRequest;
 import com.alicloud.openservices.tablestore.model.PrimaryKey;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyBuilder;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyValue;
-import com.alicloud.openservices.tablestore.model.PutRowRequest;
 import com.alicloud.openservices.tablestore.model.RowDeleteChange;
 import com.alicloud.openservices.tablestore.model.RowPutChange;
-import com.alicloud.openservices.tablestore.model.condition.SingleColumnValueCondition;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.matching.EqualToJsonPattern;
+import com.google.protobuf.CodedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
@@ -26,7 +23,14 @@ import org.junit.jupiter.api.Test;
 /** Verifies the canonicalizer makes column order irrelevant while preserving content. */
 class TablestoreBodyCanonicalizerTest {
 
-  private static byte[] putBody(String table, String pkName, String pkVal, String[] order) {
+  /**
+   * Builds a PutRow wire body: outer envelope (fields 1=table_name, 2=row, 3=condition) encoded
+   * with {@link CodedOutputStream}; inner row bytes from {@link
+   * PlainBufferBuilder#buildRowPutChangeWithHeader}. A minimal condition field is always included
+   * because the real SDK always emits one and the canonicalizer requires all three fields.
+   */
+  private static byte[] putBody(String table, String pkName, String pkVal, String[] order)
+      throws Exception {
     PrimaryKey pk =
         PrimaryKeyBuilder.createPrimaryKeyBuilder()
             .addPrimaryKeyColumn(pkName, PrimaryKeyValue.fromString(pkVal))
@@ -53,11 +57,69 @@ class TablestoreBodyCanonicalizerTest {
           throw new IllegalArgumentException(col);
       }
     }
-    return OTSProtocolBuilder.buildPutRowRequest(new PutRowRequest(change)).toByteArray();
+    return encodeWriteRequest(
+        table,
+        PlainBufferBuilder.buildRowPutChangeWithHeader(change),
+        buildMinimalConditionBytes(null));
+  }
+
+  /**
+   * Builds a DeleteRow wire body: outer envelope (fields 1=table_name, 2=primary_key, 3=condition)
+   * encoded with {@link CodedOutputStream}; inner pk bytes from {@link
+   * PlainBufferBuilder#buildRowDeleteChangeWithHeader}. A condition field is always included
+   * because the real SDK always emits one and the canonicalizer requires it. Pass {@code null} for
+   * revisionValue for a bare (unconditional) delete.
+   */
+  private static byte[] deleteBody(
+      String table, String pkName, String pkVal, String revisionValue) throws Exception {
+    PrimaryKey pk =
+        PrimaryKeyBuilder.createPrimaryKeyBuilder()
+            .addPrimaryKeyColumn(pkName, PrimaryKeyValue.fromString(pkVal))
+            .build();
+    RowDeleteChange change = new RowDeleteChange(table, pk);
+    return encodeWriteRequest(
+        table,
+        PlainBufferBuilder.buildRowDeleteChangeWithHeader(change),
+        buildMinimalConditionBytes(revisionValue));
+  }
+
+  /**
+   * Encodes a PutRow / DeleteRow outer proto envelope: field 1=table_name (string),
+   * field 2=row or primary_key (bytes), field 3=condition (bytes).
+   */
+  private static byte[] encodeWriteRequest(
+      String tableName, byte[] rowBytes, byte[] conditionBytes) throws Exception {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    CodedOutputStream out = CodedOutputStream.newInstance(baos);
+    out.writeString(1, tableName);
+    out.writeByteArray(2, rowBytes);
+    out.writeByteArray(3, conditionBytes);
+    out.flush();
+    return baos.toByteArray();
+  }
+
+  /**
+   * Builds a minimal Condition proto for test purposes.
+   *
+   * <p>The Condition proto has {@code row_existence} (field 1, enum) and {@code column_condition}
+   * (field 2, bytes). {@code row_existence = IGNORE} (value {@code 0}) is the proto default and is
+   * not written to the wire, so an unconditional delete produces empty condition bytes. When a
+   * revision value is provided it is written as a string in field 2, making each distinct revision
+   * produce distinct condition bytes — which is all the canonicalizer's hex-passthrough requires.
+   */
+  private static byte[] buildMinimalConditionBytes(String revisionValue) throws Exception {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    CodedOutputStream out = CodedOutputStream.newInstance(baos);
+    // row_existence = IGNORE = 0 (proto default; not written to the wire)
+    if (revisionValue != null) {
+      out.writeString(2, revisionValue); // distinguishing payload — any distinct bytes suffice
+    }
+    out.flush();
+    return baos.toByteArray();
   }
 
   @Test
-  void differentColumnOrderCanonicalizesEqual() {
+  void differentColumnOrderCanonicalizesEqual() throws Exception {
     // Same table, PK, columns, values -- but added in two different orders.
     byte[] a =
         putBody(
@@ -88,7 +150,7 @@ class TablestoreBodyCanonicalizerTest {
   }
 
   @Test
-  void differentValuesCanonicalizeDifferent() {
+  void differentValuesCanonicalizeDifferent() throws Exception {
     byte[] a =
         putBody("docstore_test_1", "pName", "LeoPut", new String[] {"i", "b", "f", "bytes"});
     // Different partition key value -> must NOT collapse to the same canonical form.
@@ -101,7 +163,7 @@ class TablestoreBodyCanonicalizerTest {
   }
 
   @Test
-  void recordAndReplayPairingMatchesAcrossColumnOrder() {
+  void recordAndReplayPairingMatchesAcrossColumnOrder() throws Exception {
     // Simulates the full harness pairing: the record transformer stores a binaryEqualTo built from
     // the canonical form of the recorded body; the replay filter canonicalizes the incoming request
     // before matching. Different column order on each side must still match.
@@ -136,35 +198,41 @@ class TablestoreBodyCanonicalizerTest {
 
   @Test
   void malformedBodyOnRecognizedUrlReturnsOriginal() {
-    // A body that is sent to /PutRow but lacks the mandatory row field (e.g. it contains only
-    // unknown fields) must be returned unchanged, not collapsed into {"op":"PutRow","table":""}
-    // which would cause unrelated malformed requests to match the same WireMock stub.
-    // Wire-encode an unknown field (field 15, bytes "abc") — no row or table_name fields.
+    // A body that is sent to /PutRow but lacks the mandatory fields (table_name, row, condition)
+    // must be returned unchanged, not collapsed into a partial canonical form that would cause
+    // unrelated malformed requests to match the same WireMock stub.
+    // Wire-encode an unknown field (field 15, bytes "abc") — no required fields present.
     byte[] malformed = new byte[] {(byte) 0x7a, 0x03, 0x61, 0x62, 0x63};
     byte[] out = TablestoreBodyCanonicalizer.canonicalize("/PutRow", malformed);
     assertArrayEquals(
-        malformed, out, "malformed body missing row field must be returned unchanged");
+        malformed, out, "malformed body missing required fields must be returned unchanged");
   }
 
   @Test
-  void nonCanonicalizableUrlReturnsOriginal() {
+  void knownFieldWithWrongWireTypeReturnsOriginal() throws Exception {
+    // Field 1 (table_name) is normally wire type 2 (length-delimited, tag = 10).
+    // Encoding it as wire type 0 (varint, tag = 8) produces a tag the canonicalizer
+    // does not recognise and routes through skipField — table_name stays null and the
+    // body is returned unchanged. This pins the exact-tag dispatch behaviour: a known
+    // field number arriving with the wrong wire type is not misread as table_name.
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    CodedOutputStream out = CodedOutputStream.newInstance(baos);
+    out.writeUInt64(1, 42L); // field 1, varint — wrong wire type for table_name
+    out.writeByteArray(2, new byte[] {0x01}); // row field, plausible bytes
+    out.writeByteArray(3, new byte[] {0x01}); // condition field, plausible bytes
+    out.flush();
+    byte[] body = baos.toByteArray();
+    assertArrayEquals(
+        body,
+        TablestoreBodyCanonicalizer.canonicalize("/PutRow", body),
+        "known field with wrong wire type must be unrecognised — body returned unchanged");
+  }
+
+  @Test
+  void nonCanonicalizableUrlReturnsOriginal() throws Exception {
     byte[] body = putBody("docstore_test_1", "pName", "LeoPut", new String[] {"i"});
     byte[] out = TablestoreBodyCanonicalizer.canonicalize("/SQLQuery", body);
     assertArrayEquals(body, out, "non-write URLs must be returned unchanged");
-  }
-
-  // Builds a DeleteRow request body for the given table, pk name+value, and optional condition.
-  private static byte[] deleteBody(
-      String table, String pkName, String pkVal, Condition condition) {
-    PrimaryKey pk =
-        PrimaryKeyBuilder.createPrimaryKeyBuilder()
-            .addPrimaryKeyColumn(pkName, PrimaryKeyValue.fromString(pkVal))
-            .build();
-    RowDeleteChange change = new RowDeleteChange(table, pk);
-    if (condition != null) {
-      change.setCondition(condition);
-    }
-    return OTSProtocolBuilder.buildDeleteRowRequest(new DeleteRowRequest(change)).toByteArray();
   }
 
   @Test
@@ -173,60 +241,44 @@ class TablestoreBodyCanonicalizerTest {
     // table + pk correctly and produces a structurally valid canonical JSON.
     byte[] body = deleteBody("docstore_test_2", "Game", "test-game", null);
 
-    JsonNode root = new ObjectMapper().readTree(
-        TablestoreBodyCanonicalizer.canonicalize("/DeleteRow", body));
+    JsonNode root =
+        new ObjectMapper()
+            .readTree(TablestoreBodyCanonicalizer.canonicalize("/DeleteRow", body));
 
-    assertEquals("DeleteRow", root.get("op").asText(), "op must be DeleteRow");
-    assertEquals("docstore_test_2", root.get("table").asText(), "table must be docstore_test_2");
+    JsonNode opNode = root.get("op");
+    assertTrue(opNode != null && "DeleteRow".equals(opNode.asText()), "op must be DeleteRow");
+    JsonNode tableNode = root.get("table");
+    assertTrue(
+        tableNode != null && "docstore_test_2".equals(tableNode.asText()),
+        "table must be docstore_test_2");
     JsonNode rows = root.get("rows");
-    assertTrue(rows.isArray() && rows.size() > 0, "rows array must be present");
-    assertEquals(
-        "test-game",
-        root.get("rows").get(0).get("pk").get("Game").get("v").asText(),
+    assertTrue(rows != null && rows.isArray() && rows.size() > 0, "rows array must be present");
+    assertTrue(
+        "test-game".equals(root.get("rows").get(0).get("pk").get("Game").get("v").asText()),
         "pk value must be present under rows[0].pk");
-    // The SDK serialises a condition field even for unconditional deletes; the canonical form
-    // must include it so that bare-delete stubs differ from revision-conditional ones.
+    // A condition field is always included in the request; the canonical form must carry it so
+    // that bare-delete stubs differ from revision-conditional ones.
     assertFalse(
-        root.path("condition").isMissingNode(),
-        "bare delete must carry the condition field");
+        root.path("condition").isMissingNode(), "bare delete must carry the condition field");
   }
 
   @Test
   void conditionFieldDistinguishesRevisions() throws Exception {
-    // A revision-conditional delete carries a Condition with a SingleColumnValueCondition on the
-    // revision column. Deletes with different revision conditions must produce different canonical
-    // forms so that WireMock stubs from different revision epochs do not match each other.
-    SingleColumnValueCondition revCondA =
-        new SingleColumnValueCondition(
-            "DocstoreRevision",
-            SingleColumnValueCondition.CompareOperator.EQUAL,
-            ColumnValue.fromString("rev-abc"));
-    revCondA.setPassIfMissing(false);
-    Condition conditionA = new Condition();
-    conditionA.setColumnCondition(revCondA);
+    // Deletes with different revision values (encoded as a distinguishing field in the condition)
+    // must produce different canonical forms so that WireMock stubs from different revision epochs
+    // do not match each other.
+    byte[] bodyA = deleteBody("docstore_test_1", "pName", "LeoDel", "rev-abc");
+    byte[] bodyB = deleteBody("docstore_test_1", "pName", "LeoDel", "rev-xyz");
 
-    SingleColumnValueCondition revCondB =
-        new SingleColumnValueCondition(
-            "DocstoreRevision",
-            SingleColumnValueCondition.CompareOperator.EQUAL,
-            ColumnValue.fromString("rev-xyz"));
-    revCondB.setPassIfMissing(false);
-    Condition conditionB = new Condition();
-    conditionB.setColumnCondition(revCondB);
-
-    byte[] bodyA = deleteBody("docstore_test_1", "pName", "LeoDel", conditionA);
-    byte[] bodyB = deleteBody("docstore_test_1", "pName", "LeoDel", conditionB);
-
-    JsonNode rootA = new ObjectMapper().readTree(
-        TablestoreBodyCanonicalizer.canonicalize("/DeleteRow", bodyA));
+    JsonNode rootA =
+        new ObjectMapper()
+            .readTree(TablestoreBodyCanonicalizer.canonicalize("/DeleteRow", bodyA));
 
     // The condition bytes must appear as a non-empty hex string at the top level.
     assertFalse(
-        rootA.path("condition").isMissingNode(),
-        "condition field must appear in canonical form");
+        rootA.path("condition").isMissingNode(), "condition field must appear in canonical form");
     assertFalse(
-        rootA.path("condition").asText().isEmpty(),
-        "condition hex value must be non-empty");
+        rootA.path("condition").asText().isEmpty(), "condition hex value must be non-empty");
 
     // Deletes with different revision conditions must produce different canonical forms.
     assertFalse(
