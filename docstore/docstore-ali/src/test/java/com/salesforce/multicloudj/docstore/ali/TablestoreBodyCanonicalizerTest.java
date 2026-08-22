@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.docstore.ali;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -104,8 +105,9 @@ class TablestoreBodyCanonicalizerTest {
    * <p>The Condition proto (proto2) has {@code row_existence} (field 1, required enum) and
    * {@code column_condition} (field 2, optional bytes). Because this is proto2, {@code
    * row_existence} is a required field and must always be serialized — including for the IGNORE
-   * (value 0) case. The real SDK emits {@code 08 00} for an unconditional delete. We write it
-   * explicitly here so the encoding is faithful proto2 rather than an empty byte array.
+   * (value 0) case. The real SDK emits {@code 08 00} for an unconditional delete (verified against
+   * captured stubs). We write it explicitly here so the encoding is faithful proto2 rather than
+   * an empty byte array.
    *
    * <p>When a revision value is provided it is written as a distinguishing string in field 2,
    * making each distinct revision produce distinct condition bytes — which is all the
@@ -233,6 +235,24 @@ class TablestoreBodyCanonicalizerTest {
   }
 
   @Test
+  void presentButEmptyConditionFieldReturnsOriginal() throws Exception {
+    // condition field (field 3) is present on the wire but carries zero bytes — not a valid
+    // proto2 Condition, which requires at minimum the 2-byte row_existence encoding (08 00).
+    // Exercises the conditionBytes.length == 0 guard distinct from the absent-field path.
+    PrimaryKey pk =
+        PrimaryKeyBuilder.createPrimaryKeyBuilder()
+            .addPrimaryKeyColumn("pName", PrimaryKeyValue.fromString("test"))
+            .build();
+    RowPutChange change = new RowPutChange("docstore_test_1", pk);
+    byte[] rowBytes = PlainBufferBuilder.buildRowPutChangeWithHeader(change);
+    byte[] body = encodeWriteRequest("docstore_test_1", rowBytes, new byte[0]);
+    assertArrayEquals(
+        body,
+        TablestoreBodyCanonicalizer.canonicalize("/PutRow", body),
+        "present but empty condition field must be treated as malformed — body returned unchanged");
+  }
+
+  @Test
   void nonCanonicalizableUrlReturnsOriginal() throws Exception {
     byte[] body = putBody("docstore_test_1", "pName", "LeoPut", new String[] {"i"});
     byte[] out = TablestoreBodyCanonicalizer.canonicalize("/SQLQuery", body);
@@ -261,9 +281,15 @@ class TablestoreBodyCanonicalizerTest {
         "test-game".equals(root.get("rows").get(0).get("pk").get("Game").get("v").asText()),
         "pk value must be present under rows[0].pk");
     // A condition field is always included in the request; the canonical form must carry it so
-    // that bare-delete stubs differ from revision-conditional ones.
-    assertFalse(
-        root.path("condition").isMissingNode(), "bare delete must carry the condition field");
+    // that bare-delete stubs differ from revision-conditional ones. The real SDK encodes an
+    // unconditional delete as 08 00 (row_existence=IGNORE, proto2 required field). Pin that
+    // exact hex so a future encoding change surfaces immediately.
+    JsonNode condition = root.path("condition");
+    assertFalse(condition.isMissingNode(), "bare delete must carry the condition field");
+    assertEquals(
+        "0800",
+        condition.asText(),
+        "bare delete condition must encode as 08 00 (row_existence=IGNORE, per SDK recordings)");
   }
 
   @Test
