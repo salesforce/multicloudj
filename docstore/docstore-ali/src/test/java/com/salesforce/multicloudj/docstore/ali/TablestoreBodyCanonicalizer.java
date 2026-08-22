@@ -105,10 +105,12 @@ public final class TablestoreBodyCanonicalizer {
         }
       }
 
-      // All three fields are required in every valid Tablestore write request. Absent fields
-      // indicate a malformed body — return it unchanged so distinct malformed bodies do not
-      // collapse into the same stub-matching JSON.
-      if (tableName == null || rowBytes == null || conditionBytes == null) {
+      // All three fields are required in every valid Tablestore write request. Absent or empty
+      // condition bytes indicate a malformed body — the real SDK always serializes Condition as
+      // a proto2 required-field message (at minimum the 2-byte IGNORE encoding 08 00). Return
+      // the body unchanged so distinct malformed bodies do not collapse into the same stub JSON.
+      if (tableName == null || rowBytes == null || conditionBytes == null
+          || conditionBytes.length == 0) {
         return body;
       }
 

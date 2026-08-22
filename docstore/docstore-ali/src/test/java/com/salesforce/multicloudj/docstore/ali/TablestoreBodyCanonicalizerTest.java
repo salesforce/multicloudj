@@ -101,16 +101,20 @@ class TablestoreBodyCanonicalizerTest {
   /**
    * Builds a minimal Condition proto for test purposes.
    *
-   * <p>The Condition proto has {@code row_existence} (field 1, enum) and {@code column_condition}
-   * (field 2, bytes). {@code row_existence = IGNORE} (value {@code 0}) is the proto default and is
-   * not written to the wire, so an unconditional delete produces empty condition bytes. When a
-   * revision value is provided it is written as a string in field 2, making each distinct revision
-   * produce distinct condition bytes — which is all the canonicalizer's hex-passthrough requires.
+   * <p>The Condition proto (proto2) has {@code row_existence} (field 1, required enum) and
+   * {@code column_condition} (field 2, optional bytes). Because this is proto2, {@code
+   * row_existence} is a required field and must always be serialized — including for the IGNORE
+   * (value 0) case. The real SDK emits {@code 08 00} for an unconditional delete. We write it
+   * explicitly here so the encoding is faithful proto2 rather than an empty byte array.
+   *
+   * <p>When a revision value is provided it is written as a distinguishing string in field 2,
+   * making each distinct revision produce distinct condition bytes — which is all the
+   * canonicalizer's hex-passthrough comparison requires.
    */
   private static byte[] buildMinimalConditionBytes(String revisionValue) throws Exception {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     CodedOutputStream out = CodedOutputStream.newInstance(baos);
-    // row_existence = IGNORE = 0 (proto default; not written to the wire)
+    out.writeEnum(1, 0); // row_existence = IGNORE = 0; required field in proto2, always written
     if (revisionValue != null) {
       out.writeString(2, revisionValue); // distinguishing payload — any distinct bytes suffice
     }
