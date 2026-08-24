@@ -1147,8 +1147,11 @@ public class AliAsyncBlobStoreTest {
 
   @Test
   void testUploadDirectoryPropagatesExplicitKmsKeyId(@TempDir Path tempDir) throws Exception {
+    // One top-level file and one nested under a subdirectory so includeSubFolders(true) is
+    // genuinely exercised — this also pins the per-file key/prefix computation for nested paths.
     Files.writeString(tempDir.resolve("file1.txt"), "content1");
-    Files.writeString(tempDir.resolve("file2.txt"), "content2");
+    Files.createDirectories(tempDir.resolve("subdir"));
+    Files.writeString(tempDir.resolve("subdir").resolve("file2.txt"), "content2");
 
     PutObjectResult mockResult = mock(PutObjectResult.class);
     when(mockResult.versionId()).thenReturn(null);
@@ -1166,22 +1169,30 @@ public class AliAsyncBlobStoreTest {
         .build();
     store.uploadDirectory(request).get();
 
-    // Every per-file PutObjectRequest must carry SSE-KMS with the explicit key id.
+    // Every per-file PutObjectRequest (top-level and nested) must carry SSE-KMS with the explicit
+    // key id, and the object keys must preserve the prefix + relative (sub)path.
     ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
     verify(mockAsyncClient, times(2))
         .putObjectAsync(captor.capture(), any(OperationOptions.class));
+    List<String> keys = new ArrayList<>();
     for (PutObjectRequest req : captor.getAllValues()) {
       assertEquals("KMS", req.serverSideEncryption(),
           "each per-file upload must set SSE-KMS");
       assertEquals(kmsKeyId, req.serverSideEncryptionKeyId(),
           "each per-file upload must carry the explicit KMS key id");
+      keys.add(req.key());
     }
+    assertTrue(keys.contains("kms-prefix/file1.txt"),
+        "top-level file key must be prefix + name; got " + keys);
+    assertTrue(keys.contains("kms-prefix/subdir/file2.txt"),
+        "nested file key must preserve the subdirectory path; got " + keys);
   }
 
   @Test
   void testUploadDirectoryPropagatesUseKmsManagedKey(@TempDir Path tempDir) throws Exception {
     Files.writeString(tempDir.resolve("file1.txt"), "content1");
-    Files.writeString(tempDir.resolve("file2.txt"), "content2");
+    Files.createDirectories(tempDir.resolve("subdir"));
+    Files.writeString(tempDir.resolve("subdir").resolve("file2.txt"), "content2");
 
     PutObjectResult mockResult = mock(PutObjectResult.class);
     when(mockResult.versionId()).thenReturn(null);
@@ -1213,7 +1224,8 @@ public class AliAsyncBlobStoreTest {
   @Test
   void testUploadDirectoryWithoutKmsLeavesEncryptionUnset(@TempDir Path tempDir) throws Exception {
     Files.writeString(tempDir.resolve("file1.txt"), "content1");
-    Files.writeString(tempDir.resolve("file2.txt"), "content2");
+    Files.createDirectories(tempDir.resolve("subdir"));
+    Files.writeString(tempDir.resolve("subdir").resolve("file2.txt"), "content2");
 
     PutObjectResult mockResult = mock(PutObjectResult.class);
     when(mockResult.versionId()).thenReturn(null);
