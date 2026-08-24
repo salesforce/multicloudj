@@ -786,6 +786,8 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
     String prefix = directoryUploadRequest.getPrefix();
     Map<String, String> tags = directoryUploadRequest.getTags();
     var objectLock = directoryUploadRequest.getObjectLock();
+    String kmsKeyId = directoryUploadRequest.getKmsKeyId();
+    boolean useKmsManagedKey = directoryUploadRequest.isUseKmsManagedKey();
     AtomicLong totalBytes = new AtomicLong(0L);
     // Sum of source-file sizes from the stage-1 stat pass. Drives the response's
     // totalBytesTransferred on the listener-off success path; see resolveDirectoryTotalBytes.
@@ -829,6 +831,11 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
                 if (objectLock != null) {
                   uploadBuilder.withObjectLock(objectLock);
                 }
+                // Propagate SSE-KMS from the directory request onto each per-file upload so the
+                // whole tree is encrypted uniformly. AliTransformer.toPutObjectRequest maps these
+                // onto OSS SSE-KMS (explicit kmsKeyId wins; else useKmsManagedKey -> managed CMK),
+                // giving directory upload parity with single-object upload.
+                uploadBuilder.withKmsKeyId(kmsKeyId).withUseKmsManagedKey(useKmsManagedKey);
                 UploadRequest uploadRequest = uploadBuilder.build();
                 OssLoggingTransferListener listener = loggingEnabled
                     ? OssLoggingTransferListener.create(
