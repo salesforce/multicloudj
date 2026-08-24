@@ -216,15 +216,10 @@ class TablestoreBodyCanonicalizerTest {
 
   @Test
   void knownFieldNumberWithWrongWireTypeIsSkippedNotMisread() throws Exception {
-    // Prepend field 1 encoded as a varint (tag 0x08) — the *same field number* as table_name
-    // but the wrong wire type — ahead of a fully valid PutRow envelope (whose table_name is the
-    // length-delimited tag 0x0A). Exact-tag dispatch must route 0x08 through skipField and then
-    // read the real table_name from the following 0x0A tag, so the request still canonicalizes.
-    //
-    // A field-number-only switch would instead call readString() on the varint, desync the
-    // stream, and fall back to the raw body. Asserting the RECOVERED canonical JSON (not the raw
-    // bytes) is therefore what actually pins exact-tag dispatch: this test fails if the loop is
-    // reverted to matching on field number alone.
+    // Prepend field 1 as a varint (tag 0x08) — right field number, wrong wire type — before a
+    // valid PutRow envelope. Exact-tag dispatch skips 0x08 and still reads table_name from the
+    // following 0x0A tag; a field-number-only switch would readString() the varint, desync, and
+    // return raw bytes. Asserting the recovered JSON (not raw) is what pins exact-tag dispatch.
     byte[] valid = putBody("docstore_test_1", "pName", "LeoPut", new String[] {"i"});
     byte[] body = new byte[valid.length + 2];
     body[0] = 0x08; // field 1, wire type 0 (varint) — wrong wire type for table_name
