@@ -215,23 +215,49 @@ class TablestoreBodyCanonicalizerTest {
   }
 
   @Test
-  void knownFieldWithWrongWireTypeReturnsOriginal() throws Exception {
-    // Field 1 (table_name) is normally wire type 2 (length-delimited, tag = 10).
-    // Encoding it as wire type 0 (varint, tag = 8) produces a tag the canonicalizer
-    // does not recognise and routes through skipField — table_name stays null and the
-    // body is returned unchanged. This pins the exact-tag dispatch behaviour: a known
-    // field number arriving with the wrong wire type is not misread as table_name.
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    CodedOutputStream out = CodedOutputStream.newInstance(baos);
-    out.writeUInt64(1, 42L); // field 1, varint — wrong wire type for table_name
-    out.writeByteArray(2, new byte[] {0x01}); // row field, plausible bytes
-    out.writeByteArray(3, new byte[] {0x01}); // condition field, plausible bytes
-    out.flush();
-    byte[] body = baos.toByteArray();
+  void knownFieldNumberWithWrongWireTypeIsSkippedNotMisread() throws Exception {
+    // Prepend field 1 encoded as a varint (tag 0x08) — the *same field number* as table_name
+    // but the wrong wire type — ahead of a fully valid PutRow envelope (whose table_name is the
+    // length-delimited tag 0x0A). Exact-tag dispatch must route 0x08 through skipField and then
+    // read the real table_name from the following 0x0A tag, so the request still canonicalizes.
+    //
+    // A field-number-only switch would instead call readString() on the varint, desync the
+    // stream, and fall back to the raw body. Asserting the RECOVERED canonical JSON (not the raw
+    // bytes) is therefore what actually pins exact-tag dispatch: this test fails if the loop is
+    // reverted to matching on field number alone.
+    byte[] valid = putBody("docstore_test_1", "pName", "LeoPut", new String[] {"i"});
+    byte[] body = new byte[valid.length + 2];
+    body[0] = 0x08; // field 1, wire type 0 (varint) — wrong wire type for table_name
+    body[1] = 0x01; // varint value
+    System.arraycopy(valid, 0, body, 2, valid.length);
+
+    JsonNode root =
+        new ObjectMapper().readTree(TablestoreBodyCanonicalizer.canonicalize("/PutRow", body));
+    assertEquals("PutRow", root.path("op").asText(), "op must be recovered as PutRow");
+    assertEquals(
+        "docstore_test_1",
+        root.path("table").asText(),
+        "table_name must be recovered from the correctly-tagged field after the wrong-wire-type "
+            + "field 1 is skipped");
+  }
+
+  @Test
+  void endGroupTagReturnsOriginal() throws Exception {
+    // Prepend a bare END_GROUP tag (field 1, wire type 4 = 0x0C) ahead of a valid envelope.
+    // CodedInputStream.skipField returns false for an end-group tag; the canonicalizer must
+    // honour that and return the raw body. A version that ignored skipField's false result would
+    // continue, read the following valid envelope, and canonicalize it — so asserting the raw
+    // body is returned is what pins the guard (this test fails if the `!skipField` check is
+    // dropped).
+    byte[] valid = putBody("docstore_test_1", "pName", "LeoPut", new String[] {"i"});
+    byte[] body = new byte[valid.length + 1];
+    body[0] = 0x0c; // END_GROUP tag for field 1 (wire type 4)
+    System.arraycopy(valid, 0, body, 1, valid.length);
+
     assertArrayEquals(
         body,
         TablestoreBodyCanonicalizer.canonicalize("/PutRow", body),
-        "known field with wrong wire type must be unrecognised — body returned unchanged");
+        "an end-group tag (skipField returns false) must cause the raw body to be returned");
   }
 
   @Test
