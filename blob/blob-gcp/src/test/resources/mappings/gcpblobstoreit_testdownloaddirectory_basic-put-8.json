@@ -1,5 +1,5 @@
 {
-  "id" : "f6a399cd-03b0-4ce5-9f21-96438c986bf8",
+  "id" : "fa62dacf-d20b-4e57-9e4d-e6fbf4322ccb",
   "name" : "GcpBlobStoreIT_testDownloadDirectory_basic-PUT-8",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
@@ -22,7 +22,7 @@
       },
       "upload_id" : {
         "hasExactly" : [ {
-          "equalTo" : "AAVLpEh5nTQVMVMbmw-Q49lGN_WZDnSWcs_fUtVAlD7M2sOWPevnxShMtPi5nCkN8xGWEj5Hzg9_T9YApVqCBFZKJ81ad8NkySfSus6jN-ahGQ"
+          "equalTo" : "AJjja9aR9cfYfsI1ZjhWEch5X7Cph0XsmRS8mz7VAxwHw1XjA6gpYAj-uS8LoGGYvQKT3GqIS0ksszly4fOwOZaI2snBBBAZmDmUaW-ejXxyjv8"
         } ]
       }
     },
@@ -33,21 +33,21 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/directory/download-basic-v1/file1.txt/1779893752140772\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fdownload-basic-v1%2Ffile1.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fdownload-basic-v1%2Ffile1.txt?generation=1779893752140772&alt=media\",\n  \"name\": \"conformance-tests/directory/download-basic-v1/file1.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1779893752140772\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"22\",\n  \"md5Hash\": \"HxFL41UAu79uqAoGn53LQQ==\",\n  \"crc32c\": \"sAHgaA==\",\n  \"etag\": \"COSn1vbc2ZQDEAE=\",\n  \"timeCreated\": \"2026-05-27T14:55:52.208Z\",\n  \"updated\": \"2026-05-27T14:55:52.208Z\",\n  \"timeStorageClassUpdated\": \"2026-05-27T14:55:52.208Z\",\n  \"timeFinalized\": \"2026-05-27T14:55:52.208Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/directory/download-basic-v1/file1.txt/1787646117029631\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fdownload-basic-v1%2Ffile1.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fdownload-basic-v1%2Ffile1.txt?generation=1787646117029631&alt=media\",\n  \"name\": \"conformance-tests/directory/download-basic-v1/file1.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1787646117029631\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"22\",\n  \"md5Hash\": \"HxFL41UAu79uqAoGn53LQQ==\",\n  \"crc32c\": \"sAHgaA==\",\n  \"etag\": \"CP/NqN6su5YDEAE=\",\n  \"timeCreated\": \"2026-08-25T08:21:57.102Z\",\n  \"updated\": \"2026-08-25T08:21:57.102Z\",\n  \"timeStorageClassUpdated\": \"2026-08-25T08:21:57.102Z\",\n  \"timeFinalized\": \"2026-08-25T08:21:57.102Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "COSn1vbc2ZQDEAE=",
-      "X-GUploader-UploadID" : "AAVLpEh5nTQVMVMbmw-Q49lGN_WZDnSWcs_fUtVAlD7M2sOWPevnxShMtPi5nCkN8xGWEj5Hzg9_T9YApVqCBFZKJ81ad8NkySfSus6jN-ahGQ",
+      "ETag" : "CP/NqN6su5YDEAE=",
+      "X-GUploader-UploadID" : "AJjja9aR9cfYfsI1ZjhWEch5X7Cph0XsmRS8mz7VAxwHw1XjA6gpYAj-uS8LoGGYvQKT3GqIS0ksszly4fOwOZaI2snBBBAZmDmUaW-ejXxyjv8",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Wed, 27 May 2026 14:55:52 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:21:57 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "f6a399cd-03b0-4ce5-9f21-96438c986bf8",
+  "uuid" : "fa62dacf-d20b-4e57-9e4d-e6fbf4322ccb",
   "persistent" : true,
-  "insertionIndex" : 1396
+  "insertionIndex" : 175
 }

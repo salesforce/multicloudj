@@ -1,23 +1,18 @@
 {
-  "id" : "317a8e06-8ca6-4574-8a42-9f4f4af6fd0f",
+  "id" : "cdd526ec-fb80-4808-817a-210b2e5fc2ee",
   "name" : "GcpBlobStoreIT_testBulkVersionedDelete_happyPathWithNonExisting-GET-11",
   "request" : {
     "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
     "method" : "GET",
     "headers" : {
       "X-Query-Param-Count" : {
-        "equalTo" : "3"
+        "equalTo" : "2"
       }
     },
     "queryParameters" : {
       "maxResults" : {
         "hasExactly" : [ {
           "equalTo" : "1"
-        } ]
-      },
-      "prefix" : {
-        "hasExactly" : [ {
-          "equalTo" : ""
         } ]
       },
       "projection" : {
@@ -29,19 +24,19 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"nextPageToken\": \"Cixjb25mb3JtYW5jZS10ZXN0cy9idWxrRGVsZXRlQnlWZXJzaW9uL2hhcHB5NA==\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/happy4/1780603482264955\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy4\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy4?generation=1780603482264955&alt=media\",\n      \"name\": \"conformance-tests/bulkDeleteByVersion/happy4\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n      \"generation\": \"1780603482264955\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"75\",\n      \"md5Hash\": \"jI3XOX7jaCvXy4beRDaWhQ==\",\n      \"crc32c\": \"8GluoQ==\",\n      \"etag\": \"CPuqr/Cw7pQDEAE=\",\n      \"timeCreated\": \"2026-06-04T20:04:42.314Z\",\n      \"updated\": \"2026-06-04T20:04:42.314Z\",\n      \"timeStorageClassUpdated\": \"2026-06-04T20:04:42.314Z\",\n      \"timeFinalized\": \"2026-06-04T20:04:42.314Z\"\n    }\n  ]\n}\n",
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"nextPageToken\": \"Cixjb25mb3JtYW5jZS10ZXN0cy9idWxrRGVsZXRlQnlWZXJzaW9uL2hhcHB5NA==\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/happy4/1787646634970743\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy4\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy4?generation=1787646634970743&alt=media\",\n      \"name\": \"conformance-tests/bulkDeleteByVersion/happy4\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n      \"generation\": \"1787646634970743\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"75\",\n      \"md5Hash\": \"jI3XOX7jaCvXy4beRDaWhQ==\",\n      \"crc32c\": \"8GluoQ==\",\n      \"etag\": \"CPecpdWuu5YDEAE=\",\n      \"timeCreated\": \"2026-08-25T08:30:35.037Z\",\n      \"updated\": \"2026-08-25T08:30:35.037Z\",\n      \"timeStorageClassUpdated\": \"2026-08-25T08:30:35.037Z\",\n      \"timeFinalized\": \"2026-08-25T08:30:35.037Z\"\n    }\n  ]\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
-      "X-GUploader-UploadID" : "AAVLpEiGv7A74zUEQMFDvQ7ZvmWzreBmXLN_NIUYy4y7bJI3HlpKnn94z9liPJHxmhNg4-RfgCfuEio",
+      "X-GUploader-UploadID" : "AJjja9a1-GpIC0VNSLUaH5uiTo3__ll9zKCNRnY05Ww4xRmWllx6dYCweNNzsD9-JhMf5kNl",
       "Vary" : [ "Origin", "X-Origin" ],
-      "Expires" : "Thu, 04 Jun 2026 20:04:44 GMT",
-      "Date" : "Thu, 04 Jun 2026 20:04:44 GMT",
+      "Expires" : "Tue, 25 Aug 2026 08:30:37 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:30:37 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "317a8e06-8ca6-4574-8a42-9f4f4af6fd0f",
+  "uuid" : "cdd526ec-fb80-4808-817a-210b2e5fc2ee",
   "persistent" : true,
-  "insertionIndex" : 1407
+  "insertionIndex" : 860
 }

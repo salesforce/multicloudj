@@ -1,22 +1,34 @@
 {
-  "id" : "2be5a1bf-f7c1-44e1-a19c-7637bcf7a342",
+  "id" : "91bf8200-5380-427b-bc79-ec10f60b263e",
   "name" : "AwsBlobStoreIT_testGetObjectLock_objectWithoutLock_returnsNullOrNoRetention-GET-1",
   "request" : {
-    "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/no-lock?retention",
-    "method" : "GET"
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/no-lock",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "legal-hold" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchObjectLockConfiguration</Code><Message>The specified object does not have a ObjectLock configuration</Message><RequestId>Q1ZDKSZKG7BEC0R5</RequestId><HostId>SmI82WQ8Lq+Uv2Rs+fQOQSi8VOn3Ecm63tHWlgQ5B1nu3Dj7LvOVVZPzXC8Ua5kqsMohxy3dz/O0BcwBEt4dCXQKy+ZCbUW2</HostId></Error>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchObjectLockConfiguration</Code><Message>The specified object does not have a ObjectLock configuration</Message><RequestId>V60SCRFX0J6XFD4B</RequestId><HostId>ZRJzX5IQcxcbeoH2oZqwwJ4N3WTMKt9o3dG0s1a9uU4PKWSeQwWJTuGKOCbHq+4ATB8zx4ipW60C2EeL3qN7VVTW7X83q4Y1</HostId></Error>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "Q1ZDKSZKG7BEC0R5",
-      "x-amz-id-2" : "SmI82WQ8Lq+Uv2Rs+fQOQSi8VOn3Ecm63tHWlgQ5B1nu3Dj7LvOVVZPzXC8Ua5kqsMohxy3dz/O0BcwBEt4dCXQKy+ZCbUW2",
-      "Date" : "Tue, 10 Mar 2026 16:18:28 GMT",
+      "x-amz-request-id" : "V60SCRFX0J6XFD4B",
+      "x-amz-id-2" : "ZRJzX5IQcxcbeoH2oZqwwJ4N3WTMKt9o3dG0s1a9uU4PKWSeQwWJTuGKOCbHq+4ATB8zx4ipW60C2EeL3qN7VVTW7X83q4Y1",
+      "Date" : "Tue, 25 Aug 2026 09:37:41 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "2be5a1bf-f7c1-44e1-a19c-7637bcf7a342",
+  "uuid" : "91bf8200-5380-427b-bc79-ec10f60b263e",
   "persistent" : true,
-  "insertionIndex" : 597
+  "insertionIndex" : 126
 }

@@ -1,5 +1,5 @@
 {
-  "id" : "0a4495c8-da20-4e1d-9c30-134689052588",
+  "id" : "e6291275-f247-4d1b-b676-97b04113712f",
   "name" : "GcpBlobStoreIT_testUpdateObjectRetention_compliance_extend_succeeds-GET-4",
   "request" : {
     "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fcomp-extend",
@@ -19,23 +19,23 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/objectlock/update/comp-extend/1784554997622247\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fcomp-extend\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fcomp-extend?generation=1784554997622247&alt=media\",\n  \"name\": \"conformance-tests/objectlock/update/comp-extend\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1784554997622247\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"64\",\n  \"md5Hash\": \"vWPifY4f/HsqfoKrZKIf6g==\",\n  \"crc32c\": \"WUEpvQ==\",\n  \"etag\": \"COfL3LWx4ZUDEAE=\",\n  \"temporaryHold\": false,\n  \"retentionExpirationTime\": \"2030-01-01T00:00:00.000Z\",\n  \"retention\": {\n    \"retainUntilTime\": \"2030-01-01T00:00:00.000Z\",\n    \"mode\": \"Locked\"\n  },\n  \"timeCreated\": \"2026-07-20T13:43:17.701Z\",\n  \"updated\": \"2026-07-20T13:43:17.701Z\",\n  \"timeStorageClassUpdated\": \"2026-07-20T13:43:17.701Z\",\n  \"timeFinalized\": \"2026-07-20T13:43:17.701Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/objectlock/update/comp-extend/1787646572025863\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fcomp-extend\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fcomp-extend?generation=1787646572025863&alt=media\",\n  \"name\": \"conformance-tests/objectlock/update/comp-extend\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1787646572025863\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"64\",\n  \"md5Hash\": \"vWPifY4f/HsqfoKrZKIf6g==\",\n  \"crc32c\": \"WUEpvQ==\",\n  \"etag\": \"CIewo7euu5YDEAE=\",\n  \"temporaryHold\": false,\n  \"retentionExpirationTime\": \"2030-01-01T00:00:00.000Z\",\n  \"retention\": {\n    \"retainUntilTime\": \"2030-01-01T00:00:00.000Z\",\n    \"mode\": \"Locked\"\n  },\n  \"timeCreated\": \"2026-08-25T08:29:32.100Z\",\n  \"updated\": \"2026-08-25T08:29:32.100Z\",\n  \"timeStorageClassUpdated\": \"2026-08-25T08:29:32.100Z\",\n  \"timeFinalized\": \"2026-08-25T08:29:32.100Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
-      "ETag" : "COfL3LWx4ZUDEAE=",
-      "X-GUploader-UploadID" : "AKhXX7LNhcAEYvRlYyHMVrBlJwea5_DVhuzBoeAMxCvyC_pP9cKYB1ANFPbjsueUAKPsYLEp",
+      "ETag" : "CIewo7euu5YDEAE=",
+      "X-GUploader-UploadID" : "AJjja9bH_pkilkObI8Urmn0s4vQUGq1N8VlaeovGcr-oNJ13IW3x-q74ISmTpzC7ZW74eRY",
       "Vary" : [ "Origin", "X-Origin" ],
-      "Expires" : "Mon, 20 Jul 2026 13:43:18 GMT",
-      "Date" : "Mon, 20 Jul 2026 13:43:18 GMT",
+      "Expires" : "Tue, 25 Aug 2026 08:29:32 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:29:32 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "0a4495c8-da20-4e1d-9c30-134689052588",
+  "uuid" : "e6291275-f247-4d1b-b676-97b04113712f",
   "persistent" : true,
-  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-objectlock-update-comp-extend",
+  "scenarioName" : "GcpBlobStoreIT_testUpdateObjectRetention_compliance_extend_succeeds-scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-objectlock-update-comp-extend",
   "requiredScenarioState" : "Started",
   "newScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-objectlock-update-comp-extend-2",
-  "insertionIndex" : 1451
+  "insertionIndex" : 756
 }

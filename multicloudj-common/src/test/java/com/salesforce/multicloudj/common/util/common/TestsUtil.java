@@ -61,6 +61,9 @@ public class TestsUtil {
   private static final List<StubMappingTransformer> loadedTransformers = new ArrayList<>();
   @Getter private static String currentTestPrefix;
   private static final AtomicInteger stubCounter = new AtomicInteger(0);
+  private static String currentRootDir;
+  private static final Pattern SCENARIO_NAME_FIELD =
+      Pattern.compile("(\"scenarioName\"\\s*:\\s*\")([^\"]*)(\")");
 
   /**
    * Creates a trust manager that accepts all certificates without validation.
@@ -254,6 +257,7 @@ public class TestsUtil {
   }
 
   public static void startWireMockServer(String rootDir, int port, String... extensionInstances) {
+    currentRootDir = rootDir;
     boolean isRecordingEnabled = System.getProperty("record") != null;
     logger.info("Recording enabled: {}", isRecordingEnabled);
 
@@ -390,6 +394,74 @@ public class TestsUtil {
     boolean isRecordingEnabled = System.getProperty("record") != null;
     if (isRecordingEnabled) {
       wireMockServer.stopRecording();
+      namespaceRecordedScenarios();
+    }
+  }
+
+  /**
+   * Namespaces the just-recorded test's stateful-scenario names with its per-test prefix so
+   * scenarios can never span test methods.
+   *
+   * <p>WireMock derives a scenario's name from the request URL path, so an idempotent probe
+   * recorded (as a repeated signature) by different test methods lands on the same auto-generated
+   * name (e.g. {@code scenario-1-...-o}). Each test records in its own session, but those
+   * identically-named scenarios collide in the shared {@code mappings/} directory and, on replay,
+   * load as ONE scenario with ONE cursor — coupling unrelated tests and making replay depend on
+   * JUnit method order. Prefixing the scenario name with the per-test prefix keeps each test's
+   * state machine intact but scoped to that test, so no scenario is shared.
+   *
+   * <p>This runs post-recording rather than via a {@link StubMappingTransformer} because WireMock's
+   * recording pipeline assigns scenario names AFTER transformers run, so a transformer never sees a
+   * scenario name to rewrite. Only the scenario NAME is changed; the per-scenario state labels are
+   * left untouched because WireMock scopes scenario state by (name, state) — a now-unique name
+   * isolates the states too. Scoped to this test's own persisted stub files (their names begin with
+   * {@code currentTestPrefix + "-"}, lowercased on disk), and idempotent, so it never touches other
+   * tests' fixtures.
+   */
+  private static void namespaceRecordedScenarios() {
+    if (currentTestPrefix == null || currentRootDir == null) {
+      return;
+    }
+    java.nio.file.Path mappingsDir = java.nio.file.Paths.get(currentRootDir, "mappings");
+    if (!java.nio.file.Files.isDirectory(mappingsDir)) {
+      return;
+    }
+    String filePrefix = (currentTestPrefix + "-").toLowerCase();
+    try (java.util.stream.Stream<java.nio.file.Path> files =
+        java.nio.file.Files.walk(mappingsDir)) {
+      List<java.nio.file.Path> testFiles =
+          files
+              .filter(java.nio.file.Files::isRegularFile)
+              .filter(
+                  p -> {
+                    String fn = p.getFileName().toString().toLowerCase();
+                    return fn.endsWith(".json") && fn.startsWith(filePrefix);
+                  })
+              .collect(java.util.stream.Collectors.toList());
+      for (java.nio.file.Path p : testFiles) {
+        String content = java.nio.file.Files.readString(p);
+        java.util.regex.Matcher m = SCENARIO_NAME_FIELD.matcher(content);
+        StringBuilder sb = new StringBuilder();
+        boolean changed = false;
+        while (m.find()) {
+          String name = m.group(2);
+          String replacement;
+          if (name.startsWith(currentTestPrefix + "-")) {
+            replacement = m.group(); // already namespaced; leave as-is (idempotent)
+          } else {
+            replacement = m.group(1) + currentTestPrefix + "-" + name + m.group(3);
+            changed = true;
+          }
+          m.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(replacement));
+        }
+        m.appendTail(sb);
+        if (changed) {
+          java.nio.file.Files.writeString(p, sb.toString());
+        }
+      }
+    } catch (java.io.IOException e) {
+      throw new RuntimeException(
+          "Failed to namespace recorded scenarios for " + currentTestPrefix, e);
     }
   }
 

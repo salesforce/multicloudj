@@ -1,9 +1,36 @@
 {
-  "id" : "4ee8f321-d619-460b-9eff-8c91eafbf3a5",
+  "id" : "0728b7e3-3749-4422-b925-a585209ebf6b",
   "name" : "GcpBlobStoreIT_testListPage_MaxResults1_WithDelimiter-GET-5",
   "request" : {
-    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?delimiter=/&maxResults=1&prefix=conformance-tests/common-prefix-maxresults1/&projection=full",
-    "method" : "GET"
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "4"
+      }
+    },
+    "queryParameters" : {
+      "delimiter" : {
+        "hasExactly" : [ {
+          "equalTo" : "/"
+        } ]
+      },
+      "maxResults" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/common-prefix-maxresults1/"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
   },
   "response" : {
     "status" : 200,
@@ -12,14 +39,14 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
-      "X-GUploader-UploadID" : "AMNfjG1itOrwRNHhzZIQoEEOaYEmO5JGvw3oCxEfWQXZw8m2Fr_ngkppATHG8eK4AZGOyhSMSl-vF1E",
+      "X-GUploader-UploadID" : "AJjja9Ysb5_oavA1YLHH4Y2IO5eV8mME6Tjt5I_uMSBduc1WRIXa_gHrTAIYXYaeZspDTGWw",
       "Vary" : [ "Origin", "X-Origin" ],
-      "Expires" : "Thu, 02 Apr 2026 04:46:09 GMT",
-      "Date" : "Thu, 02 Apr 2026 04:46:09 GMT",
+      "Expires" : "Tue, 25 Aug 2026 08:34:52 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:34:52 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "4ee8f321-d619-460b-9eff-8c91eafbf3a5",
+  "uuid" : "0728b7e3-3749-4422-b925-a585209ebf6b",
   "persistent" : true,
-  "insertionIndex" : 1077
+  "insertionIndex" : 1321
 }

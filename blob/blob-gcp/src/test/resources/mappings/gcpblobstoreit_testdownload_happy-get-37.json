@@ -1,52 +1,50 @@
 {
-  "id" : "ffd15147-f6d2-468e-8a47-7633361b511c",
+  "id" : "8e94e7c0-8c0e-402f-b181-0865be8f708f",
   "name" : "GcpBlobStoreIT_testDownload_happy-GET-37",
   "request" : {
-    "urlPath" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdownload_happy_unversioned",
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
     "method" : "GET",
     "headers" : {
       "X-Query-Param-Count" : {
-        "equalTo" : "2"
+        "equalTo" : "3"
       }
     },
     "queryParameters" : {
-      "alt" : {
+      "maxResults" : {
         "hasExactly" : [ {
-          "equalTo" : "media"
+          "equalTo" : "1"
         } ]
       },
-      "generation" : {
+      "prefix" : {
         "hasExactly" : [ {
-          "equalTo" : "1772658350070775"
+          "equalTo" : "conformance-tests/download_happy_unversioned"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
         } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGE=",
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/download_happy_unversioned/1787646440796344\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdownload_happy_unversioned\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdownload_happy_unversioned?generation=1787646440796344&alt=media\",\n      \"name\": \"conformance-tests/download_happy_unversioned\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n      \"generation\": \"1787646440796344\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"17\",\n      \"md5Hash\": \"cBu9S94e4E47BZb2OZTrrg==\",\n      \"crc32c\": \"E30mnQ==\",\n      \"etag\": \"CLjh2fitu5YDEAE=\",\n      \"timeCreated\": \"2026-08-25T08:27:20.876Z\",\n      \"updated\": \"2026-08-25T08:27:20.876Z\",\n      \"timeStorageClassUpdated\": \"2026-08-25T08:27:20.876Z\",\n      \"timeFinalized\": \"2026-08-25T08:27:20.876Z\"\n    }\n  ]\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
-      "X-Goog-Generation" : "1772658350070775",
-      "Pragma" : "no-cache",
-      "Last-Modified" : "Wed, 04 Mar 2026 21:05:50 GMT",
-      "X-Goog-Metageneration" : "1",
-      "Date" : "Wed, 04 Mar 2026 21:05:51 GMT",
-      "X-Goog-Stored-Content-Encoding" : "identity",
-      "X-Goog-Hash" : "crc32c=E30mnQ==,md5=cBu9S94e4E47BZb2OZTrrg==",
-      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CPe3jvqSh5MDEAE=",
-      "Content-Disposition" : "attachment",
-      "X-Goog-Storage-Class" : "STANDARD",
-      "X-GUploader-UploadID" : "AGQBYWyCbzLunGU4pgDX6KNOOAKCr2TvKoiVyBhy2J7zoP9AfoJ6uTZ0IYOv7XzQVOo47k8LPftHKbM",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AJjja9abCArYqqZFlZAiN-WR-cK_ELpwMOx8F2f1VHMEQyC_FIe6eiQ67P_6FcqCSyMG0Oez",
       "Vary" : [ "Origin", "X-Origin" ],
-      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "X-Goog-Stored-Content-Length" : "17",
-      "Content-Type" : "application/octet-stream"
+      "Expires" : "Tue, 25 Aug 2026 08:27:22 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:27:22 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "ffd15147-f6d2-468e-8a47-7633361b511c",
+  "uuid" : "8e94e7c0-8c0e-402f-b181-0865be8f708f",
   "persistent" : true,
-  "insertionIndex" : 469
+  "scenarioName" : "GcpBlobStoreIT_testDownload_happy-scenario-5-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o",
+  "requiredScenarioState" : "scenario-5-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-2",
+  "newScenarioState" : "scenario-5-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-3",
+  "insertionIndex" : 587
 }

@@ -1,5 +1,5 @@
 {
-  "id" : "8a53cce7-99e7-4580-afd1-eeab81f0c2f8",
+  "id" : "115ce045-383f-43c2-a5d3-ab29b3bf6a8f",
   "name" : "AwsBlobStoreIT_testVersionedCopy-GET-6",
   "request" : {
     "url" : "/chameleon-jcloud-versioned/conformance-tests/versionedCopy/copied-blob-latest",
@@ -7,22 +7,23 @@
   },
   "response" : {
     "status" : 200,
-    "base64Body" : "VGhpcyBpcyB0aGUgc2Vjb25kIHZlcnNpb24gb2YgdGhlIGJsb2LaSwZrOyMkXiounqMs91Jj",
+    "base64Body" : "VGhpcyBpcyB0aGUgc2Vjb25kIHZlcnNpb24gb2YgdGhlIGJsb2I=",
     "headers" : {
       "Accept-Ranges" : "bytes",
       "Server" : "AmazonS3",
       "ETag" : "\"da4b066b3b23245e2a2e9ea32cf75263\"",
-      "Last-Modified" : "Wed, 04 Mar 2026 20:57:25 GMT",
-      "x-amz-request-id" : "KF0AXV20E0P6R1KX",
+      "x-amz-checksum-crc64nvme" : "QJFaFb/w52U=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "Last-Modified" : "Tue, 25 Aug 2026 09:39:19 GMT",
+      "x-amz-request-id" : "6HYJ1EKPKJT1ZR95",
       "x-amz-server-side-encryption" : "AES256",
-      "x-amz-id-2" : "2bMzSCtUlbxb8jg1y9MnBuE/FlaTIQxyMfzI2/8+fYa6a3d8ZF6gST+Eeg0ye6COV3maUdUemdi8BOEfSAF2jCduiskWtYTM",
-      "x-amz-transfer-encoding" : "append-md5",
-      "x-amz-version-id" : "SZepl.jBPVqnUyBp1uc0uajKecolHR.p",
-      "Date" : "Wed, 04 Mar 2026 20:57:26 GMT",
+      "x-amz-id-2" : "T0KGXaDNB6Nm8OgSFbKRYYTjjP2Lg0pcGl7oZtotYVgxoBJuz1YLII2du6x0qVLbeQbROiDSn2E=",
+      "x-amz-version-id" : "Ypwojaq9DbkItJcuYoFJFqmGnMhPwhE_",
+      "Date" : "Tue, 25 Aug 2026 09:39:21 GMT",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "8a53cce7-99e7-4580-afd1-eeab81f0c2f8",
+  "uuid" : "115ce045-383f-43c2-a5d3-ab29b3bf6a8f",
   "persistent" : true,
-  "insertionIndex" : 186
+  "insertionIndex" : 233
 }

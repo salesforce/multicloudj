@@ -1,23 +1,50 @@
 {
-  "id" : "e201f5ca-c76f-4dbf-b992-a274c446525d",
+  "id" : "935f6b3e-e9fc-46f3-884c-cee2a94af5c4",
   "name" : "AwsBlobStoreIT_testListPage_WithDelimiter_MultiPage-GET-5",
   "request" : {
-    "url" : "/chameleon-jcloud?list-type=2&delimiter=%2F&max-keys=2&prefix=conformance-tests%2Fcommon-prefix-multipage%2F",
-    "method" : "GET"
+    "urlPath" : "/chameleon-jcloud",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "4"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "delimiter" : {
+        "hasExactly" : [ {
+          "equalTo" : "/"
+        } ]
+      },
+      "max-keys" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/common-prefix-multipage/"
+        } ]
+      }
+    }
   },
   "response" : {
     "status" : 200,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/common-prefix-multipage/</Prefix><NextContinuationToken>1XgBMBXl/UrLsT1SQS0QTDqg18TOSEOx389Hic9BrhiRjVZtRACvdlkb22uZg4FwIkh2h1FSUUHdR+aMB40d9CM++xtRA/GcK</NextContinuationToken><KeyCount>2</KeyCount><MaxKeys>2</MaxKeys><Delimiter>/</Delimiter><IsTruncated>true</IsTruncated><CommonPrefixes><Prefix>conformance-tests/common-prefix-multipage/a/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>conformance-tests/common-prefix-multipage/b/</Prefix></CommonPrefixes></ListBucketResult>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/common-prefix-multipage/</Prefix><NextContinuationToken>1tciCj22Sm1MlQ1CmoFdkNsq0aaO92UD0gn4e2dx6gWVRHBCYwFK+Wvt29U8AVr5a4KrSwc/mSDImpFVsrZ7C63Rrf8XyGkTp</NextContinuationToken><KeyCount>2</KeyCount><MaxKeys>2</MaxKeys><Delimiter>/</Delimiter><IsTruncated>true</IsTruncated><CommonPrefixes><Prefix>conformance-tests/common-prefix-multipage/a/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>conformance-tests/common-prefix-multipage/b/</Prefix></CommonPrefixes></ListBucketResult>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "CBPB4CVEJ6H4QK5Z",
-      "x-amz-id-2" : "Rk5FJdwobKU3t0HaMEsxA61xGloQgAtKmu33w5Mjqg5vvdV52taCYL1v3N6gdSy7Kv/Jl4HgH7frJtynCac//LLBtK75EC5i",
+      "x-amz-request-id" : "KBP8NQ0S2QVHA94R",
+      "x-amz-id-2" : "qFDl7Cz8K56h/UtSHmuRTcjPplEy9DCXkKYXHBbC7pj+J6L3EjLJHvqdHuo4lfnLxbn4iXA2z7mu53KwhJTkPBGirCFsDwFg",
       "x-amz-bucket-region" : "us-west-2",
-      "Date" : "Thu, 02 Apr 2026 04:52:27 GMT",
+      "Date" : "Tue, 25 Aug 2026 09:44:52 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "e201f5ca-c76f-4dbf-b992-a274c446525d",
+  "uuid" : "935f6b3e-e9fc-46f3-884c-cee2a94af5c4",
   "persistent" : true,
-  "insertionIndex" : 629
+  "insertionIndex" : 617
 }

@@ -1,0 +1,53 @@
+{
+  "id" : "f50ad43e-ae09-441e-8a54-dcfccd5e5f45",
+  "name" : "GcpBlobStoreIT_testCopy-PUT-23",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/blob-for-copying"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      },
+      "upload_id" : {
+        "hasExactly" : [ {
+          "equalTo" : "AJjja9bifAmJKioi-gEJp1WGlIa8WlhFBE-kXDlTPqK6s8qETwRZ8edsnuCUxp63EbZraLyJs0W1hlg_5ailf85BlIq5Fm7pSKn8bNGJT0yAEg"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "Please copy this data!",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-copying/1787646236466349\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-copying\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-copying?generation=1787646236466349&alt=media\",\n  \"name\": \"conformance-tests/blob-for-copying\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1787646236466349\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"22\",\n  \"md5Hash\": \"cKK4lX0Hr2ZqrWCAxXanTQ==\",\n  \"crc32c\": \"A4WS2w==\",\n  \"etag\": \"CK25opetu5YDEAE=\",\n  \"timeCreated\": \"2026-08-25T08:23:56.546Z\",\n  \"updated\": \"2026-08-25T08:23:56.546Z\",\n  \"timeStorageClassUpdated\": \"2026-08-25T08:23:56.546Z\",\n  \"timeFinalized\": \"2026-08-25T08:23:56.546Z\",\n  \"metadata\": {\n    \"key1\": \"value1\",\n    \"key2\": \"value2\"\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CK25opetu5YDEAE=",
+      "X-GUploader-UploadID" : "AJjja9bifAmJKioi-gEJp1WGlIa8WlhFBE-kXDlTPqK6s8qETwRZ8edsnuCUxp63EbZraLyJs0W1hlg_5ailf85BlIq5Fm7pSKn8bNGJT0yAEg",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:23:56 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "f50ad43e-ae09-441e-8a54-dcfccd5e5f45",
+  "persistent" : true,
+  "insertionIndex" : 336
+}

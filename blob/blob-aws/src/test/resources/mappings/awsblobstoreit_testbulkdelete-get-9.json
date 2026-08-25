@@ -1,5 +1,5 @@
 {
-  "id" : "3d853afe-399b-4dd9-8510-e180e034c4e3",
+  "id" : "450bd726-c689-4645-87bb-fc47c51c650b",
   "name" : "AwsBlobStoreIT_testBulkDelete-GET-9",
   "request" : {
     "url" : "/chameleon-jcloud/conformance-tests/blob-for-bulk-delete_happy7",
@@ -7,18 +7,18 @@
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/blob-for-bulk-delete_happy7</Key><RequestId>A51XJEFWQTNWVMRR</RequestId><HostId>5D5F6UVxl/1dlFynlQxHAQybgGnM2JVaay7vOECC/azd4g7zACarqwwkne4W1uAEunhFXY6Ixk8/0DQBv2DwX68zj+fOwU2v</HostId></Error>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/blob-for-bulk-delete_happy7</Key><RequestId>81WJ6294TN6WPB5Q</RequestId><HostId>b5VPY9CHwHPhVPJ95msyFR+JtFPNtutE27x7i/OLnqqwgob1r/HOdm+bZBQI24iZVSzG4rTuH5KkGGUMIXOto26/Xb/U4TAp</HostId></Error>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "A51XJEFWQTNWVMRR",
-      "x-amz-id-2" : "5D5F6UVxl/1dlFynlQxHAQybgGnM2JVaay7vOECC/azd4g7zACarqwwkne4W1uAEunhFXY6Ixk8/0DQBv2DwX68zj+fOwU2v",
-      "Date" : "Wed, 04 Mar 2026 20:56:14 GMT",
+      "x-amz-request-id" : "81WJ6294TN6WPB5Q",
+      "x-amz-id-2" : "b5VPY9CHwHPhVPJ95msyFR+JtFPNtutE27x7i/OLnqqwgob1r/HOdm+bZBQI24iZVSzG4rTuH5KkGGUMIXOto26/Xb/U4TAp",
+      "Date" : "Tue, 25 Aug 2026 09:36:43 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "3d853afe-399b-4dd9-8510-e180e034c4e3",
+  "uuid" : "450bd726-c689-4645-87bb-fc47c51c650b",
   "persistent" : true,
-  "scenarioName" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-bulk-delete_happy7",
+  "scenarioName" : "AwsBlobStoreIT_testBulkDelete-scenario-1-chameleon-jcloud-conformance-tests-blob-for-bulk-delete_happy7",
   "requiredScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-bulk-delete_happy7-2",
-  "insertionIndex" : 23
+  "insertionIndex" : 46
 }

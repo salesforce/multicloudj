@@ -1,5 +1,5 @@
 {
-  "id" : "2eb2b55e-3105-4448-973a-a3b3b37c21d4",
+  "id" : "3a4cae50-7c8c-4cdc-b85a-9154bd8f0ba8",
   "name" : "GcpBlobStoreIT_testDownloadDirectory_basic-GET-4",
   "request" : {
     "urlPath" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fdownload-basic-v1%2Ffile1.txt",
@@ -23,25 +23,25 @@
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
-      "X-Goog-Generation" : "1779893752140772",
+      "X-Goog-Generation" : "1787646117029631",
       "Pragma" : "no-cache",
-      "Last-Modified" : "Wed, 27 May 2026 14:55:52 GMT",
+      "Last-Modified" : "Tue, 25 Aug 2026 08:21:57 GMT",
       "X-Goog-Metageneration" : "1",
-      "Date" : "Wed, 27 May 2026 14:55:52 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:22:00 GMT",
       "X-Goog-Stored-Content-Encoding" : "identity",
       "X-Goog-Hash" : "crc32c=sAHgaA==,md5=HxFL41UAu79uqAoGn53LQQ==",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "COSn1vbc2ZQDEAE=",
+      "ETag" : "CP/NqN6su5YDEAE=",
       "Content-Disposition" : "attachment",
       "X-Goog-Storage-Class" : "STANDARD",
-      "X-GUploader-UploadID" : "AAVLpEhxteVvieLZ-_ntWMVWUqlQekKUdktcqy3ZJprq_NEh6I0TmqpY6U6EJ1xk5mjBOUu4",
+      "X-GUploader-UploadID" : "AJjja9bywjgnNKw1XT5Q8QGV21wr2QNe5qymGtcMz00FF-bs3D2qHJHk_qqFqENCpJxbpow",
       "Vary" : [ "Origin", "X-Origin" ],
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
       "X-Goog-Stored-Content-Length" : "22",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "2eb2b55e-3105-4448-973a-a3b3b37c21d4",
+  "uuid" : "3a4cae50-7c8c-4cdc-b85a-9154bd8f0ba8",
   "persistent" : true,
-  "insertionIndex" : 1392
+  "insertionIndex" : 171
 }

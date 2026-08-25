@@ -1,23 +1,45 @@
 {
-  "id" : "4926679e-2432-4052-9c82-a3bf85e8ad4d",
+  "id" : "ab7b4ca9-8e92-4a20-8527-4f7153fd2475",
   "name" : "AwsBlobStoreIT_testListPage_CommonPrefixesNeverNull-GET-2",
   "request" : {
-    "url" : "/chameleon-jcloud?list-type=2&delimiter=%2F&prefix=conformance-tests%2Fcommon-prefix-not-null%2F",
-    "method" : "GET"
+    "urlPath" : "/chameleon-jcloud",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "delimiter" : {
+        "hasExactly" : [ {
+          "equalTo" : "/"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/common-prefix-not-null/"
+        } ]
+      }
+    }
   },
   "response" : {
     "status" : 200,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/common-prefix-not-null/</Prefix><KeyCount>1</KeyCount><MaxKeys>1000</MaxKeys><Delimiter>/</Delimiter><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/common-prefix-not-null/file.txt</Key><LastModified>2026-04-02T04:52:12.000Z</LastModified><ETag>&quot;098f6bcd4621d373cade4e832627b4f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>4</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/common-prefix-not-null/</Prefix><KeyCount>1</KeyCount><MaxKeys>1000</MaxKeys><Delimiter>/</Delimiter><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/common-prefix-not-null/file.txt</Key><LastModified>2026-08-25T09:39:51.000Z</LastModified><ETag>&quot;098f6bcd4621d373cade4e832627b4f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>4</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "Z8XN8CBAF7YAEBRQ",
-      "x-amz-id-2" : "piKB60WKV6cZNOHAUpYXS+7T1ZFcQOvyquINfS5fJzFNwWvcZDl0mk3LYP/mDgezQy9eL+y/DZ3ZJtdbDxDk/43EH25r89jR",
+      "x-amz-request-id" : "9M91KD261M3TYW6N",
+      "x-amz-id-2" : "KRxbEYnBR85CmFY0Jf/HDghArXSi8GF9yxaS71fzftMxtlO/TooWDESjtxe2HbneeHFzq13TvU3eXranY+0swUQCgnd0LpeUPDo1QWpjgqc=",
       "x-amz-bucket-region" : "us-west-2",
-      "Date" : "Thu, 02 Apr 2026 04:52:13 GMT",
+      "Date" : "Tue, 25 Aug 2026 09:39:52 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "4926679e-2432-4052-9c82-a3bf85e8ad4d",
+  "uuid" : "ab7b4ca9-8e92-4a20-8527-4f7153fd2475",
   "persistent" : true,
-  "insertionIndex" : 613
+  "insertionIndex" : 283
 }

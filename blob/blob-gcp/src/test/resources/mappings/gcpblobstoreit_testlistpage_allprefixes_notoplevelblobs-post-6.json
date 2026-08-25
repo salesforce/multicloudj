@@ -1,0 +1,48 @@
+{
+  "id" : "ac9a4833-4947-4dd6-a593-bc0b245d344e",
+  "name" : "GcpBlobStoreIT_testListPage_AllPrefixes_NoTopLevelBlobs-POST-6",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/common-prefix-all-dirs/dir2/b.txt"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{},\"name\":\"conformance-tests/common-prefix-all-dirs/dir2/b.txt\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AJjja9Z8LSUv5WOh-Odlh_t2C2EDY0vGdizAS80dJBbE_zgCElNJkG_o8LrTARZ0rToy_PMz31_iBiz6J8Y8AKcrAgT6fD1DM_i6xNSxLgx9imQ",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:35:09 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/common-prefix-all-dirs/dir2/b.txt&uploadType=resumable&upload_id=AJjja9Z8LSUv5WOh-Odlh_t2C2EDY0vGdizAS80dJBbE_zgCElNJkG_o8LrTARZ0rToy_PMz31_iBiz6J8Y8AKcrAgT6fD1DM_i6xNSxLgx9imQ",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "ac9a4833-4947-4dd6-a593-bc0b245d344e",
+  "persistent" : true,
+  "insertionIndex" : 1362
+}

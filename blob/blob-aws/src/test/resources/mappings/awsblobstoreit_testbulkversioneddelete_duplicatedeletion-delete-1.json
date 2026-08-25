@@ -1,5 +1,5 @@
 {
-  "id" : "58d96425-91df-4ace-bd4f-ab2bc6cdd897",
+  "id" : "7c04525a-cf8b-42b7-8633-dd177712f8fd",
   "name" : "AwsBlobStoreIT_testBulkVersionedDelete_duplicateDeletion-DELETE-1",
   "request" : {
     "url" : "/chameleon-jcloud-versioned/conformance-tests/bulkDeleteByVersion/happy7",
@@ -10,13 +10,13 @@
     "headers" : {
       "Server" : "AmazonS3",
       "x-amz-delete-marker" : "true",
-      "x-amz-request-id" : "KV80KZJJVVNVH7D4",
-      "x-amz-id-2" : "QgGCXo/936X+Y0dzTbuwiFmvhPBNKieZcD43fRFsuAMNsptIFInyQE0NxlXvwYP9QmSQ+LZl4pSvjjjl3l27fOAAe+iPQQu6",
-      "x-amz-version-id" : "hUGyfaxWNs7xiivqgSjgYD8xoRSctmUL",
-      "Date" : "Wed, 04 Mar 2026 20:59:34 GMT"
+      "x-amz-request-id" : "WF8RD3KD4F3Q6FNP",
+      "x-amz-id-2" : "nzU4K9bb3fwGTqRPlHRyfZub0r9Je2Mw5W12w/UM4KpfhUrCcZw9w8pQ4gSNwKo6OFxfo5oVJYU=",
+      "x-amz-version-id" : "3NAUYs55MT4Gxf82MqhvyWFRYWtm71az",
+      "Date" : "Tue, 25 Aug 2026 09:46:21 GMT"
     }
   },
-  "uuid" : "58d96425-91df-4ace-bd4f-ab2bc6cdd897",
+  "uuid" : "7c04525a-cf8b-42b7-8633-dd177712f8fd",
   "persistent" : true,
-  "insertionIndex" : 477
+  "insertionIndex" : 704
 }

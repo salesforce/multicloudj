@@ -1,23 +1,40 @@
 {
-  "id" : "ca55da8a-afe0-4562-b268-d4afd348082d",
+  "id" : "0bd7e49a-f295-4550-bb0d-dcb671cd075a",
   "name" : "AwsBlobStoreIT_testListPage_NoDelimiter_CommonPrefixesEmpty-GET-3",
   "request" : {
-    "url" : "/chameleon-jcloud?list-type=2&prefix=conformance-tests%2Fcommon-prefix-no-delimiter%2F",
-    "method" : "GET"
+    "urlPath" : "/chameleon-jcloud",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/common-prefix-no-delimiter/"
+        } ]
+      }
+    }
   },
   "response" : {
     "status" : 200,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/common-prefix-no-delimiter/</Prefix><KeyCount>3</KeyCount><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/common-prefix-no-delimiter/dir1/a.txt</Key><LastModified>2026-04-02T04:52:16.000Z</LastModified><ETag>&quot;098f6bcd4621d373cade4e832627b4f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>4</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/common-prefix-no-delimiter/dir2/b.txt</Key><LastModified>2026-04-02T04:52:18.000Z</LastModified><ETag>&quot;098f6bcd4621d373cade4e832627b4f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>4</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/common-prefix-no-delimiter/root.txt</Key><LastModified>2026-04-02T04:52:17.000Z</LastModified><ETag>&quot;098f6bcd4621d373cade4e832627b4f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>4</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/common-prefix-no-delimiter/</Prefix><KeyCount>3</KeyCount><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/common-prefix-no-delimiter/dir1/a.txt</Key><LastModified>2026-08-25T09:41:35.000Z</LastModified><ETag>&quot;098f6bcd4621d373cade4e832627b4f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>4</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/common-prefix-no-delimiter/dir2/b.txt</Key><LastModified>2026-08-25T09:41:37.000Z</LastModified><ETag>&quot;098f6bcd4621d373cade4e832627b4f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>4</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/common-prefix-no-delimiter/root.txt</Key><LastModified>2026-08-25T09:41:36.000Z</LastModified><ETag>&quot;098f6bcd4621d373cade4e832627b4f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>4</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "9NSSCC6QF9P8AZJS",
-      "x-amz-id-2" : "5Lbk/h4woQsicoeb1QSspFP/2xeEV1n6LxXb5vgd6uIjN1FlM0IrRjpaj6tGKPv9QpRHIFFjDKVKtYycDNopmTxdtWXDXTX3",
+      "x-amz-request-id" : "XHD7P951TKGFBN8M",
+      "x-amz-id-2" : "noQGmBNOY3WbywfQynLDofmEIfg7MUX++CkcKE8ZA0lDWqAYUeBGXxnJG6Y1M09r/WcrI0/Qh/Q=",
       "x-amz-bucket-region" : "us-west-2",
-      "Date" : "Thu, 02 Apr 2026 04:52:19 GMT",
+      "Date" : "Tue, 25 Aug 2026 09:41:39 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "ca55da8a-afe0-4562-b268-d4afd348082d",
+  "uuid" : "0bd7e49a-f295-4550-bb0d-dcb671cd075a",
   "persistent" : true,
-  "insertionIndex" : 619
+  "insertionIndex" : 399
 }

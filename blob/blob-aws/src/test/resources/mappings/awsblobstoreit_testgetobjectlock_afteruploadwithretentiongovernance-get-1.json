@@ -1,5 +1,5 @@
 {
-  "id" : "e460fb12-03e3-4293-aa31-c8a60b939760",
+  "id" : "6dc5500a-e608-4769-b603-8af511daafca",
   "name" : "AwsBlobStoreIT_testGetObjectLock_afterUploadWithRetentionGovernance-GET-1",
   "request" : {
     "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/retention-governance",
@@ -19,16 +19,16 @@
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchObjectLockConfiguration</Code><Message>The specified object does not have a ObjectLock configuration</Message><RequestId>VHCCWB0TE0W3HF5Y</RequestId><HostId>JBybWlI8C8VkUdbM3wp/ryYTv9lxjpHyaJNnItm8ljz8+CgAS/IKHnoHCNCcwzpAPYexUFnsKNza2bE7tE6c4cB+1Sa4QGqk</HostId></Error>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchObjectLockConfiguration</Code><Message>The specified object does not have a ObjectLock configuration</Message><RequestId>XZZF97PKBX78E5TN</RequestId><HostId>kcqPMM88ImIjDHKC1hdguY+YzOW1fVgQ4ggfcdTCneOyurRzOJ3pxMPHwHdl9XvYGbSRsXMe8zSp76CCIxi2teCM+UOR51or</HostId></Error>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "VHCCWB0TE0W3HF5Y",
-      "x-amz-id-2" : "JBybWlI8C8VkUdbM3wp/ryYTv9lxjpHyaJNnItm8ljz8+CgAS/IKHnoHCNCcwzpAPYexUFnsKNza2bE7tE6c4cB+1Sa4QGqk",
-      "Date" : "Mon, 03 Aug 2026 22:23:19 GMT",
+      "x-amz-request-id" : "XZZF97PKBX78E5TN",
+      "x-amz-id-2" : "kcqPMM88ImIjDHKC1hdguY+YzOW1fVgQ4ggfcdTCneOyurRzOJ3pxMPHwHdl9XvYGbSRsXMe8zSp76CCIxi2teCM+UOR51or",
+      "Date" : "Tue, 25 Aug 2026 09:48:14 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "e460fb12-03e3-4293-aa31-c8a60b939760",
+  "uuid" : "6dc5500a-e608-4769-b603-8af511daafca",
   "persistent" : true,
-  "insertionIndex" : 778
+  "insertionIndex" : 845
 }

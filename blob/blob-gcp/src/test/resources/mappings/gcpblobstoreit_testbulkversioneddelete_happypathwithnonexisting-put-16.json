@@ -1,5 +1,5 @@
 {
-  "id" : "ad7fbe6e-ea31-41f4-b8c8-323f1bcdef6e",
+  "id" : "55cddd79-9189-4c8e-bc3e-77f7345db8b4",
   "name" : "GcpBlobStoreIT_testBulkVersionedDelete_happyPathWithNonExisting-PUT-16",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
@@ -12,7 +12,7 @@
     "queryParameters" : {
       "name" : {
         "hasExactly" : [ {
-          "equalTo" : "conformance-tests/bulkDeleteByVersion/happy5"
+          "equalTo" : "conformance-tests/bulkDeleteByVersion/happy4"
         } ]
       },
       "uploadType" : {
@@ -22,32 +22,32 @@
       },
       "upload_id" : {
         "hasExactly" : [ {
-          "equalTo" : "AAVLpEjGTgpEwNaFfL2fvuGgLKFModJXuf5sa1_5w2AfEBT54mQkAJqfHn1r6oVrvKTXC8FhfM7t_UxWGgmuIWDke6N-CYInoqcCdjbVumhEwu8"
+          "equalTo" : "AJjja9YKH9EnF3XQDFNLnYHijr7nMYNi6HBnNo47r8-6xZUcduTAc_jlaHHsfi2vkW5Fm8RXCiQWSu7ZoqPgOcie3HMhF0y1Z2tjLcIeKQyAuvg"
         } ]
       }
     },
     "bodyPatterns" : [ {
-      "equalTo" : "Bulk versioned delete blob for conformance-tests/bulkDeleteByVersion/happy5",
+      "equalTo" : "Bulk versioned delete blob for conformance-tests/bulkDeleteByVersion/happy4",
       "caseInsensitive" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/happy5/1780603483229828\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy5\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy5?generation=1780603483229828&alt=media\",\n  \"name\": \"conformance-tests/bulkDeleteByVersion/happy5\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1780603483229828\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"75\",\n  \"md5Hash\": \"JoW0l5Q7PqkcelQYR0B/oQ==\",\n  \"crc32c\": \"AgLtog==\",\n  \"etag\": \"CISd6vCw7pQDEAE=\",\n  \"timeCreated\": \"2026-06-04T20:04:43.279Z\",\n  \"updated\": \"2026-06-04T20:04:43.279Z\",\n  \"timeStorageClassUpdated\": \"2026-06-04T20:04:43.279Z\",\n  \"timeFinalized\": \"2026-06-04T20:04:43.279Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/happy4/1787646634970743\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy4\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy4?generation=1787646634970743&alt=media\",\n  \"name\": \"conformance-tests/bulkDeleteByVersion/happy4\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1787646634970743\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"75\",\n  \"md5Hash\": \"jI3XOX7jaCvXy4beRDaWhQ==\",\n  \"crc32c\": \"8GluoQ==\",\n  \"etag\": \"CPecpdWuu5YDEAE=\",\n  \"timeCreated\": \"2026-08-25T08:30:35.037Z\",\n  \"updated\": \"2026-08-25T08:30:35.037Z\",\n  \"timeStorageClassUpdated\": \"2026-08-25T08:30:35.037Z\",\n  \"timeFinalized\": \"2026-08-25T08:30:35.037Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CISd6vCw7pQDEAE=",
-      "X-GUploader-UploadID" : "AAVLpEjGTgpEwNaFfL2fvuGgLKFModJXuf5sa1_5w2AfEBT54mQkAJqfHn1r6oVrvKTXC8FhfM7t_UxWGgmuIWDke6N-CYInoqcCdjbVumhEwu8",
+      "ETag" : "CPecpdWuu5YDEAE=",
+      "X-GUploader-UploadID" : "AJjja9YKH9EnF3XQDFNLnYHijr7nMYNi6HBnNo47r8-6xZUcduTAc_jlaHHsfi2vkW5Fm8RXCiQWSu7ZoqPgOcie3HMhF0y1Z2tjLcIeKQyAuvg",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Thu, 04 Jun 2026 20:04:43 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:30:35 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "ad7fbe6e-ea31-41f4-b8c8-323f1bcdef6e",
+  "uuid" : "55cddd79-9189-4c8e-bc3e-77f7345db8b4",
   "persistent" : true,
-  "insertionIndex" : 1412
+  "insertionIndex" : 865
 }

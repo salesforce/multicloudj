@@ -1,5 +1,5 @@
 {
-  "id" : "ec7e61e8-0268-47ba-a28f-24de5bb2915c",
+  "id" : "b9bc8668-0022-4f5d-8e39-6635436932c8",
   "name" : "GcpBlobStoreIT_testDownloadWithKmsKey-GET-3",
   "request" : {
     "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Fdownload-happy-path",
@@ -19,23 +19,21 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/kms/download-happy-path/1772658214006943\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Fdownload-happy-path\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Fdownload-happy-path?generation=1772658214006943&alt=media\",\n  \"name\": \"conformance-tests/kms/download-happy-path\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1772658214006943\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"26\",\n  \"md5Hash\": \"HYA/8YGA96w8epKOb+FkdQ==\",\n  \"crc32c\": \"gNlnTg==\",\n  \"etag\": \"CJ/hnbmSh5MDEAE=\",\n  \"kmsKeyName\": \"projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test/cryptoKeyVersions/1\",\n  \"timeCreated\": \"2026-03-04T21:03:34.051Z\",\n  \"updated\": \"2026-03-04T21:03:34.051Z\",\n  \"timeStorageClassUpdated\": \"2026-03-04T21:03:34.051Z\",\n  \"timeFinalized\": \"2026-03-04T21:03:34.051Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/kms/download-happy-path/1787646067080355\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Fdownload-happy-path\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Fdownload-happy-path?generation=1787646067080355&alt=media\",\n  \"name\": \"conformance-tests/kms/download-happy-path\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1787646067080355\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"26\",\n  \"md5Hash\": \"HYA/8YGA96w8epKOb+FkdQ==\",\n  \"crc32c\": \"gNlnTg==\",\n  \"etag\": \"CKP5v8asu5YDEAE=\",\n  \"kmsKeyName\": \"projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test/cryptoKeyVersions/1\",\n  \"timeCreated\": \"2026-08-25T08:21:07.161Z\",\n  \"updated\": \"2026-08-25T08:21:07.161Z\",\n  \"timeStorageClassUpdated\": \"2026-08-25T08:21:07.161Z\",\n  \"timeFinalized\": \"2026-08-25T08:21:07.161Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CJ/hnbmSh5MDEAE=",
-      "X-GUploader-UploadID" : "AGQBYWzKSTE27PwYSRVYxdW_X3qf_092ZkhZt_ezLywMqodb-xvMFCkWaQDEfzzIECviVRSsvBPiyetTEbIk",
+      "ETag" : "CKP5v8asu5YDEAE=",
+      "X-GUploader-UploadID" : "AJjja9ZIExYgQIDe5LHGhsuO6nB4zN25FuQ654n092tnya6YpkXtLkoQ1l01aIWtv-vpYK7bQEH0Cfo",
       "Vary" : [ "Origin", "X-Origin" ],
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
       "Pragma" : "no-cache",
-      "Date" : "Wed, 04 Mar 2026 21:03:35 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:21:07 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "ec7e61e8-0268-47ba-a28f-24de5bb2915c",
+  "uuid" : "b9bc8668-0022-4f5d-8e39-6635436932c8",
   "persistent" : true,
-  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-kms-download-happy-path",
-  "requiredScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-kms-download-happy-path-2",
-  "insertionIndex" : 83
+  "insertionIndex" : 104
 }

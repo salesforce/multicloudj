@@ -1,15 +1,20 @@
 {
-  "id" : "7c1d332c-2b9e-43fd-88da-e466ce6b4f41",
+  "id" : "3c8c65e1-8735-4103-91a5-62ffefcd14e6",
   "name" : "GcpBlobStoreIT_testBulkDelete-GET-30",
   "request" : {
-    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-bulk-delete_happy4",
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
     "method" : "GET",
     "headers" : {
       "X-Query-Param-Count" : {
-        "equalTo" : "1"
+        "equalTo" : "2"
       }
     },
     "queryParameters" : {
+      "maxResults" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
       "projection" : {
         "hasExactly" : [ {
           "equalTo" : "full"
@@ -18,23 +23,23 @@
     }
   },
   "response" : {
-    "status" : 404,
-    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-bulk-delete_happy4\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-bulk-delete_happy4\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"nextPageToken\": \"CiJhc3luYy1hdWRpdGVkLW9iamVjdC0xNzg1MzY3NDM1MjM1\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket/async-audited-object-1785367435235/1785367436289511\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/async-audited-object-1785367435235\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/async-audited-object-1785367435235?generation=1785367436289511&alt=media\",\n      \"name\": \"async-audited-object-1785367435235\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n      \"generation\": \"1785367436289511\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"20\",\n      \"md5Hash\": \"y0fqWuOp9rbllYps/Q8rtg==\",\n      \"crc32c\": \"9sT7qg==\",\n      \"etag\": \"COfL1f6D+ZUDEAE=\",\n      \"timeCreated\": \"2026-07-29T23:23:56.337Z\",\n      \"updated\": \"2026-07-29T23:23:56.337Z\",\n      \"timeStorageClassUpdated\": \"2026-07-29T23:23:56.337Z\",\n      \"timeFinalized\": \"2026-07-29T23:23:56.337Z\",\n      \"metadata\": {\n        \"sdk-logging-tenant-id\": \"tenant-1234\",\n        \"gcp-tag-tagKey1\": \"tagVal1\",\n        \"sdk-logging-correlation-id\": \"request-abc-987\",\n        \"sdk-logging-service-id\": \"my-service\"\n      }\n    }\n  ]\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
-      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AAVLpEgs9ZIumjIvO41wXD705n6O8ArHBBXmWH8RsbeEb278pp5zpo2g55FP-QEzb_kPWLfsRlmbb-E",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AJjja9buis4ZUzrl8cKwKRgZmmyIbeC6B3ZJblaCWp3MDL8vD7NXUJaRHlBvERUfCu-8zcqb",
       "Vary" : [ "Origin", "X-Origin" ],
-      "Pragma" : "no-cache",
-      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Thu, 04 Jun 2026 20:04:14 GMT",
+      "Expires" : "Tue, 25 Aug 2026 08:20:44 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:20:44 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "7c1d332c-2b9e-43fd-88da-e466ce6b4f41",
+  "uuid" : "3c8c65e1-8735-4103-91a5-62ffefcd14e6",
   "persistent" : true,
-  "scenarioName" : "scenario-6-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-bulk-delete_happy4",
-  "requiredScenarioState" : "scenario-6-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-bulk-delete_happy4-2",
-  "insertionIndex" : 1316
+  "scenarioName" : "GcpBlobStoreIT_testBulkDelete-scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o",
+  "requiredScenarioState" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-3",
+  "newScenarioState" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-4",
+  "insertionIndex" : 79
 }

@@ -1,8 +1,8 @@
 {
-  "id" : "3262592a-77f2-4d09-9b5e-6bea0050a1ea",
+  "id" : "09267c8a-3502-4f5f-a33d-f5ba4000251b",
   "name" : "GcpBlobStoreIT_testCopyFrom-GET-20",
   "request" : {
-    "urlPath" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-copyFrom",
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-copyFrom",
     "method" : "GET",
     "headers" : {
       "X-Query-Param-Count" : {
@@ -10,41 +10,32 @@
       }
     },
     "queryParameters" : {
-      "alt" : {
+      "projection" : {
         "hasExactly" : [ {
-          "equalTo" : "media"
+          "equalTo" : "full"
         } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "base64Body" : "UGxlYXNlIGNvcHkgdGhpcyBkYXRhIQ==",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-copyFrom/1787646549362663\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-copyFrom\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-copyFrom?generation=1787646549362663&alt=media\",\n  \"name\": \"conformance-tests/blob-for-copyFrom\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1787646549362663\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"22\",\n  \"md5Hash\": \"cKK4lX0Hr2ZqrWCAxXanTQ==\",\n  \"crc32c\": \"A4WS2w==\",\n  \"etag\": \"COePvKyuu5YDEAE=\",\n  \"timeCreated\": \"2026-08-25T08:29:09.443Z\",\n  \"updated\": \"2026-08-25T08:29:09.443Z\",\n  \"timeStorageClassUpdated\": \"2026-08-25T08:29:09.443Z\",\n  \"timeFinalized\": \"2026-08-25T08:29:09.443Z\",\n  \"metadata\": {\n    \"key1\": \"value1\",\n    \"key2\": \"value2\"\n  }\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
-      "X-Goog-Generation" : "1772658374162555",
-      "Pragma" : "no-cache",
-      "Last-Modified" : "Wed, 04 Mar 2026 21:06:14 GMT",
-      "X-Goog-Metageneration" : "1",
-      "Date" : "Wed, 04 Mar 2026 21:06:15 GMT",
-      "X-Goog-Stored-Content-Encoding" : "identity",
-      "X-Goog-Hash" : "crc32c=A4WS2w==,md5=cKK4lX0Hr2ZqrWCAxXanTQ==",
-      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CPvwzIWTh5MDEAE=",
-      "Content-Disposition" : "attachment",
-      "X-Goog-Storage-Class" : "STANDARD",
-      "X-GUploader-UploadID" : "AGQBYWww342E_by8VCVwu_nvTjQHOWfY_JYzfb6bcg8qw5rgAS38PX88akIriAeQLlSAYP6s-x3jGME",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "COePvKyuu5YDEAE=",
+      "X-GUploader-UploadID" : "AJjja9bWc9Wo5oK61K5ttRiz4rxWDR_chRsZZNlE-x0Jkq3kFMhNzKu2Ak6qtmpxAn79JAvuDchIsDo",
       "Vary" : [ "Origin", "X-Origin" ],
-      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "X-Goog-Stored-Content-Length" : "22",
-      "Content-Type" : "application/octet-stream"
+      "Expires" : "Tue, 25 Aug 2026 08:29:12 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:29:12 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "3262592a-77f2-4d09-9b5e-6bea0050a1ea",
+  "uuid" : "09267c8a-3502-4f5f-a33d-f5ba4000251b",
   "persistent" : true,
-  "scenarioName" : "scenario-4-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-copyFrom",
+  "scenarioName" : "GcpBlobStoreIT_testCopyFrom-scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-copyFrom",
   "requiredScenarioState" : "Started",
-  "newScenarioState" : "scenario-4-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-copyFrom-2",
-  "insertionIndex" : 537
+  "newScenarioState" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-copyFrom-2",
+  "insertionIndex" : 734
 }
