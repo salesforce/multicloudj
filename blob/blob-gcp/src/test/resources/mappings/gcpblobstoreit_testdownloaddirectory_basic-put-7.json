@@ -1,5 +1,5 @@
 {
-  "id" : "235236b5-98a4-461c-8fe2-dc467838021e",
+  "id" : "d59cf991-c56b-4dea-940a-29f7cadfac7d",
   "name" : "GcpBlobStoreIT_testDownloadDirectory_basic-PUT-7",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
@@ -22,7 +22,7 @@
       },
       "upload_id" : {
         "hasExactly" : [ {
-          "equalTo" : "AAVLpEiDPs27UUxRVi1E9n-LynWzvm_UrOvsgpvOCas-YzIKIuuAT_CHr4Zht6PS18E108kN_NCRNTfgTr1j5C9uwseHXPed8pf-_R0yE2mSD-8"
+          "equalTo" : "AJjja9Z4Jk0_IHCRxPWJcQgdS6ktX1lJSjy49eptZiYjaYZK0vc2h7Imb_rmLnblMqIMMJsPM2jpnCpki8W8xhxRtUnzqRkI8ppp7AogQ6eK4A"
         } ]
       }
     },
@@ -33,21 +33,21 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/directory/download-basic-v1/subdir/file2.txt/1779893752224824\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fdownload-basic-v1%2Fsubdir%2Ffile2.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fdownload-basic-v1%2Fsubdir%2Ffile2.txt?generation=1779893752224824&alt=media\",\n  \"name\": \"conformance-tests/directory/download-basic-v1/subdir/file2.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1779893752224824\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"22\",\n  \"md5Hash\": \"pcqGck2pg/jmV40imQyJQQ==\",\n  \"crc32c\": \"o1ETnA==\",\n  \"etag\": \"CLi42/bc2ZQDEAE=\",\n  \"timeCreated\": \"2026-05-27T14:55:52.292Z\",\n  \"updated\": \"2026-05-27T14:55:52.292Z\",\n  \"timeStorageClassUpdated\": \"2026-05-27T14:55:52.292Z\",\n  \"timeFinalized\": \"2026-05-27T14:55:52.292Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/directory/download-basic-v1/subdir/file2.txt/1787646117300987\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fdownload-basic-v1%2Fsubdir%2Ffile2.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fdownload-basic-v1%2Fsubdir%2Ffile2.txt?generation=1787646117300987&alt=media\",\n  \"name\": \"conformance-tests/directory/download-basic-v1/subdir/file2.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1787646117300987\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"22\",\n  \"md5Hash\": \"pcqGck2pg/jmV40imQyJQQ==\",\n  \"crc32c\": \"o1ETnA==\",\n  \"etag\": \"CPuVud6su5YDEAE=\",\n  \"timeCreated\": \"2026-08-25T08:21:57.381Z\",\n  \"updated\": \"2026-08-25T08:21:57.381Z\",\n  \"timeStorageClassUpdated\": \"2026-08-25T08:21:57.381Z\",\n  \"timeFinalized\": \"2026-08-25T08:21:57.381Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CLi42/bc2ZQDEAE=",
-      "X-GUploader-UploadID" : "AAVLpEiDPs27UUxRVi1E9n-LynWzvm_UrOvsgpvOCas-YzIKIuuAT_CHr4Zht6PS18E108kN_NCRNTfgTr1j5C9uwseHXPed8pf-_R0yE2mSD-8",
+      "ETag" : "CPuVud6su5YDEAE=",
+      "X-GUploader-UploadID" : "AJjja9Z4Jk0_IHCRxPWJcQgdS6ktX1lJSjy49eptZiYjaYZK0vc2h7Imb_rmLnblMqIMMJsPM2jpnCpki8W8xhxRtUnzqRkI8ppp7AogQ6eK4A",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Wed, 27 May 2026 14:55:52 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:21:57 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "235236b5-98a4-461c-8fe2-dc467838021e",
+  "uuid" : "d59cf991-c56b-4dea-940a-29f7cadfac7d",
   "persistent" : true,
-  "insertionIndex" : 1395
+  "insertionIndex" : 174
 }

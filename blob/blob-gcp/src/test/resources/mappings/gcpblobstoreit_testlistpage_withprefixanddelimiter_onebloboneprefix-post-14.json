@@ -1,13 +1,30 @@
 {
-  "id" : "30dc7e75-4cf9-4df4-8c5d-0f4fa2f7f558",
+  "id" : "4259a5bd-a395-4ad5-ab8f-41fa1a1d18ab",
   "name" : "GcpBlobStoreIT_testListPage_WithPrefixAndDelimiter_OneBlobOnePrefix-POST-14",
   "request" : {
-    "url" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/common-prefix-nested/dir2/c.txt&uploadType=resumable",
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
     "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/common-prefix-nested/dir1/b.txt"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{},\"name\":\"conformance-tests/common-prefix-nested/dir2/c.txt\"}",
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{},\"name\":\"conformance-tests/common-prefix-nested/dir1/b.txt\"}",
       "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : true
+      "ignoreExtraElements" : false
     } ]
   },
   "response" : {
@@ -16,16 +33,16 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AMNfjG0Nm4i2AsV0iFg9982ZUgTbDpFdHDfcTc5bUJTzOGU5XqiuPrmN0QADFWyfVd1x35UhPElsO-vSvKEnoTRDsduZWi4cUK6Y8F3d57aP6QI",
+      "X-GUploader-UploadID" : "AJjja9Y54XI_6LWnrfNtXEjqY06acrJH_iRrH_pSyIdFBo41pog56pMnt9g7x2HJlC-s5J7RA-HX0HQFl5Z_tZJrTGD6nC3GyN9GGndJtqNkiQ",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Thu, 02 Apr 2026 04:45:52 GMT",
-      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/common-prefix-nested/dir2/c.txt&uploadType=resumable&upload_id=AMNfjG0Nm4i2AsV0iFg9982ZUgTbDpFdHDfcTc5bUJTzOGU5XqiuPrmN0QADFWyfVd1x35UhPElsO-vSvKEnoTRDsduZWi4cUK6Y8F3d57aP6QI",
+      "Date" : "Tue, 25 Aug 2026 08:32:33 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/common-prefix-nested/dir1/b.txt&uploadType=resumable&upload_id=AJjja9Y54XI_6LWnrfNtXEjqY06acrJH_iRrH_pSyIdFBo41pog56pMnt9g7x2HJlC-s5J7RA-HX0HQFl5Z_tZJrTGD6nC3GyN9GGndJtqNkiQ",
       "Content-Type" : "text/plain; charset=utf-8"
     }
   },
-  "uuid" : "30dc7e75-4cf9-4df4-8c5d-0f4fa2f7f558",
+  "uuid" : "4259a5bd-a395-4ad5-ab8f-41fa1a1d18ab",
   "persistent" : true,
-  "insertionIndex" : 1042
+  "insertionIndex" : 1044
 }

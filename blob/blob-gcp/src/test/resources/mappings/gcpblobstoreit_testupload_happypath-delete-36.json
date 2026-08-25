@@ -1,0 +1,25 @@
+{
+  "id" : "6c80575f-3da0-4b98-8017-541b1aa44f40",
+  "name" : "GcpBlobStoreIT_testUpload_happyPath-DELETE-36",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fupload%2FhappyPath_ByteArray",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AJjja9abIiTpkZAu8DGlMe4RwZGPo0V1gLI7eIZS2bZHkJ5kgM8jTEedDVMuMZwj8l4A82A1OmCi4pA",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:30:13 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "6c80575f-3da0-4b98-8017-541b1aa44f40",
+  "persistent" : true,
+  "insertionIndex" : 835
+}

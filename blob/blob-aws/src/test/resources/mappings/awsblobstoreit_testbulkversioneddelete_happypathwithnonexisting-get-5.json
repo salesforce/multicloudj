@@ -1,5 +1,5 @@
 {
-  "id" : "7f4c9c8d-495d-4136-acf8-87b5b89b1636",
+  "id" : "e7f57210-7e14-410d-8983-af5b4f4758ea",
   "name" : "AwsBlobStoreIT_testBulkVersionedDelete_happyPathWithNonExisting-GET-5",
   "request" : {
     "url" : "/chameleon-jcloud-versioned/conformance-tests/bulkDeleteByVersion/happy5",
@@ -7,18 +7,18 @@
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/bulkDeleteByVersion/happy5</Key><RequestId>PW6QE25SVTTQ88A9</RequestId><HostId>C4SoDVMtO1h3diwLZQzq4LYRg5l4M8IRhaTSWQVl6WNz4/5ZS45NV0RZxIgohz8TfqFPXcxZds0BFm0slM0Bk4EOp95ihccY</HostId></Error>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/bulkDeleteByVersion/happy5</Key><RequestId>DNG6AVW9WEFP1ZH1</RequestId><HostId>idhezMULv1z5w+bNvAVf289zflsiAIAUi6nyS1PThjJ9SAnAwLL3S1kmc4Jn9IB+AYeC2Pzm/I4=</HostId></Error>",
     "headers" : {
       "Server" : "AmazonS3",
       "x-amz-delete-marker" : "true",
-      "x-amz-request-id" : "PW6QE25SVTTQ88A9",
-      "x-amz-id-2" : "C4SoDVMtO1h3diwLZQzq4LYRg5l4M8IRhaTSWQVl6WNz4/5ZS45NV0RZxIgohz8TfqFPXcxZds0BFm0slM0Bk4EOp95ihccY",
-      "x-amz-version-id" : "SCS5yjlXn3OvFHa0nYKMqSZL4Beqq0ox",
-      "Date" : "Wed, 04 Mar 2026 20:58:53 GMT",
+      "x-amz-request-id" : "DNG6AVW9WEFP1ZH1",
+      "x-amz-id-2" : "idhezMULv1z5w+bNvAVf289zflsiAIAUi6nyS1PThjJ9SAnAwLL3S1kmc4Jn9IB+AYeC2Pzm/I4=",
+      "x-amz-version-id" : "eW2.6WqWfUFspdYCNGuzALGmKmH7z6A2",
+      "Date" : "Tue, 25 Aug 2026 09:43:50 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "7f4c9c8d-495d-4136-acf8-87b5b89b1636",
+  "uuid" : "e7f57210-7e14-410d-8983-af5b4f4758ea",
   "persistent" : true,
-  "insertionIndex" : 401
+  "insertionIndex" : 549
 }

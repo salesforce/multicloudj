@@ -1,5 +1,5 @@
 {
-  "id" : "f3e17a51-0ec6-40a1-9ccd-d84e809d40b7",
+  "id" : "0ff0ace8-f8ba-4f9d-bb5d-1bb97ef8dc3b",
   "name" : "AwsBlobStoreIT_testMultipartUpload_withKms-GET-4",
   "request" : {
     "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-withKms",
@@ -12,23 +12,23 @@
     "queryParameters" : {
       "uploadId" : {
         "hasExactly" : [ {
-          "equalTo" : "4wA2RVJSglF9WbevN6VWp3fXNZcaz_wq9F52slrtbEg0Xlvd.SEdtYXjpX3OdSubyUdb7byPRyG_tuo_aZFlWV85QvoohFKQpazvfNE.drDv6qYIPzaBSrSKQX.NZQIQZUT9UO07Fdi.5xoLHfgnLUNyqpzbnFdP4KYZul_wEdYjJgVPYMOm83dIZPRChEkT"
+          "equalTo" : "tnxSbr2Do1vru.5XqK_Rt03yM7C8Ohurv7iyVIO5yvuUWYkjRAYOa6VUlNNtrmbqQ2Z2bsLfA_HkZn8vkNePW03t.oa28XxOH4wqYm5D490wYDgEebIsSP8Jucy8Kc5JXbQvkyIiUi8EuJBPHdtWiKRNsgYWCZP4h9LV326fARrd8ryWKIOCRkPyPwOJVr3DGT_OptMQTpkMWpH8rJZTsQ--"
         } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-withKms</Key><UploadId>4wA2RVJSglF9WbevN6VWp3fXNZcaz_wq9F52slrtbEg0Xlvd.SEdtYXjpX3OdSubyUdb7byPRyG_tuo_aZFlWV85QvoohFKQpazvfNE.drDv6qYIPzaBSrSKQX.NZQIQZUT9UO07Fdi.5xoLHfgnLUNyqpzbnFdP4KYZul_wEdYjJgVPYMOm83dIZPRChEkT</UploadId><Initiator><ID>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-rose.yang@02adc20a-81c9-42d9-a905-4ed2386a6621</ID><DisplayName>PCSKAdministratorAccessRole/PCSK-rose.yang@02adc20a-81c9-42d9-a905-4ed2386a6621</DisplayName></Initiator><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>2</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><LastModified>2026-04-09T18:24:12.000Z</LastModified><ETag>&quot;c91b09e4af3bb24748e8d544c4dfa7e7&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>2</PartNumber><LastModified>2026-04-09T18:24:14.000Z</LastModified><ETag>&quot;a903476a975ffad5ba367c333477ade5&quot;</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-withKms</Key><UploadId>tnxSbr2Do1vru.5XqK_Rt03yM7C8Ohurv7iyVIO5yvuUWYkjRAYOa6VUlNNtrmbqQ2Z2bsLfA_HkZn8vkNePW03t.oa28XxOH4wqYm5D490wYDgEebIsSP8Jucy8Kc5JXbQvkyIiUi8EuJBPHdtWiKRNsgYWCZP4h9LV326fARrd8ryWKIOCRkPyPwOJVr3DGT_OptMQTpkMWpH8rJZTsQ--</UploadId><Initiator><ID>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-sriram.guduri@bf6f24fd-dd5f-4e44-a80e-2397a8e5c3da</ID><DisplayName>PCSKAdministratorAccessRole/PCSK-sriram.guduri@bf6f24fd-dd5f-4e44-a80e-2397a8e5c3da</DisplayName></Initiator><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>2</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><LastModified>2026-08-25T09:40:37.000Z</LastModified><ETag>&quot;e66e71049992620b3d32e1bf7d76b6ef&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>2</PartNumber><LastModified>2026-08-25T09:40:40.000Z</LastModified><ETag>&quot;7fcf223a45e81d9ac6e758a03bcb6227&quot;</ETag><Size>5242880</Size></Part></ListPartsResult>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "HGS5V5QRQ1G8Y6B9",
-      "x-amz-id-2" : "CfkulHXKBGyrvTpRq99ZJc1h0pwL7zcqs95xUgCQQVmG7bFbFug2RQFuAIxpp9xgnv/E5mk4d1I=",
-      "Date" : "Thu, 09 Apr 2026 18:24:16 GMT",
+      "x-amz-request-id" : "GNBRR3JBCB4MRRMH",
+      "x-amz-id-2" : "9hGt7LOf4NdEbrxFaeLSkrlqpU/TfQ5RCWZidBc3vN+VtgfJRwptrXIx3R4qLD/bhVdJn5Y0+afMiLfQpS4gPQyToDik9qZ5",
+      "Date" : "Tue, 25 Aug 2026 09:40:44 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "f3e17a51-0ec6-40a1-9ccd-d84e809d40b7",
+  "uuid" : "0ff0ace8-f8ba-4f9d-bb5d-1bb97ef8dc3b",
   "persistent" : true,
-  "insertionIndex" : 697
+  "insertionIndex" : 338
 }

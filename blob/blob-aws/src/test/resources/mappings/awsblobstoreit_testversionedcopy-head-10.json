@@ -1,5 +1,5 @@
 {
-  "id" : "d55f7873-e581-45ea-b42e-a13fdf69aa39",
+  "id" : "64265c17-88b7-43fd-b186-3cf16a3f7c2a",
   "name" : "AwsBlobStoreIT_testVersionedCopy-HEAD-10",
   "request" : {
     "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/versionedCopy/blob",
@@ -12,7 +12,7 @@
     "queryParameters" : {
       "versionId" : {
         "hasExactly" : [ {
-          "equalTo" : "TUROlqpdqCOeV0e7rT.oUHLFiwlXE5tE"
+          "equalTo" : "upQ4a37KBhwqYkjROSxs7CCSgvfwofOL"
         } ]
       }
     }
@@ -23,19 +23,21 @@
       "Accept-Ranges" : "bytes",
       "Server" : "AmazonS3",
       "ETag" : "\"da4b066b3b23245e2a2e9ea32cf75263\"",
-      "Last-Modified" : "Wed, 04 Mar 2026 20:57:20 GMT",
-      "x-amz-request-id" : "S7DHRCWSMX4QCWRA",
+      "x-amz-checksum-crc64nvme" : "QJFaFb/w52U=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "Last-Modified" : "Tue, 25 Aug 2026 09:39:09 GMT",
+      "x-amz-request-id" : "RDA3T5JCPE95VPBT",
       "x-amz-server-side-encryption" : "AES256",
-      "x-amz-id-2" : "ewWdtgtkK7s58r5NKQaj5DenSjqk8L68HAV8PBxzX5RsbH1LuUVs8s9Riizj7AFTeulfJf+7Vccvg9LvPWSIgJ4fy3i2zOMB",
-      "x-amz-version-id" : "TUROlqpdqCOeV0e7rT.oUHLFiwlXE5tE",
-      "Date" : "Wed, 04 Mar 2026 20:57:24 GMT",
+      "x-amz-id-2" : "0YMVzeC/daCMAhy7lSCywGLBlegQOadPTZQOY++N9vNOpjRgPi55zFSon/7SUUeXq+1VhFGBjis=",
+      "x-amz-version-id" : "upQ4a37KBhwqYkjROSxs7CCSgvfwofOL",
+      "Date" : "Tue, 25 Aug 2026 09:39:18 GMT",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "d55f7873-e581-45ea-b42e-a13fdf69aa39",
+  "uuid" : "64265c17-88b7-43fd-b186-3cf16a3f7c2a",
   "persistent" : true,
-  "scenarioName" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-versionedCopy-blob",
+  "scenarioName" : "AwsBlobStoreIT_testVersionedCopy-scenario-1-chameleon-jcloud-versioned-conformance-tests-versionedCopy-blob",
   "requiredScenarioState" : "Started",
   "newScenarioState" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-versionedCopy-blob-2",
-  "insertionIndex" : 190
+  "insertionIndex" : 237
 }

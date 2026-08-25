@@ -1,31 +1,30 @@
 {
-  "id" : "a83f30d2-70f6-4b82-8833-84d40264ac1d",
+  "id" : "f4d95637-b4bb-4100-b505-92ea7f131fe3",
   "name" : "AwsBlobStoreIT_testRangedRead-GET-76",
   "request" : {
     "url" : "/chameleon-jcloud/conformance-tests/testRangedRead_unversioned",
     "method" : "GET"
   },
   "response" : {
-    "status" : 200,
-    "base64Body" : "c3QgZGF0YSBmb3IgdGhlIHJhbmdlZCByZWFkIHRlc3QgZmlsZQdWFfvPYbyfyC2PyyfKorM=",
+    "status" : 206,
+    "base64Body" : "c3QgZGF0YSBmb3IgdGhlIHJhbmdlZCByZWFkIHRlc3QgZmlsZQ==",
     "headers" : {
       "Accept-Ranges" : "bytes",
       "Server" : "AmazonS3",
       "ETag" : "\"4fe58d952a4f5588f32b30a5f9b62cda\"",
-      "Last-Modified" : "Wed, 04 Mar 2026 20:59:38 GMT",
-      "x-amz-request-id" : "9P44GCBCVX8WN1WN",
+      "Content-Range" : "bytes 10-46/47",
+      "Last-Modified" : "Tue, 25 Aug 2026 09:46:34 GMT",
+      "x-amz-request-id" : "AJS0B9JNPPT2N8RD",
       "x-amz-server-side-encryption" : "AES256",
-      "x-amz-id-2" : "wxHjSsgg1zNZ8o7njcMhI/m8f0WA4qBSpAc2yJU/CGDZXMk373jXaRfbsf9A7G9dQs9UuRxQiNarDwqvAiQjHNyX2JYkUCVn",
-      "x-amz-content-range" : "bytes 10-46/47",
-      "x-amz-transfer-encoding" : "append-md5",
-      "Date" : "Wed, 04 Mar 2026 20:59:40 GMT",
+      "x-amz-id-2" : "kgqZtDT4FKx7B2LIXmb4w2XJikiBMvnjCQOcetaWYu3eSAo3zIiCzfyc7/HY8vHEGkWS+0FSu32kFjhiXx4mPLMylLNMrPTC",
+      "Date" : "Tue, 25 Aug 2026 09:46:36 GMT",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "a83f30d2-70f6-4b82-8833-84d40264ac1d",
+  "uuid" : "f4d95637-b4bb-4100-b505-92ea7f131fe3",
   "persistent" : true,
-  "scenarioName" : "scenario-8-chameleon-jcloud-conformance-tests-testRangedRead_unversioned",
+  "scenarioName" : "AwsBlobStoreIT_testRangedRead-scenario-8-chameleon-jcloud-conformance-tests-testRangedRead_unversioned",
   "requiredScenarioState" : "scenario-8-chameleon-jcloud-conformance-tests-testRangedRead_unversioned-3",
   "newScenarioState" : "scenario-8-chameleon-jcloud-conformance-tests-testRangedRead_unversioned-4",
-  "insertionIndex" : 568
+  "insertionIndex" : 800
 }

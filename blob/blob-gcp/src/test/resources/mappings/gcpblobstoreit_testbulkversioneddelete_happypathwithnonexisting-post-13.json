@@ -1,0 +1,48 @@
+{
+  "id" : "ee9e2ff6-9dfc-4557-8734-0d5097001609",
+  "name" : "GcpBlobStoreIT_testBulkVersionedDelete_happyPathWithNonExisting-POST-13",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/bulkDeleteByVersion/happy6"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"metadata\":{},\"name\":\"conformance-tests/bulkDeleteByVersion/happy6\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AJjja9YgrLw9YIGHguX_3I4O0wCe4ISLfeZRsMEG4faWdeODiXdP-FsfOqWtzQzkNbsPBcy6_T6-IU9S3Xf8YcGV0ij-zX6YRWNQLVbqv-EvCw",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:30:36 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/bulkDeleteByVersion/happy6&uploadType=resumable&upload_id=AJjja9YgrLw9YIGHguX_3I4O0wCe4ISLfeZRsMEG4faWdeODiXdP-FsfOqWtzQzkNbsPBcy6_T6-IU9S3Xf8YcGV0ij-zX6YRWNQLVbqv-EvCw",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "ee9e2ff6-9dfc-4557-8734-0d5097001609",
+  "persistent" : true,
+  "insertionIndex" : 862
+}

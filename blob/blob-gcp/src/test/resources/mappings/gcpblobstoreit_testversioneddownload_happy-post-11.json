@@ -1,0 +1,51 @@
+{
+  "id" : "ccf977be-babc-4c62-b47a-083c34e91e9b",
+  "name" : "GcpBlobStoreIT_testVersionedDownload_happy-POST-11",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/versioned_download_happy_versioned"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"metadata\":{},\"name\":\"conformance-tests/versioned_download_happy_versioned\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AJjja9ZCWhToUjCsHoNgt1Gpa5J1yT7diFZHVtdL4TvA_VChCbLk8hH1oCB-EHApqiv6arMhlqtJuBV2VsVTwlBjzlVTZkzE7QtYVlu2WgHmTTY",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:32:18 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/versioned_download_happy_versioned&uploadType=resumable&upload_id=AJjja9ZCWhToUjCsHoNgt1Gpa5J1yT7diFZHVtdL4TvA_VChCbLk8hH1oCB-EHApqiv6arMhlqtJuBV2VsVTwlBjzlVTZkzE7QtYVlu2WgHmTTY",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "ccf977be-babc-4c62-b47a-083c34e91e9b",
+  "persistent" : true,
+  "scenarioName" : "GcpBlobStoreIT_testVersionedDownload_happy-scenario-3-upload-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o",
+  "requiredScenarioState" : "scenario-3-upload-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-3",
+  "newScenarioState" : "scenario-3-upload-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-4",
+  "insertionIndex" : 1000
+}
