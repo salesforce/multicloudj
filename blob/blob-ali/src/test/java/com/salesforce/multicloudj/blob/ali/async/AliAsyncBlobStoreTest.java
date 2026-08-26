@@ -1222,6 +1222,45 @@ public class AliAsyncBlobStoreTest {
   }
 
   @Test
+  void testUploadDirectoryExplicitKmsKeyWinsOverManagedKey(@TempDir Path tempDir) throws Exception {
+    // Both kmsKeyId AND useKmsManagedKey(true) are set. The explicit key must win: every per-file
+    // upload must carry SSE-KMS with the explicit key id (not a managed CMK). This pins the
+    // precedence at the directory-request propagation level — a regression that dropped kmsKeyId
+    // when the managed flag is set would silently lose the caller's key, and is caught by neither
+    // the mutually-exclusive cases above nor the transformer test.
+    Files.writeString(tempDir.resolve("file1.txt"), "content1");
+    Files.createDirectories(tempDir.resolve("subdir"));
+    Files.writeString(tempDir.resolve("subdir").resolve("file2.txt"), "content2");
+
+    PutObjectResult mockResult = mock(PutObjectResult.class);
+    when(mockResult.versionId()).thenReturn(null);
+    when(mockResult.eTag()).thenReturn("\"etag\"");
+    when(mockAsyncClient.putObjectAsync(
+        any(PutObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    String kmsKeyId = "acs:kms:cn-shanghai:1099202394511537:key/test-key";
+    DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("kms-both-prefix")
+        .includeSubFolders(true)
+        .kmsKeyId(kmsKeyId)
+        .useKmsManagedKey(true)
+        .build();
+    store.uploadDirectory(request).get();
+
+    ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
+    verify(mockAsyncClient, times(2))
+        .putObjectAsync(captor.capture(), any(OperationOptions.class));
+    for (PutObjectRequest req : captor.getAllValues()) {
+      assertEquals("KMS", req.serverSideEncryption(),
+          "SSE-KMS must be set when both KMS options are provided");
+      assertEquals(kmsKeyId, req.serverSideEncryptionKeyId(),
+          "explicit kmsKeyId must win over useKmsManagedKey");
+    }
+  }
+
+  @Test
   void testUploadDirectoryWithoutKmsLeavesEncryptionUnset(@TempDir Path tempDir) throws Exception {
     Files.writeString(tempDir.resolve("file1.txt"), "content1");
     Files.createDirectories(tempDir.resolve("subdir"));
