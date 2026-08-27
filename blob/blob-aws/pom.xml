@@ -707,6 +707,29 @@
     </dependencies>
     <build>
         <plugins>
+            <!-- benchmark-only artifact: benchmark classes + JMH glue + discovery resource, no test infra -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+                <executions>
+                    <execution>
+                        <id>benchmarks-jar</id>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>benchmarks</classifier>
+                            <includes>
+                                <include>**/*Benchmark*.class</include>
+                                <include>**/jmh_generated/**</include>
+                                <include>META-INF/BenchmarkList</include>
+                                <include>META-INF/CompilerHints</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok-maven-plugin</artifactId>
