@@ -166,9 +166,9 @@
                         <goal>test-jar</goal>
                     </goals>
                 </execution>
-                <!-- benchmark-only artifact: benchmark classes + JMH glue + discovery resource, no test infra -->
+                <!-- benchmark-only artifact: benchmark classes + JMH-generated classes + JMH metadata (BenchmarkList, CompilerHints), no test infra -->
                 <execution>
-                    <id>benchmarks-jar</id>
+                    <id>benchmarks-classifier-jar</id>
                     <goals>
                         <goal>test-jar</goal>
                     </goals>
