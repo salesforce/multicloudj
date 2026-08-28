@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.docstore.ali;
 
 import com.alicloud.openservices.tablestore.SyncClient;
+import com.alicloud.openservices.tablestore.TableStoreException;
 import com.alicloud.openservices.tablestore.model.BatchGetRowRequest;
 import com.alicloud.openservices.tablestore.model.BatchGetRowResponse;
 import com.alicloud.openservices.tablestore.model.Column;
@@ -20,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import lombok.Getter;
 import org.apache.commons.lang3.ObjectUtils;
 
@@ -109,6 +111,18 @@ public class QueryRunner {
   // Page-level batch size for the hydration BatchGetRow reads.
   private final int hydrationBatchSize;
 
+  // Per-request GetRange row cap = the caller's total budget (offset + limit); 0 means unbounded
+  // (leave Tablestore's natural 5000-row/4 MB page cap). Set by the planner from the query's
+  // offset/limit so a small-limit query does not scan and hydrate a full page just to yield a few
+  // rows. Never truncates results -- the driving iterator keeps following the cursor across pages.
+  private final int perRequestLimit;
+
+  // Maps a raw provider exception thrown during iteration (the getRange RPC or the hydration
+  // batchGetRow RPCs) to the correctly-typed and correctly-retryable multicloudj exception. Wired
+  // in by the driver (AliDocStore::mapException) so QueryRunner classifies request-level failures
+  // identically to the rest of the driver without importing the error-code/retry tables itself.
+  private final Function<Throwable, SubstrateSdkException> exceptionMapper;
+
   public QueryRunner(
       SyncClient tableStoreClient,
       String tableName,
@@ -120,7 +134,9 @@ public class QueryRunner {
       Set<String> visibleColumns,
       String baseTableName,
       List<String> baseKeyColumns,
-      int hydrationBatchSize) {
+      int hydrationBatchSize,
+      int perRequestLimit,
+      Function<Throwable, SubstrateSdkException> exceptionMapper) {
     this.tableStoreClient = tableStoreClient;
     this.tableName = tableName;
     this.inclusiveStartPrimaryKey = inclusiveStartPrimaryKey;
@@ -132,6 +148,8 @@ public class QueryRunner {
     this.baseTableName = baseTableName;
     this.baseKeyColumns = baseKeyColumns;
     this.hydrationBatchSize = hydrationBatchSize;
+    this.perRequestLimit = perRequestLimit;
+    this.exceptionMapper = exceptionMapper;
   }
 
   /**
@@ -149,9 +167,19 @@ public class QueryRunner {
     criteria.setExclusiveEndPrimaryKey(exclusiveEndPrimaryKey);
     criteria.setDirection(direction);
     criteria.setMaxVersions(1);
-    // No explicit per-request limit: Tablestore already caps a GetRange response at 5000 rows /
-    // 4 MB and returns a nextStartPrimaryKey cursor, and the iterator loops that cursor to satisfy
-    // the caller's limit. Setting a smaller cap here would only add round-trips.
+    if (perRequestLimit > 0) {
+      // Cap THIS page to offset + limit. This is a fixed per-page cap, not a running budget: it is
+      // applied identically to every page and does not track the iterator's remaining demand
+      // across pages, so a multi-page query (a server-side filter dropping rows within a page, or
+      // an offset larger than one page) may re-request up to offset + limit rows on each page.
+      // Tablestore's GetRange limit caps rows SCANNED (a column filter may drop some), so the
+      // iterator keeps following nextStartPrimaryKey until it has the caller's limit or the range
+      // is exhausted -- capping never truncates results, it only shrinks each page (and the
+      // hydration blast radius). When 0 (no caller limit) the request is left unbounded and
+      // Tablestore's 5000-row/4 MB cap holds. Tightening the later-page cap to the iterator's
+      // remaining demand is a possible future optimization.
+      criteria.setLimit(perRequestLimit);
+    }
     if (columnFilter != null) {
       criteria.setFilter(columnFilter);
     }
@@ -165,11 +193,10 @@ public class QueryRunner {
     } catch (RuntimeException e) {
       // Query.get() wraps only the iterator-construction path in its mapException boundary; the
       // getRange RPC fires later, during iteration, outside that boundary, so a raw provider
-      // exception would escape un-mapped. Surface it as a SubstrateSdkException (the base
-      // multicloudj type) so no raw provider exception leaves QueryRunner -- consistent with the
-      // hydration batchGetRow handling below.
-      // TODO: route through AliDocStore.mapException for fine-grained exception classification.
-      throw new SubstrateSdkException("Query GetRange request failed", e);
+      // exception would escape un-mapped. Route it through the driver's exception mapper so it
+      // surfaces as the correctly-typed and correctly-retryable multicloudj exception -- consistent
+      // with the hydration batchGetRow handling below.
+      throw exceptionMapper.apply(e);
     }
     List<Row> pageRows = response.getRows();
     if (baseTableName != null) {
@@ -246,11 +273,14 @@ public class QueryRunner {
   // returned. Row-level failures (a sub-row that came back with isSucceed()==false after the
   // client's own request-level retry budget -- e.g. throttling or a partial server error) are NOT
   // deletions and must never be silently dropped: dropping one would return fewer rows than exist
-  // while the pagination cursor advances past the gap, permanently skipping that row. Such failures
-  // are re-driven up to MAX_HYDRATION_RETRIES times via BatchGetRowRequest.createRequestForRetry
-  // (which re-issues only the still-failing sub-rows, preserving the criteria); if any sub-row is
-  // still failing after that budget, the whole read fails loud. A SUCCEEDED result with a null row
-  // is a genuine concurrent deletion and is intentionally omitted from the map (dropped upstream).
+  // while the pagination cursor advances past the gap, permanently skipping that row. A RETRYABLE
+  // per-row failure is re-driven up to MAX_HYDRATION_RETRIES times via
+  // BatchGetRowRequest.createRequestForRetry (which re-issues only the still-failing sub-rows,
+  // preserving the criteria); if any is still failing after that budget, the whole read fails loud.
+  // A NON-retryable per-row failure (e.g. OTSInvalidPK) can never clear on re-drive, so it fails
+  // loud IMMEDIATELY with its own mapped type, consuming no retries. A SUCCEEDED result with a null
+  // row is a genuine concurrent deletion and is intentionally omitted from the map (dropped
+  // upstream).
   private void batchGetInto(List<PrimaryKey> chunk, Map<PrimaryKey, Row> out) {
     MultiRowQueryCriteria criteria = new MultiRowQueryCriteria(baseTableName);
     criteria.setMaxVersions(1);
@@ -260,24 +290,91 @@ public class QueryRunner {
     BatchGetRowRequest request = new BatchGetRowRequest();
     request.addMultiRowQueryCriteria(criteria);
 
-    BatchGetRowResponse response = tableStoreClient.batchGetRow(request);
+    BatchGetRowResponse response = runBatchGetRow(request);
     accumulateSucceeded(response, out);
 
     List<BatchGetRowResponse.RowResult> failed = response.getFailedRows();
     int attempt = 0;
     while (!failed.isEmpty() && attempt < MAX_HYDRATION_RETRIES) {
-      request = request.createRequestForRetry(failed);
-      response = tableStoreClient.batchGetRow(request);
+      // A non-retryable per-row failure is permanent -- re-driving it cannot recover the row and
+      // only burns the bounded budget, so fail loud on it at once. Checked at the top of each pass:
+      // the first pass covers the initial response's failures, later passes each re-drive's.
+      failFastIfNonRetryable(failed, response.getRequestId());
+      request = createRetryRequest(request, failed);
+      response = runBatchGetRow(request);
       accumulateSucceeded(response, out);
       failed = response.getFailedRows();
       attempt++;
     }
     if (!failed.isEmpty()) {
-      throw new SubstrateSdkException(
-          String.format(
-              "Base-table hydration failed: %d sub-row(s) could not be read after %d retries;"
-                  + " first error: %s",
-              failed.size(), MAX_HYDRATION_RETRIES, failed.get(0).getError()));
+      // The loop condition exits before re-checking the FINAL response's failures, so scan them
+      // once more: a non-retryable straggler must still fail loud as its own mapped type rather
+      // than the generic exhaustion throw below.
+      failFastIfNonRetryable(failed, response.getRequestId());
+      // All remaining failures are retryable but the bounded re-drive budget is spent. Re-wrap the
+      // first as a synthetic provider exception and route it through the SAME exception mapper a
+      // thrown provider exception would take, so the read fails loud rather than silently returning
+      // short.
+      throw exceptionMapper.apply(toProviderException(failed.get(0), response.getRequestId()));
+    }
+  }
+
+  // Scans the failed hydration sub-rows and, on the FIRST one whose Tablestore error code maps to a
+  // NON-retryable multicloudj exception, throws that exception immediately -- classifying each row
+  // through the SAME synthetic-exception-plus-mapper path the exhaustion throw uses, so a permanent
+  // per-row failure surfaces as its correct mapped type (e.g. OTSInvalidPK -> non-retryable
+  // InvalidArgumentException) without consuming any re-drive budget. Retryable failures (e.g.
+  // OTSServerBusy -> retryable UnknownException) are left for the bounded re-drive loop.
+  private void failFastIfNonRetryable(
+      List<BatchGetRowResponse.RowResult> failedRows, String requestId) {
+    for (BatchGetRowResponse.RowResult failedRow : failedRows) {
+      SubstrateSdkException mapped =
+          exceptionMapper.apply(toProviderException(failedRow, requestId));
+      if (!mapped.isRetryable()) {
+        throw mapped;
+      }
+    }
+  }
+
+  // Builds the retry request that re-issues only the still-failing sub-rows, routing the raw
+  // IllegalArgumentException createRequestForRetry can throw (a failed sub-row whose index has no
+  // matching criteria row) through the driver's exception mapper so it surfaces as the mapped type
+  // rather than escaping un-mapped -- consistent with runBatchGetRow.
+  private BatchGetRowRequest createRetryRequest(
+      BatchGetRowRequest request, List<BatchGetRowResponse.RowResult> failedRows) {
+    try {
+      return request.createRequestForRetry(failedRows);
+    } catch (RuntimeException e) {
+      throw exceptionMapper.apply(e);
+    }
+  }
+
+  // Re-wraps a single FAILED hydration sub-row as the synthetic TableStoreException the driver's
+  // exception mapper understands. A sub-row can come back failed with a server-side error
+  // (throttle, partial server error) while the batch RPC itself returned HTTP 200, so there is no
+  // thrown provider exception and no per-row HTTP status: carry the Tablestore error code with
+  // httpStatus 0 (unknown) so the mapper classifies it into the matching concrete subtype and, with
+  // no HTTP status, falls back to that type's default retryability (which already reflects whether
+  // a Tablestore error of this class is transient). Shared by failFastIfNonRetryable (to classify)
+  // and the exhaustion throw (to fail loud).
+  private TableStoreException toProviderException(
+      BatchGetRowResponse.RowResult failedRow, String requestId) {
+    String errorCode = failedRow.getError() != null ? failedRow.getError().getCode() : null;
+    String message =
+        String.format("Base-table hydration sub-row failed; error: %s", failedRow.getError());
+    return new TableStoreException(message, null, errorCode, requestId, 0);
+  }
+
+  // Issues one BatchGetRow RPC, routing any raw provider exception through the driver's exception
+  // mapper. Like the getRange call, this fires during iteration -- outside Query.get()'s
+  // mapException boundary -- so a request-level TableStoreException/ClientException would otherwise
+  // escape un-mapped. (Per-row failures come back as failed RowResults and are handled by the
+  // re-drive loop in batchGetInto, not here.)
+  private BatchGetRowResponse runBatchGetRow(BatchGetRowRequest request) {
+    try {
+      return tableStoreClient.batchGetRow(request);
+    } catch (RuntimeException e) {
+      throw exceptionMapper.apply(e);
     }
   }
 

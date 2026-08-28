@@ -1227,6 +1227,151 @@ class AliDocStoreTest {
   }
 
   @Test
+  void testComputePerRequestLimit() {
+    // Package-private helper: the per-request GetRange cap = offset + limit, but only when that
+    // budget is below Tablestore's 5000-row page cap (a limit at/above the cap tightens nothing).
+    // A non-positive limit means "no caller limit" -> 0 (unbounded), and long arithmetic keeps a
+    // pathological offset/limit from overflowing int into a negative that setLimit would reject.
+    Assertions.assertEquals(1, AliDocStore.computePerRequestLimit(0, 1));
+    Assertions.assertEquals(3, AliDocStore.computePerRequestLimit(1, 2));
+    Assertions.assertEquals(4999, AliDocStore.computePerRequestLimit(0, 4999));
+    Assertions.assertEquals(
+        0, AliDocStore.computePerRequestLimit(0, 5000), "at the cap -> unbounded");
+    Assertions.assertEquals(
+        0, AliDocStore.computePerRequestLimit(10, 5000), "over the cap -> unbounded");
+    Assertions.assertEquals(
+        0, AliDocStore.computePerRequestLimit(0, 0), "no limit -> unbounded");
+    Assertions.assertEquals(
+        0, AliDocStore.computePerRequestLimit(100, 0), "no limit -> unbounded for any offset");
+    Assertions.assertEquals(
+        0,
+        AliDocStore.computePerRequestLimit(Integer.MAX_VALUE, Integer.MAX_VALUE),
+        "pathological offset+limit must not overflow; falls through to unbounded");
+    Assertions.assertEquals(
+        1, AliDocStore.computePerRequestLimit(-5, 1), "negative offset is treated as 0");
+  }
+
+  @Test
+  void testGetRangeBoundsPageToLimit() {
+    // A limit(1) query caps the GetRange page to the caller's total budget (offset 0 + limit 1),
+    // so a small-limit query does not scan/hydrate a full page just to yield one row.
+    Query query = new Query(ali).where("title", FilterOperation.EQUAL, "value").limit(1);
+
+    wireMockClient();
+    Assertions.assertEquals(1, capturedRangeCriteria(query).getLimit());
+  }
+
+  @Test
+  void testGetRangeBoundsPageToOffsetPlusLimit() {
+    // The per-request cap is offset + limit: a fixed per-page cap (the offset skipped plus the
+    // limit returned), applied to every page rather than tracking the iterator's remaining demand.
+    Query query =
+        new Query(ali).where("title", FilterOperation.EQUAL, "value").offset(1).limit(2);
+
+    wireMockClient();
+    Assertions.assertEquals(3, capturedRangeCriteria(query).getLimit());
+  }
+
+  @Test
+  void testGetRangeUnboundedWhenNoLimit() {
+    // With no caller limit the request is left unbounded (getLimit() stays the SDK default -1) so
+    // Tablestore applies its natural 5000-row/4 MB page cap -- unchanged from before this bounding.
+    Query query = new Query(ali).where("title", FilterOperation.EQUAL, "value");
+
+    wireMockClient();
+    Assertions.assertEquals(-1, capturedRangeCriteria(query).getLimit());
+  }
+
+  @Test
+  void testGetRangeBoundedWhenKeyRangeTight() {
+    // A key-only equality + terminal-range query (partition key equality + sort-key range) is
+    // key-range-tight: the range captures the whole predicate set, so the column filter trims at
+    // most an O(1) boundary. The per-page cap (offset + limit) therefore applies -> getLimit() = 5.
+    Query query =
+        new Query(ali)
+            .where("title", FilterOperation.EQUAL, "value")
+            .where("publisher", FilterOperation.GREATER_THAN, "M")
+            .limit(5);
+
+    wireMockClient();
+    Assertions.assertEquals(5, capturedRangeCriteria(query).getLimit());
+  }
+
+  @Test
+  void testGetRangeUnboundedWhenRepeatedSameSideBound() {
+    // Two lower bounds on the sort-key range column (publisher > "M" AND publisher > "A"): only one
+    // can be folded into the key range, the other is enforced solely by the column filter and may
+    // be selective, so the plan is NOT key-range-tight. The per-page cap must stay off (getLimit()
+    // = -1) despite limit(5), otherwise the iterator would re-scan page after page.
+    Query query =
+        new Query(ali)
+            .where("title", FilterOperation.EQUAL, "value")
+            .where("publisher", FilterOperation.GREATER_THAN, "M")
+            .where("publisher", FilterOperation.GREATER_THAN, "A")
+            .limit(5);
+
+    wireMockClient();
+    Assertions.assertEquals(-1, capturedRangeCriteria(query).getLimit());
+  }
+
+  @Test
+  void testGetRangeUnboundedWhenRepeatedSameSideBoundReversedOrder() {
+    // Same shape as above with the two > predicates in the opposite insertion order (publisher >
+    // "A" then publisher > "M"). The gate is order-independent, so this must also stay unbounded
+    // (getLimit() = -1) -- the reversed order retains the STRONGER bound but is still not tight.
+    Query query =
+        new Query(ali)
+            .where("title", FilterOperation.EQUAL, "value")
+            .where("publisher", FilterOperation.GREATER_THAN, "A")
+            .where("publisher", FilterOperation.GREATER_THAN, "M")
+            .limit(5);
+
+    wireMockClient();
+    Assertions.assertEquals(-1, capturedRangeCriteria(query).getLimit());
+  }
+
+  @Test
+  void testGetRangeUnboundedWhenNonKeyPredicate() {
+    // The #18 shape: an equality on the partition key plus a predicate on a NON-key attribute. The
+    // non-key predicate is enforced only by the column filter, which drops a non-trivial number of
+    // scanned rows, so the plan is NOT key-range-tight. A small per-page cap would force the
+    // iterator to re-scan page after page, so the request must be left unbounded (getLimit() = -1)
+    // even though the caller set limit(1).
+    Query query =
+        new Query(ali)
+            .where("title", FilterOperation.EQUAL, "value")
+            .where("coverType", FilterOperation.EQUAL, "hardback")
+            .limit(1);
+
+    wireMockClient();
+    Assertions.assertEquals(-1, capturedRangeCriteria(query).getLimit());
+  }
+
+  @Test
+  void testGetRangeUnboundedWhenInOnKey() {
+    // IN on the partition key cannot narrow the key range (the query scans the whole table and the
+    // membership is enforced by the column filter), so the plan is NOT tight and the per-page cap
+    // must stay off (getLimit() = -1) despite limit(1).
+    AliDocStore store = storeWithAllowScans(true);
+    GetRangeResponse resp =
+        new GetRangeResponse(new Response(), new ConsumedCapacity(new CapacityUnit()));
+    resp.setRows(new ArrayList<>());
+    resp.setNextStartPrimaryKey(null);
+    when(syncClient.getRange(any(GetRangeRequest.class))).thenReturn(resp);
+
+    Query query = new Query(store).where("title", FilterOperation.IN, List.of("a", "b")).limit(1);
+    DocumentIterator iter = store.runGetQuery(query);
+    iter.hasNext();
+
+    ArgumentCaptor<GetRangeRequest> captor = ArgumentCaptor.forClass(GetRangeRequest.class);
+    verify(syncClient, times(1)).getRange(captor.capture());
+    Assertions.assertEquals(
+        -1,
+        captor.getValue().getRangeRowQueryCriteria().getLimit(),
+        "IN-on-key must stay unbounded");
+  }
+
+  @Test
   void testTrimColumnsKeepsVisibleAndPreservesPrimaryKey() {
     // trimColumns keeps only the attribute columns named in the visible set and preserves the
     // primary key, so the caller sees only its projection while the pagination cursor stays intact.
@@ -1452,6 +1597,19 @@ class AliDocStoreTest {
     resp.addResult(
         new BatchGetRowResponse.RowResult(
             table, new Error(errorCode, errorCode + " (test)"), index));
+    return resp;
+  }
+
+  // A BatchGetRow response with one FAILED sub-row per error code, at sequential indices 0..n-1
+  // matching the sub-rows' positions in the hydration criteria. Models a partial-failure batch that
+  // mixes retryable and non-retryable per-row errors in a single response.
+  private BatchGetRowResponse failedBatchGetResponse(String table, List<String> errorCodes) {
+    BatchGetRowResponse resp = new BatchGetRowResponse(new Response());
+    for (int i = 0; i < errorCodes.size(); i++) {
+      resp.addResult(
+          new BatchGetRowResponse.RowResult(
+              table, new Error(errorCodes.get(i), errorCodes.get(i) + " (test)"), i));
+    }
     return resp;
   }
 
@@ -1696,7 +1854,9 @@ class AliDocStoreTest {
     // own request-level retries is NOT a deletion. Hydration must not silently omit it -- doing so
     // would return a short result set while the pagination cursor advances past the gap,
     // permanently skipping the row. When the bounded re-drive budget is exhausted, it must fail
-    // loud.
+    // loud with the concrete type AND retryability of the failed sub-row's error code (routed
+    // through the driver's exception mapper), not a blanket non-retryable base exception.
+    // OTSServerBusy maps to UnknownException, which is retryable.
     IndexMeta gsi =
         globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
     AliDocStore store = storeWithSchema(gsi);
@@ -1719,10 +1879,54 @@ class AliDocStoreTest {
         .thenReturn(failedBatchGetResponse("scores", "OTSServerBusy", 0));
 
     DocumentIterator iter = store.runGetQuery(query);
-    Assertions.assertThrows(
-        SubstrateSdkException.class,
-        () -> drainAll(iter),
-        "an unrecoverable failed sub-row must fail loud, not be dropped");
+    UnknownException thrown =
+        Assertions.assertThrows(
+            UnknownException.class,
+            () -> drainAll(iter),
+            "an unrecoverable failed sub-row must fail loud as the mapped type, not be dropped");
+    Assertions.assertTrue(
+        thrown.isRetryable(),
+        "OTSServerBusy is transient, so the exhaustion failure must be retryable");
+    // A retryable per-row failure exhausts the full bounded budget: 1 initial read +
+    // MAX_HYDRATION_RETRIES (3) re-drives before failing loud.
+    verify(syncClient, times(4)).batchGetRow(any());
+  }
+
+  @Test
+  void testHydrationExhaustionCarriesNonRetryableClassification() {
+    // A NON-retryable per-row failure must fail loud IMMEDIATELY as its correct mapped type,
+    // consuming zero re-drives: re-driving a permanent error cannot recover the row, it only burns
+    // the bounded budget. OTSInvalidPK maps to InvalidArgumentException with isRetryable()==false;
+    // the failure must surface as exactly that (not a mislabeled retryable exception) after a
+    // SINGLE batchGetRow call.
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(gsi);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of()); // all fields
+
+    Row indexRow =
+        new Row(
+            indexPk("mel", "2024-03-01", "game1"),
+            List.of(new Column("score", ColumnValue.fromLong(10))));
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(indexRow), null));
+    when(syncClient.batchGetRow(any()))
+        .thenReturn(failedBatchGetResponse("scores", "OTSInvalidPK", 0));
+
+    DocumentIterator iter = store.runGetQuery(query);
+    InvalidArgumentException thrown =
+        Assertions.assertThrows(InvalidArgumentException.class, () -> drainAll(iter));
+    Assertions.assertFalse(
+        thrown.isRetryable(),
+        "OTSInvalidPK is a caller error, so the failure must be non-retryable");
+    // Zero retries consumed: a non-retryable per-row failure fails fast on the initial response.
+    verify(syncClient, times(1)).batchGetRow(any());
   }
 
   @Test
@@ -1765,6 +1969,93 @@ class AliDocStoreTest {
         ((Number) results.get(0).get("bonus")).longValue(),
         "hydration must recover the base row once the retry succeeds");
     verify(syncClient, times(2)).batchGetRow(any());
+  }
+
+  @Test
+  void testHydrationMixedBatchFailsFastOnNonRetryableSubRow() {
+    // A partial-failure batch that mixes a retryable sub-row (OTSServerBusy) with a non-retryable
+    // one (OTSInvalidPK) must fail loud on the non-retryable one IMMEDIATELY -- the permanent error
+    // can never clear on re-drive, so it surfaces as its own mapped type (non-retryable
+    // InvalidArgumentException) after a single batchGetRow call, not after exhausting the budget.
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(gsi);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of()); // all fields
+
+    // Two index rows -> one hydration batch with two sub-rows (batchSize is 50).
+    Row indexRow1 =
+        new Row(
+            indexPk("mel", "2024-03-01", "game1"),
+            List.of(new Column("score", ColumnValue.fromLong(10))));
+    Row indexRow2 =
+        new Row(
+            indexPk("mel", "2024-03-02", "game2"),
+            List.of(new Column("score", ColumnValue.fromLong(20))));
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(indexRow1, indexRow2), null));
+    // Sub-row 0 is retryable, sub-row 1 is non-retryable; the non-retryable one wins.
+    when(syncClient.batchGetRow(any()))
+        .thenReturn(failedBatchGetResponse("scores", List.of("OTSServerBusy", "OTSInvalidPK")));
+
+    DocumentIterator iter = store.runGetQuery(query);
+    InvalidArgumentException thrown =
+        Assertions.assertThrows(
+            InvalidArgumentException.class,
+            () -> drainAll(iter),
+            "a non-retryable sub-row in a mixed batch must fail loud as its mapped type");
+    Assertions.assertFalse(
+        thrown.isRetryable(),
+        "OTSInvalidPK is a caller error, so the failure must be non-retryable");
+    // Failed fast on the initial response: no retries consumed despite a retryable sibling sub-row.
+    verify(syncClient, times(1)).batchGetRow(any());
+  }
+
+  @Test
+  void testHydrationRetryRequestConstructionFailureSurfacesMapped() {
+    // The retry-request builder (BatchGetRowRequest.createRequestForRetry) throws a raw
+    // IllegalArgumentException when a failed sub-row's index has no matching criteria row. That
+    // fires during iteration, outside Query.get()'s mapException boundary, so it must be routed
+    // through the driver's exception mapper rather than escaping raw. A retryable sub-row (so the
+    // re-drive is attempted) whose index (5) is absent from the single-row criteria triggers it;
+    // IllegalArgumentException maps to InvalidArgumentException.
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(gsi);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of()); // unprojected -> hydrates via batchGetRow
+
+    Row indexRow =
+        new Row(
+            indexPk("mel", "2024-03-01", "game1"),
+            List.of(new Column("score", ColumnValue.fromLong(10))));
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(indexRow), null));
+    // Retryable failure (so a re-drive is attempted) but at an index absent from the criteria (only
+    // index 0 exists), so createRequestForRetry throws IllegalArgumentException.
+    when(syncClient.batchGetRow(any()))
+        .thenReturn(failedBatchGetResponse("scores", "OTSServerBusy", 5));
+
+    DocumentIterator iter = store.runGetQuery(query);
+    InvalidArgumentException thrown =
+        Assertions.assertThrows(
+            InvalidArgumentException.class,
+            () -> drainAll(iter),
+            "a raw IllegalArgumentException from createRequestForRetry must surface as the mapped"
+                + " type, not escape un-mapped");
+    Assertions.assertFalse(thrown.isRetryable());
+    // The failure happens while building the retry request, after the single initial read.
+    verify(syncClient, times(1)).batchGetRow(any());
   }
 
   @Test
@@ -1876,7 +2167,8 @@ class AliDocStoreTest {
     QueryRunner runner =
         new QueryRunner(
             syncClient, "gsi", indexPk("mel", "", ""), indexPk("mel", "~", "~"),
-            Direction.FORWARD, null, null, null, "scores", List.of("game", "player"), 50);
+            Direction.FORWARD, null, null, null, "scores", List.of("game", "player"), 50, 0,
+            ali::mapException);
     List<Row> items = new ArrayList<>();
     runner.run(null, items);
 
@@ -1902,7 +2194,8 @@ class AliDocStoreTest {
     QueryRunner runner =
         new QueryRunner(
             syncClient, "gsi", indexPk("mel", "", ""), indexPk("mel", "~", "~"),
-            Direction.FORWARD, null, null, null, "scores", List.of("game", "player"), 50);
+            Direction.FORWARD, null, null, null, "scores", List.of("game", "player"), 50, 0,
+            ali::mapException);
     List<Row> items = new ArrayList<>();
     runner.run(null, items);
 
@@ -1962,7 +2255,8 @@ class AliDocStoreTest {
     QueryRunner runner =
         new QueryRunner(
             syncClient, "gsi", indexPk("mel", "", ""), indexPk("mel", "~", "~"),
-            Direction.FORWARD, null, null, null, "scores", List.of("game", "player"), 50);
+            Direction.FORWARD, null, null, null, "scores", List.of("game", "player"), 50, 0,
+            ali::mapException);
     List<Row> items = new ArrayList<>();
     SubstrateSdkException thrown =
         Assertions.assertThrows(SubstrateSdkException.class, () -> runner.run(null, items));
@@ -1972,11 +2266,12 @@ class AliDocStoreTest {
   }
 
   @Test
-  void testGetRangeProviderExceptionSurfacesAsSubstrateSdkException() {
+  void testGetRangeProviderExceptionSurfacesMappedAndRetryable() {
     // Query.get() maps only the iterator-construction path; the getRange RPC fires later during
     // iteration, outside that boundary. A raw provider exception from getRange must not escape
-    // QueryRunner un-mapped -- it must surface as a SubstrateSdkException (the base multicloudj
-    // type).
+    // QueryRunner un-mapped -- it must be routed through the driver's exception mapper so it
+    // surfaces as the correctly-typed and correctly-retryable multicloudj exception. OTSServerBusy
+    // maps to UnknownException, which is retryable.
     IndexMeta gsi =
         globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
     AliDocStore store = storeWithSchema(gsi);
@@ -1988,10 +2283,86 @@ class AliDocStoreTest {
         .thenThrow(new TableStoreException("boom", "OTSServerBusy"));
 
     DocumentIterator iter = store.runGetQuery(query);
-    Assertions.assertThrows(
-        SubstrateSdkException.class,
-        iter::hasNext,
-        "a getRange provider failure during iteration must surface as SubstrateSdkException");
+    UnknownException thrown =
+        Assertions.assertThrows(
+            UnknownException.class,
+            iter::hasNext,
+            "a getRange provider failure during iteration must surface as the mapped type");
+    Assertions.assertTrue(
+        thrown.isRetryable(), "OTSServerBusy maps to a retryable UnknownException");
+  }
+
+  @Test
+  void testHydrationBatchGetRowRequestExceptionSurfacesMapped() {
+    // The hydration batchGetRow RPC also fires during iteration, outside Query.get()'s mapException
+    // boundary. A request-level provider exception (thrown by the initial batchGetRow call, not a
+    // per-row failed RowResult) must be routed through the driver's exception mapper too, surfacing
+    // as the mapped type rather than a raw provider exception. OTSServerBusy maps to a retryable
+    // UnknownException.
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(gsi);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of()); // unprojected -> hydrates via batchGetRow
+
+    Row indexRow =
+        new Row(
+            indexPk("mel", "2024-03-01", "game1"),
+            List.of(new Column("score", ColumnValue.fromLong(10))));
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(indexRow), null));
+    when(syncClient.batchGetRow(any()))
+        .thenThrow(new TableStoreException("boom", "OTSServerBusy"));
+
+    DocumentIterator iter = store.runGetQuery(query);
+    UnknownException thrown =
+        Assertions.assertThrows(
+            UnknownException.class,
+            () -> drainAll(iter),
+            "a request-level batchGetRow failure must surface as the mapped type");
+    Assertions.assertTrue(
+        thrown.isRetryable(), "OTSServerBusy maps to a retryable UnknownException");
+  }
+
+  @Test
+  void testHydrationBatchGetRowRetryExceptionSurfacesMapped() {
+    // The retry batchGetRow call (re-driving failed sub-rows) is wrapped as well: a request-level
+    // provider exception thrown on the retry must also route through the exception mapper, not
+    // escape raw. First attempt returns a failed sub-row; the re-drive call then throws.
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(gsi);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of()); // unprojected -> hydrates via batchGetRow
+
+    Row indexRow =
+        new Row(
+            indexPk("mel", "2024-03-01", "game1"),
+            List.of(new Column("score", ColumnValue.fromLong(10))));
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(indexRow), null));
+    when(syncClient.batchGetRow(any()))
+        .thenReturn(failedBatchGetResponse("scores", "OTSServerBusy", 0))
+        .thenThrow(new TableStoreException("boom", "OTSServerBusy"));
+
+    DocumentIterator iter = store.runGetQuery(query);
+    UnknownException thrown =
+        Assertions.assertThrows(
+            UnknownException.class,
+            () -> drainAll(iter),
+            "a request-level failure on the retry batchGetRow must surface as the mapped type");
+    Assertions.assertTrue(
+        thrown.isRetryable(), "OTSServerBusy maps to a retryable UnknownException");
   }
 
   @Test

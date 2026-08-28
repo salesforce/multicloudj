@@ -78,6 +78,10 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 public class AliDocStore extends AbstractDocStore {
   private SyncClient tableStoreClient;
   private final int batchSize = 50;
+
+  // Tablestore caps a single GetRange page at 5000 rows / 4 MB regardless of any client-set limit.
+  private static final int MAX_GETRANGE_ROWS = 5000;
+
   DescribeTableResponse tableDescription;
 
   public AliDocStore(Builder builder) {
@@ -684,6 +688,15 @@ public class AliDocStore extends AbstractDocStore {
         queryable.getIndexName() != null && ObjectUtils.isEmpty(query.getFieldPaths());
     List<String> baseKeyColumns = getPrimaryKeyColumns(createBaseTableQueryable());
 
+    // Apply the fixed per-page GetRange row cap only when the key range is tight (the range
+    // captures the whole predicate set, so the column filter drops at most an O(1) boundary group).
+    // When it is NOT tight, the column filter drops a non-trivial number of scanned rows, so a
+    // small per-page cap would make each capped page yield few (or zero) matches and force the
+    // iterator to re-scan page after page; leave the request unbounded (0) so Tablestore's natural
+    // 5000-row/4 MB page does the server-side filtering in one round trip. See QueryPlanner.
+    int perRequestLimit =
+        plan.isKeyRangeTight() ? computePerRequestLimit(query.getOffset(), query.getLimit()) : 0;
+
     return new QueryRunner(
         tableStoreClient,
         targetTable,
@@ -695,7 +708,33 @@ public class AliDocStore extends AbstractDocStore {
         buildVisibleColumns(query.getFieldPaths(), pkColumns),
         hydrateFromBase ? collectionOptions.getTableName() : null,
         baseKeyColumns,
-        batchSize);
+        batchSize,
+        perRequestLimit,
+        this::mapException);
+  }
+
+  // Per-request GetRange row cap = offset + limit. Applied by planGetRangeQuery ONLY when the
+  // plan's key range is tight (see QueryPlanner#computeKeyRangeTight): a tight range captures the
+  // whole predicate set, so the column filter drops at most an O(1) boundary group and a capped
+  // page still yields ~offset+limit matches. When the range is NOT tight the caller passes 0
+  // (unbounded) instead, because the column filter would drop most of what each small capped page
+  // scans. This is a FIXED per-page cap applied to EVERY GetRange page, not a running budget: it
+  // does not track the iterator's remaining demand across pages, so a multi-page query (a
+  // server-side filter dropping rows within a page, or an offset larger than one page) may
+  // re-request up to offset + limit rows on each subsequent page. Capping each page still stops a
+  // small-limit unprojected index query from scanning and hydrating a full ~5000-row page just to
+  // yield a few rows. Returns 0 ("unbounded": leave Tablestore's natural
+  // page cap) when the caller set no limit, or when offset+limit meets or exceeds that cap (a limit
+  // there would not tighten anything). Uses long arithmetic so a pathological offset/limit cannot
+  // overflow int into a negative that setLimit would reject; on overflow it falls through to
+  // unbounded (today's behavior). Tightening the later-page cap to the iterator's remaining demand
+  // is a possible future optimization.
+  static int computePerRequestLimit(int offset, int limit) {
+    if (limit <= 0) {
+      return 0;
+    }
+    long budget = (long) Math.max(offset, 0) + (long) limit;
+    return budget < MAX_GETRANGE_ROWS ? (int) budget : 0;
   }
 
   // Builds the columns_to_get list to FETCH for a projected query: the projection, plus the
