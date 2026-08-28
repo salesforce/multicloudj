@@ -1,28 +1,26 @@
 {
-  "id" : "fb00f1c0-49c5-4198-b471-261bf4f10821",
+  "id" : "4872235d-46db-425d-9ac2-f94670f6414e",
   "name" : "AliDocstoreIT_testGetQuery-POST-24",
   "request" : {
-    "url" : "/PutRow",
+    "url" : "/GetRange",
     "method" : "POST",
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"op\":\"PutRow\",\"table\":\"docstore_test_2\",\"rows\":[{\"pk\":{\"Game\":{\"t\":\"PK:STRING\",\"v\":\"Zombie DMV\"},\"Player\":{\"t\":\"PK:STRING\",\"v\":\"mel\"}},\"cells\":{\"WithGlitch\":{\"t\":\"BOOLEAN\",\"v\":\"true\"},\"Score\":{\"t\":\"INTEGER\",\"v\":\"190\"},\"Time\":{\"t\":\"STRING\",\"v\":\"2024-04-18\"}},\"deleteMarker\":false}],\"condition\":\"0800\"}",
-      "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : false
+      "binaryEqualTo" : "CgNnc2kQACgBOkZ1AAAAAQMEBgAAAFBsYXllcgUIAAAAAwMAAABwYXQK4gMEBAAAAFRpbWUFAQAAAAkKWQMEBAAAAEdhbWUFAQAAAAkKfQkdQkZ1AAAAAQMEBgAAAFBsYXllcgUIAAAAAwMAAABwYXQK4gMEBAAAAFRpbWUFAQAAAAoKUAMEBAAAAEdhbWUFAQAAAAoKdAmaUhwIARIYCAUSBVNjb3JlGgkAZAAAAAAAAAAgASgB"
     } ]
   },
   "response" : {
     "status" : 200,
-    "base64Body" : "CgYKBAgBEAE=",
+    "base64Body" : "CgYKBAgBEAASsgF1AAAAAQMEBgAAAFBsYXllcgUIAAAAAwMAAABwYXQK4gMEBAAAAFRpbWUFDwAAAAMKAAAAMjAyNC0wMy0xMwppAwQEAAAAR2FtZQUYAAAAAxMAAABQcmFpc2UgQWxsIE1vbnN0ZXJzCmUCAwQFAAAAU2NvcmUFCQAAAAAxAAAAAAAAAAeDs21GoAEAAArYAwQKAAAAV2l0aEdsaXRjaAUCAAAAAgAHg7NtRqABAAAKnQlJKAAwAA==",
     "headers" : {
-      "x-ots-requestid" : "000657ed-c0b6-ec20-8707-fe0a0c9e01c1",
-      "Authorization" : "OTS STS.NY3TWDAWC3sV57fGWmx8PCPqs:GxUuX4wsHUTiq+RTuHLyIpfFW2k=",
-      "x-ots-date" : "2026-07-31T20:08:32.372479Z",
+      "x-ots-requestid" : "00065a13-1d99-7a50-a87c-2b1ac8b9ca10",
+      "Authorization" : "OTS STS.NYKRCFQWXELvmrjAHWndrQSNH:3HJPUVbDzW+ezs4Y5fg9A4KWGm8=",
+      "x-ots-date" : "2026-08-28T03:33:27.750859Z",
       "x-ots-contenttype" : "protocol buffer",
-      "x-ots-contentmd5" : "bofsTfsxtvymDNQpw96K/Q==",
-      "Date" : "Fri, 31 Jul 2026 20:08:32 GMT"
+      "x-ots-contentmd5" : "OHTp0r0jM3gFf+1kosg8uQ==",
+      "Date" : "Fri, 28 Aug 2026 03:33:27 GMT"
     }
   },
-  "uuid" : "fb00f1c0-49c5-4198-b471-261bf4f10821",
+  "uuid" : "4872235d-46db-425d-9ac2-f94670f6414e",
   "persistent" : true,
-  "insertionIndex" : 25
+  "insertionIndex" : 203
 }

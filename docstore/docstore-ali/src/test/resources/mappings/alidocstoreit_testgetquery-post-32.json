@@ -1,27 +1,28 @@
 {
-  "id" : "5a72a5d9-d62c-4c43-8a24-7d1a994a4864",
+  "id" : "eba8ab0a-df28-4f27-a859-69f971e9969d",
   "name" : "AliDocstoreIT_testGetQuery-POST-32",
   "request" : {
-    "url" : "/DescribeTable",
+    "url" : "/PutRow",
     "method" : "POST",
     "bodyPatterns" : [ {
-      "equalTo" : "\n\u000Fdocstore_test_1",
-      "caseInsensitive" : false
+      "equalToJson" : "{\"op\":\"PutRow\",\"table\":\"docstore_test_2\",\"rows\":[{\"pk\":{\"Game\":{\"t\":\"PK:STRING\",\"v\":\"Zombie DMV\"},\"Player\":{\"t\":\"PK:STRING\",\"v\":\"fran\"}},\"cells\":{\"WithGlitch\":{\"t\":\"BOOLEAN\",\"v\":\"false\"},\"Score\":{\"t\":\"INTEGER\",\"v\":\"33\"},\"Time\":{\"t\":\"STRING\",\"v\":\"2024-03-20\"}},\"deleteMarker\":false}],\"condition\":\"0800\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "base64Body" : "CkIKD2RvY3N0b3JlX3Rlc3RfMRIJCgVwTmFtZRACKiRjZWI0ZjVhNi03YjIyLTQ0YTEtYmNiNS0wMjIyNDA5OWJkMTcSDAoECAAQABCc0eDSBhoVCP///////////wEQASiAowUwATgAIAEqBAgAIAA6AggASKybwI371ZUDYgIIAGgA",
+    "base64Body" : "CgYKBAgBEAE=",
     "headers" : {
-      "x-ots-requestid" : "000657ed-c03b-90d7-6925-150a0e429616",
-      "Authorization" : "OTS STS.NY3TWDAWC3sV57fGWmx8PCPqs:eqprPGMlVTVsETJ1zZ/L4XRc4wM=",
-      "x-ots-date" : "2026-07-31T20:08:24.287524Z",
+      "x-ots-requestid" : "00065a13-1d01-e92d-7376-700bb4e5509d",
+      "Authorization" : "OTS STS.NYKRCFQWXELvmrjAHWndrQSNH:dofsbeqwano00j7z/eNfwYicgx8=",
+      "x-ots-date" : "2026-08-28T03:33:17.815701Z",
       "x-ots-contenttype" : "protocol buffer",
-      "x-ots-contentmd5" : "CArk29zdnGajhK/qjduZWA==",
-      "Date" : "Fri, 31 Jul 2026 20:08:24 GMT"
+      "x-ots-contentmd5" : "bofsTfsxtvymDNQpw96K/Q==",
+      "Date" : "Fri, 28 Aug 2026 03:33:17 GMT"
     }
   },
-  "uuid" : "5a72a5d9-d62c-4c43-8a24-7d1a994a4864",
+  "uuid" : "eba8ab0a-df28-4f27-a859-69f971e9969d",
   "persistent" : true,
-  "insertionIndex" : 33
+  "insertionIndex" : 211
 }
