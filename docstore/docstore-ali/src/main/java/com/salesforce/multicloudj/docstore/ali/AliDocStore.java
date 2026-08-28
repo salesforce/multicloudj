@@ -14,7 +14,6 @@ import com.alicloud.openservices.tablestore.model.BatchGetRowResponse;
 import com.alicloud.openservices.tablestore.model.ColumnValue;
 import com.alicloud.openservices.tablestore.model.CommitTransactionRequest;
 import com.alicloud.openservices.tablestore.model.Condition;
-import com.alicloud.openservices.tablestore.model.DefinedColumnSchema;
 import com.alicloud.openservices.tablestore.model.DeleteRowRequest;
 import com.alicloud.openservices.tablestore.model.DescribeTableRequest;
 import com.alicloud.openservices.tablestore.model.DescribeTableResponse;
@@ -24,7 +23,6 @@ import com.alicloud.openservices.tablestore.model.MultiRowQueryCriteria;
 import com.alicloud.openservices.tablestore.model.PrimaryKey;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyBuilder;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyColumn;
-import com.alicloud.openservices.tablestore.model.PrimaryKeySchema;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyValue;
 import com.alicloud.openservices.tablestore.model.PutRowRequest;
 import com.alicloud.openservices.tablestore.model.RowChange;
@@ -33,7 +31,6 @@ import com.alicloud.openservices.tablestore.model.RowExistenceExpectation;
 import com.alicloud.openservices.tablestore.model.RowPutChange;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionRequest;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionResponse;
-import com.alicloud.openservices.tablestore.model.TableMeta;
 import com.alicloud.openservices.tablestore.model.condition.SingleColumnValueCondition;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.ali.AliRetryClassifier;
@@ -81,6 +78,10 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 public class AliDocStore extends AbstractDocStore {
   private SyncClient tableStoreClient;
   private final int batchSize = 50;
+
+  // Tablestore caps a single GetRange page at 5000 rows / 4 MB regardless of any client-set limit.
+  private static final int MAX_GETRANGE_ROWS = 5000;
+
   DescribeTableResponse tableDescription;
 
   public AliDocStore(Builder builder) {
@@ -679,6 +680,23 @@ public class AliDocStore extends AbstractDocStore {
     QueryPlanner.Plan plan =
         QueryPlanner.plan(pkColumns, filters, query.isOrderAscending());
 
+    // An unprojected query served from a secondary index must hydrate each row from the base table:
+    // the index physically carries only its own columns, so it cannot return a row's schema-less
+    // attributes. A projected index query and any base-table/scan query never hydrate. See
+    // QueryRunner for why hydration is needed and its global-index eventual-consistency behavior.
+    boolean hydrateFromBase =
+        queryable.getIndexName() != null && ObjectUtils.isEmpty(query.getFieldPaths());
+    List<String> baseKeyColumns = getPrimaryKeyColumns(createBaseTableQueryable());
+
+    // Apply the fixed per-page GetRange row cap only when the key range is tight (the range
+    // captures the whole predicate set, so the column filter drops at most an O(1) boundary group).
+    // When it is NOT tight, the column filter drops a non-trivial number of scanned rows, so a
+    // small per-page cap would make each capped page yield few (or zero) matches and force the
+    // iterator to re-scan page after page; leave the request unbounded (0) so Tablestore's natural
+    // 5000-row/4 MB page does the server-side filtering in one round trip. See QueryPlanner.
+    int perRequestLimit =
+        plan.isKeyRangeTight() ? computePerRequestLimit(query.getOffset(), query.getLimit()) : 0;
+
     return new QueryRunner(
         tableStoreClient,
         targetTable,
@@ -686,17 +704,47 @@ public class AliDocStore extends AbstractDocStore {
         plan.getExclusiveEndPrimaryKey(),
         plan.getDirection(),
         plan.getColumnFilter(),
-        buildColumnsToGet(query.getFieldPaths(), pkColumns));
+        buildColumnsToGet(query.getFieldPaths(), pkColumns, filters),
+        buildVisibleColumns(query.getFieldPaths(), pkColumns),
+        hydrateFromBase ? collectionOptions.getTableName() : null,
+        baseKeyColumns,
+        batchSize,
+        perRequestLimit,
+        this::mapException);
   }
 
-  // Builds the columns_to_get list for a projected query. An empty field-path list means "all
+  // Per-page GetRange row cap = offset + limit, or 0 to leave Tablestore's natural page cap
+  // (MAX_GETRANGE_ROWS): returns 0 when there is no limit, when offset + limit already meets that
+  // cap (a larger limit would not tighten anything), or on overflow. long arithmetic keeps a
+  // pathological offset + limit from wrapping int negative, which setLimit would reject.
+  // Selected only for a tight key range; see planGetRangeQuery (why) and QueryRunner (per-page
+  // application).
+  static int computePerRequestLimit(int offset, int limit) {
+    if (limit <= 0) {
+      return 0;
+    }
+    long budget = (long) Math.max(offset, 0) + (long) limit;
+    return budget < MAX_GETRANGE_ROWS ? (int) budget : 0;
+  }
+
+  // Builds the columns_to_get list to FETCH for a projected query: the projection, plus the
+  // target's primary-key columns, plus every predicate field. An empty field-path list means "all
   // columns", which Tablestore expresses as an empty columns_to_get, so it is returned unchanged.
-  // When the caller projects a subset, the target's primary-key columns are force-added if absent:
-  // Tablestore's GetRange omits a row from the response when none of its requested columns are
-  // present, and both row decoding and the pagination cursor read the primary key, so a missing key
-  // would drop matching rows and break continuation. Uses the resolved target's key columns
-  // (base-table keys, or a secondary index's own key list) so index queries stay correct.
-  private List<String> buildColumnsToGet(List<String> fieldPaths, List<String> pkColumns) {
+  //
+  // Primary-key columns are force-added if absent: Tablestore's GetRange omits a row from the
+  // response when none of its requested columns are present, and both row decoding and the
+  // pagination cursor read the primary key, so a missing key would drop matching rows and break
+  // continuation. Uses the resolved target's key columns (base-table keys, or a secondary index's
+  // own key list) so index queries stay correct.
+  //
+  // Predicate fields are force-added because Tablestore applies the server-side column filter AFTER
+  // columns_to_get: a filter on a field that was not fetched reads as missing and, under
+  // passIfMissing(false), drops every matching row. So a projected query with a predicate on a
+  // non-projected field must still fetch that field. The extra columns are then trimmed back out of
+  // the returned rows (see buildVisibleColumns and QueryRunner) so the caller still sees only the
+  // projection plus the primary key.
+  private List<String> buildColumnsToGet(
+      List<String> fieldPaths, List<String> pkColumns, List<Filter> filters) {
     if (ObjectUtils.isEmpty(fieldPaths)) {
       return fieldPaths;
     }
@@ -706,7 +754,26 @@ public class AliDocStore extends AbstractDocStore {
         columnsToGet.add(pkColumn);
       }
     }
+    for (Filter filter : filters) {
+      if (!columnsToGet.contains(filter.getFieldPath())) {
+        columnsToGet.add(filter.getFieldPath());
+      }
+    }
     return columnsToGet;
+  }
+
+  // The columns a projected query's caller is allowed to SEE: the projection plus the target's
+  // primary-key columns. Returns null when the query is unprojected (empty field paths); null means
+  // "all columns visible", so QueryRunner performs no trimming. When a subset is projected,
+  // buildColumnsToGet may fetch extra predicate fields the caller did not ask for, and the fetched
+  // rows are trimmed back to this set so a non-projected predicate field never leaks to the caller.
+  private Set<String> buildVisibleColumns(List<String> fieldPaths, List<String> pkColumns) {
+    if (ObjectUtils.isEmpty(fieldPaths)) {
+      return null;
+    }
+    Set<String> visible = new HashSet<>(fieldPaths);
+    visible.addAll(pkColumns);
+    return visible;
   }
 
   // Full ordered primary-key column list of the resolved target: the base table's keys from
@@ -802,36 +869,27 @@ public class AliDocStore extends AbstractDocStore {
     // include the base table's primary key, folded in by Tablestore) plus its defined columns.
     Set<String> indexFields = new HashSet<>(gi.getPrimaryKeyList());
     indexFields.addAll(gi.getDefinedColumnsList());
-
-    if (query.getFieldPaths().isEmpty()) {
-      // The query wants ALL of the document's fields. That can be served from the index only if the
-      // index is COVERING — its columns include every column of the base table (base PK + every
-      // defined attribute column). Tablestore requires columns referenced by an index to be
-      // pre-defined on the base table, so the base table's full column set is knowable and this is
-      // computable (the equivalent of checking that an index fully projects the table).
-      return indexCoversAllBaseColumns(indexFields);
-    }
-
-    // Otherwise the index is usable iff every explicitly requested field is present in it.
-    return indexFields.containsAll(query.getFieldPaths());
+    return indexUsableForQuery(query, indexFields);
   }
 
-  // True when the index's columns cover every column of the base table (its primary-key columns and
-  // all defined attribute columns), so an all-fields query can be answered entirely from the index
-  // without a per-row base-table lookup.
-  private boolean indexCoversAllBaseColumns(Set<String> indexFields) {
-    TableMeta tableMeta = getTableDescription().getTableMeta();
-    for (PrimaryKeySchema pk : tableMeta.getPrimaryKeyList()) {
-      if (!indexFields.contains(pk.getName())) {
-        return false;
+  // An index can serve a query when its columns can evaluate every predicate (the server-side
+  // filter runs on the index read) and return every projected field. An unprojected query names no
+  // fields: the projection requirement is vacuous and any column the index lacks -- including
+  // schema-less attributes -- is recovered by hydrating the row from the base table.
+  private boolean indexUsableForQuery(Query query, Set<String> indexFields) {
+    Set<String> required = new HashSet<>();
+    if (query.getFilters() != null) {
+      for (Filter filter : query.getFilters()) {
+        required.add(filter.getFieldPath());
       }
     }
-    for (DefinedColumnSchema col : tableMeta.getDefinedColumnsList()) {
-      if (!indexFields.contains(col.getName())) {
-        return false;
-      }
+    // Null/empty field paths mean an unprojected query: nothing to add to the projection
+    // requirement. setFieldPaths(null) is reachable via the public Lombok setter, so guard it the
+    // way the rest of the planner does rather than NPE on addAll(null).
+    if (!ObjectUtils.isEmpty(query.getFieldPaths())) {
+      required.addAll(query.getFieldPaths());
     }
-    return true;
+    return indexFields.containsAll(required);
   }
 
   protected DescribeTableResponse getTableDescription() {
@@ -934,7 +992,7 @@ public class AliDocStore extends AbstractDocStore {
     fields.addAll(index.getDefinedColumnsList());
     fields.addAll(index.getPrimaryKeyList());
     return key != null
-        && fields.containsAll(query.getFieldPaths())
+        && indexUsableForQuery(query, fields)
         && isValidSortKey(query, key.getSortKey());
   }
 
