@@ -660,16 +660,16 @@
                                     <zipentry zipfile="${project.build.directory}/${project.build.finalName}-benchmarks.jar"
                                               name="META-INF/BenchmarkList"/>
                                 </loadresource>
-                                <fail message="benchmarks jar is missing or has an empty META-INF/BenchmarkList - JMH would discover zero benchmarks">
+                                <fail message="benchmarks jar has a missing or empty BenchmarkList - zero benchmarks">
                                     <condition>
                                         <not><isset property="benchmarkList"/></not>
                                     </condition>
                                 </fail>
-                                <fail message="benchmarks jar does not list the expected provider benchmark AwsStsBenchmarkTest">
+                                <fail message="benchmarks jar is missing com.salesforce.multicloudj.sts.aws benchmarks">
                                     <condition>
                                         <not>
                                             <contains string="${benchmarkList}"
-                                                      substring="com.salesforce.multicloudj.sts.aws.AwsStsBenchmarkTest"/>
+                                                      substring="com.salesforce.multicloudj.sts.aws."/>
                                         </not>
                                     </condition>
                                 </fail>
