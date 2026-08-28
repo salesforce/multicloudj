@@ -76,6 +76,8 @@
         <opentelemetry.version>1.62.0</opentelemetry.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <revision>0.2.5-SNAPSHOT</revision>
+        <!-- benchmarks jar off by default: 'none' leaves the inherited jar execution unbound from the lifecycle (intentional disable, not a typo). A benchmark-bearing module opts in by overriding this to 'package'. -->
+        <benchmarks.jar.phase>none</benchmarks.jar.phase>
     </properties>
     
     <repositories>
@@ -541,9 +543,104 @@
                         </dependency>
                     </dependencies>
                 </plugin>
+                <!-- benchmark-only artifact: benchmark classes + JMH-generated classes + JMH metadata (BenchmarkList, CompilerHints), no test infra. A module opts in by setting benchmarks.jar.phase to package. -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>3.4.2</version>
+                    <executions>
+                        <execution>
+                            <id>benchmarks-classifier-jar</id>
+                            <phase>${benchmarks.jar.phase}</phase>
+                            <goals>
+                                <goal>test-jar</goal>
+                            </goals>
+                            <configuration>
+                                <classifier>benchmarks</classifier>
+                                <includes>
+                                    <include>**/*Benchmark*.class</include>
+                                    <include>**/jmh_generated/**</include>
+                                    <include>META-INF/BenchmarkList</include>
+                                    <include>META-INF/CompilerHints</include>
+                                </includes>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!-- version pinning only; the benchmarks-jar guard execution lives in the root build/plugins so it applies to every module automatically -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-antrun-plugin</artifactId>
+                    <version>3.1.0</version>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
+            <!-- benchmarks-jar guard: runs for every module. Enforces on providers (benchmarks.expected.package set), and also fails any module that builds a jar of runnable benchmarks without declaring that property. A no-op on modules that build no benchmarks jar. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>verify-benchmarks-jar</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target xmlns:if="ant:if">
+                                <property name="benchmarksJar" value="${project.build.directory}/${project.build.finalName}-benchmarks.jar"/>
+                                <available file="${benchmarksJar}" property="benchmarksJarPresent"/>
+                                <!-- fresh = jar exists and is newer than the compiled test-classes, i.e. built this run (a stale jar from an earlier build does not count) -->
+                                <uptodate property="benchmarksJarFresh" targetfile="${benchmarksJar}">
+                                    <srcfiles dir="${project.build.testOutputDirectory}" includes="**/*" erroronmissingdir="false"/>
+                                </uptodate>
+                                <!-- read the index only when a jar is present, so modules that build none never hard-error here -->
+                                <loadresource property="benchmarkList" quiet="true" if:set="benchmarksJarPresent">
+                                    <zipentry zipfile="${benchmarksJar}" name="META-INF/BenchmarkList"/>
+                                </loadresource>
+                                <!-- provider declared intent but no fresh jar was built (phase not set to package, or bare maven-jar-plugin not declared) -->
+                                <fail message="${project.artifactId}: benchmarks.expected.package is set but no fresh benchmarks jar was built - set benchmarks.jar.phase to package and declare a bare maven-jar-plugin">
+                                    <condition>
+                                        <and>
+                                            <isset property="benchmarks.expected.package"/>
+                                            <not><isset property="benchmarksJarFresh"/></not>
+                                        </and>
+                                    </condition>
+                                </fail>
+                                <!-- provider jar built but its BenchmarkList is missing/empty (zero runnable benchmarks) -->
+                                <fail message="${project.artifactId}: benchmarks jar has a missing or empty BenchmarkList - zero benchmarks">
+                                    <condition>
+                                        <and>
+                                            <isset property="benchmarks.expected.package"/>
+                                            <not><isset property="benchmarkList"/></not>
+                                        </and>
+                                    </condition>
+                                </fail>
+                                <!-- provider jar built but does not contain this module's own benchmarks -->
+                                <fail message="${project.artifactId}: benchmarks jar is missing ${benchmarks.expected.package} benchmarks">
+                                    <condition>
+                                        <and>
+                                            <isset property="benchmarks.expected.package"/>
+                                            <isset property="benchmarkList"/>
+                                            <not><contains string="${benchmarkList}" substring="${benchmarks.expected.package}"/></not>
+                                        </and>
+                                    </condition>
+                                </fail>
+                                <!-- a module shipped runnable benchmarks but never declared benchmarks.expected.package, so the guard could not verify it -->
+                                <fail message="${project.artifactId}: benchmarks jar contains runnable benchmarks but benchmarks.expected.package is not set - declare it so the guard verifies this module">
+                                    <condition>
+                                        <and>
+                                            <not><isset property="benchmarks.expected.package"/></not>
+                                            <isset property="benchmarkList"/>
+                                        </and>
+                                    </condition>
+                                </fail>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

@@ -13,6 +13,11 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <properties>
+        <!-- opt in to the centralized benchmarks jar (abstract benchmark base classes); no guard on the client module -->
+        <benchmarks.jar.phase>package</benchmarks.jar.phase>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.wiremock</groupId>
