@@ -713,22 +713,12 @@ public class AliDocStore extends AbstractDocStore {
         this::mapException);
   }
 
-  // Per-request GetRange row cap = offset + limit. Applied by planGetRangeQuery ONLY when the
-  // plan's key range is tight (see QueryPlanner#computeKeyRangeTight): a tight range captures the
-  // whole predicate set, so the column filter drops at most an O(1) boundary group and a capped
-  // page still yields ~offset+limit matches. When the range is NOT tight the caller passes 0
-  // (unbounded) instead, because the column filter would drop most of what each small capped page
-  // scans. This is a FIXED per-page cap applied to EVERY GetRange page, not a running budget: it
-  // does not track the iterator's remaining demand across pages, so a multi-page query (a
-  // server-side filter dropping rows within a page, or an offset larger than one page) may
-  // re-request up to offset + limit rows on each subsequent page. Capping each page still stops a
-  // small-limit unprojected index query from scanning and hydrating a full ~5000-row page just to
-  // yield a few rows. Returns 0 ("unbounded": leave Tablestore's natural
-  // page cap) when the caller set no limit, or when offset+limit meets or exceeds that cap (a limit
-  // there would not tighten anything). Uses long arithmetic so a pathological offset/limit cannot
-  // overflow int into a negative that setLimit would reject; on overflow it falls through to
-  // unbounded (today's behavior). Tightening the later-page cap to the iterator's remaining demand
-  // is a possible future optimization.
+  // Per-page GetRange row cap = offset + limit, or 0 to leave Tablestore's natural page cap
+  // (MAX_GETRANGE_ROWS): returns 0 when there is no limit, when offset + limit already meets that
+  // cap (a larger limit would not tighten anything), or on overflow. long arithmetic keeps a
+  // pathological offset + limit from wrapping int negative, which setLimit would reject.
+  // Selected only for a tight key range; see planGetRangeQuery (why) and QueryRunner (per-page
+  // application).
   static int computePerRequestLimit(int offset, int limit) {
     if (limit <= 0) {
       return 0;
