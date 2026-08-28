@@ -1198,6 +1198,55 @@ class AliDocStoreTest {
         "an unprojected query must not restrict columns_to_get");
   }
 
+  @Test
+  void testProjectedQueryFetchesNonProjectedPredicateField() {
+    // A projected query whose predicate is on a present-but-not-projected field must still FETCH
+    // that field. Tablestore applies columns_to_get BEFORE the server-side column filter, so a
+    // filter on an un-fetched field reads as missing and (passIfMissing(false)) drops every match.
+    // columns_to_get must therefore include the predicate field 'author' on top of the projected
+    // 'price' and both PK columns.
+    Query query =
+        new Query(ali)
+            .where("title", FilterOperation.EQUAL, "value")
+            .where("author", FilterOperation.GREATER_THAN, "x");
+    query.setFieldPaths(List.of("price"));
+
+    wireMockClient();
+    Set<String> columns = capturedRangeCriteria(query).getColumnsToGet();
+    Assertions.assertTrue(
+        columns.contains("author"), "non-projected predicate field must be fetched");
+    Assertions.assertTrue(columns.contains("price"), "projected field should be requested");
+    Assertions.assertTrue(columns.contains("title"), "partition key should be force-added");
+    Assertions.assertTrue(columns.contains("publisher"), "sort key should be force-added");
+    Assertions.assertEquals(
+        4, columns.size(), "projection + both PK columns + the predicate field, no extras");
+  }
+
+  @Test
+  void testTrimColumnsKeepsVisibleAndPreservesPrimaryKey() {
+    // trimColumns keeps only the attribute columns named in the visible set and preserves the
+    // primary key, so the caller sees only its projection while the pagination cursor stays intact.
+    PrimaryKey pk =
+        PrimaryKeyBuilder.createPrimaryKeyBuilder()
+            .addPrimaryKeyColumn("title", PrimaryKeyValue.fromString("YellowBook"))
+            .addPrimaryKeyColumn("publisher", PrimaryKeyValue.fromString("WA"))
+            .build();
+    Row row =
+        new Row(
+            pk,
+            List.of(
+                new Column("price", ColumnValue.fromDouble(3.99)),
+                new Column("author", ColumnValue.fromString("Neil"))));
+
+    Row trimmed = QueryRunner.trimColumns(row, Set.of("price", "title", "publisher"));
+
+    Assertions.assertNotNull(trimmed.getLatestColumn("price"), "visible column must be kept");
+    Assertions.assertNull(
+        trimmed.getLatestColumn("author"), "non-visible attribute column must be dropped");
+    Assertions.assertEquals(
+        pk, trimmed.getPrimaryKey(), "primary key must be preserved for the pagination cursor");
+  }
+
   // Builds a store over "my-table" (PK title+publisher) with the given AllowScans setting, wired to
   // the mock client and its describeTable stub.
   private AliDocStore storeWithAllowScans(boolean allowScans) {

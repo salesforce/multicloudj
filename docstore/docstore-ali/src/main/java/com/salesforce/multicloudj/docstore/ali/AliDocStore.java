@@ -686,17 +686,28 @@ public class AliDocStore extends AbstractDocStore {
         plan.getExclusiveEndPrimaryKey(),
         plan.getDirection(),
         plan.getColumnFilter(),
-        buildColumnsToGet(query.getFieldPaths(), pkColumns));
+        buildColumnsToGet(query.getFieldPaths(), pkColumns, filters),
+        buildVisibleColumns(query.getFieldPaths(), pkColumns));
   }
 
-  // Builds the columns_to_get list for a projected query. An empty field-path list means "all
+  // Builds the columns_to_get list to FETCH for a projected query: the projection, plus the
+  // target's primary-key columns, plus every predicate field. An empty field-path list means "all
   // columns", which Tablestore expresses as an empty columns_to_get, so it is returned unchanged.
-  // When the caller projects a subset, the target's primary-key columns are force-added if absent:
-  // Tablestore's GetRange omits a row from the response when none of its requested columns are
-  // present, and both row decoding and the pagination cursor read the primary key, so a missing key
-  // would drop matching rows and break continuation. Uses the resolved target's key columns
-  // (base-table keys, or a secondary index's own key list) so index queries stay correct.
-  private List<String> buildColumnsToGet(List<String> fieldPaths, List<String> pkColumns) {
+  //
+  // Primary-key columns are force-added if absent: Tablestore's GetRange omits a row from the
+  // response when none of its requested columns are present, and both row decoding and the
+  // pagination cursor read the primary key, so a missing key would drop matching rows and break
+  // continuation. Uses the resolved target's key columns (base-table keys, or a secondary index's
+  // own key list) so index queries stay correct.
+  //
+  // Predicate fields are force-added because Tablestore applies the server-side column filter AFTER
+  // columns_to_get: a filter on a field that was not fetched reads as missing and, under
+  // passIfMissing(false), drops every matching row. So a projected query with a predicate on a
+  // non-projected field must still fetch that field. The extra columns are then trimmed back out of
+  // the returned rows (see buildVisibleColumns and QueryRunner) so the caller still sees only the
+  // projection plus the primary key.
+  private List<String> buildColumnsToGet(
+      List<String> fieldPaths, List<String> pkColumns, List<Filter> filters) {
     if (ObjectUtils.isEmpty(fieldPaths)) {
       return fieldPaths;
     }
@@ -706,7 +717,26 @@ public class AliDocStore extends AbstractDocStore {
         columnsToGet.add(pkColumn);
       }
     }
+    for (Filter filter : filters) {
+      if (!columnsToGet.contains(filter.getFieldPath())) {
+        columnsToGet.add(filter.getFieldPath());
+      }
+    }
     return columnsToGet;
+  }
+
+  // The columns a projected query's caller is allowed to SEE: the projection plus the target's
+  // primary-key columns. Returns null when the query is unprojected (empty field paths); null means
+  // "all columns visible", so QueryRunner performs no trimming. When a subset is projected,
+  // buildColumnsToGet may fetch extra predicate fields the caller did not ask for, and the fetched
+  // rows are trimmed back to this set so a non-projected predicate field never leaks to the caller.
+  private Set<String> buildVisibleColumns(List<String> fieldPaths, List<String> pkColumns) {
+    if (ObjectUtils.isEmpty(fieldPaths)) {
+      return null;
+    }
+    Set<String> visible = new HashSet<>(fieldPaths);
+    visible.addAll(pkColumns);
+    return visible;
   }
 
   // Full ordered primary-key column list of the resolved target: the base table's keys from
