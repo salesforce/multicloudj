@@ -14,7 +14,6 @@ import com.alicloud.openservices.tablestore.model.BatchGetRowResponse;
 import com.alicloud.openservices.tablestore.model.ColumnValue;
 import com.alicloud.openservices.tablestore.model.CommitTransactionRequest;
 import com.alicloud.openservices.tablestore.model.Condition;
-import com.alicloud.openservices.tablestore.model.DefinedColumnSchema;
 import com.alicloud.openservices.tablestore.model.DeleteRowRequest;
 import com.alicloud.openservices.tablestore.model.DescribeTableRequest;
 import com.alicloud.openservices.tablestore.model.DescribeTableResponse;
@@ -24,7 +23,6 @@ import com.alicloud.openservices.tablestore.model.MultiRowQueryCriteria;
 import com.alicloud.openservices.tablestore.model.PrimaryKey;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyBuilder;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyColumn;
-import com.alicloud.openservices.tablestore.model.PrimaryKeySchema;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyValue;
 import com.alicloud.openservices.tablestore.model.PutRowRequest;
 import com.alicloud.openservices.tablestore.model.RowChange;
@@ -33,7 +31,6 @@ import com.alicloud.openservices.tablestore.model.RowExistenceExpectation;
 import com.alicloud.openservices.tablestore.model.RowPutChange;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionRequest;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionResponse;
-import com.alicloud.openservices.tablestore.model.TableMeta;
 import com.alicloud.openservices.tablestore.model.condition.SingleColumnValueCondition;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.ali.AliRetryClassifier;
@@ -679,6 +676,14 @@ public class AliDocStore extends AbstractDocStore {
     QueryPlanner.Plan plan =
         QueryPlanner.plan(pkColumns, filters, query.isOrderAscending());
 
+    // An unprojected query served from a secondary index must hydrate each row from the base table:
+    // the index physically carries only its own columns, so it cannot return a row's schema-less
+    // attributes. A projected index query and any base-table/scan query never hydrate. See
+    // QueryRunner for why hydration is needed and its global-index eventual-consistency behavior.
+    boolean hydrateFromBase =
+        queryable.getIndexName() != null && ObjectUtils.isEmpty(query.getFieldPaths());
+    List<String> baseKeyColumns = getPrimaryKeyColumns(createBaseTableQueryable());
+
     return new QueryRunner(
         tableStoreClient,
         targetTable,
@@ -687,7 +692,10 @@ public class AliDocStore extends AbstractDocStore {
         plan.getDirection(),
         plan.getColumnFilter(),
         buildColumnsToGet(query.getFieldPaths(), pkColumns, filters),
-        buildVisibleColumns(query.getFieldPaths(), pkColumns));
+        buildVisibleColumns(query.getFieldPaths(), pkColumns),
+        hydrateFromBase ? collectionOptions.getTableName() : null,
+        baseKeyColumns,
+        batchSize);
   }
 
   // Builds the columns_to_get list to FETCH for a projected query: the projection, plus the
@@ -832,36 +840,27 @@ public class AliDocStore extends AbstractDocStore {
     // include the base table's primary key, folded in by Tablestore) plus its defined columns.
     Set<String> indexFields = new HashSet<>(gi.getPrimaryKeyList());
     indexFields.addAll(gi.getDefinedColumnsList());
-
-    if (query.getFieldPaths().isEmpty()) {
-      // The query wants ALL of the document's fields. That can be served from the index only if the
-      // index is COVERING — its columns include every column of the base table (base PK + every
-      // defined attribute column). Tablestore requires columns referenced by an index to be
-      // pre-defined on the base table, so the base table's full column set is knowable and this is
-      // computable (the equivalent of checking that an index fully projects the table).
-      return indexCoversAllBaseColumns(indexFields);
-    }
-
-    // Otherwise the index is usable iff every explicitly requested field is present in it.
-    return indexFields.containsAll(query.getFieldPaths());
+    return indexUsableForQuery(query, indexFields);
   }
 
-  // True when the index's columns cover every column of the base table (its primary-key columns and
-  // all defined attribute columns), so an all-fields query can be answered entirely from the index
-  // without a per-row base-table lookup.
-  private boolean indexCoversAllBaseColumns(Set<String> indexFields) {
-    TableMeta tableMeta = getTableDescription().getTableMeta();
-    for (PrimaryKeySchema pk : tableMeta.getPrimaryKeyList()) {
-      if (!indexFields.contains(pk.getName())) {
-        return false;
+  // An index can serve a query when its columns can evaluate every predicate (the server-side
+  // filter runs on the index read) and return every projected field. An unprojected query names no
+  // fields: the projection requirement is vacuous and any column the index lacks -- including
+  // schema-less attributes -- is recovered by hydrating the row from the base table.
+  private boolean indexUsableForQuery(Query query, Set<String> indexFields) {
+    Set<String> required = new HashSet<>();
+    if (query.getFilters() != null) {
+      for (Filter filter : query.getFilters()) {
+        required.add(filter.getFieldPath());
       }
     }
-    for (DefinedColumnSchema col : tableMeta.getDefinedColumnsList()) {
-      if (!indexFields.contains(col.getName())) {
-        return false;
-      }
+    // Null/empty field paths mean an unprojected query: nothing to add to the projection
+    // requirement. setFieldPaths(null) is reachable via the public Lombok setter, so guard it the
+    // way the rest of the planner does rather than NPE on addAll(null).
+    if (!ObjectUtils.isEmpty(query.getFieldPaths())) {
+      required.addAll(query.getFieldPaths());
     }
-    return true;
+    return indexFields.containsAll(required);
   }
 
   protected DescribeTableResponse getTableDescription() {
@@ -964,7 +963,7 @@ public class AliDocStore extends AbstractDocStore {
     fields.addAll(index.getDefinedColumnsList());
     fields.addAll(index.getPrimaryKeyList());
     return key != null
-        && fields.containsAll(query.getFieldPaths())
+        && indexUsableForQuery(query, fields)
         && isValidSortKey(query, key.getSortKey());
   }
 

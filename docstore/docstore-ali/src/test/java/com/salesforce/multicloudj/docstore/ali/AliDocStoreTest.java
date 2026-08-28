@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.docstore.ali;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -21,6 +22,8 @@ import com.alicloud.openservices.tablestore.model.DeleteRowRequest;
 import com.alicloud.openservices.tablestore.model.DeleteRowResponse;
 import com.alicloud.openservices.tablestore.model.DescribeTableRequest;
 import com.alicloud.openservices.tablestore.model.DescribeTableResponse;
+import com.alicloud.openservices.tablestore.model.Direction;
+import com.alicloud.openservices.tablestore.model.Error;
 import com.alicloud.openservices.tablestore.model.GetRangeRequest;
 import com.alicloud.openservices.tablestore.model.GetRangeResponse;
 import com.alicloud.openservices.tablestore.model.IndexMeta;
@@ -43,6 +46,7 @@ import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
@@ -1343,6 +1347,10 @@ class AliDocStoreTest {
   // to a describeTable stub carrying the given global indexes. Mirrors how the conformance table is
   // provisioned (all attribute columns pre-defined so indexes can reference them).
   private AliDocStore storeWithSchema(IndexMeta... indexes) {
+    return storeWithSchema(false, indexes);
+  }
+
+  private AliDocStore storeWithSchema(boolean allowScans, IndexMeta... indexes) {
     AliDocStore store =
         new AliDocStore.Builder()
             .withRegion("cn-shanghai")
@@ -1354,7 +1362,7 @@ class AliDocStoreTest {
                     .withSortKey("player")
                     .withTableName("scores")
                     .withRevisionField("docRevision")
-                    .withAllowScans(false)
+                    .withAllowScans(allowScans)
                     .build())
             .withCredentialsOverrider(
                 new CredentialsOverrider.Builder(CredentialsType.SESSION)
@@ -1396,10 +1404,74 @@ class AliDocStoreTest {
     return idx;
   }
 
+  // Builds an index-shaped primary key [player, time, game] (the gsi/gsiPartial key order used by
+  // the storeWithSchema fixtures). Tablestore folds the base key (game, player) into the index key.
+  private PrimaryKey indexPk(String player, String time, String game) {
+    return PrimaryKeyBuilder.createPrimaryKeyBuilder()
+        .addPrimaryKeyColumn("player", PrimaryKeyValue.fromString(player))
+        .addPrimaryKeyColumn("time", PrimaryKeyValue.fromString(time))
+        .addPrimaryKeyColumn("game", PrimaryKeyValue.fromString(game))
+        .build();
+  }
+
+  // Builds a base-table primary key [game, player] (the "scores" base key order). The order matches
+  // baseKeyColumns so it equals the key hydration derives from an index row.
+  private PrimaryKey basePk(String game, String player) {
+    return PrimaryKeyBuilder.createPrimaryKeyBuilder()
+        .addPrimaryKeyColumn("game", PrimaryKeyValue.fromString(game))
+        .addPrimaryKeyColumn("player", PrimaryKeyValue.fromString(player))
+        .build();
+  }
+
+  // A GetRange page carrying the given rows and continuation cursor (null = range exhausted).
+  private GetRangeResponse getRangeResponse(List<Row> rows, PrimaryKey next) {
+    GetRangeResponse resp =
+        new GetRangeResponse(new Response(), new ConsumedCapacity(new CapacityUnit()));
+    resp.setRows(rows);
+    resp.setNextStartPrimaryKey(next);
+    return resp;
+  }
+
+  // A BatchGetRow response over the given table, one RowResult per base row. A null row models a
+  // base row that was concurrently deleted, so BatchGetRow returns a succeeded result with no row.
+  private BatchGetRowResponse batchGetResponse(String table, List<Row> baseRows) {
+    BatchGetRowResponse resp = new BatchGetRowResponse(new Response());
+    for (int i = 0; i < baseRows.size(); i++) {
+      resp.addResult(
+          new BatchGetRowResponse.RowResult(
+              table, baseRows.get(i), new ConsumedCapacity(new CapacityUnit()), i));
+    }
+    return resp;
+  }
+
+  // A BatchGetRow response whose single sub-row FAILED (isSucceed()==false), modeling a throttled
+  // or partial server error that outlived the client's own request-level retries. index must match
+  // the sub-row's position in the hydration criteria so createRequestForRetry can re-issue it.
+  private BatchGetRowResponse failedBatchGetResponse(String table, String errorCode, int index) {
+    BatchGetRowResponse resp = new BatchGetRowResponse(new Response());
+    resp.addResult(
+        new BatchGetRowResponse.RowResult(
+            table, new Error(errorCode, errorCode + " (test)"), index));
+    return resp;
+  }
+
+  // Drains an iterator into a list of decoded documents (one map per row).
+  private List<Map<String, Object>> drainAll(DocumentIterator iter) {
+    List<Map<String, Object>> out = new ArrayList<>();
+    while (iter.hasNext()) {
+      Map<String, Object> m = new HashMap<>();
+      iter.next(new Document(m));
+      out.add(m);
+    }
+    return out;
+  }
+
   @Test
-  void testAllFieldsQueryUsesCoveringGlobalIndex() {
-    // gsi is COVERING: its PK [player, time, game] + defined [score, glitch] == every base column
-    // {game, player, score, time, glitch}. An all-fields query (no setFieldPaths) must select it.
+  void testUnprojectedOrderedQueryUsesIndexAndHydrates() {
+    // An unprojected ordered query on the index's partition + sort key uses the index for candidate
+    // selection and ordering, then hydrates each row from the base table so columns the index does
+    // not carry (including schema-less attributes) are recovered. It must NOT silently fall back to
+    // base/scan order or reject the ordering.
     IndexMeta gsi =
         globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
     AliDocStore store = storeWithSchema(gsi);
@@ -1412,13 +1484,39 @@ class AliDocStoreTest {
     query.setFieldPaths(List.of()); // all fields
 
     Assertions.assertEquals(
-        "Index: gsi", store.queryPlan(query), "Covering global index should serve all-fields");
+        "Index: gsi",
+        store.queryPlan(query),
+        "unprojected ordered query must use the index for ordering, not fall back to a scan");
+
+    Row indexRow =
+        new Row(
+            indexPk("mel", "2024-03-01", "game1"),
+            List.of(new Column("score", ColumnValue.fromLong(10))));
+    Row baseRow =
+        new Row(
+            basePk("game1", "mel"),
+            List.of(
+                new Column("score", ColumnValue.fromLong(10)),
+                new Column("time", ColumnValue.fromString("2024-03-01")),
+                new Column("glitch", ColumnValue.fromBoolean(false)),
+                new Column("bonus", ColumnValue.fromLong(99))));
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(indexRow), null));
+    when(syncClient.batchGetRow(any())).thenReturn(batchGetResponse("scores", List.of(baseRow)));
+
+    List<Map<String, Object>> results =
+        Assertions.assertDoesNotThrow(() -> drainAll(store.runGetQuery(query)));
+    Assertions.assertEquals(1, results.size());
+    verify(syncClient, times(1)).batchGetRow(any());
   }
 
   @Test
-  void testAllFieldsQueryRejectsNonCoveringGlobalIndex() {
-    // gsiPartial omits base column 'glitch' -> NOT covering. An all-fields query cannot be served
-    // from it, so no queryable is resolved; with order-by present this is rejected (would-be scan).
+  void testUnprojectedQueryUsesNonCoveringIndexViaHydration() {
+    // A non-covering index (missing the declared column 'glitch') is still usable for an
+    // unprojected query: it can evaluate the predicates (player, time are its key columns) and be
+    // used for
+    // ordering, and the missing columns -- plus any schema-less attribute -- are recovered by
+    // hydrating each row from the base table.
     IndexMeta gsiPartial =
         globalIndex("gsiPartial", List.of("player", "time", "game"), List.of("score"));
     AliDocStore store = storeWithSchema(gsiPartial);
@@ -1430,7 +1528,404 @@ class AliDocStoreTest {
             .orderBy("time", true);
     query.setFieldPaths(List.of()); // all fields
 
-    Assertions.assertThrows(InvalidArgumentException.class, () -> store.runGetQuery(query));
+    Assertions.assertEquals(
+        "Index: gsiPartial",
+        store.queryPlan(query),
+        "a non-covering index that can evaluate the predicates is usable via hydration");
+
+    Row indexRow =
+        new Row(
+            indexPk("mel", "2024-03-01", "game1"),
+            List.of(new Column("score", ColumnValue.fromLong(10))));
+    Row baseRow =
+        new Row(
+            basePk("game1", "mel"),
+            List.of(
+                new Column("score", ColumnValue.fromLong(10)),
+                new Column("time", ColumnValue.fromString("2024-03-01")),
+                new Column("glitch", ColumnValue.fromBoolean(true))));
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(indexRow), null));
+    when(syncClient.batchGetRow(any())).thenReturn(batchGetResponse("scores", List.of(baseRow)));
+
+    List<Map<String, Object>> results = drainAll(store.runGetQuery(query));
+    Assertions.assertEquals(1, results.size());
+    verify(syncClient, times(1)).batchGetRow(any());
+  }
+
+  @Test
+  void testUnprojectedPartitionOnlyQueryUsesGlobalIndexAndHydrates() {
+    // A partition-only unprojected query (equality on the index partition key, no order-by) routes
+    // to the global index and hydrates from the base table, rather than falling back to a scan.
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(true, gsi);
+
+    Query query = new Query(store).where("player", FilterOperation.EQUAL, "mel");
+    query.setFieldPaths(List.of()); // all fields
+
+    Assertions.assertEquals(
+        "Index: gsi",
+        store.queryPlan(query),
+        "partition-only unprojected query must use the global index, not a scan");
+
+    Row indexRow =
+        new Row(
+            indexPk("mel", "2024-03-01", "game1"),
+            List.of(new Column("score", ColumnValue.fromLong(10))));
+    Row baseRow =
+        new Row(
+            basePk("game1", "mel"),
+            List.of(
+                new Column("score", ColumnValue.fromLong(10)),
+                new Column("bonus", ColumnValue.fromLong(99))));
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(indexRow), null));
+    when(syncClient.batchGetRow(any())).thenReturn(batchGetResponse("scores", List.of(baseRow)));
+
+    DocumentIterator iter = store.runGetQuery(query);
+    iter.hasNext();
+    ArgumentCaptor<GetRangeRequest> captor = ArgumentCaptor.forClass(GetRangeRequest.class);
+    verify(syncClient, times(1)).getRange(captor.capture());
+    Assertions.assertEquals(
+        "gsi",
+        captor.getValue().getRangeRowQueryCriteria().getTableName(),
+        "the query must range over the global index, not the base table");
+    verify(syncClient, times(1)).batchGetRow(any());
+  }
+
+  @Test
+  void testUnprojectedIndexQueryHydratesSchemalessAttribute() {
+    // Core oracle: an unprojected query served from the index returns an index row lacking the
+    // schema-less 'bonus'; hydration re-reads the full base row so the decoded document carries
+    // bonus plus every key field, and the row exposed to pagination keeps the INDEX primary key.
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(gsi);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of()); // all fields
+
+    PrimaryKey indexKey = indexPk("mel", "2024-03-01", "game1");
+    Row indexRow =
+        new Row(
+            indexKey,
+            List.of(
+                new Column("score", ColumnValue.fromLong(10)),
+                new Column("glitch", ColumnValue.fromBoolean(false))));
+    Row baseRow =
+        new Row(
+            basePk("game1", "mel"),
+            List.of(
+                new Column("score", ColumnValue.fromLong(10)),
+                new Column("time", ColumnValue.fromString("2024-03-01")),
+                new Column("glitch", ColumnValue.fromBoolean(false)),
+                new Column("bonus", ColumnValue.fromLong(99))));
+    // A non-null continuation cursor keeps the iterator from reporting the range as fully drained,
+    // so the pagination token reflects the last consumed row's key.
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(indexRow), indexPk("z", "z", "z")));
+    when(syncClient.batchGetRow(any())).thenReturn(batchGetResponse("scores", List.of(baseRow)));
+
+    DocumentIterator iter = store.runGetQuery(query);
+    Map<String, Object> doc = new HashMap<>();
+    Assertions.assertTrue(iter.hasNext());
+    iter.next(new Document(doc));
+
+    Assertions.assertEquals(
+        99L,
+        ((Number) doc.get("bonus")).longValue(),
+        "hydration must recover the schema-less attribute from the base row");
+    Assertions.assertEquals("mel", doc.get("player"), "key field player must be present");
+    Assertions.assertEquals("game1", doc.get("game"), "key field game must be present");
+
+    PrimaryKey token = ((AliPaginationToken) iter.getPaginationToken()).getNextStartPrimaryKey();
+    Assertions.assertEquals(
+        indexKey, token, "the row exposed to pagination must carry the INDEX primary key");
+  }
+
+  @Test
+  void testHydrationMissSkipsStaleIndexRow() {
+    // A base row concurrently deleted after the index still lists it comes back from BatchGetRow
+    // with a null row; hydration drops that stale index entry rather than emitting a phantom.
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(gsi);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of()); // all fields
+
+    Row liveIndexRow =
+        new Row(
+            indexPk("mel", "2024-03-01", "game1"),
+            List.of(new Column("score", ColumnValue.fromLong(10))));
+    Row staleIndexRow =
+        new Row(
+            indexPk("mel", "2024-04-01", "game2"),
+            List.of(new Column("score", ColumnValue.fromLong(20))));
+    Row liveBaseRow =
+        new Row(
+            basePk("game1", "mel"),
+            List.of(
+                new Column("score", ColumnValue.fromLong(10)),
+                new Column("bonus", ColumnValue.fromLong(99))));
+    // liveBaseRow present; the stale row's base read returns a null row (deleted concurrently).
+    List<Row> baseRows = new ArrayList<>();
+    baseRows.add(liveBaseRow);
+    baseRows.add(null);
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(liveIndexRow, staleIndexRow), null));
+    when(syncClient.batchGetRow(any())).thenReturn(batchGetResponse("scores", baseRows));
+
+    List<Map<String, Object>> results = drainAll(store.runGetQuery(query));
+    Assertions.assertEquals(1, results.size(), "the stale index row must be dropped");
+    Assertions.assertEquals("game1", results.get(0).get("game"));
+  }
+
+  @Test
+  void testHydrationFailedSubRowIsNotSilentlyDropped() {
+    // A base-row read that comes back FAILED (throttled / partial server error) after the client's
+    // own request-level retries is NOT a deletion. Hydration must not silently omit it -- doing so
+    // would return a short result set while the pagination cursor advances past the gap,
+    // permanently skipping the row. When the bounded re-drive budget is exhausted, it must fail
+    // loud.
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(gsi);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of()); // all fields
+
+    Row indexRow =
+        new Row(
+            indexPk("mel", "2024-03-01", "game1"),
+            List.of(new Column("score", ColumnValue.fromLong(10))));
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(indexRow), null));
+    // Every BatchGetRow attempt returns the sub-row failed, so the bounded retries are exhausted.
+    when(syncClient.batchGetRow(any()))
+        .thenReturn(failedBatchGetResponse("scores", "OTSServerBusy", 0));
+
+    DocumentIterator iter = store.runGetQuery(query);
+    Assertions.assertThrows(
+        SubstrateSdkException.class,
+        () -> drainAll(iter),
+        "an unrecoverable failed sub-row must fail loud, not be dropped");
+  }
+
+  @Test
+  void testHydrationFailedSubRowRetriedThenSucceeds() {
+    // A transient row-level failure that clears on retry must NOT drop the row: the bounded
+    // re-drive recovers it and hydration returns the full base row.
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(gsi);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of()); // all fields
+
+    Row indexRow =
+        new Row(
+            indexPk("mel", "2024-03-01", "game1"),
+            List.of(new Column("score", ColumnValue.fromLong(10))));
+    Row baseRow =
+        new Row(
+            basePk("game1", "mel"),
+            List.of(
+                new Column("score", ColumnValue.fromLong(10)),
+                new Column("bonus", ColumnValue.fromLong(99))));
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(indexRow), null));
+    // First attempt: the sub-row fails; the retry succeeds and returns the base row.
+    when(syncClient.batchGetRow(any()))
+        .thenReturn(failedBatchGetResponse("scores", "OTSServerBusy", 0))
+        .thenReturn(batchGetResponse("scores", List.of(baseRow)));
+
+    List<Map<String, Object>> results =
+        Assertions.assertDoesNotThrow(() -> drainAll(store.runGetQuery(query)));
+    Assertions.assertEquals(1, results.size(), "the retried row must be present, not dropped");
+    Assertions.assertEquals(
+        99L,
+        ((Number) results.get(0).get("bonus")).longValue(),
+        "hydration must recover the base row once the retry succeeds");
+    verify(syncClient, times(2)).batchGetRow(any());
+  }
+
+  @Test
+  void testHydrationPreservesIndexOrderAndPaginationToken() {
+    // Output rows follow INDEX order regardless of the order BatchGetRow returns base rows, and the
+    // pagination token is the last consumed row's INDEX primary key.
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(gsi);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of()); // all fields
+
+    PrimaryKey indexKey1 = indexPk("mel", "2024-03-01", "game1");
+    PrimaryKey indexKey2 = indexPk("mel", "2024-04-01", "game2");
+    Row indexRow1 = new Row(indexKey1, List.of(new Column("score", ColumnValue.fromLong(10))));
+    Row indexRow2 = new Row(indexKey2, List.of(new Column("score", ColumnValue.fromLong(20))));
+    Row baseRow1 =
+        new Row(basePk("game1", "mel"), List.of(new Column("marker", ColumnValue.fromLong(1))));
+    Row baseRow2 =
+        new Row(basePk("game2", "mel"), List.of(new Column("marker", ColumnValue.fromLong(2))));
+    // BatchGetRow returns the base rows in REVERSE order; hydration must still emit index order.
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(indexRow1, indexRow2), indexPk("z", "z", "z")));
+    when(syncClient.batchGetRow(any()))
+        .thenReturn(batchGetResponse("scores", List.of(baseRow2, baseRow1)));
+
+    DocumentIterator iter = store.runGetQuery(query);
+    Map<String, Object> doc1 = new HashMap<>();
+    Map<String, Object> doc2 = new HashMap<>();
+    Assertions.assertTrue(iter.hasNext());
+    iter.next(new Document(doc1));
+    Assertions.assertTrue(iter.hasNext());
+    iter.next(new Document(doc2));
+
+    Assertions.assertEquals(
+        1L, ((Number) doc1.get("marker")).longValue(), "first output is the first index row");
+    Assertions.assertEquals(
+        2L, ((Number) doc2.get("marker")).longValue(), "second output is the second index row");
+    PrimaryKey token = ((AliPaginationToken) iter.getPaginationToken()).getNextStartPrimaryKey();
+    Assertions.assertEquals(indexKey2, token, "pagination token must be the last INDEX key");
+  }
+
+  @Test
+  void testProjectedIndexQueryDoesNotHydrate() {
+    // A projected index query trims to the projection and must NOT issue a base-table hydration.
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(gsi);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of("score", "glitch")); // covered projection
+
+    Assertions.assertEquals("Index: gsi", store.queryPlan(query));
+
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(new ArrayList<>(), null));
+
+    DocumentIterator iter = store.runGetQuery(query);
+    iter.hasNext();
+    verify(syncClient, never()).batchGetRow(any());
+  }
+
+  @Test
+  void testUnprojectedPredicateFieldNotInIndexDoesNotUseIndex() {
+    // Fail-closed routing: an index can serve a query only if it can evaluate every predicate. Here
+    // the query filters on 'glitch', which the index does not carry, so the query must route to a
+    // base-table scan, never the index (which could not apply the glitch filter).
+    IndexMeta gsiPartial =
+        globalIndex("gsiPartial", List.of("player", "time", "game"), List.of("score"));
+    AliDocStore store = storeWithSchema(gsiPartial);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("glitch", FilterOperation.EQUAL, false);
+    query.setFieldPaths(List.of()); // all fields
+
+    Assertions.assertEquals(
+        "Scan: scores",
+        store.queryPlan(query),
+        "a predicate on a field the index lacks must not be served from that index");
+  }
+
+  @Test
+  void testRunHydratesRowsFromBaseTable() {
+    // QueryRunner-level: with a base table configured, run() replaces each index row's columns with
+    // the full base row read by its base primary key, recovering columns the index does not carry.
+    PrimaryKey indexKey = indexPk("mel", "2024-03-01", "game1");
+    Row indexRow = new Row(indexKey, List.of(new Column("score", ColumnValue.fromLong(10))));
+    Row baseRow =
+        new Row(
+            basePk("game1", "mel"),
+            List.of(
+                new Column("score", ColumnValue.fromLong(10)),
+                new Column("bonus", ColumnValue.fromLong(99))));
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(indexRow), null));
+    when(syncClient.batchGetRow(any())).thenReturn(batchGetResponse("scores", List.of(baseRow)));
+
+    QueryRunner runner =
+        new QueryRunner(
+            syncClient, "gsi", indexPk("mel", "", ""), indexPk("mel", "~", "~"),
+            Direction.FORWARD, null, null, null, "scores", List.of("game", "player"), 50);
+    List<Row> items = new ArrayList<>();
+    runner.run(null, items);
+
+    Assertions.assertEquals(1, items.size());
+    Assertions.assertNotNull(
+        items.get(0).getLatestColumn("bonus"), "base column recovered by hydration");
+    Assertions.assertEquals(
+        indexKey, items.get(0).getPrimaryKey(), "hydrated row keeps the INDEX primary key");
+  }
+
+  @Test
+  void testRunHydrationPreservesPrimaryKey() {
+    // QueryRunner-level: hydration swaps in the base row's columns but keeps the INDEX primary key,
+    // so the pagination cursor derived from the returned row stays on the index.
+    PrimaryKey indexKey = indexPk("mel", "2024-03-01", "game1");
+    Row indexRow = new Row(indexKey, List.of(new Column("score", ColumnValue.fromLong(10))));
+    Row baseRow =
+        new Row(basePk("game1", "mel"), List.of(new Column("score", ColumnValue.fromLong(10))));
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(indexRow), null));
+    when(syncClient.batchGetRow(any())).thenReturn(batchGetResponse("scores", List.of(baseRow)));
+
+    QueryRunner runner =
+        new QueryRunner(
+            syncClient, "gsi", indexPk("mel", "", ""), indexPk("mel", "~", "~"),
+            Direction.FORWARD, null, null, null, "scores", List.of("game", "player"), 50);
+    List<Row> items = new ArrayList<>();
+    runner.run(null, items);
+
+    Assertions.assertEquals(indexKey, items.get(0).getPrimaryKey());
+  }
+
+  @Test
+  void testProjectedQueryStillUsesCoveringIndex() {
+    // Guard against over-correction: the fail-closed rule applies only to UNPROJECTED queries. A
+    // projected query whose fields are all physically present in an index must still select it.
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(gsi);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of("score", "glitch")); // both physically in the index
+
+    Assertions.assertEquals(
+        "Index: gsi", store.queryPlan(query), "projected query covered by the index must use it");
   }
 
   @Test
@@ -1448,5 +1943,74 @@ class AliDocStoreTest {
     query.setFieldPaths(List.of("score")); // score is in the index
 
     Assertions.assertEquals("Index: gsiPartial", store.queryPlan(query));
+  }
+
+  @Test
+  void testHydrationMissingBaseKeyColumnFailsLoud() {
+    // Tablestore folds the full base primary key into every index key, so a base-key column is
+    // always expected on an index row's primary key. If one is somehow absent, deriving the base
+    // key for hydration must fail loud with a SubstrateSdkException naming the missing column,
+    // rather than NPE into an opaque UnknownException.
+    PrimaryKey brokenIndexKey =
+        PrimaryKeyBuilder.createPrimaryKeyBuilder()
+            .addPrimaryKeyColumn("game", PrimaryKeyValue.fromString("game1"))
+            .build(); // missing the base-key column "player"
+    Row indexRow = new Row(brokenIndexKey, List.of(new Column("score", ColumnValue.fromLong(10))));
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(indexRow), null));
+
+    QueryRunner runner =
+        new QueryRunner(
+            syncClient, "gsi", indexPk("mel", "", ""), indexPk("mel", "~", "~"),
+            Direction.FORWARD, null, null, null, "scores", List.of("game", "player"), 50);
+    List<Row> items = new ArrayList<>();
+    SubstrateSdkException thrown =
+        Assertions.assertThrows(SubstrateSdkException.class, () -> runner.run(null, items));
+    Assertions.assertTrue(
+        thrown.getMessage().contains("player"),
+        "the error must name the missing base-key column");
+  }
+
+  @Test
+  void testGetRangeProviderExceptionSurfacesAsSubstrateSdkException() {
+    // Query.get() maps only the iterator-construction path; the getRange RPC fires later during
+    // iteration, outside that boundary. A raw provider exception from getRange must not escape
+    // QueryRunner un-mapped -- it must surface as a SubstrateSdkException (the base multicloudj
+    // type).
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(gsi);
+
+    Query query = new Query(store).where("player", FilterOperation.EQUAL, "mel");
+    query.setFieldPaths(List.of("score")); // projected -> no hydration, so getRange is the failure
+
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenThrow(new TableStoreException("boom", "OTSServerBusy"));
+
+    DocumentIterator iter = store.runGetQuery(query);
+    Assertions.assertThrows(
+        SubstrateSdkException.class,
+        iter::hasNext,
+        "a getRange provider failure during iteration must surface as SubstrateSdkException");
+  }
+
+  @Test
+  void testIndexPlanningToleratesNullFieldPaths() {
+    // setFieldPaths(null) is reachable via the public Lombok setter; planning must treat it like an
+    // unprojected (empty-projection) query rather than NPE while collecting projected fields.
+    Query nullPaths = new Query(ali).where("author", FilterOperation.EQUAL, "value");
+    nullPaths.setFieldPaths(null);
+    Query emptyPaths = new Query(ali).where("author", FilterOperation.EQUAL, "value");
+    emptyPaths.setFieldPaths(List.of());
+
+    wireMockClient();
+    Assertions.assertEquals(
+        "Index: global_index_3",
+        Assertions.assertDoesNotThrow(() -> ali.queryPlan(nullPaths)),
+        "null field paths must plan like an unprojected query, not NPE");
+    Assertions.assertEquals(
+        ali.queryPlan(emptyPaths),
+        ali.queryPlan(nullPaths),
+        "null field paths must behave identically to an empty projection");
   }
 }
