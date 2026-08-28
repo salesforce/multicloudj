@@ -2402,4 +2402,150 @@ class AliDocStoreTest {
         ali.queryPlan(nullPaths),
         "null field paths must behave identically to an empty projection");
   }
+
+  @Test
+  void testProjectedQueryTrimsNonProjectedPredicateFieldEndToEnd() {
+    // End-to-end guard for the trimColumns CALL SITE in QueryRunner.run (the trimColumns helper is
+    // unit-tested separately). A projected base-table query with a predicate on a NON-projected
+    // field forces columns_to_get to fetch that predicate field (so the server-side filter can
+    // evaluate), but the projection must trim it back out before the row reaches the caller. Drive
+    // the whole path through runGetQuery / DocumentIterator.next: project 'price', filter on the
+    // non-projected 'author', return a row carrying BOTH, and assert the decoded document exposes
+    // 'price' but never leaks 'author'.
+    Query query =
+        new Query(ali)
+            .where("title", FilterOperation.EQUAL, "value")
+            .where("author", FilterOperation.GREATER_THAN, "x");
+    query.setFieldPaths(List.of("price"));
+
+    wireMockClient();
+    PrimaryKey pk =
+        PrimaryKeyBuilder.createPrimaryKeyBuilder()
+            .addPrimaryKeyColumn("title", PrimaryKeyValue.fromString("value"))
+            .addPrimaryKeyColumn("publisher", PrimaryKeyValue.fromString("WA"))
+            .build();
+    Row row =
+        new Row(
+            pk,
+            List.of(
+                new Column("price", ColumnValue.fromDouble(3.99)),
+                new Column("author", ColumnValue.fromString("Neil"))));
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(row), null));
+
+    DocumentIterator iter = ali.runGetQuery(query);
+    Map<String, Object> doc = new HashMap<>();
+    Assertions.assertTrue(iter.hasNext());
+    iter.next(new Document(doc));
+
+    Assertions.assertEquals(
+        3.99, ((Number) doc.get("price")).doubleValue(), "the projected field must be returned");
+    Assertions.assertNull(
+        doc.get("author"),
+        "a non-projected predicate field fetched only for the server-side filter must be trimmed,"
+            + " not leaked to the caller");
+  }
+
+  @Test
+  void testHydrationFetchesSecondBatchBeyondBatchSize() {
+    // Hydration batches the base-table reads in chunks of batchSize (50). A page of 51 index rows
+    // must therefore be hydrated with TWO BatchGetRow calls (50 + 1), and every row must survive:
+    // the batch loop must not stop after the first chunk. Assert all 51 documents come back AND
+    // that batchGetRow was called exactly twice.
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(gsi);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of()); // all fields -> hydrate from base
+
+    List<Row> indexRows = new ArrayList<>();
+    List<Row> firstBatch = new ArrayList<>();
+    List<Row> secondBatch = new ArrayList<>();
+    for (int i = 0; i < 51; i++) {
+      String game = "game" + i;
+      indexRows.add(
+          new Row(
+              indexPk("mel", "2024-03-01", game),
+              List.of(new Column("score", ColumnValue.fromLong(i)))));
+      Row baseRow =
+          new Row(
+              basePk(game, "mel"),
+              List.of(
+                  new Column("score", ColumnValue.fromLong(i)),
+                  new Column("bonus", ColumnValue.fromLong(i))));
+      (i < 50 ? firstBatch : secondBatch).add(baseRow);
+    }
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(indexRows, null));
+    when(syncClient.batchGetRow(any()))
+        .thenReturn(batchGetResponse("scores", firstBatch))
+        .thenReturn(batchGetResponse("scores", secondBatch));
+
+    List<Map<String, Object>> results = drainAll(store.runGetQuery(query));
+    Assertions.assertEquals(
+        51,
+        results.size(),
+        "every hydrated row must survive, including those past the first batch");
+    verify(syncClient, times(2)).batchGetRow(any());
+  }
+
+  @Test
+  void testHydrationExhaustionClassifiesNonRetryableInMixedFinalBatch() {
+    // After the bounded re-drive budget (MAX_HYDRATION_RETRIES) is spent, the FINAL response's
+    // failed sub-rows must be re-scanned for a non-retryable straggler before the generic
+    // exhaustion throw. Here every attempt keeps failing: the first three responses carry two
+    // RETRYABLE failures, and the final response mixes a retryable failure FIRST (OTSServerBusy)
+    // with a non-retryable one LATER (OTSInvalidPK). The exhaustion throw maps only failed.get(0),
+    // so
+    // without the post-loop scan it would surface the retryable get(0) error; the post-loop scan
+    // must classify the read by the non-retryable straggler instead. Assert the failure is the
+    // non-retryable InvalidArgumentException, not a retryable UnknownException.
+    IndexMeta gsi =
+        globalIndex("gsi", List.of("player", "time", "game"), List.of("score", "glitch"));
+    AliDocStore store = storeWithSchema(gsi);
+
+    Query query =
+        new Query(store)
+            .where("player", FilterOperation.EQUAL, "mel")
+            .where("time", FilterOperation.GREATER_THAN, "2024-02-01")
+            .orderBy("time", true);
+    query.setFieldPaths(List.of()); // all fields -> hydrate from base
+
+    // Two index rows -> a single hydration batch with two sub-rows at indices 0 and 1, so the retry
+    // request can re-issue both across the whole budget.
+    Row indexRow1 =
+        new Row(
+            indexPk("mel", "2024-03-01", "game1"),
+            List.of(new Column("score", ColumnValue.fromLong(10))));
+    Row indexRow2 =
+        new Row(
+            indexPk("mel", "2024-03-02", "game2"),
+            List.of(new Column("score", ColumnValue.fromLong(20))));
+    when(syncClient.getRange(any(GetRangeRequest.class)))
+        .thenReturn(getRangeResponse(List.of(indexRow1, indexRow2), null));
+    // Initial read + the first two re-drives all fail retryably on both sub-rows; the final
+    // re-drive (the fourth call, after the budget is spent) returns the mixed batch.
+    when(syncClient.batchGetRow(any()))
+        .thenReturn(failedBatchGetResponse("scores", List.of("OTSServerBusy", "OTSServerBusy")))
+        .thenReturn(failedBatchGetResponse("scores", List.of("OTSServerBusy", "OTSServerBusy")))
+        .thenReturn(failedBatchGetResponse("scores", List.of("OTSServerBusy", "OTSServerBusy")))
+        .thenReturn(failedBatchGetResponse("scores", List.of("OTSServerBusy", "OTSInvalidPK")));
+
+    DocumentIterator iter = store.runGetQuery(query);
+    InvalidArgumentException thrown =
+        Assertions.assertThrows(
+            InvalidArgumentException.class,
+            () -> drainAll(iter),
+            "a non-retryable straggler in the exhausted final batch must classify the failure");
+    Assertions.assertFalse(
+        thrown.isRetryable(),
+        "OTSInvalidPK is a caller error, so the exhaustion failure must be non-retryable");
+    // 1 initial read + MAX_HYDRATION_RETRIES (3) re-drives = 4 calls before failing loud.
+    verify(syncClient, times(4)).batchGetRow(any());
+  }
 }
