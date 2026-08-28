@@ -509,15 +509,17 @@ class QueryPlannerTest {
   // ---------------------------------------------------------------------------------------------
 
   @Test
-  void exact_singleColEquality_tight_keepsDemotedTerminal() {
+  void exact_singleColEquality_notTight_keepsDemotedTerminal() {
     // Single-column equality is the demoted full-equality terminal (eqLen=0), so the equality is
-    // NOT elided (no prefix to pin it) -- it stays as the terminal-boundary trim.
+    // NOT elided (no prefix to pin it) -- it stays as the terminal trim. Being a demoted [v,v]
+    // terminal, the scanned-away end is widened fully open, so the plan is NOT tight.
     List<String> pk = List.of("A");
     List<Row> u = universe1(pk, new Object[] {"a1", "a2", "a3"});
     for (boolean asc : new boolean[] {true, false}) {
       QueryPlanner.Plan plan =
           assertExactResultSet(pk, u, List.of(filter("A", FilterOperation.EQUAL, "a2")), asc);
-      Assertions.assertTrue(plan.isKeyRangeTight(), "pure equality is tight");
+      Assertions.assertFalse(
+          plan.isKeyRangeTight(), "a demoted full-equality terminal is open-ended, not tight");
       Assertions.assertTrue(hasSingleOn(plan.getColumnFilter(), "A"), "demoted terminal kept");
     }
   }
@@ -564,9 +566,10 @@ class QueryPlannerTest {
   }
 
   @Test
-  void exact_fullEquality_tight_dropsPrefixKeepsDemotedTerminal() {
+  void exact_fullEquality_notTight_dropsPrefixKeepsDemotedTerminal() {
     // A=a1 & B=b1 & C=c1 fully covers a 3-col key: A and B are the used prefix (elided), C is the
-    // demoted terminal ([c1,c1] widened) and MUST be kept to trim the terminal widening.
+    // demoted terminal ([c1,c1] widened open) and MUST be kept to trim the terminal widening.
+    // Because that terminal end is open in both directions, the plan is NOT tight.
     List<String> pk = List.of("A", "B", "C");
     List<Row> u =
         universe3(pk, new Object[] {"a1", "a2"}, new Object[] {"b1", "b2"}, new Object[] {"c1",
@@ -578,7 +581,8 @@ class QueryPlannerTest {
             filter("C", FilterOperation.EQUAL, "c1"));
     for (boolean asc : new boolean[] {true, false}) {
       QueryPlanner.Plan plan = assertExactResultSet(pk, u, filters, asc);
-      Assertions.assertTrue(plan.isKeyRangeTight(), "full equality is tight");
+      Assertions.assertFalse(
+          plan.isKeyRangeTight(), "full equality opens the demoted terminal end, not tight");
       Assertions.assertFalse(hasSingleOn(plan.getColumnFilter(), "A"), "prefix A elided");
       Assertions.assertFalse(hasSingleOn(plan.getColumnFilter(), "B"), "prefix B elided");
       Assertions.assertTrue(
@@ -587,9 +591,15 @@ class QueryPlannerTest {
   }
 
   @Test
-  void exact_eqPrefix_terminalRange_tight_dropsEqualityKeepsRange() {
-    // A=a1 & B <op> 2: equality prefix + a TERMINAL range. The equality is elided; the range stays
-    // to trim the widened terminal boundary. All four range ops, both directions.
+  void exact_eqPrefix_terminalRange_tightnessDependsOnBoundaryExactness() {
+    // A=a1 & B <op> 2: equality prefix + a TERMINAL range. The equality is always elided and the
+    // range is always kept (it trims the terminal boundary), and the exact result set holds for
+    // every shape. Tightness, however, splits by whether the terminal bound can be represented
+    // exactly at the last PK column:
+    //  - forward '<=' (LESS_THAN_OR_EQUAL_TO) and backward '>=' (GREATER_THAN_OR_EQUAL_TO) widen
+    //    the scanned-away end fully open, so the column filter trims an unbounded tail: NOT tight.
+    //  - forward >,>=,< and backward <,<=,> pin the boundary exactly or loosen by at most one row:
+    //    tight.
     List<String> pk = List.of("A", "B");
     List<Row> u = universe2(pk, new Object[] {"a1", "a2"}, new Object[] {1, 2, 3});
     for (FilterOperation op : RANGE_OPS) {
@@ -597,9 +607,20 @@ class QueryPlannerTest {
         List<Filter> filters =
             List.of(filter("A", FilterOperation.EQUAL, "a1"), filter("B", op, 2));
         QueryPlanner.Plan plan = assertExactResultSet(pk, u, filters, asc);
-        Assertions.assertTrue(plan.isKeyRangeTight(), "eq-prefix + terminal range is tight");
         Assertions.assertFalse(hasSingleOn(plan.getColumnFilter(), "A"), "prefix A elided");
         Assertions.assertTrue(hasSingleOn(plan.getColumnFilter(), "B"), "range on B kept");
+        boolean openEnded =
+            (asc && op == FilterOperation.LESS_THAN_OR_EQUAL_TO)
+                || (!asc && op == FilterOperation.GREATER_THAN_OR_EQUAL_TO);
+        if (openEnded) {
+          Assertions.assertFalse(
+              plan.isKeyRangeTight(),
+              "terminal " + op + " (asc=" + asc + ") opens the scanned-away end -> not tight");
+        } else {
+          Assertions.assertTrue(
+              plan.isKeyRangeTight(),
+              "terminal " + op + " (asc=" + asc + ") has an exact boundary -> tight");
+        }
       }
     }
   }

@@ -181,23 +181,37 @@ public final class QueryPlanner {
     }
 
     ColumnValueFilter columnFilter = buildColumnFilter(filters, pkColumns, eqPrefix);
-    boolean tight = computeKeyRangeTight(pkColumns, filters, eqLen, rc, fullEquality);
+    boolean tight =
+        computeKeyRangeTight(pkColumns, filters, eqLen, rc, fullEquality, orderAscending);
     return new Plan(start, end, direction, columnFilter, tight);
   }
 
-  // True iff EVERY filter was folded into the key range: the range bounds capture the whole
-  // predicate set, so the column filter only trims an O(1) terminal boundary group (one full-key
-  // row, since a folded range is always the terminal or an exact non-terminal). A filter is folded
-  // when it is an EQUAL on a used-equality-prefix column, the single range op on the range column,
-  // or the demoted full-equality on the terminal column. Anything else — a non-key predicate,
-  // IN/NOT_IN, a non-PK-typed value on a key column, an equality after a gap, or a second range —
-  // is enforced only by the column filter, which then drops a non-trivial number of scanned rows.
+  // True iff the key range captures the whole predicate set so the column filter drops at most an
+  // O(1) boundary group (one full-key row) — the precondition for the per-page offset+limit cap to
+  // be accurate. This requires BOTH conditions below to hold:
+  //  (1) Every filter is folded into the key range: an EQUAL on a used-equality-prefix column, the
+  //      single range op on the range column, or the demoted full-equality on the terminal column.
+  //      Anything else — a non-key predicate, IN/NOT_IN, a non-PK-typed value on a key column, an
+  //      equality after a gap, or a second same-side range — is enforced only by the column filter,
+  //      which then drops a non-trivial number of scanned rows.
+  //  (2) The folded range does not leave the scanned-away end OPEN. A terminal (last PK) column has
+  //      no trailing slot, so an inclusive bound on the side the scan runs toward (forward <= via
+  //      forwardEnd, backward >= via backwardEnd) and a demoted full-equality terminal ([v, v]) are
+  //      widened fully open (INF_MAX / INF_MIN). The scan then covers the whole equality-prefix
+  //      group and the column filter trims a potentially large, data-skewed tail, so a per-page cap
+  //      would re-scan page after page. The exact/loose-by-one combos (forward >,>=,< ; backward
+  //      <,<=,> ; any non-terminal range, which fills an exact INF tail) leave the end bounded.
   //
   // Empty filters are trivially tight: with no predicate to drop, a page's setLimit(N) returns
   // exactly N rows, so the fixed per-page cap is accurate. (An open, everything-in-range scan where
   // scanned == matched.)
   private static boolean computeKeyRangeTight(
-      List<String> pkColumns, List<Filter> filters, int eqLen, int rc, boolean fullEquality) {
+      List<String> pkColumns,
+      List<Filter> filters,
+      int eqLen,
+      int rc,
+      boolean fullEquality,
+      boolean orderAscending) {
     if (filters == null || filters.isEmpty()) {
       return true;
     }
@@ -215,7 +229,41 @@ public final class QueryPlanner {
         return false;
       }
     }
+    // Condition (2): a genuine TERMINAL range whose inclusive bound faces the scan direction is
+    // widened fully open (forward <=, backward >=), so the folded range imposes no limit on the
+    // scanned-away side and the column filter trims an unbounded tail — NOT tight.
+    if (rc == pkColumns.size() - 1
+        && !fullEquality
+        && hasOpenEndedTerminalBound(pkColumns.get(rc), filters, orderAscending)) {
+      return false;
+    }
+    // A demoted full-equality terminal ([v, v]) is open on the scanned-away side in BOTH directions
+    // (forwardEnd/backwardEnd widen the inclusive terminal to INF), so the scan spans the whole
+    // equality-prefix group and the column filter trims it back to the single value — NOT tight.
+    if (fullEquality) {
+      return false;
+    }
     return true;
+  }
+
+  // Whether the terminal (last) PK range column carries an inclusive bound on the side the scan
+  // opens fully: forward opens the UPPER end for <= (LESS_THAN_OR_EQUAL_TO); backward opens the
+  // LOWER end for >= (GREATER_THAN_OR_EQUAL_TO). Those inclusive terminal bounds have no trailing
+  // key slot to represent them exactly, so forwardEnd/backwardEnd widen them fully open and only
+  // the column filter trims the tail. Exclusive terminal bounds (< / >) and the opposite-side
+  // inclusive bound are represented exactly (or loose by at most one row), so they are not open.
+  private static boolean hasOpenEndedTerminalBound(
+      String terminalColumn, List<Filter> filters, boolean orderAscending) {
+    FilterOperation openEndedOp =
+        orderAscending
+            ? FilterOperation.LESS_THAN_OR_EQUAL_TO
+            : FilterOperation.GREATER_THAN_OR_EQUAL_TO;
+    for (Filter f : filters) {
+      if (terminalColumn.equals(f.getFieldPath()) && f.getOp() == openEndedOp) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // Whether the range column has more than one predicate on the same side (>= 2 lower bounds

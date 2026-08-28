@@ -1298,6 +1298,24 @@ class AliDocStoreTest {
   }
 
   @Test
+  void testGetRangeUnboundedWhenTerminalInclusiveUpperOpensScan() {
+    // A partition-key equality plus a terminal sort-key '<=' bound. Forward (ascending, the default
+    // order), an inclusive upper bound on the LAST PK column has no trailing key slot to represent
+    // it exactly, so the key range is widened fully open above the bound and the column filter
+    // trims the tail. The plan is therefore NOT key-range-tight: the per-page cap must stay off
+    // (getLimit() = -1) despite limit(5), otherwise the iterator would re-scan page after page when
+    // the data skews above "M".
+    Query query =
+        new Query(ali)
+            .where("title", FilterOperation.EQUAL, "value")
+            .where("publisher", FilterOperation.LESS_THAN_OR_EQUAL_TO, "M")
+            .limit(5);
+
+    wireMockClient();
+    Assertions.assertEquals(-1, capturedRangeCriteria(query).getLimit());
+  }
+
+  @Test
   void testGetRangeUnboundedWhenRepeatedSameSideBound() {
     // Two lower bounds on the sort-key range column (publisher > "M" AND publisher > "A"): only one
     // can be folded into the key range, the other is enforced solely by the column filter and may
