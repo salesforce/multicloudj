@@ -33,7 +33,8 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-@Disabled("Temporarily disabled pending fixture re-record for per-test scenario isolation, see #607")
+@Disabled(
+    "Temporarily disabled pending fixture re-record for per-test scenario isolation, see #607")
 public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
   private static final String endpoint = "https://oss-cn-shanghai.aliyuncs.com";
