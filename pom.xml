@@ -547,7 +547,8 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
-                    <version>3.4.2</version>
+                    <!-- pin to the version main already resolves by default (3.5.0), NOT #604's inline 3.4.2 which would downgrade the plugin repo-wide. One plugin builds both the main jar and the benchmarks classifier, so they necessarily share this version; pinning here also supplies it to the bare provider declarations. -->
+                    <version>3.5.0</version>
                     <executions>
                         <execution>
                             <id>benchmarks-classifier-jar</id>
@@ -588,7 +589,11 @@
                             <goal>run</goal>
                         </goals>
                         <configuration>
-                            <target xmlns:if="ant:if">
+                            <target xmlns:if="ant:if" xmlns:unless="ant:unless">
+                                <!-- tests (and thus the benchmarks jar) are skipped entirely under -Dmaven.test.skip=true; there is nothing to verify, so the whole guard no-ops -->
+                                <condition property="benchmarksGuardSkip">
+                                    <istrue value="${maven.test.skip}"/>
+                                </condition>
                                 <property name="benchmarksJar" value="${project.build.directory}/${project.build.finalName}-benchmarks.jar"/>
                                 <available file="${benchmarksJar}" property="benchmarksJarPresent"/>
                                 <!-- fresh = jar exists and is newer than the compiled test-classes, i.e. built this run (a stale jar from an earlier build does not count) -->
@@ -599,8 +604,23 @@
                                 <loadresource property="benchmarkList" quiet="true" if:set="benchmarksJarPresent">
                                     <zipentry zipfile="${benchmarksJar}" name="META-INF/BenchmarkList"/>
                                 </loadresource>
+                                <!-- allowlist: the jar must contain ONLY our own classes + JMH/Maven metadata. Count any file entry outside that set; a third-party lib (org/**, io/**, ...) would land here. zipfileset yields only file entries, so bare directory entries never false-positive. -->
+                                <resourcecount property="forbiddenEntryCount" if:set="benchmarksJarPresent">
+                                    <zipfileset src="${benchmarksJar}">
+                                        <exclude name="com/salesforce/multicloudj/**"/>
+                                        <exclude name="META-INF/**"/>
+                                    </zipfileset>
+                                </resourcecount>
+                                <fail message="${project.artifactId}: benchmarks jar contains ${forbiddenEntryCount} entries outside com/salesforce/multicloudj and META-INF - refusing to publish non-benchmark content" unless:set="benchmarksGuardSkip">
+                                    <condition>
+                                        <and>
+                                            <isset property="forbiddenEntryCount"/>
+                                            <not><equals arg1="${forbiddenEntryCount}" arg2="0"/></not>
+                                        </and>
+                                    </condition>
+                                </fail>
                                 <!-- provider declared intent but no fresh jar was built (phase not set to package, or bare maven-jar-plugin not declared) -->
-                                <fail message="${project.artifactId}: benchmarks.expected.package is set but no fresh benchmarks jar was built - set benchmarks.jar.phase to package and declare a bare maven-jar-plugin">
+                                <fail message="${project.artifactId}: benchmarks.expected.package is set but no fresh benchmarks jar was built - set benchmarks.jar.phase to package and declare a bare maven-jar-plugin" unless:set="benchmarksGuardSkip">
                                     <condition>
                                         <and>
                                             <isset property="benchmarks.expected.package"/>
@@ -609,7 +629,7 @@
                                     </condition>
                                 </fail>
                                 <!-- provider jar built but its BenchmarkList is missing/empty (zero runnable benchmarks) -->
-                                <fail message="${project.artifactId}: benchmarks jar has a missing or empty BenchmarkList - zero benchmarks">
+                                <fail message="${project.artifactId}: benchmarks jar has a missing or empty BenchmarkList - zero benchmarks" unless:set="benchmarksGuardSkip">
                                     <condition>
                                         <and>
                                             <isset property="benchmarks.expected.package"/>
@@ -618,7 +638,7 @@
                                     </condition>
                                 </fail>
                                 <!-- provider jar built but does not contain this module's own benchmarks -->
-                                <fail message="${project.artifactId}: benchmarks jar is missing ${benchmarks.expected.package} benchmarks">
+                                <fail message="${project.artifactId}: benchmarks jar is missing ${benchmarks.expected.package} benchmarks" unless:set="benchmarksGuardSkip">
                                     <condition>
                                         <and>
                                             <isset property="benchmarks.expected.package"/>
@@ -628,7 +648,7 @@
                                     </condition>
                                 </fail>
                                 <!-- a module shipped runnable benchmarks but never declared benchmarks.expected.package, so the guard could not verify it -->
-                                <fail message="${project.artifactId}: benchmarks jar contains runnable benchmarks but benchmarks.expected.package is not set - declare it so the guard verifies this module">
+                                <fail message="${project.artifactId}: benchmarks jar contains runnable benchmarks but benchmarks.expected.package is not set - declare it so the guard verifies this module" unless:set="benchmarksGuardSkip">
                                     <condition>
                                         <and>
                                             <not><isset property="benchmarks.expected.package"/></not>
