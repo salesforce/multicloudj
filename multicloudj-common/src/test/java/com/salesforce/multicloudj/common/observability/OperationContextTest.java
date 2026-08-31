@@ -437,6 +437,26 @@ class OperationContextTest {
   }
 
   @Test
+  void validation_rejectsBucketSpanAttributeKey() {
+    InvalidArgumentException ex =
+        assertThrows(
+            InvalidArgumentException.class,
+            () ->
+                OperationContext.builder()
+                    .correlationId("req-1")
+                    .correlationIdKey("bucket")
+                    .build(),
+            "Should reject the SDK-managed bucket span attribute key");
+
+    assertTrue(
+        ex.getMessage().contains("reserved"),
+        "Error message should mention reserved collision: " + ex.getMessage());
+    assertTrue(
+        ex.getMessage().contains("bucket"),
+        "Error message should mention the rejected key: " + ex.getMessage());
+  }
+
+  @Test
   void validation_allowsCorrelationIdDefault_correlation_id() {
     // Explicit restatement of the attribute default should be allowed
     OperationContext ctx =
@@ -482,13 +502,18 @@ class OperationContextTest {
 
   @Test
   void validation_exceptionIsInvalidArgumentException() {
-    try {
-      OperationContext.builder().correlationId("req-1").correlationIdKey("BAD").build();
-    } catch (Exception ex) {
-      assertEquals(
-          InvalidArgumentException.class,
-          ex.getClass(),
-          "Should throw InvalidArgumentException specifically");
-    }
+    InvalidArgumentException ex =
+        assertThrows(
+            InvalidArgumentException.class,
+            () ->
+                OperationContext.builder()
+                    .correlationId("req-1")
+                    .correlationIdKey("BAD")
+                    .build());
+
+    assertEquals(
+        InvalidArgumentException.class,
+        ex.getClass(),
+        "Should throw InvalidArgumentException specifically");
   }
 }

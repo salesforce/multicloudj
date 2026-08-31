@@ -60,6 +60,7 @@ public class OperationContext {
           MultiCloudJLogger.MDC_SDK_PROVIDER,
           MultiCloudJLogger.MDC_TENANT_ID,
           MultiCloudJLogger.MDC_SERVICE_ID,
+          MultiCloudJLogger.ATTR_BUCKET,
           // Metadata keys (from SdkLoggingMetadataKeys) for tenant and service.
           // Correlation id defaults are ALLOWED, as explicit restatements of a default.
           SdkLoggingMetadataKeys.SERVICE_ID,
@@ -95,8 +96,8 @@ public class OperationContext {
    * tracing with their own naming conventions (e.g., {@code x-request-id}, {@code trace-id}).
    *
    * <p>Validation: must match {@code ^[a-z0-9][a-z0-9_-]{0,127}$} and must not collide with
-   * reserved keys ({@code trace_id}, {@code span_id}, {@code tenant_id}, {@code service_id}, etc.).
-   * Explicit restatements of the defaults ({@code correlation_id}, {@code
+   * reserved keys ({@code bucket}, {@code trace_id}, {@code span_id}, {@code tenant_id}, {@code
+   * service_id}, etc.). Explicit restatements of the defaults ({@code correlation_id}, {@code
    * sdk-logging-correlation-id}) are allowed.
    */
   String correlationIdKey;
