@@ -707,6 +707,65 @@
     </dependencies>
     <build>
         <plugins>
+            <!-- benchmark-only artifact: benchmark classes + JMH-generated classes + JMH metadata (BenchmarkList, CompilerHints), no test infra -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+                <executions>
+                    <execution>
+                        <id>benchmarks-classifier-jar</id>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>benchmarks</classifier>
+                            <includes>
+                                <include>**/*Benchmark*.class</include>
+                                <include>**/jmh_generated/**</include>
+                                <include>META-INF/BenchmarkList</include>
+                                <include>META-INF/CompilerHints</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- guard the benchmarks jar: fail the build (and any publish) if it carries no discoverable benchmarks -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>verify-benchmarks-jar</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <loadresource property="benchmarkList" quiet="true">
+                                    <zipentry zipfile="${project.build.directory}/${project.build.finalName}-benchmarks.jar"
+                                              name="META-INF/BenchmarkList"/>
+                                </loadresource>
+                                <fail message="benchmarks jar has a missing or empty BenchmarkList - zero benchmarks">
+                                    <condition>
+                                        <not><isset property="benchmarkList"/></not>
+                                    </condition>
+                                </fail>
+                                <fail message="benchmarks jar is missing com.salesforce.multicloudj.blob.aws benchmarks">
+                                    <condition>
+                                        <not>
+                                            <contains string="${benchmarkList}"
+                                                      substring="com.salesforce.multicloudj.blob.aws."/>
+                                        </not>
+                                    </condition>
+                                </fail>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok-maven-plugin</artifactId>

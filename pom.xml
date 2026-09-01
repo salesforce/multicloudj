@@ -569,6 +569,11 @@
                             <artifactId>auto-service</artifactId>
                             <version>${auto-service.version}</version>
                         </path>
+                        <path>
+                            <groupId>org.openjdk.jmh</groupId>
+                            <artifactId>jmh-generator-annprocess</artifactId>
+                            <version>${jmh.version}</version>
+                        </path>
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>

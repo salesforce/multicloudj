@@ -1,0 +1,25 @@
+{
+  "id" : "2236b641-9111-4f11-b3b7-fc861ca17681",
+  "name" : "GcpBlobStoreIT_testUploadDirectory_withKmsKey-DELETE-2",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fupload-kms-v1%2Fkms-file1.txt",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AJjja9aAOcoWCfmWLMGhazO-59ax6Vn0TxO6Rd7zjHBR9IueGJoDxqsfHaTLNaAi_v8JRYnC0CRz",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 18 Aug 2026 20:22:26 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "2236b641-9111-4f11-b3b7-fc861ca17681",
+  "persistent" : true,
+  "insertionIndex" : 1503
+}

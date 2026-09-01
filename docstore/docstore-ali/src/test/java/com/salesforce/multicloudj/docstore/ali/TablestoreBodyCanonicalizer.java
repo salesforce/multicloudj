@@ -1,15 +1,14 @@
 package com.salesforce.multicloudj.docstore.ali;
 
-import com.alicloud.openservices.tablestore.core.protocol.OtsInternalApi;
 import com.alicloud.openservices.tablestore.core.protocol.PlainBufferCell;
 import com.alicloud.openservices.tablestore.core.protocol.PlainBufferCodedInputStream;
 import com.alicloud.openservices.tablestore.core.protocol.PlainBufferInputStream;
 import com.alicloud.openservices.tablestore.core.protocol.PlainBufferRow;
-import com.aliyun.ots.thirdparty.com.google.protobuf.ByteString;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.nio.charset.StandardCharsets;
+import com.google.protobuf.CodedInputStream;
+import com.google.protobuf.WireFormat;
 import java.util.List;
 
 /**
@@ -36,10 +35,25 @@ import java.util.List;
  * <p>It never re-serializes PlainBuffer (no CRC recomputation); it only reads. If the body is not a
  * recognized Tablestore write request it returns the original bytes unchanged, so non-write ops and
  * other providers are unaffected.
+ *
+ * <p><b>Implementation note:</b> only the narrow outer proto envelope (table_name, row /
+ * primary_key, condition) is decoded, using {@link CodedInputStream} with exact wire tags
+ * ({@code fieldNumber << 3 | wireType}). A field that arrives with an unexpected wire type is
+ * routed to {@code skipField} rather than being misread. The inner PlainBuffer bytes are then
+ * parsed by {@link PlainBufferCodedInputStream} to extract individual cells.
  */
 public final class TablestoreBodyCanonicalizer {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
+
+  // PutRow and DeleteRow share the same outer field layout:
+  //   field 1 = table_name (string)
+  //   field 2 = row / primary_key (bytes — PlainBuffer encoded)
+  //   field 3 = condition (bytes)
+  // Wire tag = (fieldNumber << 3) | wireType; WIRETYPE_LENGTH_DELIMITED = 2.
+  private static final int TABLE_NAME_TAG = (1 << 3) | WireFormat.WIRETYPE_LENGTH_DELIMITED; // 10
+  private static final int ROW_TAG        = (2 << 3) | WireFormat.WIRETYPE_LENGTH_DELIMITED; // 18
+  private static final int CONDITION_TAG  = (3 << 3) | WireFormat.WIRETYPE_LENGTH_DELIMITED; // 26
 
   private TablestoreBodyCanonicalizer() {}
 
@@ -65,26 +79,48 @@ public final class TablestoreBodyCanonicalizer {
     try {
       int q = url.indexOf('?');
       String path = q >= 0 ? url.substring(0, q) : url;
-      ObjectNode root = MAPPER.createObjectNode();
-      if (path.endsWith("/PutRow")) {
-        OtsInternalApi.PutRowRequest req = OtsInternalApi.PutRowRequest.parseFrom(body);
-        root.put("op", "PutRow");
-        root.put("table", req.getTableName());
-        appendRow(root, req.getRow());
-        if (req.hasCondition()) {
-          // The serialized column-condition filter is order-stable (single revision column);
-          // include its bytes as hex to preserve precondition semantics in the match.
-          root.put("condition", base16(req.getCondition().toByteArray()));
-        }
-      } else {
-        OtsInternalApi.DeleteRowRequest req = OtsInternalApi.DeleteRowRequest.parseFrom(body);
-        root.put("op", "DeleteRow");
-        root.put("table", req.getTableName());
-        appendRow(root, req.getPrimaryKey());
-        if (req.hasCondition()) {
-          root.put("condition", base16(req.getCondition().toByteArray()));
+      boolean isPut = path.endsWith("/PutRow");
+
+      String tableName = null;
+      byte[] rowBytes = null;
+      byte[] conditionBytes = null;
+
+      // Decode the outer proto envelope field by field. TABLE_NAME_TAG, ROW_TAG, and CONDITION_TAG
+      // encode both the field number and wire type, so a field that arrives with a different wire
+      // type (e.g. a malformed body) falls through to skipField rather than being misread.
+      CodedInputStream cin = CodedInputStream.newInstance(body);
+      int tag;
+      while ((tag = cin.readTag()) != 0) {
+        if (tag == TABLE_NAME_TAG) {
+          tableName = cin.readString();
+        } else if (tag == ROW_TAG) {
+          rowBytes = cin.readByteArray();
+        } else if (tag == CONDITION_TAG) {
+          conditionBytes = cin.readByteArray();
+        } else {
+          // skipField returns false for an end-group tag — treat as unparseable.
+          if (!cin.skipField(tag)) {
+            return body;
+          }
         }
       }
+
+      // All three fields are required in every valid Tablestore write request. Absent or empty
+      // condition bytes indicate a malformed body — the real SDK always serializes Condition as
+      // a proto2 required-field message (at minimum the 2-byte IGNORE encoding 08 00). Return
+      // the body unchanged so distinct malformed bodies do not collapse into the same stub JSON.
+      if (tableName == null || rowBytes == null || conditionBytes == null
+          || conditionBytes.length == 0) {
+        return body;
+      }
+
+      ObjectNode root = MAPPER.createObjectNode();
+      root.put("op", isPut ? "PutRow" : "DeleteRow");
+      root.put("table", tableName);
+      appendRow(root, rowBytes);
+      // The serialized condition is order-stable (single revision column); include its bytes as
+      // hex to preserve precondition semantics in the stub match.
+      root.put("condition", base16(conditionBytes));
       return MAPPER.writeValueAsBytes(root);
     } catch (Exception e) {
       // Not a parseable write request (or an SDK-shape we don't handle) -> leave it untouched.
@@ -92,9 +128,9 @@ public final class TablestoreBodyCanonicalizer {
     }
   }
 
-  private static void appendRow(ObjectNode root, ByteString rowBytes) throws Exception {
+  private static void appendRow(ObjectNode root, byte[] rowBytes) throws Exception {
     PlainBufferCodedInputStream in =
-        new PlainBufferCodedInputStream(new PlainBufferInputStream(rowBytes.toByteArray()));
+        new PlainBufferCodedInputStream(new PlainBufferInputStream(rowBytes));
     List<PlainBufferRow> rows = in.readRowsWithHeader();
 
     // A write request carries a single row; represent PK and cells as keyed objects so
