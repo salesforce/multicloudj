@@ -42,6 +42,7 @@ import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -213,6 +214,7 @@ public abstract class AbstractBlobStoreIT {
 
   private static final String GCP_PROVIDER_ID = "gcp";
   private static final String ALI_PROVIDER_ID = "ali";
+  private static final String INMEMORY_PROVIDER_ID = "inmemory";
 
   /**
    * Initializes the WireMock server before all tests.
@@ -557,6 +559,61 @@ public abstract class AbstractBlobStoreIT {
           "correlation id was not stamped onto object metadata");
     } catch (IOException e) {
       Assertions.fail("testUpload_withServiceAndTenantId: unexpected error " + e.getMessage());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  /**
+   * Verifies that when an {@link OperationContext} supplies a custom correlation id key via {@code
+   * correlationIdKey}, the SDK stamps the correlation id under that custom key <em>instead of</em>
+   * the default {@code sdk-logging-correlation-id} key. Runs only against the in-memory provider:
+   * the AWS/GCP/Ali suites replay recorded WireMock fixtures that were never recorded with a custom
+   * key, so exercising it there would require re-recording them.
+   */
+  @Test
+  public void testUpload_withCustomCorrelationIdKey_stampsCustomKeyOnly() {
+    Assumptions.assumeTrue(
+        INMEMORY_PROVIDER_ID.equals(harness.getProviderId()),
+        "Custom correlation id key test only runs on the in-memory provider");
+
+    String key = "conformance-tests/upload/customCorrelationIdKey";
+    String customKey = "x-request-id";
+    String correlationId = "custom-key-test-correlation-id";
+    byte[] content = "custom correlation id key test".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      OperationContext operationContext =
+          OperationContext.builder()
+              .correlationId(correlationId)
+              .correlationIdKey(customKey)
+              .build();
+
+      UploadResponse uploadResponse;
+      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+        UploadRequest request =
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(content.length)
+                .withOperationContext(operationContext)
+                .build();
+        uploadResponse = bucketClient.upload(request, inputStream);
+      }
+      Assertions.assertNotNull(uploadResponse, "No upload response returned");
+
+      Map<String, String> storedMetadata = bucketClient.getMetadata(key, null).getMetadata();
+      Assertions.assertEquals(
+          correlationId,
+          storedMetadata.get(customKey),
+          "Custom correlation id key '" + customKey + "' was not stamped onto object metadata");
+      Assertions.assertFalse(
+          storedMetadata.containsKey(SdkLoggingMetadataKeys.CORRELATION_ID),
+          "Default correlation id key must be absent when a custom key is supplied");
+    } catch (Exception e) {
+      Assertions.fail("testUpload_withCustomCorrelationIdKey: unexpected error " + e.getMessage());
     } finally {
       safeDeleteBlobs(bucketClient, key);
     }

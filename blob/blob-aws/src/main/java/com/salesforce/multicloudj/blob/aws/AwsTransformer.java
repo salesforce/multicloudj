@@ -234,15 +234,17 @@ public class AwsTransformer {
    * Returns a mutable copy of {@code appMetadata} with the SDK's correlation id, service id and
    * tenant id stamped from {@code ctx}. Each key is skipped when {@code ctx} is null, when that
    * context value is blank, or when the app has already supplied the same key — the caller's
-   * metadata always wins.
+   * metadata always wins. The correlation id is stamped under the caller-customizable key resolved
+   * from {@code ctx}; the service id and tenant id keys are fixed.
    */
   private Map<String, String> stampContextMetadata(
       Map<String, String> appMetadata, OperationContext ctx) {
     Map<String, String> metadata = new HashMap<>(appMetadata);
     if (ctx != null) {
+      String correlationIdKey = ctx.getEffectiveCorrelationIdMetadataKey();
       if (StringUtils.isNotBlank(ctx.getCorrelationId())
-          && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-        metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
+          && !metadata.containsKey(correlationIdKey)) {
+        metadata.put(correlationIdKey, ctx.getCorrelationId());
       }
       if (StringUtils.isNotBlank(ctx.getServiceId())
           && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {

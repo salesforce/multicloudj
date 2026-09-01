@@ -293,6 +293,54 @@ class GcpTransformerTest {
   }
 
   @Test
+  void testToBlobInfo_customCorrelationKeyUsed() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .correlationIdKey("x-custom-corr")
+            .build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        blobInfo.getMetadata().get("x-custom-corr"),
+        "custom correlation key must be used when specified");
+    assertFalse(
+        blobInfo.getMetadata().containsKey(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "default correlation key should not be present when custom key is used");
+  }
+
+  @Test
+  void testToBlobInfo_customCorrelationKeyNotOverwritten() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("sdk-generated")
+            .correlationIdKey("x-custom-corr")
+            .build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("x-custom-corr", "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals(
+        "user-supplied",
+        blobInfo.getMetadata().get("x-custom-corr"),
+        "application's explicit custom correlation key metadata value must take precedence");
+  }
+
+  @Test
   void testToBlobInfo_serviceIdAndTenantIdInjectedIntoMetadata() {
     OperationContext ctx =
         OperationContext.builder()
