@@ -619,6 +619,27 @@
                                         </and>
                                     </condition>
                                 </fail>
+                                <!-- completeness: every benchmark-pattern class compiled for this module must survive into the jar. If the include filter regresses (a class pattern dropped), compiled count exceeds jar count and we refuse to publish an incomplete bundle - this covers abstract bases that runnable benchmarks extend, so a filter regression cannot ship an unrunnable jar. Only class-bearing patterns are compared here; META-INF metadata is checked by the BenchmarkList guards below. Gated on Fresh so the counts reflect this run, and the jar (built from testOutputDirectory via the filter) is always a subset, making equality the correctness condition. -->
+                                <resourcecount property="compiledBenchmarkClassCount" if:set="benchmarksJarFresh">
+                                    <fileset dir="${project.build.testOutputDirectory}" erroronmissingdir="false">
+                                        <include name="**/*Benchmark*.class"/>
+                                        <include name="**/jmh_generated/**"/>
+                                    </fileset>
+                                </resourcecount>
+                                <resourcecount property="jarBenchmarkClassCount" if:set="benchmarksJarFresh">
+                                    <zipfileset src="${benchmarksJar}">
+                                        <include name="**/*Benchmark*.class"/>
+                                        <include name="**/jmh_generated/**"/>
+                                    </zipfileset>
+                                </resourcecount>
+                                <fail message="${project.artifactId}: benchmarks jar has ${jarBenchmarkClassCount} benchmark classes but ${compiledBenchmarkClassCount} were compiled - the include filter dropped classes; refusing to publish an incomplete bundle" unless:set="benchmarksGuardSkip">
+                                    <condition>
+                                        <and>
+                                            <isset property="benchmarksJarFresh"/>
+                                            <not><equals arg1="${compiledBenchmarkClassCount}" arg2="${jarBenchmarkClassCount}"/></not>
+                                        </and>
+                                    </condition>
+                                </fail>
                                 <!-- provider declared intent but no fresh jar was built (phase not set to package, or bare maven-jar-plugin not declared) -->
                                 <fail message="${project.artifactId}: benchmarks.expected.package is set but no fresh benchmarks jar was built - set benchmarks.jar.phase to package and declare a bare maven-jar-plugin" unless:set="benchmarksGuardSkip">
                                     <condition>
