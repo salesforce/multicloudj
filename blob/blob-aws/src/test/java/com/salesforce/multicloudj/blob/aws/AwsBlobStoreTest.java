@@ -311,6 +311,26 @@ public class AwsBlobStoreTest {
     assertInstanceOf(
         UnAuthorizedException.class, aws.mapException(awsServiceException));
 
+    // An expired temporary/STS credential surfaces from S3 as HTTP 400 with error code
+    // "ExpiredToken" (and as "ExpiredTokenException" from other AWS services). It must be
+    // classified as an auth failure so callers can re-initialize their credential, not a
+    // generic UnknownException.
+    AwsServiceException expiredToken =
+        AwsServiceException.builder()
+            .statusCode(400)
+            .requestId("req-id")
+            .awsErrorDetails(AwsErrorDetails.builder().errorCode("ExpiredToken").build())
+            .build();
+    assertInstanceOf(UnAuthorizedException.class, aws.mapException(expiredToken));
+
+    AwsServiceException expiredTokenException =
+        AwsServiceException.builder()
+            .statusCode(400)
+            .requestId("req-id")
+            .awsErrorDetails(AwsErrorDetails.builder().errorCode("ExpiredTokenException").build())
+            .build();
+    assertInstanceOf(UnAuthorizedException.class, aws.mapException(expiredTokenException));
+
     AwsServiceException awsServiceException403NoRequestId =
         AwsServiceException.builder()
             .statusCode(403)
