@@ -13,6 +13,11 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <properties>
+        <!-- benchmarks-classifier-jar execution inherited from the root pluginManagement -->
+        <benchmarks.jar.phase>package</benchmarks.jar.phase>
+    </properties>
+
     <dependencies>
         <!-- Core dependencies -->
         <dependency>
@@ -78,7 +83,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.4.2</version>
                 <executions>
                     <execution>
                         <goals>

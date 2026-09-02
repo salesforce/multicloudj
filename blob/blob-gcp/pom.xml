@@ -13,6 +13,13 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <properties>
+        <!-- opt in to the centralized benchmarks jar + guard (config in the root pluginManagement) -->
+        <benchmarks.jar.phase>package</benchmarks.jar.phase>
+        <!-- provider package the benchmark-jar guard asserts is present in META-INF/BenchmarkList -->
+        <benchmarks.expected.package>com.salesforce.multicloudj.blob.gcp.</benchmarks.expected.package>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.google.cloud</groupId>
@@ -354,6 +361,11 @@
     </dependencies>
     <build>
         <plugins>
+            <!-- opt in to the centralized benchmarks jar (guard runs automatically because benchmarks.expected.package is set) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+            </plugin>
             <plugin>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok-maven-plugin</artifactId>
