@@ -4,28 +4,40 @@ import com.aliyuncs.auth.AlibabaCloudCredentialsProvider;
 import com.aliyuncs.auth.BasicSessionCredentials;
 import com.aliyuncs.auth.StaticCredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 
 /**
- * Maps a multicloudj {@link CredentialsOverrider} to an Alibaba credentials provider suitable for
- * constructing an SMQ (MNS) {@code CloudAccount}.
+ * Maps a multicloudj {@link CredentialsOverrider} to an Alibaba credentials provider for the SMQ
+ * (MNS) {@code CloudAccount}.
  *
- * <p>Only {@code SESSION} (access key id/secret + security token) is wired today. {@code
- * ASSUME_ROLE} and {@code ASSUME_ROLE_WEB_IDENTITY} are deferred (they depend on the broader
- * Alibaba STS integration) and resolve to {@code null} here.
+ * <p>Only an <b>absent</b> override falls back to ambient credentials: this returns {@code null}
+ * for a {@code null} overrider or {@code null} type, and the caller then resolves the Alibaba
+ * default credential chain. Any explicit override that cannot be honored fails fast rather than
+ * silently using ambient credentials:
+ *
+ * <ul>
+ *   <li>{@code SESSION} with session credentials → a static session-credentials provider (the
+ *       credential values are passed to the SDK, which evaluates them);
+ *   <li>{@code SESSION} without session credentials → {@link InvalidArgumentException};
+ *   <li>{@code ASSUME_ROLE} / {@code ASSUME_ROLE_WEB_IDENTITY} →
+ *       {@link UnSupportedOperationException} (TODO: not yet implemented for SMQ).
+ * </ul>
  */
 public final class MnsCredentialsProvider {
 
   private MnsCredentialsProvider() {}
 
   /**
-   * Returns an Alibaba credentials provider for the given overrider.
+   * Returns an Alibaba credentials provider for the given overrider, or {@code null} only when the
+   * override is absent (the caller then resolves the default credential chain).
    *
-   * @return {@code null} if the overrider is absent or its type is not supported (so the caller can
-   *     reject it); never returns a provider built from incomplete credentials
-   * @throws InvalidArgumentException if the type is {@code SESSION} but the session credentials are
-   *     missing or have a blank access key id, access key secret, or security token
+   * @param overrider the credentials override
+   * @return a static session provider for a {@code SESSION} override with session credentials, or
+   *     {@code null} when the override is absent
+   * @throws InvalidArgumentException if a {@code SESSION} override carries no session credentials
+   * @throws UnSupportedOperationException if the override type is not yet supported for SMQ
    */
   public static AlibabaCloudCredentialsProvider getCredentialsProvider(
       CredentialsOverrider overrider) {
@@ -36,26 +48,23 @@ public final class MnsCredentialsProvider {
     switch (overrider.getType()) {
       case SESSION:
         StsCredentials sessionCredentials = overrider.getSessionCredentials();
-        if (sessionCredentials == null
-            || isBlank(sessionCredentials.getAccessKeyId())
-            || isBlank(sessionCredentials.getAccessKeySecret())
-            || isBlank(sessionCredentials.getSecurityToken())) {
+        if (sessionCredentials == null) {
           throw new InvalidArgumentException(
-              "SESSION credentials are incomplete: accessKeyId, accessKeySecret, and "
-                  + "securityToken are all required");
+              "SESSION credentials override requires session credentials");
         }
         return new StaticCredentialsProvider(
             new BasicSessionCredentials(
                 sessionCredentials.getAccessKeyId(),
                 sessionCredentials.getAccessKeySecret(),
                 sessionCredentials.getSecurityToken()));
+      case ASSUME_ROLE:
+      case ASSUME_ROLE_WEB_IDENTITY:
+        // TODO: implement ASSUME_ROLE / ASSUME_ROLE_WEB_IDENTITY for SMQ.
+        throw new UnSupportedOperationException(
+            "SMQ credentials override type is not supported yet: " + overrider.getType());
       default:
-        // ASSUME_ROLE / ASSUME_ROLE_WEB_IDENTITY are not yet wired for SMQ.
-        return null;
+        throw new UnSupportedOperationException(
+            "SMQ credentials override type is not supported: " + overrider.getType());
     }
-  }
-
-  private static boolean isBlank(String value) {
-    return value == null || value.trim().isEmpty();
   }
 }

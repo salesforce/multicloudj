@@ -9,6 +9,7 @@ import com.aliyun.mns.client.CloudAccount;
 import com.aliyun.mns.client.MNSClient;
 import com.aliyun.mns.common.http.ClientConfiguration;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -51,13 +52,31 @@ public class MnsClientUtilTest {
         () -> MnsClientUtil.buildCloudAccount(
             URI.create("https://account.mns.example.com/unexpected/path"), sessionOverrider(),
             null));
+    // port above the valid TCP range (1-65535)
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> MnsClientUtil.buildCloudAccount(
+            URI.create("https://account.mns.example.com:70000"), sessionOverrider(), null));
   }
 
   @Test
-  void nullCredentialsThrows() {
+  void nullOverriderUsesDefaultChain() {
+    CloudAccount cloudAccount = MnsClientUtil.buildCloudAccount(ENDPOINT, null, null);
+    assertNotNull(cloudAccount);
+    assertEquals(ENDPOINT.toString(), cloudAccount.getAccountEndpoint());
+  }
+
+  @Test
+  void unsupportedOverrideThrows() {
+    CredentialsOverrider overrider =
+        new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE)
+            .withRole("acs:ram::123456:role/test-role")
+            .withSessionName("test-session")
+            .build();
+    // ASSUME_ROLE is not supported yet -> fail fast rather than silently using ambient credentials.
     assertThrows(
-        InvalidArgumentException.class,
-        () -> MnsClientUtil.buildCloudAccount(ENDPOINT, null, null));
+        UnSupportedOperationException.class,
+        () -> MnsClientUtil.buildCloudAccount(ENDPOINT, overrider, null));
   }
 
   @Test
@@ -72,10 +91,32 @@ public class MnsClientUtilTest {
     assertThrows(
         InvalidArgumentException.class,
         () -> MnsClientUtil.buildClientConfiguration(URI.create("localhost:8888")));
+    // missing port -> MNS would silently skip the proxy
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> MnsClientUtil.buildClientConfiguration(URI.create("http://proxy.example.com")));
+    // https cannot be honored by the SDK (host:port only)
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> MnsClientUtil.buildClientConfiguration(URI.create("https://proxy.example.com:8443")));
     // unsupported scheme
     assertThrows(
         InvalidArgumentException.class,
         () -> MnsClientUtil.buildClientConfiguration(URI.create("ftp://proxy.example.com:3128")));
+    // user-info is silently dropped by the SDK
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> MnsClientUtil.buildClientConfiguration(
+            URI.create("http://user:pass@proxy.example.com:8080")));
+    // path is silently dropped by the SDK
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> MnsClientUtil.buildClientConfiguration(
+            URI.create("http://proxy.example.com:8080/path")));
+    // port above the valid TCP range (1-65535)
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> MnsClientUtil.buildClientConfiguration(URI.create("http://proxy.example.com:70000")));
   }
 
   @Test
@@ -84,6 +125,13 @@ public class MnsClientUtilTest {
         MnsClientUtil.buildClientConfiguration(URI.create("http://localhost:8888"));
     assertEquals("localhost", config.getProxyHost());
     assertEquals(8888, config.getProxyPort());
+  }
+
+  @Test
+  void buildClientConfigurationAcceptsMaxValidPort() {
+    ClientConfiguration config =
+        MnsClientUtil.buildClientConfiguration(URI.create("http://localhost:65535"));
+    assertEquals(65535, config.getProxyPort());
   }
 
   @Test
