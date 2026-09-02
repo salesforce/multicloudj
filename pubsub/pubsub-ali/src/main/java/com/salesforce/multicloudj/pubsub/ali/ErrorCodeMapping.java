@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.pubsub.ali;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
@@ -30,19 +31,22 @@ public class ErrorCodeMapping {
     ERROR_MAPPING.put("SubscriptionNotExist", ResourceNotFoundException.class);
     ERROR_MAPPING.put("MessageNotExist", ResourceNotFoundException.class);
 
-    // Authentication / authorization.
+    // Resource-creation conflicts.
+    ERROR_MAPPING.put("QueueAlreadyExist", ResourceAlreadyExistsException.class);
+    ERROR_MAPPING.put("TopicAlreadyExist", ResourceAlreadyExistsException.class);
+
+    // Authentication / authorization: an unknown access key or rejected token is an auth failure,
+    // not malformed operation input.
     ERROR_MAPPING.put("AccessDenied", UnAuthorizedException.class);
     ERROR_MAPPING.put("SignatureDoesNotMatch", UnAuthorizedException.class);
-    ERROR_MAPPING.put("InvalidAccessKeyId", InvalidArgumentException.class);
-    ERROR_MAPPING.put("InvalidSecurityToken", InvalidArgumentException.class);
+    ERROR_MAPPING.put("InvalidAccessKeyId", UnAuthorizedException.class);
+    ERROR_MAPPING.put("InvalidSecurityToken", UnAuthorizedException.class);
 
     // Request validation.
     ERROR_MAPPING.put("InvalidArgument", InvalidArgumentException.class);
     ERROR_MAPPING.put("MissingArgument", InvalidArgumentException.class);
     ERROR_MAPPING.put("InvalidQueueName", InvalidArgumentException.class);
     ERROR_MAPPING.put("InvalidTopicName", InvalidArgumentException.class);
-    ERROR_MAPPING.put("QueueAlreadyExist", InvalidArgumentException.class);
-    ERROR_MAPPING.put("TopicAlreadyExist", InvalidArgumentException.class);
     ERROR_MAPPING.put("ReceiptHandleError", InvalidArgumentException.class);
 
     // Server-side.

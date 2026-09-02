@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.pubsub.ali;
 import com.aliyuncs.auth.AlibabaCloudCredentialsProvider;
 import com.aliyuncs.auth.BasicSessionCredentials;
 import com.aliyuncs.auth.StaticCredentialsProvider;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 
@@ -19,8 +20,12 @@ public final class MnsCredentialsProvider {
   private MnsCredentialsProvider() {}
 
   /**
-   * Returns an Alibaba credentials provider for the given overrider, or {@code null} if the
-   * overrider is absent or its type is not supported.
+   * Returns an Alibaba credentials provider for the given overrider.
+   *
+   * @return {@code null} if the overrider is absent or its type is not supported (so the caller can
+   *     reject it); never returns a provider built from incomplete credentials
+   * @throws InvalidArgumentException if the type is {@code SESSION} but the session credentials are
+   *     missing or have a blank access key id, access key secret, or security token
    */
   public static AlibabaCloudCredentialsProvider getCredentialsProvider(
       CredentialsOverrider overrider) {
@@ -31,6 +36,14 @@ public final class MnsCredentialsProvider {
     switch (overrider.getType()) {
       case SESSION:
         StsCredentials sessionCredentials = overrider.getSessionCredentials();
+        if (sessionCredentials == null
+            || isBlank(sessionCredentials.getAccessKeyId())
+            || isBlank(sessionCredentials.getAccessKeySecret())
+            || isBlank(sessionCredentials.getSecurityToken())) {
+          throw new InvalidArgumentException(
+              "SESSION credentials are incomplete: accessKeyId, accessKeySecret, and "
+                  + "securityToken are all required");
+        }
         return new StaticCredentialsProvider(
             new BasicSessionCredentials(
                 sessionCredentials.getAccessKeyId(),
@@ -40,5 +53,9 @@ public final class MnsCredentialsProvider {
         // ASSUME_ROLE / ASSUME_ROLE_WEB_IDENTITY are not yet wired for SMQ.
         return null;
     }
+  }
+
+  private static boolean isBlank(String value) {
+    return value == null || value.trim().isEmpty();
   }
 }
