@@ -49,6 +49,8 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -347,6 +349,15 @@ public class AwsBlobStoreTest {
     return mockResponse;
   }
 
+  private S3Exception buildS3Exception(int statusCode, String errorCode) {
+    return (S3Exception)
+        S3Exception.builder()
+            .statusCode(statusCode)
+            .message(errorCode)
+            .awsErrorDetails(AwsErrorDetails.builder().errorCode(errorCode).build())
+            .build();
+  }
+
   @Test
   void testDoUploadInputStream() {
     doReturn(buildMockPutObjectResponse())
@@ -383,11 +394,85 @@ public class AwsBlobStoreTest {
   }
 
   @Test
+  void testSupportsCreateIfAbsent() {
+    assertTrue(aws.supportsCreateIfAbsent());
+  }
+
+  @Test
   void testDoUploadByteArray() {
     doReturn(buildMockPutObjectResponse())
         .when(mockS3Client)
         .putObject((PutObjectRequest) any(), (RequestBody) any());
     verifyUploadTestResults(aws.doUpload(buildTestUploadRequest(), new byte[1024]));
+  }
+
+  @Test
+  void testDoUploadCreateIfAbsentCollisionThrowsResourceAlreadyExists() {
+    S3Exception collision = buildS3Exception(412, "PreconditionFailed");
+    doThrow(collision)
+        .when(mockS3Client)
+        .putObject(any(PutObjectRequest.class), any(RequestBody.class));
+    UploadRequest request =
+        buildTestUploadRequest().toBuilder().withCreateIfAbsent(true).build();
+
+    ResourceAlreadyExistsException thrown =
+        assertThrows(
+            ResourceAlreadyExistsException.class,
+            () -> aws.doUpload(request, new byte[1024]));
+
+    assertEquals(collision, thrown.getCause());
+    assertFalse(thrown.isRetryable());
+  }
+
+  @Test
+  void testDoUploadCreateIfAbsentCollisionUsesHttpStatusWhenErrorCodeIsMissing() {
+    S3Exception collision = (S3Exception) S3Exception.builder().statusCode(412).build();
+    doThrow(collision)
+        .when(mockS3Client)
+        .putObject(any(PutObjectRequest.class), any(RequestBody.class));
+    UploadRequest request =
+        buildTestUploadRequest().toBuilder().withCreateIfAbsent(true).build();
+
+    ResourceAlreadyExistsException thrown =
+        assertThrows(
+            ResourceAlreadyExistsException.class,
+            () -> aws.doUpload(request, new byte[1024]));
+
+    assertEquals(collision, thrown.getCause());
+    assertFalse(thrown.isRetryable());
+  }
+
+  @Test
+  void testDoUploadWithoutCreateIfAbsentPreservesPreconditionFailure() {
+    S3Exception failure = buildS3Exception(412, "PreconditionFailed");
+    doThrow(failure)
+        .when(mockS3Client)
+        .putObject(any(PutObjectRequest.class), any(RequestBody.class));
+
+    S3Exception thrown =
+        assertThrows(
+            S3Exception.class,
+            () -> aws.doUpload(buildTestUploadRequest(), new byte[1024]));
+
+    assertEquals(failure, thrown);
+  }
+
+  @Test
+  void testDoUploadConditionalRequestConflictIsRetryable() {
+    S3Exception conflict = buildS3Exception(409, "ConditionalRequestConflict");
+    doThrow(conflict)
+        .when(mockS3Client)
+        .putObject(any(PutObjectRequest.class), any(RequestBody.class));
+    UploadRequest request =
+        buildTestUploadRequest().toBuilder().withCreateIfAbsent(true).build();
+
+    ResourceConflictException thrown =
+        assertThrows(
+            ResourceConflictException.class,
+            () -> aws.doUpload(request, new byte[1024]));
+
+    assertEquals(conflict, thrown.getCause());
+    assertTrue(thrown.isRetryable());
   }
 
   @Test

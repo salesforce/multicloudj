@@ -37,6 +37,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -124,6 +125,11 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   @Override
+  protected boolean supportsCreateIfAbsent() {
+    return true;
+  }
+
+  @Override
   public SubstrateSdkException mapException(Throwable t) {
     Class<? extends SubstrateSdkException> exceptionClass =
         t instanceof IllegalArgumentException
@@ -196,26 +202,33 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         new StoredBlob(
             content, etag, versionId, Instant.now(), metadata, uploadRequest.getContentType());
 
-    STORAGE.put(versionedKey, blob);
-    LATEST_VERSIONS.put(baseKey, versionId);
+    LATEST_VERSIONS.compute(
+        baseKey,
+        (ignored, currentVersion) -> {
+          if (uploadRequest.isCreateIfAbsent() && currentVersion != null) {
+            throw new ResourceAlreadyExistsException("Blob already exists");
+          }
 
-    // Store tags if provided
-    if (uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
-      TAGS.put(versionedKey, new HashMap<>(uploadRequest.getTags()));
-    }
+          STORAGE.put(versionedKey, blob);
 
-    // Store object lock configuration if provided
-    if (uploadRequest.getObjectLock() != null) {
-      ObjectLockConfiguration lockConfig = uploadRequest.getObjectLock();
-      OBJECT_LOCKS.put(
-          versionedKey,
-          ObjectLockInfo.builder()
-              .mode(lockConfig.getMode())
-              .retainUntilDate(lockConfig.getRetainUntilDate())
-              .legalHold(lockConfig.isLegalHold())
-              .useEventBasedHold(lockConfig.getUseEventBasedHold())
-              .build());
-    }
+          if (uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
+            TAGS.put(versionedKey, new HashMap<>(uploadRequest.getTags()));
+          }
+
+          if (uploadRequest.getObjectLock() != null) {
+            ObjectLockConfiguration lockConfig = uploadRequest.getObjectLock();
+            OBJECT_LOCKS.put(
+                versionedKey,
+                ObjectLockInfo.builder()
+                    .mode(lockConfig.getMode())
+                    .retainUntilDate(lockConfig.getRetainUntilDate())
+                    .legalHold(lockConfig.isLegalHold())
+                    .useEventBasedHold(lockConfig.getUseEventBasedHold())
+                    .build());
+          }
+
+          return versionId;
+        });
 
     return UploadResponse.builder()
         .key(uploadRequest.getKey())

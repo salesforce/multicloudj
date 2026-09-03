@@ -489,6 +489,9 @@ public class GcpTransformer {
         options.add(Storage.BlobWriteOption.crc32cMatch());
       }
     }
+    if (uploadRequest.isCreateIfAbsent()) {
+      options.add(Storage.BlobWriteOption.doesNotExist());
+    }
     return options.toArray(new Storage.BlobWriteOption[0]);
   }
 

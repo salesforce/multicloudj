@@ -38,6 +38,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
@@ -106,6 +107,11 @@ public abstract class AbstractBlobStoreIT {
      */
     default boolean isDirectoryUploadSupported() {
       return true;
+    }
+
+    /** Whether this provider supports atomic create-if-absent uploads. */
+    default boolean isCreateIfAbsentSupported() {
+      return false;
     }
 
     // provide the BlobClient endpoint in provider
@@ -496,6 +502,107 @@ public abstract class AbstractBlobStoreIT {
         "conformance-tests/upload/happyPath",
         "This is test data".getBytes(),
         false);
+  }
+
+  @Test
+  public void testUpload_createIfAbsent() throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    for (UploadType uploadType : UploadType.values()) {
+      String key = "conformance-tests/upload/createIfAbsent/" + uploadType;
+      byte[] originalContent =
+          ("original create-if-absent content for " + uploadType)
+              .getBytes(StandardCharsets.UTF_8);
+      byte[] replacementContent =
+          ("replacement create-if-absent content for " + uploadType)
+              .getBytes(StandardCharsets.UTF_8);
+      Map<String, String> originalMetadata = Map.of("writer", "original-" + uploadType);
+      Map<String, String> replacementMetadata = Map.of("writer", "replacement-" + uploadType);
+
+      UploadRequest originalRequest =
+          new UploadRequest.Builder()
+              .withKey(key)
+              .withContentLength(originalContent.length)
+              .withMetadata(originalMetadata)
+              .withCreateIfAbsent(true)
+              .build();
+
+      if (!harness.isCreateIfAbsentSupported()) {
+        Assertions.assertThrows(
+            UnSupportedOperationException.class,
+            () -> uploadByType(bucketClient, originalRequest, uploadType, originalContent),
+            uploadType + ": unsupported provider must reject create-if-absent locally");
+        continue;
+      }
+
+      try {
+        UploadResponse originalResponse =
+            uploadByType(bucketClient, originalRequest, uploadType, originalContent);
+        Assertions.assertNotNull(originalResponse, uploadType + ": no upload response returned");
+
+        UploadRequest replacementRequest =
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(replacementContent.length)
+                .withMetadata(replacementMetadata)
+                .withCreateIfAbsent(true)
+                .build();
+        Assertions.assertThrows(
+            ResourceAlreadyExistsException.class,
+            () -> uploadByType(bucketClient, replacementRequest, uploadType, replacementContent),
+            uploadType + ": a second create-if-absent upload must lose the race");
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        bucketClient.download(new DownloadRequest.Builder().withKey(key).build(), outputStream);
+        Assertions.assertArrayEquals(
+            originalContent,
+            outputStream.toByteArray(),
+            uploadType + ": the failed upload must not replace the original bytes");
+
+        BlobMetadata storedMetadata = bucketClient.getMetadata(key, null);
+        assertUserMetadataEquals(
+            originalMetadata,
+            storedMetadata.getMetadata(),
+            uploadType + ": the failed upload must not replace the original metadata");
+      } finally {
+        safeDeleteBlobs(bucketClient, key);
+      }
+    }
+  }
+
+  private UploadResponse uploadByType(
+      BucketClient bucketClient,
+      UploadRequest request,
+      UploadType uploadType,
+      byte[] content)
+      throws IOException {
+    switch (uploadType) {
+      case InputStream:
+        try (InputStream inputStream = new ByteArrayInputStream(content)) {
+          return bucketClient.upload(request, inputStream);
+        }
+      case ByteArray:
+        return bucketClient.upload(request, content);
+      case File:
+        Path filePath = Files.createTempFile("create-if-absent", ".txt");
+        try {
+          Files.write(filePath, content);
+          return bucketClient.upload(request, filePath.toFile());
+        } finally {
+          Files.deleteIfExists(filePath);
+        }
+      case Path:
+        Path path = Files.createTempFile("create-if-absent", ".txt");
+        try {
+          Files.write(path, content);
+          return bucketClient.upload(request, path);
+        } finally {
+          Files.deleteIfExists(path);
+        }
+      default:
+        throw new IllegalArgumentException("Unsupported upload type: " + uploadType);
+    }
   }
 
   /**

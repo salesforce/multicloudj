@@ -84,6 +84,7 @@ import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
@@ -137,6 +138,7 @@ import org.slf4j.LoggerFactory;
 public class GcpBlobStore extends AbstractBlobStore {
 
   private static final String OBJECT_KEY_DIRECTORY_PREFIX_REGEX = "^.*/";
+  private static final int PRECONDITION_FAILED_STATUS_CODE = 412;
   private static final Logger logger = LoggerFactory.getLogger(GcpBlobStore.class);
 
   private final Storage storage;
@@ -167,6 +169,11 @@ public class GcpBlobStore extends AbstractBlobStore {
     return new Builder();
   }
 
+  @Override
+  protected boolean supportsCreateIfAbsent() {
+    return true;
+  }
+
   private void rejectUnsupportedChecksum(ChecksumMethod algorithm) {
     // GCS validates CRC32C and MD5 as caller-supplied object checksums, but not SHA256 or CRC64.
     // A null algorithm means "use the substrate default" (CRC32C) and is allowed.
@@ -192,6 +199,8 @@ public class GcpBlobStore extends AbstractBlobStore {
       return transformer.toUploadResponse(blob);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from input stream", e);
+    } catch (StorageException e) {
+      throw translateUploadException(uploadRequest, e);
     }
   }
 
@@ -207,6 +216,8 @@ public class GcpBlobStore extends AbstractBlobStore {
       return transformer.toUploadResponse(blob);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from byte array", e);
+    } catch (StorageException e) {
+      throw translateUploadException(uploadRequest, e);
     }
   }
 
@@ -228,7 +239,18 @@ public class GcpBlobStore extends AbstractBlobStore {
       return transformer.toUploadResponse(blob);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from path", e);
+    } catch (StorageException e) {
+      throw translateUploadException(uploadRequest, e);
     }
+  }
+
+  private RuntimeException translateUploadException(
+      UploadRequest uploadRequest, StorageException exception) {
+    if (uploadRequest.isCreateIfAbsent()
+        && exception.getCode() == PRECONDITION_FAILED_STATUS_CODE) {
+      return new ResourceAlreadyExistsException("Blob already exists", exception);
+    }
+    return exception;
   }
 
   @Override

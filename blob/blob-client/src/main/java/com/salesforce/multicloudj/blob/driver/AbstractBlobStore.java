@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.driver;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
@@ -56,6 +57,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public UploadResponse upload(UploadRequest uploadRequest, InputStream inputStream) {
     validator.validate(uploadRequest);
+    validateCreateIfAbsentSupported(uploadRequest);
     return doUpload(uploadRequest, inputStream);
   }
 
@@ -63,6 +65,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public UploadResponse upload(UploadRequest uploadRequest, byte[] content) {
     validator.validate(uploadRequest);
+    validateCreateIfAbsentSupported(uploadRequest);
     return doUpload(uploadRequest, content);
   }
 
@@ -70,6 +73,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public UploadResponse upload(UploadRequest uploadRequest, File file) {
     validator.validate(uploadRequest);
+    validateCreateIfAbsentSupported(uploadRequest);
     return doUpload(uploadRequest, file);
   }
 
@@ -77,7 +81,20 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public UploadResponse upload(UploadRequest uploadRequest, Path path) {
     validator.validate(uploadRequest);
+    validateCreateIfAbsentSupported(uploadRequest);
     return doUpload(uploadRequest, path);
+  }
+
+  /** Providers opt in only when they can guarantee atomic create-if-absent behavior. */
+  protected boolean supportsCreateIfAbsent() {
+    return false;
+  }
+
+  private void validateCreateIfAbsentSupported(UploadRequest uploadRequest) {
+    if (uploadRequest.isCreateIfAbsent() && !supportsCreateIfAbsent()) {
+      throw new UnSupportedOperationException(
+          "Create-if-absent uploads are not supported by this substrate implementation");
+    }
   }
 
   /** {@inheritDoc} */

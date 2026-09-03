@@ -929,6 +929,7 @@ public class BucketClientTest {
             .withStorageClass("NEARLINE")
             .withKmsKeyId("kms-key-1")
             .withUseKmsManagedKey(true)
+            .withCreateIfAbsent(true)
             .withObjectLock(objectLock)
             .withChecksumValue("chk-value")
             .withChecksumAlgorithm(ChecksumMethod.SHA256)
@@ -948,6 +949,7 @@ public class BucketClientTest {
     assertEquals("NEARLINE", rebuilt.getStorageClass());
     assertEquals("kms-key-1", rebuilt.getKmsKeyId());
     assertTrue(rebuilt.isUseKmsManagedKey());
+    assertTrue(rebuilt.isCreateIfAbsent());
     assertSame(objectLock, rebuilt.getObjectLock());
     assertEquals("chk-value", rebuilt.getChecksumValue());
     assertEquals(ChecksumMethod.SHA256, rebuilt.getChecksumAlgorithm());

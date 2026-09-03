@@ -48,6 +48,8 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
@@ -74,6 +76,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
@@ -464,6 +467,14 @@ public class AwsAsyncBlobStoreTest {
         UnknownException.class, aws.mapException(new IOException("Channel is closed")));
   }
 
+  @Test
+  void testExceptionHandlingUnwrapsAsyncMappedException() {
+    ResourceAlreadyExistsException collision =
+        new ResourceAlreadyExistsException("object already exists");
+
+    assertEquals(collision, aws.mapException(new CompletionException(collision)));
+  }
+
   private UploadRequest generateTestUploadRequest() {
     Map<String, String> metadata = Map.of("key-1", "value-1");
     Map<String, String> tags = Map.of("tag-1", "value-1");
@@ -481,6 +492,15 @@ public class AwsAsyncBlobStoreTest {
     doReturn("etag").when(mockResponse).eTag();
     doReturn(1024L).when(mockResponse).size();
     return mockResponse;
+  }
+
+  private S3Exception buildS3Exception(int statusCode, String errorCode) {
+    return (S3Exception)
+        S3Exception.builder()
+            .statusCode(statusCode)
+            .message(errorCode)
+            .awsErrorDetails(AwsErrorDetails.builder().errorCode(errorCode).build())
+            .build();
   }
 
   @Test
@@ -516,11 +536,56 @@ public class AwsAsyncBlobStoreTest {
   }
 
   @Test
+  void testSupportsCreateIfAbsent() {
+    assertTrue(aws.supportsCreateIfAbsent());
+  }
+
+  @Test
   void testDoUploadByteArray() throws ExecutionException, InterruptedException {
     doReturn(CompletableFuture.completedFuture(buildMockPutObjectResponse()))
         .when(mockS3Client)
         .putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
     verifyUploadTestResults(aws.doUpload(generateTestUploadRequest(), new byte[1024]).get());
+  }
+
+  @Test
+  void testDoUploadCreateIfAbsentCollisionThrowsResourceAlreadyExists() {
+    S3Exception collision = buildS3Exception(412, "PreconditionFailed");
+    doReturn(CompletableFuture.failedFuture(collision))
+        .when(mockS3Client)
+        .putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
+    UploadRequest request =
+        generateTestUploadRequest().toBuilder().withCreateIfAbsent(true).build();
+
+    ExecutionException thrown =
+        assertThrows(
+            ExecutionException.class,
+            () -> aws.doUpload(request, new byte[1024]).get());
+
+    ResourceAlreadyExistsException mapped =
+        assertInstanceOf(ResourceAlreadyExistsException.class, thrown.getCause());
+    assertEquals(collision, mapped.getCause());
+    assertFalse(mapped.isRetryable());
+  }
+
+  @Test
+  void testDoUploadConditionalRequestConflictIsRetryable() {
+    S3Exception conflict = buildS3Exception(409, "ConditionalRequestConflict");
+    doReturn(CompletableFuture.failedFuture(conflict))
+        .when(mockS3Client)
+        .putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
+    UploadRequest request =
+        generateTestUploadRequest().toBuilder().withCreateIfAbsent(true).build();
+
+    ExecutionException thrown =
+        assertThrows(
+            ExecutionException.class,
+            () -> aws.doUpload(request, new byte[1024]).get());
+
+    ResourceConflictException mapped =
+        assertInstanceOf(ResourceConflictException.class, thrown.getCause());
+    assertEquals(conflict, mapped.getCause());
+    assertTrue(mapped.isRetryable());
   }
 
   @Test

@@ -586,6 +586,27 @@ class GcpTransformerTest {
   }
 
   @Test
+  void testGetBlobWriteOptions_CreateIfAbsentUsesGenerationMatchZero() {
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey(TEST_KEY).withCreateIfAbsent(true).build();
+
+    Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(uploadRequest);
+
+    assertEquals(1, options.length);
+    assertEquals(Storage.BlobWriteOption.generationMatch(0L), options[0]);
+  }
+
+  @Test
+  void testGetBlobWriteOptions_CreateIfAbsentDisabledDoesNotAddPrecondition() {
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey(TEST_KEY).withCreateIfAbsent(false).build();
+
+    Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(uploadRequest);
+
+    assertEquals(0, options.length);
+  }
+
+  @Test
   void testToUploadResponse_WithAllFields() {
     // Given
     when(mockBlob.getName()).thenReturn(TEST_KEY);

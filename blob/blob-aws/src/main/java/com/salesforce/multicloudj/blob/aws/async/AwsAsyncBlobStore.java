@@ -113,6 +113,11 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   }
 
   @Override
+  protected boolean supportsCreateIfAbsent() {
+    return true;
+  }
+
+  @Override
   protected CompletableFuture<UploadResponse> doUpload(
       UploadRequest uploadRequest, InputStream inputStream) {
     return doUpload(uploadRequest, transformer.toAsyncRequestBody(uploadRequest, inputStream));
@@ -138,13 +143,17 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       UploadRequest uploadRequest, AsyncRequestBody asyncRequestBody) {
     return client
         .putObject(transformer.toRequest(uploadRequest), asyncRequestBody)
-        .thenApply(
-            response ->
-                UploadResponse.builder()
-                    .key(uploadRequest.getKey())
-                    .versionId(response.versionId())
-                    .eTag(response.eTag())
-                    .build());
+        .handle(
+            (response, failure) -> {
+              if (failure != null) {
+                throw translateUploadFailure(uploadRequest, failure);
+              }
+              return UploadResponse.builder()
+                  .key(uploadRequest.getKey())
+                  .versionId(response.versionId())
+                  .eTag(response.eTag())
+                  .build();
+            });
   }
 
   @Override

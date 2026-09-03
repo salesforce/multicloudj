@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
@@ -74,7 +75,11 @@ public class AsyncBucketClient implements AutoCloseable {
   }
 
   protected <T> T handleException(Throwable ex) {
-    throw blobStore.mapException(ex);
+    Throwable failure = ex;
+    while (failure instanceof CompletionException && failure.getCause() != null) {
+      failure = failure.getCause();
+    }
+    throw blobStore.mapException(failure);
   }
 
   /**

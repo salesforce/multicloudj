@@ -53,6 +53,7 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
@@ -73,6 +74,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
@@ -266,6 +268,22 @@ public class AsyncBucketClientTest {
     assertFailed(result, UnAuthorizedException.class);
     result = client.upload(request, Paths.get("test.txt"));
     assertFailed(result, UnAuthorizedException.class);
+  }
+
+  @Test
+  void testHandleExceptionUnwrapsCompletionExceptionBeforeMapping() {
+    RuntimeException cause = new RuntimeException("conditional upload failed");
+    doAnswer(invocation -> new SubstrateSdkException(invocation.getArgument(0, Throwable.class)))
+        .when(mockBlobStore)
+        .mapException(any());
+
+    SubstrateSdkException mapped =
+        assertThrows(
+            SubstrateSdkException.class,
+            () -> client.handleException(new CompletionException(cause)));
+
+    assertSame(cause, mapped.getCause());
+    verify(mockBlobStore).mapException(cause);
   }
 
   @Test
@@ -1024,6 +1042,7 @@ public class AsyncBucketClientTest {
             .withStorageClass("NEARLINE")
             .withKmsKeyId("kms-key-1")
             .withUseKmsManagedKey(true)
+            .withCreateIfAbsent(true)
             .withObjectLock(objectLock)
             .withChecksumValue("chk-value")
             .withChecksumAlgorithm(ChecksumMethod.SHA256)
@@ -1043,6 +1062,7 @@ public class AsyncBucketClientTest {
     assertEquals("NEARLINE", rebuilt.getStorageClass());
     assertEquals("kms-key-1", rebuilt.getKmsKeyId());
     assertTrue(rebuilt.isUseKmsManagedKey());
+    assertTrue(rebuilt.isCreateIfAbsent());
     assertSame(objectLock, rebuilt.getObjectLock());
     assertEquals("chk-value", rebuilt.getChecksumValue());
     assertEquals(ChecksumMethod.SHA256, rebuilt.getChecksumAlgorithm());
