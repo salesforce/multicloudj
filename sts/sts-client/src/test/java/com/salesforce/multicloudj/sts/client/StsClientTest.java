@@ -249,13 +249,13 @@ public class StsClientTest {
    */
   private static CircuitBreakerConfig breakerConfig() {
     return CircuitBreakerConfig.builder()
-        .failureRateThreshold(50f)
-        .slowCallRateThreshold(100f)
-        .slowCallDurationThreshold(Duration.ofHours(1))
-        .slidingWindowSize(60)
-        .minimumNumberOfCalls(5)
-        .waitDurationInOpenState(Duration.ofSeconds(10))
-        .permittedNumberOfCallsInHalfOpenState(3)
+        .withFailureRateThreshold(50f)
+        .withSlowCallRateThreshold(100f)
+        .withSlowCallDurationThreshold(Duration.ofHours(1))
+        .withSlidingWindowSize(60)
+        .withMinimumNumberOfCalls(5)
+        .withWaitDurationInOpenState(Duration.ofSeconds(10))
+        .withPermittedNumberOfCallsInHalfOpenState(3)
         .build();
   }
 

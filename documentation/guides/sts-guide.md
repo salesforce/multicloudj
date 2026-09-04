@@ -121,13 +121,13 @@ Only **retryable** failures (those signalling an unhealthy dependency, e.g. thro
 
 ```java
 CircuitBreakerConfig breakerConfig = CircuitBreakerConfig.builder()
-    .failureRateThreshold(30f)                                 // open at ≥30% failures
-    .slowCallRateThreshold(10f)                                // open at ≥10% slow calls
-    .slowCallDurationThreshold(Duration.ofSeconds(120))        // a call ≥120s counts as slow
-    .minimumNumberOfCalls(100)                                 // evaluate only after 100 calls
-    .slidingWindowSize(600)                                    // 600-second time-based window
-    .waitDurationInOpenState(Duration.ofSeconds(1))            // stay open 1s before probing
-    .permittedNumberOfCallsInHalfOpenState(200)                // trial calls while half-open
+    .withFailureRateThreshold(30f)                             // open at ≥30% failures
+    .withSlowCallRateThreshold(10f)                            // open at ≥10% slow calls
+    .withSlowCallDurationThreshold(Duration.ofSeconds(120))    // a call ≥120s counts as slow
+    .withMinimumNumberOfCalls(100)                             // evaluate only after 100 calls
+    .withSlidingWindowSize(600)                                // 600-second time-based window
+    .withWaitDurationInOpenState(Duration.ofSeconds(1))        // stay open 1s before probing
+    .withPermittedNumberOfCallsInHalfOpenState(200)            // trial calls while half-open
     .build();
 
 StsClient stsClient = StsClient.builder("aws")
@@ -154,10 +154,10 @@ The values shown above are **recommended starting points for a high-throughput w
 
 | Option | Meaning |
 |--------|---------|
-| `failureRateThreshold` | Percentage (0–100) of recorded failures at or above which the breaker opens. |
-| `slowCallRateThreshold` | Percentage (0–100) of slow calls at or above which the breaker opens. |
-| `slowCallDurationThreshold` | A call taking at least this long is counted as slow. |
-| `slidingWindowSize` | Size of the time-based sliding window, in seconds. |
-| `minimumNumberOfCalls` | Minimum recorded calls before the failure/slow rate is evaluated. |
-| `waitDurationInOpenState` | How long the breaker stays open before transitioning to half-open. |
-| `permittedNumberOfCallsInHalfOpenState` | Number of trial calls permitted while half-open. |
+| `withFailureRateThreshold` | Percentage (0–100) of recorded failures at or above which the breaker opens. |
+| `withSlowCallRateThreshold` | Percentage (0–100) of slow calls at or above which the breaker opens. |
+| `withSlowCallDurationThreshold` | A call taking at least this long is counted as slow. |
+| `withSlidingWindowSize` | Size of the time-based sliding window, in seconds. |
+| `withMinimumNumberOfCalls` | Minimum recorded calls before the failure/slow rate is evaluated. |
+| `withWaitDurationInOpenState` | How long the breaker stays open before transitioning to half-open. |
+| `withPermittedNumberOfCallsInHalfOpenState` | Number of trial calls permitted while half-open. |
