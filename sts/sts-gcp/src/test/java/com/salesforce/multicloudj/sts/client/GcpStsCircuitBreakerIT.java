@@ -1,5 +1,7 @@
 package com.salesforce.multicloudj.sts.client;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.any;
+import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.configureFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -54,11 +56,18 @@ public class GcpStsCircuitBreakerIT {
     // The token-exchange endpoint always responds 503 — a transient failure the breaker must count.
     stubFor(
         post(urlPathEqualTo("/v1/token"))
+            .atPriority(1)
             .willReturn(
                 aResponse()
                     .withStatus(503)
                     .withHeader("Content-Type", "application/json")
                     .withBody("{\"error\":\"unavailable\"}")));
+    // Browser proxying is on, so an unexpected request would otherwise be forwarded to the real
+    // endpoint and hang in a no-egress environment. This catch-all keeps every request local.
+    stubFor(
+        any(anyUrl())
+            .atPriority(10)
+            .willReturn(aResponse().withStatus(503).withBody("{\"error\":\"unavailable\"}")));
   }
 
   @AfterAll
