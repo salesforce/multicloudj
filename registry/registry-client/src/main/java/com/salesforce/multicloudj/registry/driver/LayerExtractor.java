@@ -40,7 +40,7 @@ final class LayerExtractor {
   private static final String PATH_SEPARATOR = "/";
   private static final String CURRENT_DIR_PREFIX = "./";
   private static final String THREAD_NAME = "layer-extractor";
-  private static final int PIPE_BUFFER_SIZE = 65536;
+  private static final int PIPE_BUFFER_SIZE = 524288;
   private static final int COPY_BUFFER_SIZE = 8192;
 
   private final List<Layer> layers;
