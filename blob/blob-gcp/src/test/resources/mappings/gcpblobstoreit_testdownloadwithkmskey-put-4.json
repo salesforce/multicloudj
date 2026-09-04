@@ -1,0 +1,58 @@
+{
+  "id" : "5626eea6-e21b-474b-94b8-a02dd2ba1e75",
+  "name" : "GcpBlobStoreIT_testDownloadWithKmsKey-PUT-4",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "4"
+      }
+    },
+    "queryParameters" : {
+      "kmsKeyName" : {
+        "hasExactly" : [ {
+          "equalTo" : "projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test"
+        } ]
+      },
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/kms/download-happy-path"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      },
+      "upload_id" : {
+        "hasExactly" : [ {
+          "equalTo" : "AJjja9bRNRVGVZ0KmeNalTm28io-RIon_mv5mxXbx5lhZLDN4GeanqMgUXSXqv1G6_ki-dC6W9PKq5HRshJmOx3chRxxK9U2lhjKNak_PgvVTjo"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "Test data for KMS download",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/kms/download-happy-path/1787646067080355\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Fdownload-happy-path\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Fdownload-happy-path?generation=1787646067080355&alt=media\",\n  \"name\": \"conformance-tests/kms/download-happy-path\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1787646067080355\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"26\",\n  \"md5Hash\": \"HYA/8YGA96w8epKOb+FkdQ==\",\n  \"crc32c\": \"gNlnTg==\",\n  \"etag\": \"CKP5v8asu5YDEAE=\",\n  \"kmsKeyName\": \"projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test/cryptoKeyVersions/1\",\n  \"timeCreated\": \"2026-08-25T08:21:07.161Z\",\n  \"updated\": \"2026-08-25T08:21:07.161Z\",\n  \"timeStorageClassUpdated\": \"2026-08-25T08:21:07.161Z\",\n  \"timeFinalized\": \"2026-08-25T08:21:07.161Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CKP5v8asu5YDEAE=",
+      "X-GUploader-UploadID" : "AJjja9bRNRVGVZ0KmeNalTm28io-RIon_mv5mxXbx5lhZLDN4GeanqMgUXSXqv1G6_ki-dC6W9PKq5HRshJmOx3chRxxK9U2lhjKNak_PgvVTjo",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:21:07 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "5626eea6-e21b-474b-94b8-a02dd2ba1e75",
+  "persistent" : true,
+  "insertionIndex" : 105
+}

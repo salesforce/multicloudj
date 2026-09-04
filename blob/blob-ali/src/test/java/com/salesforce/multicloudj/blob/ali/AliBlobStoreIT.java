@@ -24,7 +24,10 @@ import org.apache.hc.client5.http.ssl.HostnameVerificationPolicy;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.apache.hc.core5.http.HttpHost;
+import org.junit.jupiter.api.Disabled;
 
+@Disabled(
+    "Temporarily disabled pending fixture re-record for per-test scenario isolation, see #607")
 public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
   private static final String endpoint = "https://oss-cn-shanghai.aliyuncs.com";

@@ -1,5 +1,5 @@
 {
-  "id" : "4b636900-a52b-4884-afd0-fa25648227f9",
+  "id" : "6fc5a0ce-f289-475f-9ff1-c307be6a22b0",
   "name" : "GcpBlobStoreIT_testRangedRead-GET-125",
   "request" : {
     "urlPath" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2FtestRangedRead_unversioned",
@@ -17,40 +17,39 @@
       },
       "generation" : {
         "hasExactly" : [ {
-          "equalTo" : "1772658470228456"
+          "equalTo" : "1787646809964895"
         } ]
       }
     }
   },
   "response" : {
     "status" : 206,
-    "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGEgZm9yIHRoZSByYW5nZWQgcmVhZCB0ZXN0IGZpbGU=",
+    "base64Body" : "c3QgZGF0YSBmb3IgdGhlIHJhbmdlZCByZWFkIHRlc3QgZmlsZQ==",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
-      "X-Goog-Generation" : "1772658470228456",
-      "Content-Range" : "bytes 0-46/47",
+      "X-Goog-Generation" : "1787646809964895",
+      "Content-Range" : "bytes 10-46/47",
       "Pragma" : "no-cache",
-      "Last-Modified" : "Wed, 04 Mar 2026 21:07:50 GMT",
+      "Last-Modified" : "Tue, 25 Aug 2026 08:33:30 GMT",
       "X-Goog-Metageneration" : "1",
-      "Date" : "Wed, 04 Mar 2026 21:07:54 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:33:34 GMT",
       "X-Goog-Stored-Content-Encoding" : "identity",
-      "X-Goog-Hash" : "crc32c=YmH3dA==",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "COijtLOTh5MDEAE=",
+      "ETag" : "CN+C3qivu5YDEAE=",
       "Content-Disposition" : "attachment",
       "X-Goog-Storage-Class" : "STANDARD",
-      "X-GUploader-UploadID" : "AGQBYWxN3i95YnisvGLOIArmsVeyP3qvKtFDoSipAMcXhtvKHX3AYYl1Nn3PdBiMgnbVIHOAweaquPc",
+      "X-GUploader-UploadID" : "AJjja9ZcrYaUrrXUCgOhBWU5VCfcDZkzUtfhm0EznbccKBFCSkvp8_MqUGUqQgiOhNzR-W7m",
       "Vary" : [ "Origin", "X-Origin" ],
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
       "X-Goog-Stored-Content-Length" : "47",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "4b636900-a52b-4884-afd0-fa25648227f9",
+  "uuid" : "6fc5a0ce-f289-475f-9ff1-c307be6a22b0",
   "persistent" : true,
-  "scenarioName" : "scenario-22-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-testRangedRead_unversioned",
-  "requiredScenarioState" : "scenario-22-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-testRangedRead_unversioned-6",
-  "newScenarioState" : "scenario-22-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-testRangedRead_unversioned-7",
-  "insertionIndex" : 883
+  "scenarioName" : "GcpBlobStoreIT_testRangedRead-scenario-20-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-testRangedRead_unversioned",
+  "requiredScenarioState" : "scenario-20-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-testRangedRead_unversioned-3",
+  "newScenarioState" : "scenario-20-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-testRangedRead_unversioned-4",
+  "insertionIndex" : 1242
 }

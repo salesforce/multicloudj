@@ -1,13 +1,30 @@
 {
-  "id" : "caf2491c-aa01-44f3-b1a9-1393e23b3078",
+  "id" : "ccc4c4b4-8820-4f38-9db2-34a67d1007a1",
   "name" : "GcpBlobStoreIT_testListPage_NoDelimiter_CommonPrefixesEmpty-POST-12",
   "request" : {
-    "url" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/common-prefix-no-delimiter/root.txt&uploadType=resumable",
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
     "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/common-prefix-no-delimiter/dir1/a.txt"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{},\"name\":\"conformance-tests/common-prefix-no-delimiter/root.txt\"}",
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{},\"name\":\"conformance-tests/common-prefix-no-delimiter/dir1/a.txt\"}",
       "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : true
+      "ignoreExtraElements" : false
     } ]
   },
   "response" : {
@@ -16,16 +33,16 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AMNfjG0-olWkjdvtR_N4mWtVUmpPI2zXTHgLuByiSMZrdGOES97D435tuSm0DuN6U_fMMXORALCxoHraKWQqiFqpyxj3BoUsA5g-4_7nijEWD9o",
+      "X-GUploader-UploadID" : "AJjja9YEEvMp4hqW9itxo9xPudRYwLjEWOjpETFlAQeLyTuVs0ILSvoj0Yn4GJIwDgMqnCnh4h2YCYOENLUUEquDPu5xcRofSkvfOAMAIh1fdO4",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Thu, 02 Apr 2026 04:45:29 GMT",
-      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/common-prefix-no-delimiter/root.txt&uploadType=resumable&upload_id=AMNfjG0-olWkjdvtR_N4mWtVUmpPI2zXTHgLuByiSMZrdGOES97D435tuSm0DuN6U_fMMXORALCxoHraKWQqiFqpyxj3BoUsA5g-4_7nijEWD9o",
+      "Date" : "Tue, 25 Aug 2026 08:28:17 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/common-prefix-no-delimiter/dir1/a.txt&uploadType=resumable&upload_id=AJjja9YEEvMp4hqW9itxo9xPudRYwLjEWOjpETFlAQeLyTuVs0ILSvoj0Yn4GJIwDgMqnCnh4h2YCYOENLUUEquDPu5xcRofSkvfOAMAIh1fdO4",
       "Content-Type" : "text/plain; charset=utf-8"
     }
   },
-  "uuid" : "caf2491c-aa01-44f3-b1a9-1393e23b3078",
+  "uuid" : "ccc4c4b4-8820-4f38-9db2-34a67d1007a1",
   "persistent" : true,
-  "insertionIndex" : 1000
+  "insertionIndex" : 631
 }

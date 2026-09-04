@@ -1,8 +1,8 @@
 {
-  "id" : "1a20fbd7-a8b8-4b80-999d-a9d4a167f932",
+  "id" : "3a1ab402-261d-4905-8466-4320f2d136a7",
   "name" : "GcpBlobStoreIT_testBulkDelete-GET-27",
   "request" : {
-    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-bulk-delete_nonexisting2",
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-bulk-delete_happy5",
     "method" : "GET",
     "headers" : {
       "X-Query-Param-Count" : {
@@ -19,20 +19,20 @@
   },
   "response" : {
     "status" : 404,
-    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-bulk-delete_nonexisting2\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-bulk-delete_nonexisting2\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-bulk-delete_happy5\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-bulk-delete_happy5\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AAVLpEgB-ZOhZTRGeaeyIR9cFlCLx-sqKyonZn3g0UcoMVE7r4c6DXYJaAaiD8PiggZ72vgSe9we04A",
+      "X-GUploader-UploadID" : "AJjja9ZuVtJmGmEl5ZyUbLrbYUVOMh4EjgCHtwD2ZpAMsnVAp70vs6tAYmuqZcrMGQXFMQU07RlzAzI",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Thu, 04 Jun 2026 20:04:15 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:20:46 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "1a20fbd7-a8b8-4b80-999d-a9d4a167f932",
+  "uuid" : "3a1ab402-261d-4905-8466-4320f2d136a7",
   "persistent" : true,
-  "insertionIndex" : 1313
+  "insertionIndex" : 76
 }

@@ -1,31 +1,32 @@
 {
-  "id" : "3e704844-9f4a-4d9d-8155-e0168802639a",
+  "id" : "eefe5ff3-16b6-4fef-85b2-c5f561ae5026",
   "name" : "AwsBlobStoreIT_testRangedRead-GET-43",
   "request" : {
     "url" : "/chameleon-jcloud/conformance-tests/testRangedRead_unversioned",
     "method" : "GET"
   },
   "response" : {
-    "status" : 200,
-    "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGEgZm9yIHRoZSByYW5nZWQgcmVhZCB0ZXN0IGZpbGVP5Y2VKk9ViPMrMKX5tiza",
+    "status" : 206,
+    "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGEgZm9yIHRoZSByYW5nZWQgcmVhZCB0ZXN0IGZpbGU=",
     "headers" : {
       "Accept-Ranges" : "bytes",
       "Server" : "AmazonS3",
       "ETag" : "\"4fe58d952a4f5588f32b30a5f9b62cda\"",
-      "Last-Modified" : "Wed, 04 Mar 2026 20:59:50 GMT",
-      "x-amz-request-id" : "78DZ26P8ZZYY9F2F",
+      "Content-Range" : "bytes 0-46/47",
+      "x-amz-checksum-crc64nvme" : "q37BoXHiU3A=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "Last-Modified" : "Tue, 25 Aug 2026 09:47:00 GMT",
+      "x-amz-request-id" : "22QKS1413KSCE58J",
       "x-amz-server-side-encryption" : "AES256",
-      "x-amz-id-2" : "UJoCtGoEPr8zGYIMRT+4fmClB7TJxkcv/Lrc280AmmwRZXaYAdoiMGXWFpCdtJqey22hR9VH+fq2lFbFfsuFRNih6+iaRpEW",
-      "x-amz-content-range" : "bytes 0-46/47",
-      "x-amz-transfer-encoding" : "append-md5",
-      "Date" : "Wed, 04 Mar 2026 20:59:53 GMT",
+      "x-amz-id-2" : "xbQVoOH6gWF3Fw14DWzK8qF1/BGbzzQsgR37DYIfXlySEyc/f2hJEzObdHXK9suRW8frB2S7v3JRgE8uyjDk2tkjwPRxqdoC",
+      "Date" : "Tue, 25 Aug 2026 09:47:04 GMT",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "3e704844-9f4a-4d9d-8155-e0168802639a",
+  "uuid" : "eefe5ff3-16b6-4fef-85b2-c5f561ae5026",
   "persistent" : true,
-  "scenarioName" : "scenario-8-chameleon-jcloud-conformance-tests-testRangedRead_unversioned",
+  "scenarioName" : "AwsBlobStoreIT_testRangedRead-scenario-8-chameleon-jcloud-conformance-tests-testRangedRead_unversioned",
   "requiredScenarioState" : "scenario-8-chameleon-jcloud-conformance-tests-testRangedRead_unversioned-30",
   "newScenarioState" : "scenario-8-chameleon-jcloud-conformance-tests-testRangedRead_unversioned-31",
-  "insertionIndex" : 535
+  "insertionIndex" : 767
 }
