@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.6](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.5...multicloudj-v0.4.6) (2026-09-04)
+
+
+### PubSub
+
+* add pubsub-ali module foundation for Alibaba SMQ ([#609](https://github.com/salesforce/multicloudj/issues/609)) ([46a628a](https://github.com/salesforce/multicloudj/commit/46a628af12e348fd670921bb0c8e4a6b6fcdc4ae))
+
 ## [0.4.5](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.4...multicloudj-v0.4.5) (2026-09-02)
 
 
