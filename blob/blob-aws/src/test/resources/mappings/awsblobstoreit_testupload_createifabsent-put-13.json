@@ -1,0 +1,30 @@
+{
+  "id" : "fc53a008-09c3-443c-b732-fcf799410e74",
+  "name" : "AwsBlobStoreIT_testUpload_createIfAbsent-PUT-13",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/upload/createIfAbsent/ByteArray",
+    "method" : "PUT",
+    "headers" : {
+      "If-None-Match" : {
+        "equalTo" : "*"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "cmVwbGFjZW1lbnQgY3JlYXRlLWlmLWFic2VudCBjb250ZW50IGZvciBCeXRlQXJyYXk="
+    } ]
+  },
+  "response" : {
+    "status" : 412,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>PreconditionFailed</Code><Message>At least one of the pre-conditions you specified did not hold</Message><Condition>If-None-Match</Condition><RequestId>ZQRZZDW7D08Q8EJP</RequestId><HostId>K8/557ppx6PufnKhVAiJ7yDCrJyZLMplrcKrRYw23WL3OWPkU+ZdKzSDkQ2B7QXiiFYxKgMLhQA=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "ZQRZZDW7D08Q8EJP",
+      "x-amz-id-2" : "K8/557ppx6PufnKhVAiJ7yDCrJyZLMplrcKrRYw23WL3OWPkU+ZdKzSDkQ2B7QXiiFYxKgMLhQA=",
+      "Date" : "Thu, 03 Sep 2026 05:52:30 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "fc53a008-09c3-443c-b732-fcf799410e74",
+  "persistent" : true,
+  "insertionIndex" : 794
+}

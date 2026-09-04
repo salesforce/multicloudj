@@ -70,6 +70,17 @@ protected PutObjectResponse doPutObject(PutObjectRequest request) {
 
 The driver contract and conformance tests ensure all providers behave the same for the end user. Providers achieve this independently, not by copying or comparing with each other.
 
+## Exception Handling Boundary
+
+**CRITICAL: Public client classes own the exception-handling and translation boundary.**
+
+- Provider `do*` methods MUST NOT catch native cloud SDK exceptions merely to translate them into MultiCloudJ exceptions. Let native unchecked failures propagate to the public client.
+- The public client catches failures and calls the provider's `mapException(Throwable)` implementation.
+- Provider `mapException` implementations and `ErrorCodeMapping` classes may inspect native exception types and codes, but they only classify them into cloud-agnostic MultiCloudJ exception types.
+- Request- or operation-aware exception normalization belongs in the specific public client method that has the required context. Never add feature-specific behavior to a shared/global exception handler.
+- Async wrapper exceptions may be unwrapped at the narrow public client operation boundary that requires it. Do not change exception behavior for every async operation as part of an unrelated feature.
+- Provider catches are allowed only for provider-operation control flow, resource cleanup, or checked-exception conversion. They must not replace the public client's normal mapping boundary.
+
 ## When to Use
 
 - Adding a new operation or capability to an existing service (blob, docstore, pubsub, sts)
@@ -206,7 +217,7 @@ protected {ResponseType} do{OperationName}({RequestType} request) {
     // 1. Transform multicloudj request → provider SDK request
     // 2. Call provider SDK
     // 3. Transform provider SDK response → multicloudj response
-    // 4. Handle provider-specific exceptions via getException()
+    // Native unchecked provider exceptions propagate to the public client.
 }
 ```
 
@@ -218,7 +229,7 @@ In the provider's transformer class (e.g., `AwsTransformer`):
 
 ### 4c. Exception Mapping
 
-Update `ErrorCodeMapping` (or equivalent) if the new operation introduces new error conditions.
+Update `ErrorCodeMapping` (or equivalent) if the new operation introduces new error conditions. Keep native error classification in the provider's `mapException` path and request-aware normalization in the public client operation. Do not catch native SDK exceptions in the provider `do*` method solely to translate them.
 
 ### 4d. Build and Verify
 
@@ -425,6 +436,8 @@ For a feature added to an existing service (e.g., blob), you will typically touc
 ## Common Mistakes
 
 - **Adding provider-specific types in client module** - the client module must never import AWS/GCP/Ali SDKs
+- **Translating native SDK exceptions inside provider `do*` methods** - let them propagate to the public client and use the provider's `mapException`/`ErrorCodeMapping` path
+- **Changing a shared exception handler for one operation** - keep request-aware behavior scoped to the affected public client method
 - **Skipping the user interview** - assumptions about semantics lead to rework
 - **Implementing before researching all three clouds** - discovering a provider can't support the feature after implementation is costly
 - **Writing conformance tests that are provider-specific** - the abstract IT must work for ALL providers
@@ -437,6 +450,8 @@ For a feature added to an existing service (e.g., blob), you will typically touc
 ## Red Flags - STOP and Reconsider
 
 - You're implementing a provider without having researched how the other providers handle it
+- You're catching a native cloud SDK exception in a provider `do*` method solely to translate it
+- You're adding request- or operation-specific behavior to a shared/global exception mapper
 - You're adding a method to the abstract class without a corresponding public client method
 - You're writing a conformance test that uses provider-specific setup
 - You're importing `software.amazon.awssdk` or `com.google.cloud` in a `-client` module

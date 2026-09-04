@@ -38,6 +38,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
@@ -496,6 +497,59 @@ public abstract class AbstractBlobStoreIT {
         "conformance-tests/upload/happyPath",
         "This is test data".getBytes(),
         false);
+  }
+
+  @Test
+  public void testUpload_createIfAbsent() {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String key = "conformance-tests/upload/createIfAbsent/ByteArray";
+    byte[] originalContent =
+        "original create-if-absent content for ByteArray".getBytes(StandardCharsets.UTF_8);
+    byte[] replacementContent =
+        "replacement create-if-absent content for ByteArray".getBytes(StandardCharsets.UTF_8);
+    Map<String, String> originalMetadata = Map.of("writer", "original-ByteArray");
+    Map<String, String> replacementMetadata = Map.of("writer", "replacement-ByteArray");
+
+    UploadRequest originalRequest =
+        new UploadRequest.Builder()
+            .withKey(key)
+            .withContentLength(originalContent.length)
+            .withMetadata(originalMetadata)
+            .withCreateIfAbsent(true)
+            .build();
+
+    try {
+      UploadResponse originalResponse = bucketClient.upload(originalRequest, originalContent);
+      Assertions.assertNotNull(originalResponse, "no upload response returned");
+
+      UploadRequest replacementRequest =
+          new UploadRequest.Builder()
+              .withKey(key)
+              .withContentLength(replacementContent.length)
+              .withMetadata(replacementMetadata)
+              .withCreateIfAbsent(true)
+              .build();
+      Assertions.assertThrows(
+          ResourceAlreadyExistsException.class,
+          () -> bucketClient.upload(replacementRequest, replacementContent),
+          "a second create-if-absent upload must lose the race");
+
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      bucketClient.download(new DownloadRequest.Builder().withKey(key).build(), outputStream);
+      Assertions.assertArrayEquals(
+          originalContent,
+          outputStream.toByteArray(),
+          "the failed upload must not replace the original bytes");
+
+      BlobMetadata storedMetadata = bucketClient.getMetadata(key, null);
+      assertUserMetadataEquals(
+          originalMetadata,
+          storedMetadata.getMetadata(),
+          "the failed upload must not replace the original metadata");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
   }
 
   /**

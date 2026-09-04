@@ -29,6 +29,9 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.observability.MultiCloudJLogger;
 import com.salesforce.multicloudj.common.observability.OperationContext;
@@ -47,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
@@ -77,6 +81,31 @@ public class AsyncBucketClient implements AutoCloseable {
     throw blobStore.mapException(ex);
   }
 
+  private <T> T handleUploadException(UploadRequest request, Throwable ex) {
+    Throwable failure = ex;
+    while (failure instanceof CompletionException && failure.getCause() != null) {
+      failure = failure.getCause();
+    }
+    throw mapUploadException(request, failure);
+  }
+
+  private SubstrateSdkException mapUploadException(UploadRequest request, Throwable t) {
+    SubstrateSdkException mapped = blobStore.mapException(t);
+    if (!request.isCreateIfAbsent()) {
+      return mapped;
+    }
+
+    Throwable cause = mapped.getCause() != null ? mapped.getCause() : mapped;
+    if (mapped instanceof FailedPreconditionException) {
+      return new ResourceAlreadyExistsException("Blob already exists", cause);
+    }
+    if (mapped instanceof ResourceConflictException) {
+      return new ResourceConflictException(
+          "Conditional blob upload conflicted", cause, true);
+    }
+    return mapped;
+  }
+
   /**
    * Uploads the Blob content to substrate-specific Blob storage Note: Specifying the contentLength
    * in the UploadRequest can dramatically improve upload efficiency because the substrate SDKs do
@@ -91,7 +120,7 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx ->
             uploadResponseWithCorrelationId(
                     blobStore.upload(withResolvedContext(uploadRequest, ctx), inputStream), ctx)
-                .exceptionally(this::handleException));
+                .exceptionally(ex -> handleUploadException(uploadRequest, ex)));
   }
 
   /** Uploads the Blob content to substrate-specific Blob storage */
@@ -103,7 +132,7 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx ->
             uploadResponseWithCorrelationId(
                     blobStore.upload(withResolvedContext(uploadRequest, ctx), content), ctx)
-                .exceptionally(this::handleException));
+                .exceptionally(ex -> handleUploadException(uploadRequest, ex)));
   }
 
   /** Uploads the Blob content to substrate-specific Blob storage */
@@ -115,7 +144,7 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx ->
             uploadResponseWithCorrelationId(
                     blobStore.upload(withResolvedContext(uploadRequest, ctx), file), ctx)
-                .exceptionally(this::handleException));
+                .exceptionally(ex -> handleUploadException(uploadRequest, ex)));
   }
 
   /** Uploads the Blob content to substrate-specific Blob storage */
@@ -127,7 +156,7 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx ->
             uploadResponseWithCorrelationId(
                     blobStore.upload(withResolvedContext(uploadRequest, ctx), path), ctx)
-                .exceptionally(this::handleException));
+                .exceptionally(ex -> handleUploadException(uploadRequest, ex)));
   }
 
   /** Downloads the Blob content from substrate-specific Blob storage */
