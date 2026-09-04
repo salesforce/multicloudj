@@ -322,6 +322,107 @@ public class GcpStsTest {
     Assertions.assertEquals("test-access-token", credentials.getSecurityToken());
   }
 
+  /**
+   * Builds a {@link GcpSts} whose token-exchange endpoint returns the given HTTP status, so the
+   * web-identity path exercises the real {@code mapIoException} translation of an
+   * {@link com.google.api.client.http.HttpResponseException}.
+   */
+  private static GcpSts stsReturningStatus(int statusCode) {
+    MockHttpTransport transport =
+        new MockHttpTransport() {
+          @Override
+          public MockLowLevelHttpRequest buildRequest(String method, String url) {
+            return new MockLowLevelHttpRequest() {
+              @Override
+              public MockLowLevelHttpResponse execute() {
+                MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+                response.setStatusCode(statusCode);
+                response.setContentType("application/json");
+                response.setContent("{\"error\":\"simulated\"}");
+                return response;
+              }
+            };
+          }
+        };
+    return new GcpSts().builder().build((HttpTransportFactory) () -> transport);
+  }
+
+  private static AssumeRoleWebIdentityRequest webIdentityRequest() {
+    return AssumeRoleWebIdentityRequest.builder()
+        .role(
+            "//iam.googleapis.com/projects/test-project/locations/global"
+            + "/workloadIdentityPools/test-pool/providers/test-provider")
+        .webIdentityToken("test-oidc-token")
+        .sessionName("test-session")
+        .build();
+  }
+
+  @Test
+  public void testWebIdentityTooManyRequestsMapsToRetryableResourceExhausted() {
+    GcpSts sts = stsReturningStatus(429);
+    AssumeRoleWebIdentityRequest req = webIdentityRequest();
+    ResourceExhaustedException e =
+        Assertions.assertThrows(
+            ResourceExhaustedException.class, () -> sts.assumeRoleWithWebIdentity(req));
+    Assertions.assertTrue(e.isRetryable());
+  }
+
+  @Test
+  public void testWebIdentityServerErrorMapsToRetryableUnknown() {
+    GcpSts sts = stsReturningStatus(503);
+    AssumeRoleWebIdentityRequest req = webIdentityRequest();
+    UnknownException e =
+        Assertions.assertThrows(
+            UnknownException.class, () -> sts.assumeRoleWithWebIdentity(req));
+    Assertions.assertTrue(e.isRetryable());
+  }
+
+  @Test
+  public void testWebIdentityRequestTimeoutMapsToRetryableUnknown() {
+    GcpSts sts = stsReturningStatus(408);
+    AssumeRoleWebIdentityRequest req = webIdentityRequest();
+    UnknownException e =
+        Assertions.assertThrows(
+            UnknownException.class, () -> sts.assumeRoleWithWebIdentity(req));
+    Assertions.assertTrue(e.isRetryable());
+  }
+
+  @Test
+  public void testWebIdentityClientErrorMapsToNonRetryableException() {
+    GcpSts sts = stsReturningStatus(400);
+    AssumeRoleWebIdentityRequest req = webIdentityRequest();
+    SubstrateSdkException e =
+        Assertions.assertThrows(
+            SubstrateSdkException.class, () -> sts.assumeRoleWithWebIdentity(req));
+    // A plain 4xx (bad request, unauthorized, not found) is a caller error; never trips breaker.
+    Assertions.assertFalse(e.isRetryable());
+    // Guard against a retryable subclass slipping through: it must be the base type.
+    Assertions.assertEquals(SubstrateSdkException.class, e.getClass());
+  }
+
+  @Test
+  public void testWebIdentityTransportFailureMapsToRetryableUnknown() {
+    // No HTTP status at all — a connection reset / timeout surfaces as a bare IOException.
+    MockHttpTransport transport =
+        new MockHttpTransport() {
+          @Override
+          public MockLowLevelHttpRequest buildRequest(String method, String url) {
+            return new MockLowLevelHttpRequest() {
+              @Override
+              public MockLowLevelHttpResponse execute() throws IOException {
+                throw new IOException("connection reset");
+              }
+            };
+          }
+        };
+    GcpSts sts = new GcpSts().builder().build((HttpTransportFactory) () -> transport);
+    AssumeRoleWebIdentityRequest req = webIdentityRequest();
+    UnknownException e =
+        Assertions.assertThrows(
+            UnknownException.class, () -> sts.assumeRoleWithWebIdentity(req));
+    Assertions.assertTrue(e.isRetryable());
+  }
+
   @Test
   public void testAssumedRoleStsWithCredentialScopeConversion() throws Exception {
     GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);

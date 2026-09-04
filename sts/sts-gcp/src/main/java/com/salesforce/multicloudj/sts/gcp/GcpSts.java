@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.sts.gcp;
 import com.google.api.client.http.ByteArrayContent;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpRequest;
+import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.apache.v2.ApacheHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -338,7 +339,7 @@ public class GcpSts extends AbstractSts {
               });
       return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, tokenValue);
     } catch (IOException e) {
-      throw new SubstrateSdkException("Failed to create credentials", e);
+      throw mapIoException("Failed to create credentials", e);
     }
   }
 
@@ -367,7 +368,7 @@ public class GcpSts extends AbstractSts {
 
       return new CallerIdentity(StringUtils.EMPTY, idToken, StringUtils.EMPTY);
     } catch (IOException e) {
-      throw new SubstrateSdkException("Could not create credentials in given environment", e);
+      throw mapIoException("Could not create credentials in given environment", e);
     }
   }
 
@@ -390,7 +391,7 @@ public class GcpSts extends AbstractSts {
               });
       return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, tokenValue);
     } catch (IOException e) {
-      throw new SubstrateSdkException("Could not create credentials in given environment", e);
+      throw mapIoException("Could not create credentials in given environment", e);
     }
   }
 
@@ -453,8 +454,31 @@ public class GcpSts extends AbstractSts {
 
       return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, accessToken);
     } catch (IOException e) {
-      throw new SubstrateSdkException("Failed to exchange OIDC token for GCP access token", e);
+      throw mapIoException("Failed to exchange OIDC token for GCP access token", e);
     }
+  }
+
+  /**
+   * Translates an {@link IOException} raised while calling a GCP STS/token endpoint into the
+   * appropriate {@link SubstrateSdkException}. Transient failures — HTTP 408/429 and 5xx, and
+   * transport-level errors with no HTTP status (connection resets, read/connect timeouts) — are
+   * classified <em>retryable</em> so that a persistently unhealthy token endpoint trips the circuit
+   * breaker. Any other 4xx response is a caller error (bad request, unauthorized, not found) and
+   * stays non-retryable.
+   */
+  private static SubstrateSdkException mapIoException(String message, IOException e) {
+    if (e instanceof HttpResponseException) {
+      int status = ((HttpResponseException) e).getStatusCode();
+      if (status == 429) {
+        return new ResourceExhaustedException(message, e);
+      }
+      if (status == 408 || status >= 500) {
+        return new UnknownException(message, e);
+      }
+      return new SubstrateSdkException(message, e);
+    }
+    // No HTTP status: a transport-level failure against the token endpoint — treat as transient.
+    return new UnknownException(message, e);
   }
 
   @Override
