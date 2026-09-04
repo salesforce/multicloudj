@@ -123,6 +123,11 @@
             <artifactId>pubsub-gcp</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pubsub-ali</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
     <build>

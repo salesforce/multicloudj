@@ -15,6 +15,7 @@
         <module>pubsub-client</module>
         <module>pubsub-aws</module>
         <module>pubsub-gcp</module>
+        <module>pubsub-ali</module>
     </modules>
 
     <dependencies>
