@@ -80,43 +80,43 @@ public class CircuitBreakerConfig {
     private int permittedNumberOfCallsInHalfOpenState = 10;
 
     /** Percentage (0–100) of recorded failures at or above which the breaker opens. */
-    public Builder failureRateThreshold(float failureRateThreshold) {
+    public Builder withFailureRateThreshold(float failureRateThreshold) {
       this.failureRateThreshold = failureRateThreshold;
       return this;
     }
 
     /** Percentage (0–100) of slow calls at or above which the breaker opens. */
-    public Builder slowCallRateThreshold(float slowCallRateThreshold) {
+    public Builder withSlowCallRateThreshold(float slowCallRateThreshold) {
       this.slowCallRateThreshold = slowCallRateThreshold;
       return this;
     }
 
     /** A call taking at least this long is counted as slow. */
-    public Builder slowCallDurationThreshold(Duration slowCallDurationThreshold) {
+    public Builder withSlowCallDurationThreshold(Duration slowCallDurationThreshold) {
       this.slowCallDurationThreshold = slowCallDurationThreshold;
       return this;
     }
 
     /** Size of the time-based sliding window, in seconds. */
-    public Builder slidingWindowSize(int slidingWindowSize) {
+    public Builder withSlidingWindowSize(int slidingWindowSize) {
       this.slidingWindowSize = slidingWindowSize;
       return this;
     }
 
     /** Minimum number of recorded calls before the failure/slow rate is evaluated. */
-    public Builder minimumNumberOfCalls(int minimumNumberOfCalls) {
+    public Builder withMinimumNumberOfCalls(int minimumNumberOfCalls) {
       this.minimumNumberOfCalls = minimumNumberOfCalls;
       return this;
     }
 
     /** How long the breaker stays open before transitioning to half-open. */
-    public Builder waitDurationInOpenState(Duration waitDurationInOpenState) {
+    public Builder withWaitDurationInOpenState(Duration waitDurationInOpenState) {
       this.waitDurationInOpenState = waitDurationInOpenState;
       return this;
     }
 
     /** Number of trial calls permitted while the breaker is half-open. */
-    public Builder permittedNumberOfCallsInHalfOpenState(
+    public Builder withPermittedNumberOfCallsInHalfOpenState(
         int permittedNumberOfCallsInHalfOpenState) {
       this.permittedNumberOfCallsInHalfOpenState = permittedNumberOfCallsInHalfOpenState;
       return this;
