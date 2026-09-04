@@ -123,6 +123,20 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- Provider-local, expiry-aware token cache (GcpStsTokenCache). Compile-only transitives
+             (checker-qual, error_prone_annotations) are already declared below, so excluding all
+             transitives here is safe. -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>3.1.8</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
 
         <!-- The transitives of the dependencies above -->
         <dependency>

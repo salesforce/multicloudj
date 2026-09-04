@@ -25,6 +25,13 @@
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
+        <!-- Source: https://mvnrepository.com/artifact/io.github.resilience4j/resilience4j-circuitbreaker -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-circuitbreaker</artifactId>
+            <version>2.4.0</version>
+            <scope>compile</scope>
+        </dependency>
         <dependency>
             <groupId>org.wiremock</groupId>
             <artifactId>wiremock</artifactId>
