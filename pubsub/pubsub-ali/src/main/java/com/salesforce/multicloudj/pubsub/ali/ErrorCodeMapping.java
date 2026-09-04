@@ -36,6 +36,8 @@ public class ErrorCodeMapping {
     ERROR_MAPPING.put("MissingAuthorizationHeader", InvalidArgumentException.class);
     ERROR_MAPPING.put("InvalidDateHeader", InvalidArgumentException.class);
     ERROR_MAPPING.put("MissingDateHeader", InvalidArgumentException.class);
+    // HTTP 408: the request timestamp is stale, a non-retryable request-formation problem.
+    ERROR_MAPPING.put("TimeExpired", InvalidArgumentException.class);
     ERROR_MAPPING.put("InvalidDegist", InvalidArgumentException.class);
     ERROR_MAPPING.put("InvalidRequestURL", InvalidArgumentException.class);
     ERROR_MAPPING.put("InvalidQueryString", InvalidArgumentException.class);

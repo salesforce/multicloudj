@@ -21,14 +21,35 @@ public class ErrorCodeMappingTest {
   }
 
   @Test
-  void mapsNamingAndValidationCodes() {
+  void mapsRequestAndHeaderValidation() {
+    assertEquals(InvalidArgumentException.class, getException("InvalidAuthorizationHeader"));
+    assertEquals(InvalidArgumentException.class, getException("MissingAuthorizationHeader"));
+    assertEquals(InvalidArgumentException.class, getException("InvalidDateHeader"));
+    assertEquals(InvalidArgumentException.class, getException("MissingDateHeader"));
+    assertEquals(InvalidArgumentException.class, getException("TimeExpired"));
+    assertEquals(InvalidArgumentException.class, getException("InvalidDegist"));
+    assertEquals(InvalidArgumentException.class, getException("InvalidRequestURL"));
+    assertEquals(InvalidArgumentException.class, getException("InvalidQueryString"));
+    assertEquals(InvalidArgumentException.class, getException("MalformedXML"));
+    assertEquals(InvalidArgumentException.class, getException("InvalidArgument"));
+  }
+
+  @Test
+  void mapsNamingValidation() {
+    assertEquals(InvalidArgumentException.class, getException("InvalidQueueName"));
+    assertEquals(InvalidArgumentException.class, getException("QueueNameLengthError"));
     assertEquals(InvalidArgumentException.class, getException("TopicNameInvalid"));
     assertEquals(InvalidArgumentException.class, getException("TopicNameLengthError"));
-    assertEquals(InvalidArgumentException.class, getException("InvalidQueueName"));
     assertEquals(InvalidArgumentException.class, getException("SubscriptionNameInvalid"));
-    assertEquals(InvalidArgumentException.class, getException("MalformedXML"));
+    assertEquals(InvalidArgumentException.class, getException("SubscriptionNameLengthError"));
+    assertEquals(InvalidArgumentException.class, getException("EndpointInvalid"));
+  }
+
+  @Test
+  void mapsMessageAndReceiptHandleValidation() {
+    assertEquals(InvalidArgumentException.class, getException("MissingReceiptHandle"));
+    assertEquals(InvalidArgumentException.class, getException("MissingVisibilityTimeout"));
     assertEquals(InvalidArgumentException.class, getException("ReceiptHandleError"));
-    assertEquals(InvalidArgumentException.class, getException("InvalidArgument"));
   }
 
   @Test
@@ -53,9 +74,13 @@ public class ErrorCodeMappingTest {
   }
 
   @Test
-  void mapsServerAndUnknownCodes() {
+  void mapsServerErrors() {
     assertEquals(UnknownException.class, getException("InternalError"));
     assertEquals(UnknownException.class, getException("InternalServerError"));
+  }
+
+  @Test
+  void mapsUnknownAndUnmappedCodes() {
     assertEquals(UnknownException.class, getException("SomethingUnmapped"));
     assertEquals(UnknownException.class, getException(null));
     // Guard against re-introducing guessed codes that are not real MNS wire values.
