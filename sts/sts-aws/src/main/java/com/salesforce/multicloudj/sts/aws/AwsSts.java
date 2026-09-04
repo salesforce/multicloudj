@@ -77,6 +77,14 @@ public class AwsSts extends AbstractSts {
     return new Builder();
   }
 
+  /** Closes the underlying AWS SDK STS client, releasing its HTTP connection pool and threads. */
+  @Override
+  public void close() {
+    if (stsClient != null) {
+      stsClient.close();
+    }
+  }
+
   @Override
   protected StsCredentials getSTSCredentialsWithAssumeRole(AssumedRoleRequest request) {
     AssumeRoleRequest.Builder roleRequestBuilder =
