@@ -15,7 +15,7 @@ import lombok.Getter;
  * Abstract base class for Security Token Service (STS) implementations. This class is internal for
  * SDK and all the providers for STS implementations are supposed to implement it.
  */
-public abstract class AbstractSts implements Provider {
+public abstract class AbstractSts implements Provider, AutoCloseable {
   protected final String providerId;
   protected final String region;
 
@@ -127,6 +127,20 @@ public abstract class AbstractSts implements Provider {
    */
   public StsCredentials assumeRoleWithWebIdentity(AssumeRoleWebIdentityRequest request) {
     return getSTSCredentialsWithAssumeRoleWebIdentity(request);
+  }
+
+  /**
+   * Releases any resources (e.g. HTTP connection pools) held by the underlying provider client.
+   *
+   * <p>The default implementation is a no-op: a provider that holds no closeable resource does not
+   * need to override this. Providers that own a long-lived SDK client or HTTP transport override
+   * {@code close()} to release it.
+   *
+   * @throws Exception if the underlying provider resource fails to close
+   */
+  @Override
+  public void close() throws Exception {
+    // No-op by default; providers holding closeable resources override this.
   }
 
   /**

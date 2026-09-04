@@ -32,6 +32,7 @@ The `StsClient` is built on top of provider-specific implementations of `Abstrac
 |---------------|-----|-----|-----|----------|
 | **Region Support** | ✅ Supported | ✅ Supported | ✅ Supported | All providers support region-specific operations |
 | **Endpoint Override** | ✅ Supported | ✅ Supported | ✅ Supported | Custom endpoint configuration |
+| **Circuit Breaker** | ✅ Supported | ✅ Supported | ✅ Supported | Optional, provider-agnostic; disabled by default (see [Circuit Breaker](#circuit-breaker-optional)) |
 
 ### Provider-Specific Notes
 
@@ -109,3 +110,54 @@ try {
     e.printStackTrace();
 }
 ```
+
+---
+
+## Circuit Breaker (optional)
+
+`StsClient` can guard every provider call with a circuit breaker. It is **disabled by default** — if you never call `withCircuitBreakerConfig(...)`, the client behaves exactly as before. When enabled, the breaker protects your application from hammering an unhealthy token service: after enough failures it "opens" and rejects calls immediately for a cool-down window, then probes for recovery before closing again.
+
+Only **retryable** failures (those signalling an unhealthy dependency, e.g. throttling or timeouts) count toward opening the breaker. Caller errors such as an invalid argument are non-retryable and never trip it.
+
+```java
+CircuitBreakerConfig breakerConfig = CircuitBreakerConfig.builder()
+    .failureRateThreshold(30f)                                 // open at ≥30% failures
+    .slowCallRateThreshold(10f)                                // open at ≥10% slow calls
+    .slowCallDurationThreshold(Duration.ofSeconds(120))        // a call ≥120s counts as slow
+    .minimumNumberOfCalls(100)                                 // evaluate only after 100 calls
+    .slidingWindowSize(600)                                    // 600-second time-based window
+    .waitDurationInOpenState(Duration.ofSeconds(1))            // stay open 1s before probing
+    .permittedNumberOfCallsInHalfOpenState(200)                // trial calls while half-open
+    .build();
+
+StsClient stsClient = StsClient.builder("aws")
+    .withRegion("us-west-2")
+    .withCircuitBreakerConfig(breakerConfig)
+    .build();
+```
+
+When the breaker is open, calls fail fast with a non-retryable `CircuitBreakerOpenException`:
+
+```java
+try {
+    CallerIdentity identity = stsClient.getCallerIdentity();
+} catch (CircuitBreakerOpenException e) {
+    // Breaker is open — back off and retry only after the wait duration elapses.
+} catch (SubstrateSdkException e) {
+    // Other provider errors.
+}
+```
+
+### Configuration reference
+
+The values shown above are **recommended starting points for a high-throughput workload**, not the defaults. Tune them to your own call volume and latency profile.
+
+| Option | Meaning |
+|--------|---------|
+| `failureRateThreshold` | Percentage (0–100) of recorded failures at or above which the breaker opens. |
+| `slowCallRateThreshold` | Percentage (0–100) of slow calls at or above which the breaker opens. |
+| `slowCallDurationThreshold` | A call taking at least this long is counted as slow. |
+| `slidingWindowSize` | Size of the time-based sliding window, in seconds. |
+| `minimumNumberOfCalls` | Minimum recorded calls before the failure/slow rate is evaluated. |
+| `waitDurationInOpenState` | How long the breaker stays open before transitioning to half-open. |
+| `permittedNumberOfCallsInHalfOpenState` | Number of trial calls permitted while half-open. |

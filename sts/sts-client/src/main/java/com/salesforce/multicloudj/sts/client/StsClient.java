@@ -1,6 +1,9 @@
 package com.salesforce.multicloudj.sts.client;
 
 import com.google.common.collect.ImmutableSet;
+import com.salesforce.multicloudj.common.circuitbreaker.CircuitBreakerConfig;
+import com.salesforce.multicloudj.common.circuitbreaker.CircuitBreakerExecutor;
+import com.salesforce.multicloudj.common.exceptions.CircuitBreakerOpenException;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
@@ -12,13 +15,21 @@ import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
 import java.util.ServiceLoader;
+import java.util.function.Supplier;
 
 /**
  * StsClient class in the Portable Client for interacting with Security Token Service (STS) in a
  * substrate agnostic way.
  */
-public class StsClient {
+public class StsClient implements AutoCloseable {
   protected AbstractSts sts;
+
+  /**
+   * Optional circuit breaker guarding every provider call. Null unless a circuit-breaker
+   * configuration was supplied to the builder, in which case behavior is byte-for-byte identical to
+   * a client without a breaker.
+   */
+  private final CircuitBreakerExecutor circuitBreakerExecutor;
 
   /**
    * Constructor for StsClient with StsBuilder.
@@ -26,7 +37,44 @@ public class StsClient {
    * @param sts The abstract used to back this client for implementation.
    */
   protected StsClient(AbstractSts sts) {
+    this(sts, null);
+  }
+
+  /**
+   * Constructor for StsClient with an optional circuit breaker.
+   *
+   * @param sts The abstract used to back this client for implementation.
+   * @param circuitBreakerExecutor The circuit breaker to guard provider calls, or null to disable.
+   */
+  protected StsClient(AbstractSts sts, CircuitBreakerExecutor circuitBreakerExecutor) {
     this.sts = sts;
+    this.circuitBreakerExecutor = circuitBreakerExecutor;
+  }
+
+  /**
+   * Single seam through which every provider operation runs. The provider call and its exception
+   * mapping ({@link AbstractSts#mapException(Throwable)}) happen inside the guarded supplier, so
+   * the breaker observes the mapped {@link SubstrateSdkException} and its retryability. When no
+   * breaker is configured, the supplier is invoked directly — behavior is identical to the
+   * pre-breaker client.
+   *
+   * @param operation the raw provider call
+   * @param <T> the operation's result type
+   * @return the operation's result
+   */
+  private <T> T call(Supplier<T> operation) {
+    Supplier<T> mapped =
+        () -> {
+          try {
+            return operation.get();
+          } catch (Throwable t) {
+            throw this.sts.mapException(t);
+          }
+        };
+    if (circuitBreakerExecutor == null) {
+      return mapped.get();
+    }
+    return circuitBreakerExecutor.execute(mapped);
   }
 
   /**
@@ -93,11 +141,7 @@ public class StsClient {
    * @return The StsCredentials for the assumed role.
    */
   public StsCredentials getAssumeRoleCredentials(AssumedRoleRequest request) {
-    try {
-      return this.sts.assumeRole(request);
-    } catch (Throwable t) {
-      throw this.sts.mapException(t);
-    }
+    return call(() -> this.sts.assumeRole(request));
   }
 
   /**
@@ -106,11 +150,7 @@ public class StsClient {
    * @return The CallerIdentity.
    */
   public CallerIdentity getCallerIdentity() {
-    try {
-      return getCallerIdentity(GetCallerIdentityRequest.builder().build());
-    } catch (Throwable t) {
-      throw this.sts.mapException(t);
-    }
+    return getCallerIdentity(GetCallerIdentityRequest.builder().build());
   }
 
   /**
@@ -119,11 +159,7 @@ public class StsClient {
    * @return The CallerIdentity.
    */
   public CallerIdentity getCallerIdentity(GetCallerIdentityRequest request) {
-    try {
-      return this.sts.getCallerIdentity(request);
-    } catch (Throwable t) {
-      throw this.sts.mapException(t);
-    }
+    return call(() -> this.sts.getCallerIdentity(request));
   }
 
   /**
@@ -133,11 +169,7 @@ public class StsClient {
    * @return The StsCredentials containing the access token.
    */
   public StsCredentials getAccessToken(GetAccessTokenRequest request) {
-    try {
-      return this.sts.getAccessToken(request);
-    } catch (Throwable t) {
-      throw this.sts.mapException(t);
-    }
+    return call(() -> this.sts.getAccessToken(request));
   }
 
   /**
@@ -148,10 +180,14 @@ public class StsClient {
    */
   public StsCredentials getAssumeRoleWithWebIdentityCredentials(
       AssumeRoleWebIdentityRequest request) {
-    try {
-      return this.sts.assumeRoleWithWebIdentity(request);
-    } catch (Throwable t) {
-      throw this.sts.mapException(t);
+    return call(() -> this.sts.assumeRoleWithWebIdentity(request));
+  }
+
+  /** Closes the underlying STS provider client and releases any resources it holds. */
+  @Override
+  public void close() throws Exception {
+    if (this.sts != null) {
+      this.sts.close();
     }
   }
 
@@ -161,6 +197,7 @@ public class StsClient {
     protected URI endpoint;
     protected AbstractSts sts;
     protected AbstractSts.Builder<?, ?> stsBuilder;
+    protected CircuitBreakerConfig circuitBreakerConfig;
 
     /**
      * Constructor for StsBuilder.
@@ -232,13 +269,35 @@ public class StsClient {
     }
 
     /**
+     * Enables a circuit breaker that guards every provider call made by the built client. When this
+     * is not called (or is passed null), the client behaves exactly as before — no breaker is
+     * created and calls run straight through.
+     *
+     * <p>The breaker counts only retryable {@link SubstrateSdkException}s as failures, so caller
+     * errors (e.g. invalid arguments) never trip it. Once open, calls are rejected with a
+     * non-retryable {@link CircuitBreakerOpenException} until the breaker's wait duration elapses.
+     * See {@link CircuitBreakerConfig} for tuning guidance.
+     *
+     * @param circuitBreakerConfig the breaker configuration, or null to leave the breaker disabled
+     * @return This StsBuilder instance.
+     */
+    public StsBuilder withCircuitBreakerConfig(CircuitBreakerConfig circuitBreakerConfig) {
+      this.circuitBreakerConfig = circuitBreakerConfig;
+      return this;
+    }
+
+    /**
      * Builds and returns an StsClient instance.
      *
      * @return A new StsClient instance.
      */
     public StsClient build() {
       this.sts = this.stsBuilder.build();
-      return new StsClient(this.sts);
+      CircuitBreakerExecutor executor =
+          circuitBreakerConfig == null
+              ? null
+              : new CircuitBreakerExecutor("sts", circuitBreakerConfig);
+      return new StsClient(this.sts, executor);
     }
   }
 }
