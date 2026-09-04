@@ -97,7 +97,6 @@ import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStore;
 import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStoreProvider;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
-import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -339,7 +338,7 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testDoUpload_WithInputStream_CreateIfAbsentCollisionThrowsResourceAlreadyExists()
+  void testDoUpload_WithInputStream_CreateIfAbsentCollisionPropagatesNativeException()
       throws IOException {
     UploadRequest uploadRequest =
         UploadRequest.builder().withKey(TEST_KEY).withCreateIfAbsent(true).build();
@@ -352,13 +351,12 @@ class GcpBlobStoreTest {
             eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
         .thenThrow(collision);
 
-    ResourceAlreadyExistsException exception =
+    StorageException exception =
         assertThrows(
-            ResourceAlreadyExistsException.class,
+            StorageException.class,
             () -> gcpBlobStore.doUpload(uploadRequest, new ByteArrayInputStream(TEST_CONTENT)));
 
-    assertEquals(collision, exception.getCause());
-    assertFalse(exception.isRetryable());
+    assertEquals(collision, exception);
   }
 
   @Test
@@ -411,28 +409,6 @@ class GcpBlobStoreTest {
     // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
     verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
-  }
-
-  @Test
-  void testDoUpload_WithByteArray_CreateIfAbsentCollisionThrowsResourceAlreadyExists()
-      throws IOException {
-    UploadRequest uploadRequest =
-        UploadRequest.builder().withKey(TEST_KEY).withCreateIfAbsent(true).build();
-    StorageException collision = new StorageException(412, "Precondition Failed");
-
-    when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-    when(mockTransformer.getBlobWriteOptions(uploadRequest))
-        .thenReturn(new Storage.BlobWriteOption[] {Storage.BlobWriteOption.doesNotExist()});
-    when(mockStorage.createFrom(
-            eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
-        .thenThrow(collision);
-
-    ResourceAlreadyExistsException exception =
-        assertThrows(
-            ResourceAlreadyExistsException.class,
-            () -> gcpBlobStore.doUpload(uploadRequest, TEST_CONTENT));
-
-    assertEquals(collision, exception.getCause());
   }
 
   @Test
@@ -495,30 +471,6 @@ class GcpBlobStoreTest {
     // The response is built directly from createFrom's returned Blob; no follow-up get() is issued.
     verify(mockStorage, never()).get(any(BlobId.class));
     verify(mockTransformer).toUploadResponse(mockBlob);
-  }
-
-  @Test
-  void testDoUpload_WithPath_CreateIfAbsentCollisionThrowsResourceAlreadyExists()
-      throws IOException {
-    Path testFile = tempDir.resolve("test.txt");
-    Files.write(testFile, TEST_CONTENT);
-    UploadRequest uploadRequest =
-        UploadRequest.builder().withKey(TEST_KEY).withCreateIfAbsent(true).build();
-    StorageException collision = new StorageException(412, "Precondition Failed");
-
-    when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-    when(mockTransformer.getBlobWriteOptions(uploadRequest))
-        .thenReturn(new Storage.BlobWriteOption[] {Storage.BlobWriteOption.doesNotExist()});
-    when(mockStorage.createFrom(
-            eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class)))
-        .thenThrow(collision);
-
-    ResourceAlreadyExistsException exception =
-        assertThrows(
-            ResourceAlreadyExistsException.class,
-            () -> gcpBlobStore.doUpload(uploadRequest, testFile));
-
-    assertEquals(collision, exception.getCause());
   }
 
   @Test

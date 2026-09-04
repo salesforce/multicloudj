@@ -27,7 +27,6 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
 import java.io.IOException;
@@ -70,7 +69,6 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   public CompletableFuture<UploadResponse> upload(
       UploadRequest uploadRequest, InputStream inputStream) {
     validator.validate(uploadRequest);
-    validateCreateIfAbsentSupported(uploadRequest);
     return doUpload(uploadRequest, inputStream);
   }
 
@@ -78,7 +76,6 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<UploadResponse> upload(UploadRequest uploadRequest, byte[] content) {
     validator.validate(uploadRequest);
-    validateCreateIfAbsentSupported(uploadRequest);
     return doUpload(uploadRequest, content);
   }
 
@@ -86,7 +83,6 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<UploadResponse> upload(UploadRequest uploadRequest, File file) {
     validator.validate(uploadRequest);
-    validateCreateIfAbsentSupported(uploadRequest);
     return doUpload(uploadRequest, file);
   }
 
@@ -94,20 +90,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<UploadResponse> upload(UploadRequest uploadRequest, Path path) {
     validator.validate(uploadRequest);
-    validateCreateIfAbsentSupported(uploadRequest);
     return doUpload(uploadRequest, path);
-  }
-
-  /** Providers opt in only when they can guarantee atomic create-if-absent behavior. */
-  protected boolean supportsCreateIfAbsent() {
-    return false;
-  }
-
-  private void validateCreateIfAbsentSupported(UploadRequest uploadRequest) {
-    if (uploadRequest.isCreateIfAbsent() && !supportsCreateIfAbsent()) {
-      throw new UnSupportedOperationException(
-          "Create-if-absent uploads are not supported by this substrate implementation");
-    }
   }
 
   /** {@inheritDoc} */

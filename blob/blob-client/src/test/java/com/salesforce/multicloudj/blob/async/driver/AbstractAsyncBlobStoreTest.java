@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -34,7 +33,6 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -178,30 +176,6 @@ public class AbstractAsyncBlobStoreTest {
     assertEquals(1024L, actualUploadRequest.getContentLength());
     assertEquals("value-1", actualUploadRequest.getMetadata().get("key-1"));
     assertEquals(path, contentCaptor.getValue());
-  }
-
-  @Test
-  void testCreateIfAbsentFailsClosedWhenProviderDoesNotSupportIt() {
-    UploadRequest request =
-        UploadRequest.builder().withKey("object-1").withCreateIfAbsent(true).build();
-
-    assertThrows(
-        UnSupportedOperationException.class,
-        () -> mockBlobStore.upload(request, mock(InputStream.class)));
-    assertThrows(
-        UnSupportedOperationException.class,
-        () -> mockBlobStore.upload(request, "content".getBytes()));
-    assertThrows(
-        UnSupportedOperationException.class,
-        () -> mockBlobStore.upload(request, new File("test.txt")));
-    assertThrows(
-        UnSupportedOperationException.class,
-        () -> mockBlobStore.upload(request, Path.of("test.txt")));
-
-    verify(mockBlobStore, never()).doUpload(any(), any(InputStream.class));
-    verify(mockBlobStore, never()).doUpload(any(), any(byte[].class));
-    verify(mockBlobStore, never()).doUpload(any(), any(File.class));
-    verify(mockBlobStore, never()).doUpload(any(), any(Path.class));
   }
 
   private UploadRequest getTestUploadRequest() {

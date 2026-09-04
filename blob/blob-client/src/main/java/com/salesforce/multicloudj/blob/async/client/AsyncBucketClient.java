@@ -29,6 +29,9 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.observability.MultiCloudJLogger;
 import com.salesforce.multicloudj.common.observability.OperationContext;
@@ -75,11 +78,32 @@ public class AsyncBucketClient implements AutoCloseable {
   }
 
   protected <T> T handleException(Throwable ex) {
+    throw blobStore.mapException(ex);
+  }
+
+  private <T> T handleUploadException(UploadRequest request, Throwable ex) {
     Throwable failure = ex;
     while (failure instanceof CompletionException && failure.getCause() != null) {
       failure = failure.getCause();
     }
-    throw blobStore.mapException(failure);
+    throw mapUploadException(request, failure);
+  }
+
+  private SubstrateSdkException mapUploadException(UploadRequest request, Throwable t) {
+    SubstrateSdkException mapped = blobStore.mapException(t);
+    if (!request.isCreateIfAbsent()) {
+      return mapped;
+    }
+
+    Throwable cause = mapped.getCause() != null ? mapped.getCause() : mapped;
+    if (mapped instanceof FailedPreconditionException) {
+      return new ResourceAlreadyExistsException("Blob already exists", cause);
+    }
+    if (mapped instanceof ResourceConflictException) {
+      return new ResourceConflictException(
+          "Conditional blob upload conflicted", cause, true);
+    }
+    return mapped;
   }
 
   /**
@@ -96,7 +120,7 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx ->
             uploadResponseWithCorrelationId(
                     blobStore.upload(withResolvedContext(uploadRequest, ctx), inputStream), ctx)
-                .exceptionally(this::handleException));
+                .exceptionally(ex -> handleUploadException(uploadRequest, ex)));
   }
 
   /** Uploads the Blob content to substrate-specific Blob storage */
@@ -108,7 +132,7 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx ->
             uploadResponseWithCorrelationId(
                     blobStore.upload(withResolvedContext(uploadRequest, ctx), content), ctx)
-                .exceptionally(this::handleException));
+                .exceptionally(ex -> handleUploadException(uploadRequest, ex)));
   }
 
   /** Uploads the Blob content to substrate-specific Blob storage */
@@ -120,7 +144,7 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx ->
             uploadResponseWithCorrelationId(
                     blobStore.upload(withResolvedContext(uploadRequest, ctx), file), ctx)
-                .exceptionally(this::handleException));
+                .exceptionally(ex -> handleUploadException(uploadRequest, ex)));
   }
 
   /** Uploads the Blob content to substrate-specific Blob storage */
@@ -132,7 +156,7 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx ->
             uploadResponseWithCorrelationId(
                     blobStore.upload(withResolvedContext(uploadRequest, ctx), path), ctx)
-                .exceptionally(this::handleException));
+                .exceptionally(ex -> handleUploadException(uploadRequest, ex)));
   }
 
   /** Downloads the Blob content from substrate-specific Blob storage */

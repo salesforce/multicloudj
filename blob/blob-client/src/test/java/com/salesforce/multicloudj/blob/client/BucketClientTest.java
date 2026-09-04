@@ -46,6 +46,9 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
@@ -215,6 +218,44 @@ public class BucketClientTest {
         () -> {
           client.upload(request, Paths.get("testfile.txt"));
         });
+  }
+
+  @Test
+  void testCreateIfAbsentMapsFailedPreconditionAtClientBoundary() {
+    RuntimeException nativeFailure = new RuntimeException("precondition failed");
+    doThrow(nativeFailure).when(mockBlobStore).upload(any(), any(byte[].class));
+    doReturn(new FailedPreconditionException(nativeFailure))
+        .when(mockBlobStore)
+        .mapException(nativeFailure);
+    UploadRequest request =
+        UploadRequest.builder().withKey("object-1").withCreateIfAbsent(true).build();
+
+    ResourceAlreadyExistsException exception =
+        assertThrows(
+            ResourceAlreadyExistsException.class,
+            () -> client.upload(request, "content".getBytes()));
+
+    assertSame(nativeFailure, exception.getCause());
+    assertFalse(exception.isRetryable());
+  }
+
+  @Test
+  void testCreateIfAbsentMakesConditionalConflictRetryableAtClientBoundary() {
+    RuntimeException nativeFailure = new RuntimeException("conditional request conflict");
+    doThrow(nativeFailure).when(mockBlobStore).upload(any(), any(byte[].class));
+    doReturn(new ResourceConflictException(nativeFailure))
+        .when(mockBlobStore)
+        .mapException(nativeFailure);
+    UploadRequest request =
+        UploadRequest.builder().withKey("object-1").withCreateIfAbsent(true).build();
+
+    ResourceConflictException exception =
+        assertThrows(
+            ResourceConflictException.class,
+            () -> client.upload(request, "content".getBytes()));
+
+    assertSame(nativeFailure, exception.getCause());
+    assertTrue(exception.isRetryable());
   }
 
   @Test

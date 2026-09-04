@@ -38,6 +38,7 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
    * recording match header to disambiguate copy-PUT vs upload-PUT to the same key.
    */
   private static final String OSS_COPY_SOURCE_HEADER = "x-oss-copy-source";
+  private static final String OSS_FORBID_OVERWRITE_HEADER = "x-oss-forbid-overwrite";
 
   @Override
   protected Harness createHarness() {
@@ -195,10 +196,10 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
     @Override
     public java.util.List<String> getRecordingCaptureHeaders() {
-      // OSS_COPY_SOURCE_HEADER disambiguates copy-PUT vs upload-PUT to the same key, and
-      // distinguishes multiple copies to the same key by their differing source value. Inert
-      // for non-copy requests (header absent -> no matcher added).
-      return java.util.List.of("Host", OSS_COPY_SOURCE_HEADER);
+      // The copy-source header disambiguates copy PUTs, while the overwrite header verifies the
+      // atomic create-if-absent condition on uploads. Absent headers add no matcher.
+      return java.util.List.of(
+          "Host", OSS_COPY_SOURCE_HEADER, OSS_FORBID_OVERWRITE_HEADER);
     }
 
     @Override

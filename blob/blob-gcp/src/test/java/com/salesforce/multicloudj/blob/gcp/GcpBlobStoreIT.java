@@ -175,11 +175,6 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
     }
 
     @Override
-    public boolean isCreateIfAbsentSupported() {
-      return true;
-    }
-
-    @Override
     public String getMetadataHeader(String key) {
       return "x-goog-meta-" + key;
     }

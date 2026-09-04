@@ -53,6 +53,9 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
@@ -271,8 +274,9 @@ public class AsyncBucketClientTest {
   }
 
   @Test
-  void testHandleExceptionUnwrapsCompletionExceptionBeforeMapping() {
+  void testHandleExceptionPreservesCommonExceptionMappingBehavior() {
     RuntimeException cause = new RuntimeException("conditional upload failed");
+    CompletionException wrapper = new CompletionException(cause);
     doAnswer(invocation -> new SubstrateSdkException(invocation.getArgument(0, Throwable.class)))
         .when(mockBlobStore)
         .mapException(any());
@@ -280,10 +284,56 @@ public class AsyncBucketClientTest {
     SubstrateSdkException mapped =
         assertThrows(
             SubstrateSdkException.class,
-            () -> client.handleException(new CompletionException(cause)));
+            () -> client.handleException(wrapper));
 
-    assertSame(cause, mapped.getCause());
-    verify(mockBlobStore).mapException(cause);
+    assertSame(wrapper, mapped.getCause());
+    verify(mockBlobStore).mapException(wrapper);
+  }
+
+  @Test
+  void testCreateIfAbsentMapsWrappedFailedPreconditionAtUploadBoundary() {
+    RuntimeException nativeFailure = new RuntimeException("precondition failed");
+    CompletionException wrapper = new CompletionException(nativeFailure);
+    when(mockBlobStore.upload(any(), any(byte[].class)))
+        .thenReturn(CompletableFuture.failedFuture(wrapper));
+    doReturn(new FailedPreconditionException(nativeFailure))
+        .when(mockBlobStore)
+        .mapException(nativeFailure);
+    UploadRequest request =
+        UploadRequest.builder().withKey("object-1").withCreateIfAbsent(true).build();
+
+    ExecutionException outer =
+        assertThrows(
+            ExecutionException.class,
+            () -> client.upload(request, "content".getBytes()).get());
+    ResourceAlreadyExistsException exception =
+        assertInstanceOf(ResourceAlreadyExistsException.class, outer.getCause());
+
+    assertSame(nativeFailure, exception.getCause());
+    assertFalse(exception.isRetryable());
+  }
+
+  @Test
+  void testCreateIfAbsentMakesWrappedConditionalConflictRetryableAtUploadBoundary() {
+    RuntimeException nativeFailure = new RuntimeException("conditional request conflict");
+    CompletionException wrapper = new CompletionException(nativeFailure);
+    when(mockBlobStore.upload(any(), any(byte[].class)))
+        .thenReturn(CompletableFuture.failedFuture(wrapper));
+    doReturn(new ResourceConflictException(nativeFailure))
+        .when(mockBlobStore)
+        .mapException(nativeFailure);
+    UploadRequest request =
+        UploadRequest.builder().withKey("object-1").withCreateIfAbsent(true).build();
+
+    ExecutionException outer =
+        assertThrows(
+            ExecutionException.class,
+            () -> client.upload(request, "content".getBytes()).get());
+    ResourceConflictException exception =
+        assertInstanceOf(ResourceConflictException.class, outer.getCause());
+
+    assertSame(nativeFailure, exception.getCause());
+    assertTrue(exception.isRetryable());
   }
 
   @Test

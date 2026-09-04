@@ -75,11 +75,6 @@ public class InMemoryBlobStoreIT extends AbstractBlobStoreIT {
     }
 
     @Override
-    public boolean isCreateIfAbsentSupported() {
-      return true;
-    }
-
-    @Override
     public String getMetadataHeader(String key) {
       return "x-inmemory-meta-" + key;
     }

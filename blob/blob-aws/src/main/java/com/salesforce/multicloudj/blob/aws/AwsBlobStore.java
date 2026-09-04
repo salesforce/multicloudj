@@ -124,11 +124,6 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
     return new Builder();
   }
 
-  @Override
-  protected boolean supportsCreateIfAbsent() {
-    return true;
-  }
-
   /**
    * Performs Blob upload Note: Specifying the contentLength in the UploadRequest can dramatically
    * improve upload efficiency because the substrate SDKs do not need to buffer the contents and
@@ -182,12 +177,8 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
   /** Helper function to upload blobs */
   protected UploadResponse doUpload(UploadRequest uploadRequest, RequestBody requestBody) {
     PutObjectRequest request = transformer.toRequest(uploadRequest);
-    try {
-      PutObjectResponse response = s3Client.putObject(request, requestBody);
-      return transformer.toUploadResponse(uploadRequest.getKey(), response);
-    } catch (S3Exception e) {
-      throw translateUploadFailure(uploadRequest, e);
-    }
+    PutObjectResponse response = s3Client.putObject(request, requestBody);
+    return transformer.toUploadResponse(uploadRequest.getKey(), response);
   }
 
   /**

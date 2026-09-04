@@ -49,7 +49,6 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
@@ -348,6 +347,12 @@ public class AwsBlobStoreTest {
 
     assertInstanceOf(
         UnknownException.class, aws.mapException(new IOException("Channel is closed")));
+    assertInstanceOf(
+        FailedPreconditionException.class,
+        aws.mapException(buildS3Exception(412, "PreconditionFailed")));
+    assertInstanceOf(
+        ResourceConflictException.class,
+        aws.mapException(buildS3Exception(409, "ConditionalRequestConflict")));
   }
 
   private UploadRequest buildTestUploadRequest() {
@@ -414,11 +419,6 @@ public class AwsBlobStoreTest {
   }
 
   @Test
-  void testSupportsCreateIfAbsent() {
-    assertTrue(aws.supportsCreateIfAbsent());
-  }
-
-  @Test
   void testDoUploadByteArray() {
     doReturn(buildMockPutObjectResponse())
         .when(mockS3Client)
@@ -427,7 +427,7 @@ public class AwsBlobStoreTest {
   }
 
   @Test
-  void testDoUploadCreateIfAbsentCollisionThrowsResourceAlreadyExists() {
+  void testDoUploadCreateIfAbsentCollisionPropagatesNativeException() {
     S3Exception collision = buildS3Exception(412, "PreconditionFailed");
     doThrow(collision)
         .when(mockS3Client)
@@ -435,64 +435,12 @@ public class AwsBlobStoreTest {
     UploadRequest request =
         buildTestUploadRequest().toBuilder().withCreateIfAbsent(true).build();
 
-    ResourceAlreadyExistsException thrown =
-        assertThrows(
-            ResourceAlreadyExistsException.class,
-            () -> aws.doUpload(request, new byte[1024]));
-
-    assertEquals(collision, thrown.getCause());
-    assertFalse(thrown.isRetryable());
-  }
-
-  @Test
-  void testDoUploadCreateIfAbsentCollisionUsesHttpStatusWhenErrorCodeIsMissing() {
-    S3Exception collision = (S3Exception) S3Exception.builder().statusCode(412).build();
-    doThrow(collision)
-        .when(mockS3Client)
-        .putObject(any(PutObjectRequest.class), any(RequestBody.class));
-    UploadRequest request =
-        buildTestUploadRequest().toBuilder().withCreateIfAbsent(true).build();
-
-    ResourceAlreadyExistsException thrown =
-        assertThrows(
-            ResourceAlreadyExistsException.class,
-            () -> aws.doUpload(request, new byte[1024]));
-
-    assertEquals(collision, thrown.getCause());
-    assertFalse(thrown.isRetryable());
-  }
-
-  @Test
-  void testDoUploadWithoutCreateIfAbsentPreservesPreconditionFailure() {
-    S3Exception failure = buildS3Exception(412, "PreconditionFailed");
-    doThrow(failure)
-        .when(mockS3Client)
-        .putObject(any(PutObjectRequest.class), any(RequestBody.class));
-
     S3Exception thrown =
         assertThrows(
             S3Exception.class,
-            () -> aws.doUpload(buildTestUploadRequest(), new byte[1024]));
-
-    assertEquals(failure, thrown);
-  }
-
-  @Test
-  void testDoUploadConditionalRequestConflictIsRetryable() {
-    S3Exception conflict = buildS3Exception(409, "ConditionalRequestConflict");
-    doThrow(conflict)
-        .when(mockS3Client)
-        .putObject(any(PutObjectRequest.class), any(RequestBody.class));
-    UploadRequest request =
-        buildTestUploadRequest().toBuilder().withCreateIfAbsent(true).build();
-
-    ResourceConflictException thrown =
-        assertThrows(
-            ResourceConflictException.class,
             () -> aws.doUpload(request, new byte[1024]));
 
-    assertEquals(conflict, thrown.getCause());
-    assertTrue(thrown.isRetryable());
+    assertEquals(collision, thrown);
   }
 
   @Test

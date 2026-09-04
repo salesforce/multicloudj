@@ -28,6 +28,9 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.observability.MultiCloudJLogger;
 import com.salesforce.multicloudj.common.observability.OperationContext;
@@ -94,8 +97,7 @@ public class BucketClient implements AutoCloseable {
           try {
             return withCorrelationId(blobStore.upload(enriched, inputStream), ctx);
           } catch (Throwable t) {
-            propagate(t);
-            return null;
+            throw mapUploadException(enriched, t);
           }
         });
   }
@@ -118,8 +120,7 @@ public class BucketClient implements AutoCloseable {
           try {
             return withCorrelationId(blobStore.upload(enriched, content), ctx);
           } catch (Throwable t) {
-            propagate(t);
-            return null;
+            throw mapUploadException(enriched, t);
           }
         });
   }
@@ -142,8 +143,7 @@ public class BucketClient implements AutoCloseable {
           try {
             return withCorrelationId(blobStore.upload(enriched, file), ctx);
           } catch (Throwable t) {
-            propagate(t);
-            return null;
+            throw mapUploadException(enriched, t);
           }
         });
   }
@@ -166,8 +166,7 @@ public class BucketClient implements AutoCloseable {
           try {
             return withCorrelationId(blobStore.upload(enriched, path), ctx);
           } catch (Throwable t) {
-            propagate(t);
-            return null;
+            throw mapUploadException(enriched, t);
           }
         });
   }
@@ -976,6 +975,23 @@ public class BucketClient implements AutoCloseable {
 
   private void propagate(Throwable t) {
     throw blobStore.mapException(t);
+  }
+
+  private SubstrateSdkException mapUploadException(UploadRequest request, Throwable t) {
+    SubstrateSdkException mapped = blobStore.mapException(t);
+    if (!request.isCreateIfAbsent()) {
+      return mapped;
+    }
+
+    Throwable cause = mapped.getCause() != null ? mapped.getCause() : mapped;
+    if (mapped instanceof FailedPreconditionException) {
+      return new ResourceAlreadyExistsException("Blob already exists", cause);
+    }
+    if (mapped instanceof ResourceConflictException) {
+      return new ResourceConflictException(
+          "Conditional blob upload conflicted", cause, true);
+    }
+    return mapped;
   }
 
   private static UploadResponse withCorrelationId(UploadResponse r, OperationContext ctx) {

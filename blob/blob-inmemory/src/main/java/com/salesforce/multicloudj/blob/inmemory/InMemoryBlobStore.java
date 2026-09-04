@@ -125,11 +125,6 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   @Override
-  protected boolean supportsCreateIfAbsent() {
-    return true;
-  }
-
-  @Override
   public SubstrateSdkException mapException(Throwable t) {
     Class<? extends SubstrateSdkException> exceptionClass =
         t instanceof IllegalArgumentException
