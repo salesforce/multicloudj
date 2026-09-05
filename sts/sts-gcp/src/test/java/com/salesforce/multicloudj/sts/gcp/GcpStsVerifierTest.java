@@ -11,10 +11,13 @@ import com.google.api.client.json.webtoken.JsonWebSignature;
 import com.google.api.client.json.webtoken.JsonWebToken;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPublicKey;
@@ -123,10 +126,145 @@ class GcpStsVerifierTest {
         InvalidArgumentException.class, () -> verifier().verifySignedAuthRequest(jwt, options));
   }
 
+  @Test
+  void malformedJwtThrowsInvalidArgument() {
+    Assertions.assertThrows(
+        InvalidArgumentException.class,
+        () -> verifier().verifySignedAuthRequest("not-a-jwt-at-all"));
+  }
+
+  @Test
+  void unsupportedAlgorithmThrowsInvalidArgument() {
+    String token = manualToken("{\"alg\":\"HS256\",\"typ\":\"JWT\"}", "{\"iss\":\"x\"}");
+    Assertions.assertThrows(
+        InvalidArgumentException.class, () -> verifier().verifySignedAuthRequest(token));
+  }
+
+  @Test
+  void missingAlgorithmThrowsInvalidArgument() {
+    String token = manualToken("{\"typ\":\"JWT\"}", "{\"iss\":\"x\"}");
+    Assertions.assertThrows(
+        InvalidArgumentException.class, () -> verifier().verifySignedAuthRequest(token));
+  }
+
+  @Test
+  void missingIssuerThrowsInvalidArgument() throws Exception {
+    String token = signJwtWithoutIssuer(Instant.now());
+    Assertions.assertThrows(
+        InvalidArgumentException.class, () -> verifier().verifySignedAuthRequest(token));
+  }
+
+  @Test
+  void jwksFetchFailureThrowsUnknown() throws Exception {
+    // No JWKS stub configured; WireMock returns 404 and the fetch fails.
+    String jwt = signJwt(Instant.now(), null);
+    Assertions.assertThrows(
+        UnknownException.class, () -> verifier().verifySignedAuthRequest(jwt));
+  }
+
+  @Test
+  void issuedInFutureThrowsUnauthorized() throws Exception {
+    stubJwks();
+    String jwt = signJwt(Instant.now().plusSeconds(3600), null);
+    Assertions.assertThrows(
+        UnAuthorizedException.class, () -> verifier().verifySignedAuthRequest(jwt));
+  }
+
+  @Test
+  void issuerWithoutServiceAccountDomainYieldsEmptyAccountId() throws Exception {
+    stubJwks();
+    String jwt = signJwtWithIssuer(Instant.now(), "plain-issuer-no-at-sign");
+
+    CallerIdentity identity = verifier().verifySignedAuthRequest(jwt);
+    Assertions.assertEquals("", identity.getAccountId());
+    Assertions.assertEquals("plain-issuer-no-at-sign", identity.getUserId());
+  }
+
+  @Test
+  void jwksWithoutMatchingKeyThrowsNotFound() throws Exception {
+    // JWKS body has a non-RSA key and a key missing modulus - both skipped, none match.
+    String jwks =
+        "{\"keys\":[{\"kty\":\"oct\",\"kid\":\"" + KID + "\"},"
+            + "{\"kty\":\"RSA\",\"kid\":\"" + KID + "\",\"e\":\"AQAB\"}]}";
+    wireMockServer.stubFor(
+        get(urlMatching("/service_accounts/v1/metadata/jwk/.*"))
+            .willReturn(
+                aResponse()
+                    .withStatus(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody(jwks)));
+    String jwt = signJwt(Instant.now(), null);
+
+    Assertions.assertThrows(
+        ResourceNotFoundException.class, () -> verifier().verifySignedAuthRequest(jwt));
+  }
+
+  @Test
+  void cachedKeysReusedOnSecondCall() throws Exception {
+    stubJwks();
+    GcpStsVerifier verifier = verifier();
+    String jwt1 = signJwt(Instant.now(), null);
+    String jwt2 = signJwt(Instant.now(), null);
+
+    Assertions.assertEquals(SERVICE_ACCOUNT, verifier.verifySignedAuthRequest(jwt1).getUserId());
+    Assertions.assertEquals(SERVICE_ACCOUNT, verifier.verifySignedAuthRequest(jwt2).getUserId());
+    wireMockServer.verify(
+        1, com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor(
+            urlMatching("/service_accounts/v1/metadata/jwk/.*")));
+  }
+
+  @Test
+  void buildWithProxyCreatesRealVerifier() {
+    GcpStsVerifier verifier =
+        new GcpStsVerifier.Builder()
+            .withProxyEndpoint(URI.create("http://localhost:8888"))
+            .withUseSystemPropertyProxyValues(false)
+            .build();
+    Assertions.assertEquals("gcp", verifier.getProviderId());
+  }
+
+  @Test
+  void mapExceptionWrapsAsUnknown() {
+    SubstrateSdkException mapped =
+        new GcpStsVerifier().mapException(new RuntimeException("boom"));
+    Assertions.assertInstanceOf(UnknownException.class, mapped);
+  }
+
   private GcpStsVerifier verifier() {
     return new GcpStsVerifier.Builder()
         .withEndpoint(URI.create("http://localhost:" + wireMockServer.port()))
         .build();
+  }
+
+  private static String manualToken(String headerJson, String payloadJson) {
+    Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
+    return encoder.encodeToString(headerJson.getBytes(StandardCharsets.UTF_8))
+        + "."
+        + encoder.encodeToString(payloadJson.getBytes(StandardCharsets.UTF_8))
+        + "."
+        + encoder.encodeToString("sig".getBytes(StandardCharsets.UTF_8));
+  }
+
+  private String signJwtWithoutIssuer(Instant issuedAt) throws Exception {
+    JsonWebSignature.Header header =
+        new JsonWebSignature.Header().setAlgorithm("RS256").setType("JWT").setKeyId(KID);
+    JsonWebToken.Payload payload = new JsonWebToken.Payload();
+    payload.setIssuedAtTimeSeconds(issuedAt.getEpochSecond());
+    payload.setExpirationTimeSeconds(issuedAt.plusSeconds(300).getEpochSecond());
+    return JsonWebSignature.signUsingRsaSha256(
+        keyPair.getPrivate(), GsonFactory.getDefaultInstance(), header, payload);
+  }
+
+  private String signJwtWithIssuer(Instant issuedAt, String issuer) throws Exception {
+    JsonWebSignature.Header header =
+        new JsonWebSignature.Header().setAlgorithm("RS256").setType("JWT").setKeyId(KID);
+    JsonWebToken.Payload payload = new JsonWebToken.Payload();
+    payload.setIssuer(issuer);
+    payload.setSubject(issuer);
+    payload.setIssuedAtTimeSeconds(issuedAt.getEpochSecond());
+    payload.setExpirationTimeSeconds(issuedAt.plusSeconds(300).getEpochSecond());
+    return JsonWebSignature.signUsingRsaSha256(
+        keyPair.getPrivate(), GsonFactory.getDefaultInstance(), header, payload);
   }
 
   private void stubJwks() {

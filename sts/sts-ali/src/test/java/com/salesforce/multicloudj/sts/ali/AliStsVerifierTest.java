@@ -5,10 +5,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.io.IOException;
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Assertions;
@@ -87,6 +90,64 @@ class AliStsVerifierTest {
 
     Assertions.assertThrows(
         InvalidArgumentException.class, () -> verifier.verifySignedAuthRequest(IDENTITY, options));
+  }
+
+  @Test
+  void buildWithProxyCreatesRealClient() {
+    AliStsVerifier verifier =
+        new AliStsVerifier.Builder()
+            .withRegion("cn-hangzhou")
+            .withProxyEndpoint(URI.create("http://localhost:8888"))
+            .build();
+    Assertions.assertEquals("ali", verifier.getProviderId());
+    Assertions.assertNotNull(verifier.builder());
+  }
+
+  @Test
+  void mapExceptionWrapsAsUnknown() {
+    SubstrateSdkException mapped =
+        new AliStsVerifier().mapException(new RuntimeException("boom"));
+    Assertions.assertInstanceOf(UnknownException.class, mapped);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void ioFailureWrappedAsUnknown() throws Exception {
+    HttpClient httpClient = mock(HttpClient.class);
+    when(httpClient.send(any(), any(HttpResponse.BodyHandler.class)))
+        .thenThrow(new IOException("connection reset"));
+
+    AliStsVerifier verifier = new AliStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnknownException.class, () -> verifier.verifySignedAuthRequest(IDENTITY));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void responseWithoutIdentityThrowsUnknown() throws Exception {
+    HttpClient httpClient = mock(HttpClient.class);
+    HttpResponse<String> response = mock(HttpResponse.class);
+    when(response.statusCode()).thenReturn(200);
+    when(response.body()).thenReturn("{\"RequestId\":\"req-1\"}");
+    when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+
+    AliStsVerifier verifier = new AliStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnknownException.class, () -> verifier.verifySignedAuthRequest(IDENTITY));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void malformedJsonThrowsUnknown() throws Exception {
+    HttpClient httpClient = mock(HttpClient.class);
+    HttpResponse<String> response = mock(HttpResponse.class);
+    when(response.statusCode()).thenReturn(200);
+    when(response.body()).thenReturn("not json at all");
+    when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+
+    AliStsVerifier verifier = new AliStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnknownException.class, () -> verifier.verifySignedAuthRequest(IDENTITY));
   }
 
   @SuppressWarnings("unchecked")

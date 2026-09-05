@@ -5,10 +5,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.io.IOException;
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Assertions;
@@ -106,6 +109,81 @@ class AwsStsVerifierTest {
 
     Assertions.assertThrows(
         InvalidArgumentException.class, () -> verifier.verifySignedAuthRequest(IDENTITY, options));
+  }
+
+  @Test
+  void buildWithProxyCreatesRealClient() {
+    AwsStsVerifier verifier =
+        new AwsStsVerifier.Builder()
+            .withRegion("us-west-2")
+            .withProxyEndpoint(URI.create("http://localhost:8888"))
+            .build();
+    Assertions.assertEquals("aws", verifier.getProviderId());
+    Assertions.assertNotNull(verifier.builder());
+  }
+
+  @Test
+  void mapExceptionWrapsAsUnknown() {
+    SubstrateSdkException mapped =
+        new AwsStsVerifier().mapException(new RuntimeException("boom"));
+    Assertions.assertInstanceOf(UnknownException.class, mapped);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void ioFailureWrappedAsUnknown() throws Exception {
+    HttpClient httpClient = mock(HttpClient.class);
+    when(httpClient.send(any(), any(HttpResponse.BodyHandler.class)))
+        .thenThrow(new IOException("connection reset"));
+
+    AwsStsVerifier verifier = new AwsStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnknownException.class, () -> verifier.verifySignedAuthRequest(IDENTITY));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void responseWithoutIdentityThrowsUnknown() throws Exception {
+    HttpClient httpClient = mock(HttpClient.class);
+    HttpResponse<String> response = mock(HttpResponse.class);
+    when(response.statusCode()).thenReturn(200);
+    when(response.body())
+        .thenReturn(
+            "<GetCallerIdentityResponse><GetCallerIdentityResult/>"
+                + "</GetCallerIdentityResponse>");
+    when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+
+    AwsStsVerifier verifier = new AwsStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnknownException.class, () -> verifier.verifySignedAuthRequest(IDENTITY));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void malformedXmlThrowsUnknown() throws Exception {
+    HttpClient httpClient = mock(HttpClient.class);
+    HttpResponse<String> response = mock(HttpResponse.class);
+    when(response.statusCode()).thenReturn(200);
+    when(response.body()).thenReturn("this is not xml <<<");
+    when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+
+    AwsStsVerifier verifier = new AwsStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnknownException.class, () -> verifier.verifySignedAuthRequest(IDENTITY));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void restrictedHeaderInSignedRequestIsSkipped() throws Exception {
+    // host is a restricted header the JDK client refuses to set; it must be skipped, not fatal.
+    String identityWithHost =
+        "https://sts.us-west-2.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15"
+            + "&host=sts.us-west-2.amazonaws.com&x-amz-date=20250101T000000Z";
+    HttpClient httpClient = okClient();
+
+    CallerIdentity identity =
+        new AwsStsVerifier.Builder().build(httpClient).verifySignedAuthRequest(identityWithHost);
+    Assertions.assertEquals("123456789012", identity.getAccountId());
   }
 
   @SuppressWarnings("unchecked")

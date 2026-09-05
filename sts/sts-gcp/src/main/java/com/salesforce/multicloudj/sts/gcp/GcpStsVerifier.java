@@ -97,7 +97,7 @@ public class GcpStsVerifier extends AbstractStsVerifier {
     JsonWebSignature jws;
     try {
       jws = JsonWebSignature.parse(jsonFactory, signedIdentity);
-    } catch (IOException e) {
+    } catch (IOException | IllegalArgumentException e) {
       throw new InvalidArgumentException("failed to parse JWT", e);
     }
 
