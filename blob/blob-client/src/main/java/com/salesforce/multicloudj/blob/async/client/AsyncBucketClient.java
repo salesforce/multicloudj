@@ -82,6 +82,10 @@ public class AsyncBucketClient implements AutoCloseable {
   }
 
   private <T> T handleUploadException(UploadRequest request, Throwable ex) {
+    if (!request.isCreateIfAbsent()) {
+      return handleException(ex);
+    }
+
     Throwable failure = ex;
     while (failure instanceof CompletionException && failure.getCause() != null) {
       failure = failure.getCause();

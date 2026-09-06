@@ -291,6 +291,26 @@ public class AsyncBucketClientTest {
   }
 
   @Test
+  void testRegularUploadPreservesCommonExceptionMappingBehavior() {
+    RuntimeException nativeFailure = new RuntimeException("upload failed");
+    CompletionException wrapper = new CompletionException(nativeFailure);
+    SubstrateSdkException expectedMapping = new SubstrateSdkException(wrapper);
+    when(mockBlobStore.upload(any(), any(byte[].class)))
+        .thenReturn(CompletableFuture.failedFuture(wrapper));
+    doReturn(expectedMapping).when(mockBlobStore).mapException(wrapper);
+    UploadRequest request = UploadRequest.builder().withKey("object-1").build();
+
+    ExecutionException outer =
+        assertThrows(
+            ExecutionException.class,
+            () -> client.upload(request, "content".getBytes()).get());
+
+    assertSame(expectedMapping, outer.getCause());
+    verify(mockBlobStore).mapException(wrapper);
+    verify(mockBlobStore, times(0)).mapException(nativeFailure);
+  }
+
+  @Test
   void testCreateIfAbsentMapsWrappedFailedPreconditionAtUploadBoundary() {
     RuntimeException nativeFailure = new RuntimeException("precondition failed");
     CompletionException wrapper = new CompletionException(nativeFailure);

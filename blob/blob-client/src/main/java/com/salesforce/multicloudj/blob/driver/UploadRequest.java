@@ -48,6 +48,8 @@ public class UploadRequest {
   /**
    * (Optional parameter) When true, the upload succeeds only if no live blob exists at the target
    * key when the write is committed. The default is false, which preserves overwrite behavior.
+   * This option applies only to uploads using {@code UploadRequest}; multipart uploads do not honor
+   * it.
    */
   private final boolean createIfAbsent;
 
