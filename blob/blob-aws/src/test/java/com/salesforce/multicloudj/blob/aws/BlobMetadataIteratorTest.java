@@ -199,6 +199,199 @@ public class BlobMetadataIteratorTest {
     assertEquals(t2, all.get(1).getNoncurrentAt());
   }
 
+  @Test
+  void testMultiplePagesMergeDeleteMarkersAcrossPageBoundaries() {
+    String key = "obj-1";
+    Instant t2 = Instant.parse("2024-01-02T00:00:00Z");
+    Instant t4 = Instant.parse("2024-01-04T00:00:00Z");
+    Instant t5 = Instant.parse("2024-01-05T00:00:00Z");
+
+    // Global newest-first sequence for the key: v3 (t5) -> marker (t4) -> v1 (t2), split so that
+    // the marker on page 1 must merge ahead of the version on page 2.
+    ObjectVersion v3 = version(key, "v3", 300L, t5);
+    DeleteMarkerEntry marker = marker(key, "dm1", t4);
+    ObjectVersion v1 = version(key, "v1", 100L, t2);
+
+    ListObjectVersionsResponse page1 =
+        ListObjectVersionsResponse.builder().versions(v3).deleteMarkers(marker).build();
+    ListObjectVersionsResponse page2 =
+        ListObjectVersionsResponse.builder().versions(v1).build();
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(page1, page2).iterator());
+    when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    Iterator<BlobMetadata> iterator =
+        new BlobMetadataIterator(mockS3Client, TEST_BUCKET, key, true);
+    List<BlobMetadata> all = new ArrayList<>();
+    iterator.forEachRemaining(all::add);
+
+    assertEquals(3, all.size());
+
+    assertEquals("v3", all.get(0).getVersionId());
+    assertFalse(all.get(0).isDeleteMarker());
+    assertNull(all.get(0).getNoncurrentAt());
+
+    // Delete marker from page 1 merges ahead of the version from page 2.
+    assertEquals("dm1", all.get(1).getVersionId());
+    assertTrue(all.get(1).isDeleteMarker());
+    assertEquals(t4, all.get(1).getCreatedTime());
+    assertEquals(t5, all.get(1).getNoncurrentAt());
+
+    // Cross-page supersession: the older version stopped being current at the marker instant.
+    assertEquals("v1", all.get(2).getVersionId());
+    assertFalse(all.get(2).isDeleteMarker());
+    assertEquals(t2, all.get(2).getCreatedTime());
+    assertEquals(t4, all.get(2).getNoncurrentAt());
+  }
+
+  @Test
+  void testMarkerOnlyPageFlagOn() {
+    String key = "obj-1";
+    Instant t1 = Instant.parse("2024-01-01T00:00:00Z");
+    DeleteMarkerEntry marker = marker(key, "dm1", t1);
+
+    ListObjectVersionsResponse response =
+        ListObjectVersionsResponse.builder().deleteMarkers(marker).build();
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(response).iterator());
+    when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    Iterator<BlobMetadata> iterator =
+        new BlobMetadataIterator(mockS3Client, TEST_BUCKET, key, true);
+    List<BlobMetadata> all = new ArrayList<>();
+    iterator.forEachRemaining(all::add);
+
+    assertEquals(1, all.size());
+    assertEquals("dm1", all.get(0).getVersionId());
+    assertTrue(all.get(0).isDeleteMarker());
+    assertNull(all.get(0).getNoncurrentAt());
+  }
+
+  @Test
+  void testMarkerOnlyPageFlagOff() {
+    String key = "obj-1";
+    Instant t1 = Instant.parse("2024-01-01T00:00:00Z");
+    DeleteMarkerEntry marker = marker(key, "dm1", t1);
+
+    ListObjectVersionsResponse response =
+        ListObjectVersionsResponse.builder().deleteMarkers(marker).build();
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(response).iterator());
+    when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    // Default 3-arg constructor hides delete markers.
+    Iterator<BlobMetadata> iterator = new BlobMetadataIterator(mockS3Client, TEST_BUCKET, key);
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  void testEmptyFilteredPageThenLaterPageWithData() {
+    String key = "obj-1";
+    // Page 1 holds only a sibling key that shares the prefix; it filters to empty.
+    ObjectVersion sibling = version("obj-1-extra", "vX", 999L);
+    ObjectVersion matching = version(key, "v1", 100L);
+
+    ListObjectVersionsResponse page1 =
+        ListObjectVersionsResponse.builder().versions(sibling).build();
+    ListObjectVersionsResponse page2 =
+        ListObjectVersionsResponse.builder().versions(matching).build();
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(page1, page2).iterator());
+    when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    Iterator<BlobMetadata> iterator = new BlobMetadataIterator(mockS3Client, TEST_BUCKET, key);
+    List<BlobMetadata> all = new ArrayList<>();
+    iterator.forEachRemaining(all::add);
+
+    assertEquals(1, all.size());
+    assertEquals(key, all.get(0).getKey());
+    assertEquals("v1", all.get(0).getVersionId());
+  }
+
+  @Test
+  void testLazyPageLoadingPullsPagesOnDemand() {
+    String key = "obj-1";
+    ListObjectVersionsResponse page1 =
+        ListObjectVersionsResponse.builder().versions(version(key, "v3", 300L)).build();
+    ListObjectVersionsResponse page2 =
+        ListObjectVersionsResponse.builder().versions(version(key, "v2", 200L)).build();
+    ListObjectVersionsResponse page3 =
+        ListObjectVersionsResponse.builder().versions(version(key, "v1", 100L)).build();
+
+    int[] fetched = {0};
+    Iterator<ListObjectVersionsResponse> counting =
+        new Iterator<>() {
+          private final Iterator<ListObjectVersionsResponse> delegate =
+              List.of(page1, page2, page3).iterator();
+
+          @Override
+          public boolean hasNext() {
+            return delegate.hasNext();
+          }
+
+          @Override
+          public ListObjectVersionsResponse next() {
+            fetched[0]++;
+            return delegate.next();
+          }
+        };
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(counting);
+    when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    Iterator<BlobMetadata> iterator = new BlobMetadataIterator(mockS3Client, TEST_BUCKET, key);
+
+    // Construction alone fetches nothing.
+    assertEquals(0, fetched[0]);
+
+    // Reading the first element pulls only the first page.
+    assertTrue(iterator.hasNext());
+    assertEquals("v3", iterator.next().getVersionId());
+    assertEquals(1, fetched[0]);
+
+    // Draining the rest pulls the remaining pages on demand.
+    List<BlobMetadata> rest = new ArrayList<>();
+    iterator.forEachRemaining(rest::add);
+    assertEquals(2, rest.size());
+    assertEquals(3, fetched[0]);
+  }
+
+  @Test
+  void testEqualTimestampsBothEntriesPresent() {
+    String key = "obj-1";
+    Instant t = Instant.parse("2024-01-01T00:00:00Z");
+    ObjectVersion v1 = version(key, "v1", 100L, t);
+    DeleteMarkerEntry marker = marker(key, "dm1", t);
+
+    ListObjectVersionsResponse response =
+        ListObjectVersionsResponse.builder().versions(v1).deleteMarkers(marker).build();
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(response).iterator());
+    when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    Iterator<BlobMetadata> iterator =
+        new BlobMetadataIterator(mockS3Client, TEST_BUCKET, key, true);
+    List<BlobMetadata> all = new ArrayList<>();
+    iterator.forEachRemaining(all::add);
+
+    // Both entries surface; equal-timestamp ordering is intentionally left unasserted.
+    assertEquals(2, all.size());
+    long markerCount = all.stream().filter(BlobMetadata::isDeleteMarker).count();
+    assertEquals(1, markerCount);
+  }
+
   private static ObjectVersion version(String key, String versionId, long size) {
     return version(key, versionId, size, Instant.now());
   }
