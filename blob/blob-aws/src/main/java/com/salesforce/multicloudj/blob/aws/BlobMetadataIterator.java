@@ -41,8 +41,8 @@ public class BlobMetadataIterator implements Iterator<BlobMetadata> {
   // Exact-key-filtered, newest-first collections of the current page only, with merge cursors.
   private List<ObjectVersion> pageVersions = Collections.emptyList();
   private List<DeleteMarkerEntry> pageMarkers = Collections.emptyList();
-  private int vi;
-  private int mi;
+  private int versionCursor;
+  private int markerCursor;
 
   // lastModified of the immediately-newer timeline entry (null for the newest entry overall).
   private Instant previousLastModified;
@@ -120,22 +120,24 @@ public class BlobMetadataIterator implements Iterator<BlobMetadata> {
    * their end) simply cause the following page to be loaded.
    */
   private Entry nextTimelineEntry() {
-    while (vi >= pageVersions.size() && mi >= pageMarkers.size()) {
+    while (versionCursor >= pageVersions.size() && markerCursor >= pageMarkers.size()) {
       if (!loadNextPage()) {
         return null;
       }
     }
     boolean takeVersion;
-    if (mi >= pageMarkers.size()) {
+    if (markerCursor >= pageMarkers.size()) {
       takeVersion = true;
-    } else if (vi >= pageVersions.size()) {
+    } else if (versionCursor >= pageVersions.size()) {
       takeVersion = false;
     } else {
-      Instant markerTime = pageMarkers.get(mi).lastModified();
-      Instant versionTime = pageVersions.get(vi).lastModified();
+      Instant markerTime = pageMarkers.get(markerCursor).lastModified();
+      Instant versionTime = pageVersions.get(versionCursor).lastModified();
       takeVersion = !isNewer(markerTime, versionTime);
     }
-    return takeVersion ? new Entry(pageVersions.get(vi++)) : new Entry(pageMarkers.get(mi++));
+    return takeVersion
+        ? new Entry(pageVersions.get(versionCursor++))
+        : new Entry(pageMarkers.get(markerCursor++));
   }
 
   /**
@@ -162,8 +164,8 @@ public class BlobMetadataIterator implements Iterator<BlobMetadata> {
     }
     pageVersions = versions;
     pageMarkers = markers;
-    vi = 0;
-    mi = 0;
+    versionCursor = 0;
+    markerCursor = 0;
     return true;
   }
 
