@@ -500,7 +500,7 @@ public class GcpSts extends AbstractSts {
       }
       return adc;
     } catch (IOException e) {
-      throw new SubstrateSdkException("Could not create credentials in given environment", e);
+      throw mapIoException("Could not create credentials in given environment", e);
     }
   }
 

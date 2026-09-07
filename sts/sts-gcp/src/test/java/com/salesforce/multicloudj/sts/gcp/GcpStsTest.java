@@ -1,5 +1,7 @@
 package com.salesforce.multicloudj.sts.gcp;
 
+import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
 import com.google.api.client.testing.http.MockLowLevelHttpResponse;
@@ -32,14 +34,24 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.Collection;
+import java.util.Date;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 public class GcpStsTest {
+
+  /** A mock id-token JWT whose {@code exp} claim (9999999999) is far in the future. */
+  private static final String MOCK_JWT =
+      "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9"
+          + ".eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJzdWIiOiJtb2NrLXVzZ"
+          + "XIiLCJhdWQiOiJtdWx0aWNsb3VkaiIsImV4cCI6OTk5OTk5OTk5OSwiaWF0IjoxMjM0NTY3ODkwfQ"
+          + ".mock-signature";
 
   private static GoogleCredentials mockGoogleCredentials;
   private static GoogleCredentials mockGoogleCredentialsWithIdToken;
@@ -56,12 +68,7 @@ public class GcpStsTest {
     AccessToken mockAccessToken = Mockito.mock(AccessToken.class);
 
     // Create a real IdToken instead of mocking it
-    String mockJwt =
-        "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9"
-            + ".eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJzdWIiOiJtb2NrLXVzZ"
-            + "XIiLCJhdWQiOiJtdWx0aWNsb3VkaiIsImV4cCI6OTk5OTk5OTk5OSwiaWF0IjoxMjM0NTY3ODkwfQ"
-            + ".mock-signature";
-    IdToken mockIdToken = IdToken.create(mockJwt);
+    IdToken mockIdToken = IdToken.create(MOCK_JWT);
 
     Mockito.when(mockGoogleCredentials.createScoped(Mockito.any(Collection.class)))
         .thenReturn(mockGoogleCredentials);
@@ -421,6 +428,139 @@ public class GcpStsTest {
         Assertions.assertThrows(
             UnknownException.class, () -> sts.assumeRoleWithWebIdentity(req));
     Assertions.assertTrue(e.isRetryable());
+  }
+
+  @Test
+  public void testAccessTokenTooManyRequestsMapsToRetryableResourceExhausted() throws IOException {
+    // A 429 raised on a non-web-identity path (the credential refresh) must map the same way the
+    // web-identity path does: a retryable ResourceExhaustedException that can trip the breaker.
+    GoogleCredentials creds = Mockito.mock(GoogleCredentials.class);
+    Mockito.doThrow(
+            new HttpResponseException.Builder(429, "Too Many Requests", new HttpHeaders()).build())
+        .when(creds)
+        .refreshIfExpired();
+
+    GcpSts sts = new GcpSts().builder().build(creds);
+    ResourceExhaustedException e =
+        Assertions.assertThrows(
+            ResourceExhaustedException.class,
+            () ->
+                sts.getAccessToken(
+                    GetAccessTokenRequest.newBuilder().withDurationSeconds(60).build()));
+    Assertions.assertTrue(e.isRetryable());
+  }
+
+  @Test
+  public void testAdcFailureMapsToRetryableUnknown() {
+    // Off Compute Engine the driver resolves application-default credentials; a transport-level
+    // failure there must surface as a retryable UnknownException (no HTTP status → transient), not
+    // a bare non-retryable SubstrateSdkException. On K8s the code takes the ComputeEngine branch
+    // instead, so this assertion only holds off-cluster.
+    Assumptions.assumeTrue(System.getenv("KUBERNETES_SERVICE_HOST") == null);
+    try (MockedStatic<GoogleCredentials> mockedGoogleCreds =
+        Mockito.mockStatic(GoogleCredentials.class)) {
+      mockedGoogleCreds
+          .when(GoogleCredentials::getApplicationDefault)
+          .thenThrow(new IOException("no application default credentials"));
+
+      GcpSts sts = new GcpSts().builder().build();
+      UnknownException e =
+          Assertions.assertThrows(
+              UnknownException.class,
+              () ->
+                  sts.getAccessToken(
+                      GetAccessTokenRequest.newBuilder().withDurationSeconds(60).build()));
+      Assertions.assertTrue(
+          e.isRetryable(),
+          "A transport-level ADC failure must be retryable so a persistently unhealthy"
+              + " environment can trip the breaker");
+    }
+  }
+
+  @Test
+  public void testAssumeRoleCachesTokenAcrossCalls() throws IOException {
+    // Two identical assume-role requests must collapse to a single credential fetch: the second
+    // call is served from the cache, so the underlying token retrieval runs exactly once.
+    GoogleCredentials creds = Mockito.mock(GoogleCredentials.class);
+    Mockito.doNothing().when(creds).refreshIfExpired();
+    Mockito.when(creds.getAccessToken()).thenReturn(new AccessToken("assume-tok", futureDate()));
+
+    GcpSts sts = new GcpSts().builder().build(creds);
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder().withSessionName("testSession").build();
+
+    Assertions.assertEquals("assume-tok", sts.assumeRole(request).getSecurityToken());
+    Assertions.assertEquals("assume-tok", sts.assumeRole(request).getSecurityToken());
+    Mockito.verify(creds, Mockito.times(1)).getAccessToken();
+  }
+
+  @Test
+  public void testGetAccessTokenCachesTokenAcrossCalls() throws IOException {
+    GoogleCredentials creds = Mockito.mock(GoogleCredentials.class);
+    Mockito.doNothing().when(creds).refreshIfExpired();
+    Mockito.when(creds.getAccessToken()).thenReturn(new AccessToken("access-tok", futureDate()));
+
+    GcpSts sts = new GcpSts().builder().build(creds);
+    GetAccessTokenRequest request =
+        GetAccessTokenRequest.newBuilder().withDurationSeconds(60).build();
+
+    Assertions.assertEquals("access-tok", sts.getAccessToken(request).getSecurityToken());
+    Assertions.assertEquals("access-tok", sts.getAccessToken(request).getSecurityToken());
+    Mockito.verify(creds, Mockito.times(1)).getAccessToken();
+  }
+
+  @Test
+  public void testCallerIdentityCachesTokenAcrossCalls() throws IOException {
+    GoogleCredentials creds =
+        Mockito.mock(
+            GoogleCredentials.class, Mockito.withSettings().extraInterfaces(IdTokenProvider.class));
+    Mockito.doNothing().when(creds).refreshIfExpired();
+    Mockito.when(
+            ((IdTokenProvider) creds).idTokenWithAudience(Mockito.anyString(), Mockito.any()))
+        .thenReturn(IdToken.create(MOCK_JWT));
+
+    GcpSts sts = new GcpSts().builder().build(creds);
+    GetCallerIdentityRequest request = GetCallerIdentityRequest.builder().build();
+
+    sts.getCallerIdentity(request);
+    sts.getCallerIdentity(request);
+    Mockito.verify((IdTokenProvider) creds, Mockito.times(1))
+        .idTokenWithAudience(Mockito.anyString(), Mockito.any());
+  }
+
+  @Test
+  public void testWebIdentityCachesTokenAcrossCalls() {
+    // The token-exchange endpoint must be hit once for two identical requests; the second is a hit.
+    AtomicInteger exchangeCalls = new AtomicInteger();
+    MockHttpTransport transport =
+        new MockHttpTransport() {
+          @Override
+          public MockLowLevelHttpRequest buildRequest(String method, String url) {
+            return new MockLowLevelHttpRequest() {
+              @Override
+              public MockLowLevelHttpResponse execute() {
+                exchangeCalls.incrementAndGet();
+                MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+                response.setStatusCode(200);
+                response.setContentType("application/json");
+                response.setContent("{\"access_token\":\"web-tok\",\"expires_in\":3600}");
+                return response;
+              }
+            };
+          }
+        };
+
+    GcpSts sts = new GcpSts().builder().build((HttpTransportFactory) () -> transport);
+    AssumeRoleWebIdentityRequest request = webIdentityRequest();
+
+    Assertions.assertEquals("web-tok", sts.assumeRoleWithWebIdentity(request).getSecurityToken());
+    Assertions.assertEquals("web-tok", sts.assumeRoleWithWebIdentity(request).getSecurityToken());
+    Assertions.assertEquals(1, exchangeCalls.get());
+  }
+
+  /** A token expiry an hour out, so the cache keeps the entry rather than evicting it at once. */
+  private static Date futureDate() {
+    return new Date(System.currentTimeMillis() + 3_600_000L);
   }
 
   @Test

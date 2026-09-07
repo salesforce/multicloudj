@@ -1,6 +1,6 @@
 package com.salesforce.multicloudj.sts.gcp;
 
-import java.util.Objects;
+import lombok.Value;
 
 /**
  * Immutable cache key for {@link GcpStsTokenCache}. Each of the GCP STS token paths keys on the
@@ -9,9 +9,12 @@ import java.util.Objects;
  * access boundary, audience, or subject token).
  *
  * <p>Secret-bearing inputs (the access boundary, the web-identity subject token) are represented in
- * the key by a hash supplied by the caller — never the raw value.
+ * the key by a hash supplied by the caller — never the raw value. {@code toString} renders only
+ * {@code path}/{@code primary}/{@code secondary}/{@code numeric}, which are non-secret identifiers,
+ * hashes, or lifetimes; it never exposes a raw secret.
  */
-public final class TokenCacheKey {
+@Value
+public class TokenCacheKey {
 
   /** The GCP STS path a key belongs to; part of equality so keys never collide across paths. */
   public enum Path {
@@ -21,17 +24,17 @@ public final class TokenCacheKey {
     WEB_IDENTITY
   }
 
-  private final Path path;
-  private final String primary;
-  private final String secondary;
-  private final long numeric;
+  /** The GCP STS path this key belongs to; part of equality so keys never collide. */
+  Path path;
 
-  private TokenCacheKey(Path path, String primary, String secondary, long numeric) {
-    this.path = path;
-    this.primary = primary;
-    this.secondary = secondary;
-    this.numeric = numeric;
-  }
+  /** The primary identity/scope/audience discriminator for the path. */
+  String primary;
+
+  /** The secondary discriminator (a hash for secret-bearing inputs), or empty. */
+  String secondary;
+
+  /** The numeric discriminator (e.g. requested lifetime in seconds), or 0 when unset. */
+  long numeric;
 
   /**
    * Key for the impersonation / downscoping path.
@@ -77,32 +80,5 @@ public final class TokenCacheKey {
 
   private static String nullToEmpty(String value) {
     return value == null ? "" : value;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (!(o instanceof TokenCacheKey)) {
-      return false;
-    }
-    TokenCacheKey that = (TokenCacheKey) o;
-    return numeric == that.numeric
-        && path == that.path
-        && primary.equals(that.primary)
-        && secondary.equals(that.secondary);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(path, primary, secondary, numeric);
-  }
-
-  @Override
-  public String toString() {
-    // primary/secondary are non-secret identifiers or hashes; safe to render.
-    return "TokenCacheKey{path=" + path + ", primary=" + primary + ", secondary=" + secondary
-        + ", numeric=" + numeric + '}';
   }
 }

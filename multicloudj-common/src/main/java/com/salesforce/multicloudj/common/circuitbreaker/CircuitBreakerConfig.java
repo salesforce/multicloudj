@@ -25,6 +25,10 @@ import java.time.Duration;
  */
 public class CircuitBreakerConfig {
 
+  /** Name applied to the breaker when a caller does not supply one. */
+  public static final String DEFAULT_NAME = "circuit-breaker";
+
+  private final String name;
   private final float failureRateThreshold;
   private final float slowCallRateThreshold;
   private final Duration slowCallDurationThreshold;
@@ -34,6 +38,7 @@ public class CircuitBreakerConfig {
   private final int permittedNumberOfCallsInHalfOpenState;
 
   private CircuitBreakerConfig(Builder builder) {
+    this.name = builder.name;
     this.failureRateThreshold = builder.failureRateThreshold;
     this.slowCallRateThreshold = builder.slowCallRateThreshold;
     this.slowCallDurationThreshold = builder.slowCallDurationThreshold;
@@ -45,6 +50,11 @@ public class CircuitBreakerConfig {
 
   public static Builder builder() {
     return new Builder();
+  }
+
+  /** The breaker's name, used to identify it (e.g. in logs and metrics). */
+  public String getName() {
+    return name;
   }
 
   /**
@@ -71,6 +81,7 @@ public class CircuitBreakerConfig {
 
   /** Builder for {@link CircuitBreakerConfig}. */
   public static class Builder {
+    private String name = DEFAULT_NAME;
     private float failureRateThreshold = 50f;
     private float slowCallRateThreshold = 100f;
     private Duration slowCallDurationThreshold = Duration.ofSeconds(60);
@@ -78,6 +89,17 @@ public class CircuitBreakerConfig {
     private int minimumNumberOfCalls = 100;
     private Duration waitDurationInOpenState = Duration.ofSeconds(60);
     private int permittedNumberOfCallsInHalfOpenState = 10;
+
+    /**
+     * Name identifying the breaker (e.g. in logs and metrics). Defaults to
+     * {@link #DEFAULT_NAME}. A null or blank value is ignored and the default is kept.
+     */
+    public Builder withName(String name) {
+      if (name != null && !name.isBlank()) {
+        this.name = name;
+      }
+      return this;
+    }
 
     /** Percentage (0–100) of recorded failures at or above which the breaker opens. */
     public Builder withFailureRateThreshold(float failureRateThreshold) {

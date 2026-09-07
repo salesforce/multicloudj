@@ -38,6 +38,25 @@ The `StsClient` is built on top of provider-specific implementations of `Abstrac
 
 **GCP (Google Cloud Platform)**
 - Uses Google's OAuth 2.0 access tokens for credentials and ID tokens for Caller Identity
+- Caches minted tokens in-process to avoid redundant token fetches (see [GCP token caching](#gcp-token-caching))
+
+---
+
+## GCP token caching
+
+The GCP provider keeps an in-process, expiry-aware cache of the tokens it mints, so repeated calls that would produce the same token are served without a fresh network fetch. This is a **GCP-only** optimization: the AWS and Alibaba providers do not cache.
+
+Caching lives inside the GCP provider rather than at the portable `StsClient` seam because the portable `StsCredentials` type carries no expiry — only the provider can observe the native token lifetime (an `AccessToken` expiration, a caller-identity JWT `exp`, or a token-exchange `expires_in`) and honor it.
+
+Key properties:
+
+- **Behavior-neutral.** A cache hit returns the same token a fresh fetch would, and a token is never served within a safety skew (60s) of its expiry.
+- **Correctly scoped.** Each of the four GCP paths — assume-role/impersonation (keyed on target principal, requested lifetime and a hash of any access boundary), get-access-token (keyed on scope), caller-identity (keyed on audience), and web-identity token exchange (keyed on audience and a hash of the subject token) — has its own key, so a request never receives a token minted for a different scope. Secret material (the subject token) is hashed, never stored in the key.
+- **Single-flight.** Concurrent misses for the same key collapse to one network fetch.
+- **Failures are not cached.** If a fetch fails, the exception propagates and nothing is stored.
+- **Enabled by default.** There is no public configuration surface. As an operational escape hatch it can be disabled entirely with the system property `-Dmulticloudj.gcp.sts.cache.enabled=false`.
+
+Because the cache is transparent, application code does not change whether it is on or off.
 
 ---
 
@@ -113,6 +132,35 @@ try {
 
 ---
 
+## Releasing resources
+
+`StsClient` implements `AutoCloseable`. Closing it releases resources held by the underlying provider client (for example, a provider that builds its own HTTP transport for proxy support will shut down that transport's connection pool). Prefer a try-with-resources block so the client is always closed:
+
+```java
+try (StsClient stsClient = StsClient.builder("gcp")
+        .withRegion("us-west-2")
+        .build()) {
+    CallerIdentity identity = stsClient.getCallerIdentity();
+    // ... use the client ...
+}
+// stsClient is closed automatically here
+```
+
+If you cannot use try-with-resources (for example, the client is a long-lived field), call `close()` explicitly when you are done with it:
+
+```java
+StsClient stsClient = StsClient.builder("gcp").withRegion("us-west-2").build();
+try {
+    // ... use the client ...
+} finally {
+    stsClient.close();
+}
+```
+
+`StsClient` instances are meant to be long-lived and reused across requests; create one per provider/configuration and close it only during application shutdown.
+
+---
+
 ## Circuit Breaker (optional)
 
 `StsClient` can guard every provider call with a circuit breaker. It is **disabled by default** — if you never call `withCircuitBreakerConfig(...)`, the client behaves exactly as before. When enabled, the breaker protects your application from hammering an unhealthy token service: after enough failures it "opens" and rejects calls immediately for a cool-down window, then probes for recovery before closing again.
@@ -154,6 +202,7 @@ The values shown above are **recommended starting points for a high-throughput w
 
 | Option | Meaning |
 |--------|---------|
+| `withName` | Name identifying the breaker in logs and metrics. Optional; a null or blank value is ignored and the default name (`"circuit-breaker"`) is kept. |
 | `withFailureRateThreshold` | Percentage (0–100) of recorded failures at or above which the breaker opens. |
 | `withSlowCallRateThreshold` | Percentage (0–100) of slow calls at or above which the breaker opens. |
 | `withSlowCallDurationThreshold` | A call taking at least this long is counted as slow. |

@@ -296,7 +296,7 @@ public class StsClient implements AutoCloseable {
       CircuitBreakerExecutor executor =
           circuitBreakerConfig == null
               ? null
-              : new CircuitBreakerExecutor("sts", circuitBreakerConfig);
+              : new CircuitBreakerExecutor(circuitBreakerConfig.getName(), circuitBreakerConfig);
       return new StsClient(this.sts, executor);
     }
   }
