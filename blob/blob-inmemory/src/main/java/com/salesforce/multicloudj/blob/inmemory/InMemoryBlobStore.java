@@ -16,6 +16,7 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -108,6 +109,25 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       new ConcurrentHashMap<>();
   // Track bucket metadata - key is bucket name
   static final Map<String, BucketMetadata> BUCKETS = new ConcurrentHashMap<>();
+  // Persisted delete markers per key - key is "bucket:key", value is the ordered history of markers
+  private static final Map<String, List<DeleteMarker>> DELETE_MARKERS = new ConcurrentHashMap<>();
+
+  /**
+   * Monotonic clock source shared across all instances. Version and delete-marker creation times
+   * must be strictly increasing so a version listing has a total, deterministic order even when
+   * operations happen within the same wall-clock millisecond. Each call returns an instant strictly
+   * greater than the previous one while still tracking real time when it advances.
+   */
+  private static final java.util.concurrent.atomic.AtomicReference<Instant> CLOCK =
+      new java.util.concurrent.atomic.AtomicReference<>(Instant.EPOCH);
+
+  private static Instant nextInstant() {
+    return CLOCK.updateAndGet(
+        previous -> {
+          Instant now = Instant.now();
+          return now.isAfter(previous) ? now : previous.plusNanos(1);
+        });
+  }
 
   public InMemoryBlobStore() {
     this(new Builder());
@@ -194,7 +214,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
     StoredBlob blob =
         new StoredBlob(
-            content, etag, versionId, Instant.now(), metadata, uploadRequest.getContentType());
+            content, etag, versionId, nextInstant(), metadata, uploadRequest.getContentType());
 
     STORAGE.put(versionedKey, blob);
     LATEST_VERSIONS.put(baseKey, versionId);
@@ -422,13 +442,29 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       TAGS.remove(versionedKey);
       OBJECT_LOCKS.remove(versionedKey);
 
+      // A version-specific delete can also target a delete marker; remove it from the history so
+      // callers can clean up markers surfaced by listBlobVersions.
+      List<DeleteMarker> markers = DELETE_MARKERS.get(baseKey);
+      if (markers != null) {
+        markers.removeIf(marker -> versionId.equals(marker.getVersionId()));
+        if (markers.isEmpty()) {
+          DELETE_MARKERS.remove(baseKey);
+        }
+      }
+
       // If deleting the latest version, clear the latest version tracker
       String latestVersion = LATEST_VERSIONS.get(baseKey);
       if (versionId.equals(latestVersion)) {
         LATEST_VERSIONS.remove(baseKey);
       }
     } else {
-      // Simulate a delete marker: remove from LATEST_VERSIONS but keep data in STORAGE
+      // Unqualified delete: record a delete marker that becomes the newest entry for this key and
+      // clear the current-version tracker so the object reads as absent. Prior content versions are
+      // retained in STORAGE and remain listable.
+      String markerVersionId = UUID.randomUUID().toString();
+      DELETE_MARKERS
+          .computeIfAbsent(baseKey, ignored -> new java.util.concurrent.CopyOnWriteArrayList<>())
+          .add(new DeleteMarker(markerVersionId, nextInstant()));
       LATEST_VERSIONS.remove(baseKey);
     }
   }
@@ -477,7 +513,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
             sourceBlob.getData().clone(),
             sourceBlob.getEtag(),
             newVersionId,
-            Instant.now(),
+            nextInstant(),
             sourceBlob.getMetadata(),
             sourceBlob.getContentType());
 
@@ -525,7 +561,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
             sourceBlob.getData().clone(),
             sourceBlob.getEtag(),
             newVersionId,
-            Instant.now(),
+            nextInstant(),
             sourceBlob.getMetadata(),
             sourceBlob.getContentType());
 
@@ -574,6 +610,85 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
         .checksum(toDriverChecksum(blob.getData()))
         .build();
+  }
+
+  /**
+   * Lists every version of an exact key on a single timeline. Content versions and, when requested,
+   * delete markers are ordered newest-first. Delete markers are always considered when computing
+   * each entry's supersession time so that a content version's {@code noncurrentAt} reflects the
+   * moment it stopped being current even when the superseding entry is a delete marker; markers are
+   * emitted only when {@code includeDeleteMarkers} is set.
+   */
+  @Override
+  protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
+    validateBucketExists();
+    String key = request.getKey();
+    String baseKey = getStorageKey(key);
+    String versionPrefix = baseKey + ":";
+
+    List<TimelineEntry> entries = new ArrayList<>();
+    for (Map.Entry<String, StoredBlob> stored : STORAGE.entrySet()) {
+      String storageKey = stored.getKey();
+      if (!storageKey.startsWith(versionPrefix)) {
+        continue;
+      }
+      // Exact-key guard: keys may contain ':', so require the remainder to be a bare versionId
+      // (UUIDs contain no ':'). This excludes sibling keys such as "key:child".
+      String remainder = storageKey.substring(versionPrefix.length());
+      if (remainder.indexOf(':') >= 0) {
+        continue;
+      }
+      StoredBlob blob = stored.getValue();
+      entries.add(new TimelineEntry(blob.getLastModified(), false, blob.getVersionId(), blob));
+    }
+
+    List<DeleteMarker> markers = DELETE_MARKERS.get(baseKey);
+    if (markers != null) {
+      for (DeleteMarker marker : markers) {
+        entries.add(new TimelineEntry(marker.getCreatedTime(), true, marker.getVersionId(), null));
+      }
+    }
+
+    // Newest-first so each entry's supersession time is its immediate predecessor's creation time.
+    entries.sort(Comparator.comparing((TimelineEntry entry) -> entry.createdTime).reversed());
+
+    List<BlobMetadata> result = new ArrayList<>(entries.size());
+    for (int i = 0; i < entries.size(); i++) {
+      TimelineEntry entry = entries.get(i);
+      Instant noncurrentAt = (i == 0) ? null : entries.get(i - 1).createdTime;
+      if (entry.deleteMarker) {
+        if (!request.isIncludeDeleteMarkers()) {
+          continue;
+        }
+        result.add(
+            BlobMetadata.builder()
+                .key(key)
+                .versionId(entry.versionId)
+                .deleteMarker(true)
+                .lastModified(entry.createdTime)
+                .createdTime(entry.createdTime)
+                .noncurrentAt(noncurrentAt)
+                .build());
+      } else {
+        StoredBlob blob = entry.blob;
+        String versionedKey = versionPrefix + blob.getVersionId();
+        result.add(
+            BlobMetadata.builder()
+                .key(key)
+                .versionId(blob.getVersionId())
+                .eTag(blob.getEtag())
+                .objectSize((long) blob.getData().length)
+                .metadata(blob.getMetadata())
+                .lastModified(blob.getLastModified())
+                .createdTime(blob.getLastModified())
+                .contentType(blob.getContentType())
+                .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
+                .checksum(toDriverChecksum(blob.getData()))
+                .noncurrentAt(noncurrentAt)
+                .build());
+      }
+    }
+    return result.iterator();
   }
 
   private Checksum toDriverChecksum(byte[] data) {
@@ -827,7 +942,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       String versionedKey = baseKey + ":" + versionId;
       StoredBlob blob =
           new StoredBlob(
-              finalData, etag, versionId, Instant.now(), state.getMetadata(),
+              finalData, etag, versionId, nextInstant(), state.getMetadata(),
               state.getContentType());
 
       STORAGE.put(versionedKey, blob);
@@ -1268,6 +1383,37 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
   }
 
+  /** A persisted delete marker: its own version id and the instant it was created. */
+  @Getter
+  private static class DeleteMarker {
+    private final String versionId;
+    private final Instant createdTime;
+
+    DeleteMarker(String versionId, Instant createdTime) {
+      this.versionId = versionId;
+      this.createdTime = createdTime;
+    }
+  }
+
+  /**
+   * A single point on a key's version timeline used only while resolving {@code
+   * doListBlobVersions}. Holds a content version's stored blob, or a delete marker when {@code
+   * deleteMarker} is set (in which case {@code blob} is {@code null}).
+   */
+  private static final class TimelineEntry {
+    private final Instant createdTime;
+    private final boolean deleteMarker;
+    private final String versionId;
+    private final StoredBlob blob;
+
+    TimelineEntry(Instant createdTime, boolean deleteMarker, String versionId, StoredBlob blob) {
+      this.createdTime = createdTime;
+      this.deleteMarker = deleteMarker;
+      this.versionId = versionId;
+      this.blob = blob;
+    }
+  }
+
   @Getter
   private static class StoredBlob {
     private final byte[] data;
@@ -1376,5 +1522,6 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     OBJECT_LOCKS.clear();
     MULTIPART_UPLOADS.clear();
     BUCKETS.clear();
+    DELETE_MARKERS.clear();
   }
 }

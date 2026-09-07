@@ -47,4 +47,19 @@ public class BlobMetadata {
 
   /** The correlation ID associated with the operation that produced this metadata. */
   private final String correlationId;
+
+  /**
+   * Whether this entry is a delete marker rather than a content version. Delete markers record that
+   * an object was deleted at a point in time; they carry no downloadable content. Defaults to
+   * {@code false} for content versions and for stores that do not surface delete markers.
+   */
+  private final boolean deleteMarker;
+
+  /**
+   * The instant at which this content version stopped being the current version, or {@code null} if
+   * it is still current (or the store does not report it). Together with {@link #createdTime} this
+   * defines the version's validity interval {@code [createdTime, noncurrentAt)}, with the end
+   * instant exclusive.
+   */
+  private final Instant noncurrentAt;
 }

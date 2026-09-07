@@ -6330,6 +6330,131 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
+  public void testListBlobVersions_deleteMarkerTimeline() throws IOException {
+    // Ali delete-marker support for listBlobVersions is tracked under a separate work item and is
+    // out of scope here; skip until that provider work lands and recordings are captured.
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String key = "conformance-tests/list-object-versions/delete-marker-timeline-blob";
+
+    try {
+      // Canonical timeline: PUT A -> DELETE (unqualified) -> PUT B. This exercises supersession by
+      // a deletion, which every versioned store must reflect in the cloud-neutral validity window.
+      byte[] contentA = "content-A".getBytes(StandardCharsets.UTF_8);
+      String versionA;
+      try (InputStream in = new ByteArrayInputStream(contentA)) {
+        versionA =
+            bucketClient
+                .upload(
+                    new UploadRequest.Builder().withKey(key).withContentLength(contentA.length)
+                        .build(),
+                    in)
+                .getVersionId();
+      }
+      Assertions.assertTrue(StringUtils.isNotBlank(versionA), "PUT A should return a versionId");
+
+      // Unqualified delete removes the live object; prior content versions remain listable.
+      bucketClient.delete(key, null);
+
+      byte[] contentB = "content-B".getBytes(StandardCharsets.UTF_8);
+      String versionB;
+      try (InputStream in = new ByteArrayInputStream(contentB)) {
+        versionB =
+            bucketClient
+                .upload(
+                    new UploadRequest.Builder().withKey(key).withContentLength(contentB.length)
+                        .build(),
+                    in)
+                .getVersionId();
+      }
+      Assertions.assertTrue(StringUtils.isNotBlank(versionB), "PUT B should return a versionId");
+
+      // Default listing (flag omitted) must be backward-compatible: only content versions, no
+      // delete markers. Both A and B remain present and downloadable.
+      Map<String, BlobMetadata> defaultByVersion =
+          collectByVersionId(bucketClient, key, false);
+      Assertions.assertTrue(
+          defaultByVersion.containsKey(versionA), "Default listing should include version A");
+      Assertions.assertTrue(
+          defaultByVersion.containsKey(versionB), "Default listing should include version B");
+      Assertions.assertTrue(
+          defaultByVersion.values().stream().noneMatch(BlobMetadata::isDeleteMarker),
+          "Default listing must not surface delete markers");
+
+      // Point-in-time semantics: A was superseded (has a noncurrentAt), B is current (has none).
+      BlobMetadata metaA = defaultByVersion.get(versionA);
+      BlobMetadata metaB = defaultByVersion.get(versionB);
+      Assertions.assertNotNull(
+          metaA.getNoncurrentAt(), "Superseded version A should report a noncurrentAt instant");
+      Assertions.assertNull(
+          metaB.getNoncurrentAt(), "Current version B should not report a noncurrentAt instant");
+      if (metaA.getCreatedTime() != null) {
+        Assertions.assertFalse(
+            metaA.getNoncurrentAt().isBefore(metaA.getCreatedTime()),
+            "Validity interval [createdTime, noncurrentAt) must be non-negative");
+      }
+
+      // Both content versions must be downloadable by their versionIds.
+      for (String versionId : new String[] {versionA, versionB}) {
+        DownloadResponse response =
+            bucketClient.download(
+                new DownloadRequest.Builder().withKey(key).withVersionId(versionId).build(),
+                new ByteArray());
+        Assertions.assertNotNull(response, "Content version should be downloadable: " + versionId);
+      }
+
+      // Opt-in listing is a superset: the same content versions plus any store-native delete
+      // markers. Stores that do not model standalone delete markers simply add nothing here.
+      Map<String, BlobMetadata> includedByVersion =
+          collectByVersionId(bucketClient, key, true);
+      Assertions.assertTrue(
+          includedByVersion.keySet().containsAll(defaultByVersion.keySet()),
+          "Opt-in listing should contain every content version the default listing returned");
+      Assertions.assertEquals(
+          metaA.getNoncurrentAt(),
+          includedByVersion.get(versionA).getNoncurrentAt(),
+          "noncurrentAt for a content version must not depend on the includeDeleteMarkers flag");
+      Assertions.assertTrue(
+          includedByVersion.size() >= defaultByVersion.size(),
+          "Opt-in listing must not drop any entries relative to the default listing");
+      Assertions.assertTrue(
+          includedByVersion.values().stream()
+              .filter(BlobMetadata::isDeleteMarker)
+              .allMatch(m -> key.equals(m.getKey())),
+          "Any surfaced delete marker must belong to the requested key");
+    } finally {
+      try {
+        List<BlobIdentifier> toDelete = new ArrayList<>();
+        Iterator<BlobMetadata> allEntries =
+            bucketClient.listBlobVersions(
+                ListBlobVersionsRequest.builder().withKey(key).withIncludeDeleteMarkers(true)
+                    .build());
+        allEntries.forEachRemaining(
+            v -> toDelete.add(new BlobIdentifier(v.getKey(), v.getVersionId())));
+        if (!toDelete.isEmpty()) {
+          bucketClient.delete(toDelete);
+        }
+      } catch (Throwable t) {
+        // Best effort cleanup - ignore failures
+      }
+    }
+  }
+
+  private static Map<String, BlobMetadata> collectByVersionId(
+      BucketClient bucketClient, String key, boolean includeDeleteMarkers) {
+    Iterator<BlobMetadata> iterator =
+        bucketClient.listBlobVersions(
+            ListBlobVersionsRequest.builder()
+                .withKey(key)
+                .withIncludeDeleteMarkers(includeDeleteMarkers)
+                .build());
+    Map<String, BlobMetadata> byVersion = new HashMap<>();
+    iterator.forEachRemaining(v -> byVersion.put(v.getVersionId(), v));
+    return byVersion;
+  }
+
+  @Test
   public void testListBlobVersions_nullKey() {
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);

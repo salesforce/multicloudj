@@ -897,6 +897,87 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoListBlobVersions_mapsCreatedAndNoncurrentAt() {
+    // Given: two generations of the same key. The newer one is still current (no delete time);
+    // the older one was superseded and carries a delete time that maps to noncurrentAt.
+    Instant currentCreated = Instant.parse("2024-01-03T00:00:00Z");
+    Instant olderCreated = Instant.parse("2024-01-01T00:00:00Z");
+    Instant olderDeleted = Instant.parse("2024-01-03T00:00:00Z");
+
+    Blob currentGen = mock(Blob.class);
+    when(currentGen.getName()).thenReturn(TEST_KEY);
+    when(currentGen.getGeneration()).thenReturn(2L);
+    when(currentGen.getEtag()).thenReturn("etag-2");
+    when(currentGen.getSize()).thenReturn(200L);
+    when(currentGen.getCreateTimeOffsetDateTime())
+        .thenReturn(currentCreated.atOffset(java.time.ZoneOffset.UTC));
+    when(currentGen.getDeleteTimeOffsetDateTime()).thenReturn(null);
+
+    Blob olderGen = mock(Blob.class);
+    when(olderGen.getName()).thenReturn(TEST_KEY);
+    when(olderGen.getGeneration()).thenReturn(1L);
+    when(olderGen.getEtag()).thenReturn("etag-1");
+    when(olderGen.getSize()).thenReturn(100L);
+    when(olderGen.getCreateTimeOffsetDateTime())
+        .thenReturn(olderCreated.atOffset(java.time.ZoneOffset.UTC));
+    when(olderGen.getDeleteTimeOffsetDateTime())
+        .thenReturn(olderDeleted.atOffset(java.time.ZoneOffset.UTC));
+
+    Page mockPage = mock(Page.class);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+    when(mockPage.iterateAll()).thenReturn(Arrays.asList(currentGen, olderGen));
+
+    // When
+    var iterator =
+        gcpBlobStore.doListBlobVersions(
+            ListBlobVersionsRequest.builder().withKey(TEST_KEY).build());
+
+    // Then
+    assertTrue(iterator.hasNext());
+    BlobMetadata current = iterator.next();
+    assertEquals("2", current.getVersionId());
+    assertEquals(currentCreated, current.getCreatedTime());
+    assertNull(current.getNoncurrentAt());
+    assertFalse(current.isDeleteMarker());
+
+    assertTrue(iterator.hasNext());
+    BlobMetadata older = iterator.next();
+    assertEquals("1", older.getVersionId());
+    assertEquals(olderCreated, older.getCreatedTime());
+    assertEquals(olderDeleted, older.getNoncurrentAt());
+    assertFalse(older.isDeleteMarker());
+
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  void testDoListBlobVersions_filtersSiblingKeys() {
+    // GCS prefix listing can over-fetch; only the exact key must be returned.
+    Blob exact = mock(Blob.class);
+    when(exact.getName()).thenReturn(TEST_KEY);
+    when(exact.getGeneration()).thenReturn(1L);
+    when(exact.getCreateTimeOffsetDateTime())
+        .thenReturn(Instant.parse("2024-01-01T00:00:00Z").atOffset(java.time.ZoneOffset.UTC));
+
+    Blob sibling = mock(Blob.class);
+    lenient().when(sibling.getName()).thenReturn(TEST_KEY + "-extra");
+
+    Page mockPage = mock(Page.class);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+    when(mockPage.iterateAll()).thenReturn(Arrays.asList(exact, sibling));
+
+    var iterator =
+        gcpBlobStore.doListBlobVersions(
+            ListBlobVersionsRequest.builder().withKey(TEST_KEY).build());
+
+    assertTrue(iterator.hasNext());
+    assertEquals(TEST_KEY, iterator.next().getKey());
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
   void testDoList_WithPrefixAndDelimiter() {
     // Given
     ListBlobsRequest request =
