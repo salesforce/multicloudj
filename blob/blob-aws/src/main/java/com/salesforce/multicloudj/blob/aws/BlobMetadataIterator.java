@@ -18,11 +18,17 @@ import software.amazon.awssdk.services.s3.model.ObjectVersion;
  *
  * <p>Iteration is lazy and streaming: S3 pages are pulled on demand and only one bounded page is
  * buffered at a time. S3 returns content versions and delete markers in two separate per-page
- * collections, each already ordered newest-first, and pages themselves arrive newest-first. Because
- * every page holds the next slice of a single global newest-first sequence for the key, the two
- * per-page collections can be merged within each page (a two-pointer merge) and the pages consumed
- * in order to reproduce the true newest-first timeline without ever sorting the complete remote
- * result or reaching across a page boundary.
+ * collections, and pages themselves arrive newest-first. Because every page holds the next slice of
+ * a single global newest-first sequence for the key, the two per-page collections can be merged
+ * within each page (a two-pointer merge) and the pages consumed in order to reproduce the true
+ * newest-first timeline without ever sorting the complete remote result or reaching across a page
+ * boundary.
+ *
+ * <p>S3 documents each collection as already newest-first, but that ordering is a remote contract
+ * this class cannot observe from the response alone, so as a defensive measure each per-page
+ * collection is re-sorted newest-first after exact-key filtering. The sort is bounded by one key's
+ * per-page history and keeps the merge correct even if the SDK ever returned a page's entries out
+ * of order.
  *
  * <p>Both collections always participate in the ordering so supersession times stay correct: a
  * content version stops being current when the next entry is created, and that superseding entry
@@ -31,6 +37,12 @@ import software.amazon.awssdk.services.s3.model.ObjectVersion;
  * markers are only emitted when {@code includeDeleteMarkers} is set, but a hidden marker still
  * advances the supersession pointer so the version below it reports the correct
  * {@code noncurrentAt}.
+ *
+ * <p>When a content version and a delete marker carry the same {@code lastModified} (a same-instant
+ * PUT then DELETE), timestamps alone cannot order them. S3 flags exactly one entry as the latest
+ * version, so that flag breaks the tie: the entry S3 considers current is emitted first and
+ * therefore reports no {@code noncurrentAt}. Same-instant ties deeper in the history, where neither
+ * entry is flagged latest, keep a stable content-version-first ordering.
  */
 public class BlobMetadataIterator implements Iterator<BlobMetadata> {
 
@@ -131,9 +143,18 @@ public class BlobMetadataIterator implements Iterator<BlobMetadata> {
     } else if (versionCursor >= pageVersions.size()) {
       takeVersion = false;
     } else {
-      Instant markerTime = pageMarkers.get(markerCursor).lastModified();
-      Instant versionTime = pageVersions.get(versionCursor).lastModified();
-      takeVersion = !isNewer(markerTime, versionTime);
+      ObjectVersion version = pageVersions.get(versionCursor);
+      DeleteMarkerEntry marker = pageMarkers.get(markerCursor);
+      Instant versionTime = version.lastModified();
+      Instant markerTime = marker.lastModified();
+      if (versionTime != null && versionTime.equals(markerTime)) {
+        // Same-instant PUT+DELETE: timestamps cannot order them, so honor S3's latest flag. If
+        // neither entry is flagged latest (a deeper same-instant tie), keep the content version
+        // first for a stable outcome.
+        takeVersion = !Boolean.TRUE.equals(marker.isLatest());
+      } else {
+        takeVersion = !isNewer(markerTime, versionTime);
+      }
     }
     return takeVersion
         ? new Entry(pageVersions.get(versionCursor++))
@@ -162,11 +183,46 @@ public class BlobMetadataIterator implements Iterator<BlobMetadata> {
         markers.add(markerEntry);
       }
     }
+    // S3 documents each collection as newest-first; re-sort defensively so the merge stays correct
+    // even if a page ever arrived out of order. Bounded by one key's per-page history.
+    versions.sort(
+        (a, b) ->
+            compareNewestFirst(
+                a.lastModified(),
+                Boolean.TRUE.equals(a.isLatest()),
+                b.lastModified(),
+                Boolean.TRUE.equals(b.isLatest())));
+    markers.sort(
+        (a, b) ->
+            compareNewestFirst(
+                a.lastModified(),
+                Boolean.TRUE.equals(a.isLatest()),
+                b.lastModified(),
+                Boolean.TRUE.equals(b.isLatest())));
     pageVersions = versions;
     pageMarkers = markers;
     versionCursor = 0;
     markerCursor = 0;
     return true;
+  }
+
+  /**
+   * Orders timeline entries newest-first. Ties on {@code lastModified} put the entry S3 flagged as
+   * the latest version ahead of the rest; entries without a timestamp sort last.
+   */
+  private static int compareNewestFirst(
+      Instant firstTime, boolean firstLatest, Instant secondTime, boolean secondLatest) {
+    if (firstTime != null && secondTime != null) {
+      int byTime = secondTime.compareTo(firstTime);
+      if (byTime != 0) {
+        return byTime;
+      }
+    } else if (firstTime == null && secondTime != null) {
+      return 1;
+    } else if (firstTime != null) {
+      return -1;
+    }
+    return Boolean.compare(secondLatest, firstLatest);
   }
 
   private static BlobMetadata toMarkerMetadata(DeleteMarkerEntry marker, Instant noncurrentAt) {

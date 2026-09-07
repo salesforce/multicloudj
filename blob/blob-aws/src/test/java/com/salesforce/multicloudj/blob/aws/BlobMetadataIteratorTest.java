@@ -75,14 +75,18 @@ public class BlobMetadataIteratorTest {
   @Test
   void testMultiplePages() {
     String key = "obj-1";
-    ObjectVersion version1 = version(key, "v1", 100L);
-    ObjectVersion version2 = version(key, "v2", 200L);
-    ObjectVersion version3 = version(key, "v3", 300L);
+    Instant t1 = Instant.parse("2024-01-01T00:00:00Z");
+    Instant t2 = Instant.parse("2024-01-02T00:00:00Z");
+    Instant t3 = Instant.parse("2024-01-03T00:00:00Z");
+    // Newest-first across pages, matching S3's ordering: page1 holds the newest version.
+    ObjectVersion version3 = version(key, "v3", 300L, t3);
+    ObjectVersion version2 = version(key, "v2", 200L, t2);
+    ObjectVersion version1 = version(key, "v1", 100L, t1);
 
     ListObjectVersionsResponse page1 =
-        ListObjectVersionsResponse.builder().versions(version1).build();
+        ListObjectVersionsResponse.builder().versions(version3).build();
     ListObjectVersionsResponse page2 =
-        ListObjectVersionsResponse.builder().versions(version2, version3).build();
+        ListObjectVersionsResponse.builder().versions(version2, version1).build();
 
     ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
     when(iterable.iterator()).thenReturn(List.of(page1, page2).iterator());
@@ -94,9 +98,9 @@ public class BlobMetadataIteratorTest {
     iterator.forEachRemaining(all::add);
 
     assertEquals(3, all.size());
-    assertEquals("v1", all.get(0).getVersionId());
+    assertEquals("v3", all.get(0).getVersionId());
     assertEquals("v2", all.get(1).getVersionId());
-    assertEquals("v3", all.get(2).getVersionId());
+    assertEquals("v1", all.get(2).getVersionId());
   }
 
   @Test
@@ -390,6 +394,90 @@ public class BlobMetadataIteratorTest {
     assertEquals(2, all.size());
     long markerCount = all.stream().filter(BlobMetadata::isDeleteMarker).count();
     assertEquals(1, markerCount);
+  }
+
+  @Test
+  void testEqualTimestampsLatestFlagBreaksTie() {
+    String key = "obj-1";
+    Instant t = Instant.parse("2024-01-01T00:00:00Z");
+
+    // Same-instant PUT then DELETE: the delete marker is the current (latest) entry, so the
+    // latest flag must decide the order that the equal timestamps cannot.
+    ObjectVersion v1 =
+        ObjectVersion.builder()
+            .key(key)
+            .versionId("v1")
+            .eTag("etag-v1")
+            .size(100L)
+            .lastModified(t)
+            .isLatest(false)
+            .build();
+    DeleteMarkerEntry marker =
+        DeleteMarkerEntry.builder()
+            .key(key)
+            .versionId("dm1")
+            .lastModified(t)
+            .isLatest(true)
+            .build();
+
+    ListObjectVersionsResponse response =
+        ListObjectVersionsResponse.builder().versions(v1).deleteMarkers(marker).build();
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(response).iterator());
+    when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    Iterator<BlobMetadata> iterator =
+        new BlobMetadataIterator(mockS3Client, TEST_BUCKET, key, true);
+    List<BlobMetadata> all = new ArrayList<>();
+    iterator.forEachRemaining(all::add);
+
+    assertEquals(2, all.size());
+
+    // The delete marker S3 flagged latest is emitted first and is still current.
+    assertEquals("dm1", all.get(0).getVersionId());
+    assertTrue(all.get(0).isDeleteMarker());
+    assertNull(all.get(0).getNoncurrentAt());
+
+    // The content version sharing the instant is superseded by that marker.
+    assertEquals("v1", all.get(1).getVersionId());
+    assertFalse(all.get(1).isDeleteMarker());
+    assertEquals(t, all.get(1).getNoncurrentAt());
+  }
+
+  @Test
+  void testUnsortedPageEntriesAreReorderedNewestFirst() {
+    String key = "obj-1";
+    Instant t1 = Instant.parse("2024-01-01T00:00:00Z");
+    Instant t2 = Instant.parse("2024-01-02T00:00:00Z");
+    Instant t3 = Instant.parse("2024-01-03T00:00:00Z");
+
+    // Feed the page out of newest-first order to prove the iterator re-sorts rather than trusting
+    // the SDK's documented ordering.
+    ObjectVersion v1 = version(key, "v1", 100L, t1);
+    ObjectVersion v2 = version(key, "v2", 200L, t2);
+    ObjectVersion v3 = version(key, "v3", 300L, t3);
+
+    ListObjectVersionsResponse response =
+        ListObjectVersionsResponse.builder().versions(v2, v1, v3).build();
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(response).iterator());
+    when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    Iterator<BlobMetadata> iterator = new BlobMetadataIterator(mockS3Client, TEST_BUCKET, key);
+    List<BlobMetadata> all = new ArrayList<>();
+    iterator.forEachRemaining(all::add);
+
+    assertEquals(3, all.size());
+    assertEquals("v3", all.get(0).getVersionId());
+    assertNull(all.get(0).getNoncurrentAt());
+    assertEquals("v2", all.get(1).getVersionId());
+    assertEquals(t3, all.get(1).getNoncurrentAt());
+    assertEquals("v1", all.get(2).getVersionId());
+    assertEquals(t2, all.get(2).getNoncurrentAt());
   }
 
   private static ObjectVersion version(String key, String versionId, long size) {

@@ -56,10 +56,16 @@ public class BlobMetadata {
   private final boolean deleteMarker;
 
   /**
-   * The instant at which this content version stopped being the current version, or {@code null} if
-   * it is still current (or the store does not report it). Together with {@link #createdTime} this
+   * The instant at which this version stopped being the current version, or {@code null} if it is
+   * still current (or the store does not report it). Together with {@link #createdTime} this
    * defines the version's validity interval {@code [createdTime, noncurrentAt)}, with the end
    * instant exclusive.
+   *
+   * <p>How this instant is obtained depends on the backing store: some stores report the
+   * supersession moment natively, while others derive it from the creation time of the immediately
+   * superseding version. The interval contract is identical in both cases, but the value may differ
+   * by a small margin from a store-native timestamp for the same logical event, so treat it as the
+   * boundary of the validity interval rather than an exact, cross-store-comparable clock reading.
    */
   private final Instant noncurrentAt;
 }
