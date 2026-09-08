@@ -6331,8 +6331,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListBlobVersions_deleteMarkerTimeline() throws IOException {
-    // Ali delete-marker support for listBlobVersions is tracked under a separate work item and is
-    // out of scope here; skip until that provider work lands and recordings are captured.
+    // Ali: the delete-marker code path is implemented, but the WireMock fixtures for this scenario
+    // must be recorded by an engineer with Alibaba credentials on the versioned test bucket. Skip
+    // for Ali until those recordings land; remove this guard once they are captured.
     Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);

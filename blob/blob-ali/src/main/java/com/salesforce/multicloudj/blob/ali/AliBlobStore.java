@@ -632,7 +632,8 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
 
   @Override
   protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
-    return new BlobMetadataIterator(ossClient, getBucket(), request.getKey());
+    return new BlobMetadataIterator(
+        ossClient, getBucket(), request.getKey(), request.isIncludeArchived());
   }
 
   /**

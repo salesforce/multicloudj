@@ -1824,12 +1824,13 @@ public class AliBlobStoreTest {
   @Test
   void testListBlobVersions() {
     String key = "my-object";
+    // OSS returns versions newest-first, so v1 is the newer of the two.
     ObjectVersion v1 = ObjectVersion.newBuilder()
         .key(key).versionId("v1").eTag("etag1").size(100L)
-        .lastModified(Instant.now()).build();
+        .lastModified(Instant.ofEpochSecond(200)).build();
     ObjectVersion v2 = ObjectVersion.newBuilder()
         .key(key).versionId("v2").eTag("etag2").size(200L)
-        .lastModified(Instant.now()).build();
+        .lastModified(Instant.ofEpochSecond(100)).build();
 
     ListObjectVersionsResult result = mock(ListObjectVersionsResult.class);
     when(result.versions()).thenReturn(List.of(v1, v2));
