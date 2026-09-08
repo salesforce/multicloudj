@@ -35,7 +35,7 @@ import java.util.Map;
  */
 public class CloudNativeAuth {
 
-  private static final String PROVIDER = "aws";
+  private static final String PROVIDER = "gcp";
   private static final String REGION = "us-east-2";
 
   public static void main(String[] args) {
@@ -44,8 +44,7 @@ public class CloudNativeAuth {
     customHeaders.put("x-request-source", "cloud-native-auth-example");
     customHeaders.put("x-tenant-id", "tenant-42");
 
-    // ── Sign (client side) ──────────────────────────────────────────────
-    //
+    // Sign (client side)
     // StsUtilities produces a portable signedIdentity from the caller's own cloud credentials.
     StsUtilities signer = StsUtilities.builder(PROVIDER).withRegion(REGION).build();
 
@@ -58,8 +57,7 @@ public class CloudNativeAuth {
     System.out.println("Signed auth request created successfully");
     System.out.println("  SignedIdentity: " + preview(signedIdentity));
 
-    // ── Validate (server side) ──────────────────────────────────────────
-    //
+    // Validate (server side)
     // StsVerifier proves the signedIdentity and returns who the caller is.
     StsVerifier verifier = StsVerifier.builder(PROVIDER).withRegion(REGION).build();
 
