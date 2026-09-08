@@ -6,9 +6,11 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.json.webtoken.JsonWebSignature;
 import com.google.api.client.json.webtoken.JsonWebToken;
+import com.google.auth.http.HttpTransportFactory;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -230,6 +232,81 @@ class GcpStsVerifierTest {
     Assertions.assertInstanceOf(UnknownException.class, mapped);
   }
 
+  @Test
+  void builderReturnsGcpBuilder() {
+    Assertions.assertEquals("gcp", new GcpStsVerifier().builder().build().getProviderId());
+  }
+
+  @Test
+  void verifiesThroughSuppliedTransportFactory() throws Exception {
+    stubJwks();
+    String jwt = signJwt(Instant.now(), null);
+    HttpTransportFactory factory = NetHttpTransport::new;
+    GcpStsVerifier verifier =
+        new GcpStsVerifier.Builder()
+            .withEndpoint(URI.create("http://localhost:" + wireMockServer.port()))
+            .build(factory);
+
+    CallerIdentity identity = verifier.verifySignedAuthRequest(jwt);
+    Assertions.assertEquals(SERVICE_ACCOUNT, identity.getUserId());
+  }
+
+  @Test
+  void missingExpectedCustomHeaderFails() throws Exception {
+    stubJwks();
+    String jwt = signJwt(Instant.now(), null);
+    ValidateOptions options =
+        ValidateOptions.builder().withExpectedCustomHeader("x-absent-header", "value").build();
+
+    Assertions.assertThrows(
+        InvalidArgumentException.class, () -> verifier().verifySignedAuthRequest(jwt, options));
+  }
+
+  @Test
+  void issuerWithNonServiceAccountDomainYieldsEmptyAccountId() throws Exception {
+    stubJwks();
+    String jwt = signJwtWithIssuer(Instant.now(), "user@example.com");
+
+    CallerIdentity identity = verifier().verifySignedAuthRequest(jwt);
+    Assertions.assertEquals("", identity.getAccountId());
+    Assertions.assertEquals("user@example.com", identity.getUserId());
+  }
+
+  @Test
+  void jwksWithoutKeysArrayThrowsNotFound() throws Exception {
+    stubJwksBody("{\"metadata\":\"no keys here\"}");
+    String jwt = signJwt(Instant.now(), null);
+
+    Assertions.assertThrows(
+        ResourceNotFoundException.class, () -> verifier().verifySignedAuthRequest(jwt));
+  }
+
+  @Test
+  void jwksWithNonObjectKeyEntryThrowsNotFound() throws Exception {
+    stubJwksBody("{\"keys\":[\"not-an-object\"]}");
+    String jwt = signJwt(Instant.now(), null);
+
+    Assertions.assertThrows(
+        ResourceNotFoundException.class, () -> verifier().verifySignedAuthRequest(jwt));
+  }
+
+  @Test
+  void jwksWithMalformedModulusThrowsUnknown() throws Exception {
+    stubJwksBody(
+        "{\"keys\":[{\"kty\":\"RSA\",\"kid\":\"" + KID + "\",\"n\":\"@@@\",\"e\":\"AQAB\"}]}");
+    String jwt = signJwt(Instant.now(), null);
+
+    Assertions.assertThrows(
+        UnknownException.class, () -> verifier().verifySignedAuthRequest(jwt));
+  }
+
+  @Test
+  void buildWithSystemPropertyProxyValuesCreatesRealVerifier() {
+    GcpStsVerifier verifier =
+        new GcpStsVerifier.Builder().withUseSystemPropertyProxyValues(true).build();
+    Assertions.assertEquals("gcp", verifier.getProviderId());
+  }
+
   private GcpStsVerifier verifier() {
     return new GcpStsVerifier.Builder()
         .withEndpoint(URI.create("http://localhost:" + wireMockServer.port()))
@@ -280,13 +357,17 @@ class GcpStsVerifierTest {
             + "\",\"e\":\""
             + e
             + "\"}]}";
+    stubJwksBody(jwks);
+  }
+
+  private void stubJwksBody(String body) {
     wireMockServer.stubFor(
         get(urlMatching("/service_accounts/v1/metadata/jwk/.*"))
             .willReturn(
                 aResponse()
                     .withStatus(200)
                     .withHeader("Content-Type", "application/json")
-                    .withBody(jwks)));
+                    .withBody(body)));
   }
 
   private String signJwt(Instant issuedAt, String targetResource) throws Exception {

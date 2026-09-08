@@ -15,6 +15,9 @@ import com.google.auth.oauth2.ComputeEngineCredentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ImpersonatedCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.iam.credentials.v1.IamCredentialsClient;
+import com.google.cloud.iam.credentials.v1.IamCredentialsSettings;
+import com.google.cloud.iam.credentials.v1.SignJwtResponse;
 import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -71,6 +74,72 @@ class GcpStsUtilitiesTest {
   @Test
   void providerId() {
     Assertions.assertEquals("gcp", new GcpStsUtilities().getProviderId());
+  }
+
+  @Test
+  void builderAndDefaultBuildProduceGcpUtilities() {
+    Assertions.assertEquals("gcp", new GcpStsUtilities().builder().build().getProviderId());
+    Assertions.assertEquals("gcp", new GcpStsUtilities.Builder().build().getProviderId());
+  }
+
+  @Test
+  void signsThroughIamCredentialsClient() throws Exception {
+    GoogleCredentials source = Mockito.mock(GoogleCredentials.class);
+    Mockito.when(source.createScopedRequired()).thenReturn(true);
+    Mockito.when(source.createScoped(Mockito.anyCollection())).thenReturn(source);
+    IamCredentialsClient client = Mockito.mock(IamCredentialsClient.class);
+    SignJwtResponse response =
+        SignJwtResponse.newBuilder().setSignedJwt("signed.jwt.token").build();
+    Mockito.when(client.signJwt(Mockito.anyString(), Mockito.anyList(), Mockito.anyString()))
+        .thenReturn(response);
+
+    // No injected signer, so the production IAM-backed path runs; the email override skips
+    // auto-detection so this isolates the IAM signing seam.
+    GcpStsUtilities utilities =
+        new GcpStsUtilities.Builder().build((GcpStsUtilities.JwtSigner) null, SERVICE_ACCOUNT);
+    try (MockedStatic<GoogleCredentials> mockedGoogleCreds =
+            Mockito.mockStatic(GoogleCredentials.class);
+        MockedStatic<IamCredentialsClient> mockedClient =
+            Mockito.mockStatic(IamCredentialsClient.class)) {
+      mockedGoogleCreds.when(GoogleCredentials::getApplicationDefault).thenReturn(source);
+      mockedClient
+          .when(() -> IamCredentialsClient.create(Mockito.any(IamCredentialsSettings.class)))
+          .thenReturn(client);
+
+      SignedAuthRequest signed =
+          utilities.newCloudNativeAuthSignedRequest(null, SignOptions.builder().build());
+      Assertions.assertEquals("signed.jwt.token", signed.getSignedIdentity());
+    }
+  }
+
+  @Test
+  void signsThroughIamCredentialsClientImpersonatingRole() throws Exception {
+    String role = "impersonated-sa@my-project.iam.gserviceaccount.com";
+    GoogleCredentials source = Mockito.mock(GoogleCredentials.class);
+    Mockito.when(source.createScopedRequired()).thenReturn(false);
+    IamCredentialsClient client = Mockito.mock(IamCredentialsClient.class);
+    SignJwtResponse response =
+        SignJwtResponse.newBuilder().setSignedJwt("impersonated.jwt").build();
+    Mockito.when(client.signJwt(Mockito.anyString(), Mockito.anyList(), Mockito.anyString()))
+        .thenReturn(response);
+
+    GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+    builder.withCredentialsOverrider(
+        new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE).withRole(role).build());
+    GcpStsUtilities utilities = builder.build((GcpStsUtilities.JwtSigner) null, null);
+    try (MockedStatic<GoogleCredentials> mockedGoogleCreds =
+            Mockito.mockStatic(GoogleCredentials.class);
+        MockedStatic<IamCredentialsClient> mockedClient =
+            Mockito.mockStatic(IamCredentialsClient.class)) {
+      mockedGoogleCreds.when(GoogleCredentials::getApplicationDefault).thenReturn(source);
+      mockedClient
+          .when(() -> IamCredentialsClient.create(Mockito.any(IamCredentialsSettings.class)))
+          .thenReturn(client);
+
+      SignedAuthRequest signed =
+          utilities.newCloudNativeAuthSignedRequest(null, SignOptions.builder().build());
+      Assertions.assertEquals("impersonated.jwt", signed.getSignedIdentity());
+    }
   }
 
   @Test
