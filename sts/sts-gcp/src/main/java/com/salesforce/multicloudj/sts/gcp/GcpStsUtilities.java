@@ -1,5 +1,8 @@
 package com.salesforce.multicloudj.sts.gcp;
 
+import com.google.api.client.http.GenericUrl;
+import com.google.api.client.http.HttpResponse;
+import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
@@ -62,6 +65,8 @@ public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
   private static final long JWT_EXPIRY_SECONDS = 300L;
   private static final String SCOPE = "https://www.googleapis.com/auth/cloud-platform";
   private static final String SA_NAME_FORMAT = "projects/-/serviceAccounts/%s";
+  private static final String METADATA_SA_EMAIL_URL =
+      "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email";
   private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
 
   /**
@@ -214,8 +219,8 @@ public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
 
   /**
    * Resolves the service account whose key signs the JWT. A {@code role} on the credentials
-   * overrider names it explicitly; otherwise it is derived from the account behind Application
-   * Default Credentials.
+   * overrider names it explicitly; otherwise it is auto-detected from the account behind
+   * Application Default Credentials, falling back to the GCE metadata server.
    */
   private String resolveServiceAccountEmail() {
     if (StringUtils.isNotBlank(serviceAccountEmailOverride)) {
@@ -225,27 +230,61 @@ public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
     if (StringUtils.isNotBlank(role)) {
       return role;
     }
-    String email = serviceAccountEmailFromCredentials();
+    String email = defaultServiceAccountEmail();
     if (StringUtils.isBlank(email)) {
       throw new InvalidArgumentException(
-          "could not determine the signing service account email; supply it as the "
-              + "credentialsOverrider role");
+          "could not determine the signing service account email from application default "
+              + "credentials or the metadata server; supply it as the credentialsOverrider role");
     }
     return email;
   }
 
-  private static String serviceAccountEmailFromCredentials() {
+  /**
+   * Auto-detects the signing service account email. It first reads the {@code client_email} from
+   * the account behind Application Default Credentials, then falls back to the GCE metadata server
+   * (which serves on GCE, GKE, and Cloud Run).
+   */
+  private static String defaultServiceAccountEmail() {
     try {
       GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
       if (credentials instanceof ServiceAccountCredentials) {
-        return ((ServiceAccountCredentials) credentials).getClientEmail();
+        String email = ((ServiceAccountCredentials) credentials).getClientEmail();
+        if (StringUtils.isNotBlank(email)) {
+          return email;
+        }
+      }
+      // Impersonated credentials sign as their target service account, so that target is the
+      // account whose key signs the JWT.
+      if (credentials instanceof ImpersonatedCredentials) {
+        String email = ((ImpersonatedCredentials) credentials).getAccount();
+        if (StringUtils.isNotBlank(email)) {
+          return email;
+        }
       }
       if (credentials instanceof ComputeEngineCredentials) {
-        return ((ComputeEngineCredentials) credentials).getAccount();
+        String email = ((ComputeEngineCredentials) credentials).getAccount();
+        if (StringUtils.isNotBlank(email) && !"default".equals(email)) {
+          return email;
+        }
       }
-      return null;
     } catch (IOException e) {
-      throw new UnknownException("could not load application default credentials", e);
+      // Fall through to the metadata server, which serves the email on GCE/GKE/Cloud Run.
+    }
+    return serviceAccountEmailFromMetadataServer();
+  }
+
+  private static String serviceAccountEmailFromMetadataServer() {
+    try {
+      com.google.api.client.http.HttpRequest request =
+          new NetHttpTransport()
+              .createRequestFactory()
+              .buildGetRequest(new GenericUrl(METADATA_SA_EMAIL_URL));
+      request.getHeaders().set("Metadata-Flavor", "Google");
+      HttpResponse response = request.execute();
+      String email = response.parseAsString();
+      return email == null ? null : email.trim();
+    } catch (IOException e) {
+      return null;
     }
   }
 
