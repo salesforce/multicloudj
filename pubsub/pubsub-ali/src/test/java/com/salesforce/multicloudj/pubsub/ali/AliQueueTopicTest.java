@@ -5,10 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -184,6 +186,92 @@ public class AliQueueTopicTest {
   }
 
   @Test
+  void oversizedLogicalBatchIsSplitIntoServiceValidSubBatches() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliQueueTopic topic = topic(client, queue);
+
+    // Three 20 KB bodies each encode to ~26 KB on the wire, so the 64 KB per-request cap admits at
+    // most two per sub-batch: the batch must split into more than one batchPutMessage call.
+    List<Message> batch =
+        List.of(
+            Message.builder().withBody(bytesOf(20_000)).build(),
+            Message.builder().withBody(bytesOf(20_000)).build(),
+            Message.builder().withBody(bytesOf(20_000)).build());
+
+    topic.doSendBatch(batch);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<com.aliyun.mns.model.Message>> captor = ArgumentCaptor.forClass(List.class);
+    verify(queue, times(2)).batchPutMessage(captor.capture());
+    List<List<com.aliyun.mns.model.Message>> subBatches = captor.getAllValues();
+    assertEquals(2, subBatches.size());
+    int totalSent = 0;
+    for (List<com.aliyun.mns.model.Message> subBatch : subBatches) {
+      // Every sub-batch handed to SMQ stays within the per-request byte limit.
+      assertTrue(wireSize(subBatch) <= AliBaseTopic.MAX_BATCH_BYTE_SIZE);
+      totalSent += subBatch.size();
+    }
+    // No message is dropped by the split: all three are published across the sub-batches.
+    assertEquals(3, totalSent);
+  }
+
+  @Test
+  void localConversionErrorInLaterSubBatchDoesNotPublishEarlierSubBatch() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliQueueTopic topic = topic(client, queue);
+
+    // Three 20 KB bodies each encode to ~26 KB, so the 64 KB per-request cap splits the batch into
+    // [first, second] and [third]. The third message carries metadata, which toMnsMessage rejects
+    // locally. Because the whole batch is converted before any batchPutMessage call, that local
+    // rejection must fail fast without publishing the earlier, already-split sub-batch.
+    List<Message> batch =
+        List.of(
+            Message.builder().withBody(bytesOf(20_000)).build(),
+            Message.builder().withBody(bytesOf(20_000)).build(),
+            Message.builder().withBody(bytesOf(20_000)).withMetadata("k", "v").build());
+
+    assertThrows(UnSupportedOperationException.class, () -> topic.doSendBatch(batch));
+    verify(queue, never()).batchPutMessage(any());
+  }
+
+  @Test
+  void singleMessageOverLimitFailsFastWithoutPublishing() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliQueueTopic topic = topic(client, queue);
+
+    // A 50 KB body encodes to ~66 KB on the wire, exceeding the 64 KB per-request cap on its own,
+    // so it can never be sent in any batch.
+    List<Message> batch = List.of(Message.builder().withBody(bytesOf(50_000)).build());
+
+    assertThrows(InvalidArgumentException.class, () -> topic.doSendBatch(batch));
+    verify(queue, never()).batchPutMessage(any());
+  }
+
+  @Test
+  void underLimitBatchIsSentInASingleCall() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliQueueTopic topic = topic(client, queue);
+
+    List<Message> batch =
+        List.of(
+            Message.builder().withBody("a".getBytes(UTF_8)).build(),
+            Message.builder().withBody("b".getBytes(UTF_8)).build());
+
+    topic.doSendBatch(batch);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<com.aliyun.mns.model.Message>> captor = ArgumentCaptor.forClass(List.class);
+    // A batch comfortably under the limit is not split: exactly one batchPutMessage call carrying
+    // both messages.
+    verify(queue, times(1)).batchPutMessage(captor.capture());
+    assertEquals(2, captor.getValue().size());
+  }
+
+  @Test
   void builderRequiresTopicName() {
     MNSClient client = mock(MNSClient.class);
     AliQueueTopic.Builder builder = new AliQueueTopic.Builder();
@@ -273,5 +361,27 @@ public class AliQueueTopicTest {
       }
     }
     return null;
+  }
+
+  private static byte[] bytesOf(int length) {
+    byte[] body = new byte[length];
+    for (int i = 0; i < length; i++) {
+      body[i] = (byte) ('a' + (i % 26));
+    }
+    return body;
+  }
+
+  /**
+   * Recomputes the SMQ wire size of a captured sub-batch: each stored body is already
+   * base64-encoded (its raw-bytes length is the encoded length) plus the same per-message envelope
+   * allowance the publish path reserves.
+   */
+  private static int wireSize(List<com.aliyun.mns.model.Message> subBatch) {
+    int total = 0;
+    for (com.aliyun.mns.model.Message message : subBatch) {
+      total += message.getMessageBodyAsRawBytes().length
+          + AliBaseTopic.MESSAGE_ENVELOPE_OVERHEAD_BYTES;
+    }
+    return total;
   }
 }

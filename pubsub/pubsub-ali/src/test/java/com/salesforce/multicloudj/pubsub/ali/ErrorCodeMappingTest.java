@@ -50,6 +50,7 @@ public class ErrorCodeMappingTest {
     assertEquals(InvalidArgumentException.class, getException("MissingReceiptHandle"));
     assertEquals(InvalidArgumentException.class, getException("MissingVisibilityTimeout"));
     assertEquals(InvalidArgumentException.class, getException("ReceiptHandleError"));
+    assertEquals(InvalidArgumentException.class, getException("MessageBodyOverSizeLimit"));
   }
 
   @Test

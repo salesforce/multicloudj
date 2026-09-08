@@ -46,6 +46,16 @@ public class AliQueueTopic extends AliBaseTopic<AliQueueTopic> {
   /**
    * Publishes a batch of messages to the SMQ queue via {@code batchPutMessage}.
    *
+   * <p>A logical batch whose cumulative encoded size would exceed the SMQ per-request limit is
+   * first split into service-valid sub-batches (see {@code splitBySize}), each sent with its own
+   * {@code batchPutMessage} call; a single message that alone exceeds the limit fails fast before
+   * any call is made.
+   *
+   * <p>The entire batch is converted to SMQ SDK messages up front, before any {@code
+   * batchPutMessage} call, so a purely local conversion failure (for example an unsupported
+   * metadata map, see {@code toMnsMessage}) fails fast without leaving an earlier sub-batch already
+   * published.
+   *
    * <p>SMQ's {@code batchPutMessage} may accept some messages in a batch while rejecting others.
    * On any per-message failure this surfaces the first rejected entry and fails the entire batch,
    * so every message future in the batch completes exceptionally, including messages SMQ already
@@ -57,16 +67,26 @@ public class AliQueueTopic extends AliBaseTopic<AliQueueTopic> {
     if (messages == null || messages.isEmpty()) {
       return;
     }
-    List<com.aliyun.mns.model.Message> mnsMessages = new ArrayList<>(messages.size());
-    for (Message message : messages) {
-      mnsMessages.add(toMnsMessage(message));
+    // Split and convert the whole batch before sending anything: splitBySize fails fast on a single
+    // message that alone exceeds the per-request limit, and converting every sub-batch up front
+    // makes a local conversion failure (for example unsupported metadata) surface before the first
+    // batchPutMessage call, so no earlier sub-batch is published on a local error.
+    List<List<com.aliyun.mns.model.Message>> convertedSubBatches = new ArrayList<>();
+    for (List<Message> subBatch : splitBySize(messages)) {
+      List<com.aliyun.mns.model.Message> mnsMessages = new ArrayList<>(subBatch.size());
+      for (Message message : subBatch) {
+        mnsMessages.add(toMnsMessage(message));
+      }
+      convertedSubBatches.add(mnsMessages);
     }
-    try {
-      queue.batchPutMessage(mnsMessages);
-    } catch (BatchSendException e) {
-      throw mapFailedEntry(e);
-    } catch (ServiceException | ClientException e) {
-      throw mapException(e);
+    for (List<com.aliyun.mns.model.Message> mnsMessages : convertedSubBatches) {
+      try {
+        queue.batchPutMessage(mnsMessages);
+      } catch (BatchSendException e) {
+        throw mapFailedEntry(e);
+      } catch (ServiceException | ClientException e) {
+        throw mapException(e);
+      }
     }
   }
 
