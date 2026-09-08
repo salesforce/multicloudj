@@ -11,8 +11,6 @@ import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.io.IOException;
 import java.io.StringReader;
-import java.net.InetSocketAddress;
-import java.net.ProxySelector;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.net.http.HttpClient;
@@ -52,7 +50,7 @@ public class AwsStsVerifier extends AbstractStsVerifier {
   public AwsStsVerifier(Builder builder) {
     super(builder);
     this.endpointOverride = builder.getEndpoint();
-    this.httpClient = buildHttpClient(builder);
+    this.httpClient = HttpClient.newHttpClient();
   }
 
   /** Constructor that accepts a preconfigured HTTP client, used by tests. */
@@ -191,16 +189,6 @@ public class AwsStsVerifier extends AbstractStsVerifier {
       params.put(key, value);
     }
     return params;
-  }
-
-  private static HttpClient buildHttpClient(Builder builder) {
-    HttpClient.Builder clientBuilder = HttpClient.newBuilder();
-    if (builder.getProxyEndpoint() != null) {
-      URI proxy = builder.getProxyEndpoint();
-      clientBuilder.proxy(
-          ProxySelector.of(new InetSocketAddress(proxy.getHost(), proxy.getPort())));
-    }
-    return clientBuilder.build();
   }
 
   @Override

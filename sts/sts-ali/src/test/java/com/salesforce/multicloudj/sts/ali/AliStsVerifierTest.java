@@ -11,7 +11,6 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.io.IOException;
-import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Assertions;
@@ -93,12 +92,8 @@ class AliStsVerifierTest {
   }
 
   @Test
-  void buildWithProxyCreatesRealClient() {
-    AliStsVerifier verifier =
-        new AliStsVerifier.Builder()
-            .withRegion("cn-hangzhou")
-            .withProxyEndpoint(URI.create("http://localhost:8888"))
-            .build();
+  void buildCreatesRealClient() {
+    AliStsVerifier verifier = new AliStsVerifier.Builder().withRegion("cn-hangzhou").build();
     Assertions.assertEquals("ali", verifier.getProviderId());
     Assertions.assertNotNull(verifier.builder());
   }

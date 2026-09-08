@@ -11,7 +11,6 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.io.IOException;
-import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Assertions;
@@ -112,12 +111,8 @@ class AwsStsVerifierTest {
   }
 
   @Test
-  void buildWithProxyCreatesRealClient() {
-    AwsStsVerifier verifier =
-        new AwsStsVerifier.Builder()
-            .withRegion("us-west-2")
-            .withProxyEndpoint(URI.create("http://localhost:8888"))
-            .build();
+  void buildCreatesRealClient() {
+    AwsStsVerifier verifier = new AwsStsVerifier.Builder().withRegion("us-west-2").build();
     Assertions.assertEquals("aws", verifier.getProviderId());
     Assertions.assertNotNull(verifier.builder());
   }

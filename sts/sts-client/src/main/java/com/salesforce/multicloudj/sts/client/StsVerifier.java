@@ -149,43 +149,6 @@ public class StsVerifier {
     }
 
     /**
-     * Sets the proxy endpoint override for the STS verifier.
-     *
-     * @param proxyEndpoint The proxy endpoint to set.
-     * @return This StsVerifierBuilder instance.
-     */
-    public StsVerifierBuilder withProxyEndpoint(URI proxyEndpoint) {
-      this.builder.withProxyEndpoint(proxyEndpoint);
-      return this;
-    }
-
-    /**
-     * Controls whether system property proxy values are used.
-     *
-     * @param useSystemPropertyProxyValues Whether to use system property values for proxy
-     *     configuration.
-     * @return This StsVerifierBuilder instance.
-     */
-    public StsVerifierBuilder withUseSystemPropertyProxyValues(
-        Boolean useSystemPropertyProxyValues) {
-      this.builder.withUseSystemPropertyProxyValues(useSystemPropertyProxyValues);
-      return this;
-    }
-
-    /**
-     * Controls whether environment variable proxy values are used.
-     *
-     * @param useEnvironmentVariableProxyValues Whether to use environment variable values for proxy
-     *     configuration.
-     * @return This StsVerifierBuilder instance.
-     */
-    public StsVerifierBuilder withUseEnvironmentVariableProxyValues(
-        Boolean useEnvironmentVariableProxyValues) {
-      this.builder.withUseEnvironmentVariableProxyValues(useEnvironmentVariableProxyValues);
-      return this;
-    }
-
-    /**
      * Builds and returns an StsVerifier instance.
      *
      * @return A new StsVerifier instance.

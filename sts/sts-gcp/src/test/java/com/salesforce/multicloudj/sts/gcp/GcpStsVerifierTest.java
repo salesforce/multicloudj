@@ -216,16 +216,6 @@ class GcpStsVerifierTest {
   }
 
   @Test
-  void buildWithProxyCreatesRealVerifier() {
-    GcpStsVerifier verifier =
-        new GcpStsVerifier.Builder()
-            .withProxyEndpoint(URI.create("http://localhost:8888"))
-            .withUseSystemPropertyProxyValues(false)
-            .build();
-    Assertions.assertEquals("gcp", verifier.getProviderId());
-  }
-
-  @Test
   void mapExceptionWrapsAsUnknown() {
     SubstrateSdkException mapped =
         new GcpStsVerifier().mapException(new RuntimeException("boom"));
@@ -298,13 +288,6 @@ class GcpStsVerifierTest {
 
     Assertions.assertThrows(
         UnknownException.class, () -> verifier().verifySignedAuthRequest(jwt));
-  }
-
-  @Test
-  void buildWithSystemPropertyProxyValuesCreatesRealVerifier() {
-    GcpStsVerifier verifier =
-        new GcpStsVerifier.Builder().withUseSystemPropertyProxyValues(true).build();
-    Assertions.assertEquals("gcp", verifier.getProviderId());
   }
 
   private GcpStsVerifier verifier() {

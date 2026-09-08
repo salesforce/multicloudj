@@ -3,7 +3,6 @@ package com.salesforce.multicloudj.sts.gcp;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.apache.v2.ApacheHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.json.JsonFactory;
@@ -23,7 +22,6 @@ import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
@@ -37,9 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
 
 /**
  * GCP implementation of the STS verifier. It validates a signed identity that is a JWT produced by
@@ -71,7 +66,7 @@ public class GcpStsVerifier extends AbstractStsVerifier {
 
   public GcpStsVerifier(Builder builder) {
     super(builder);
-    this.httpTransportFactory = buildHttpTransportFactory(builder);
+    this.httpTransportFactory = null;
     this.jwksBaseUrl = resolveJwksBaseUrl(builder);
   }
 
@@ -262,45 +257,6 @@ public class GcpStsVerifier extends AbstractStsVerifier {
       return endpoint.endsWith("/") ? endpoint.substring(0, endpoint.length() - 1) : endpoint;
     }
     return DEFAULT_JWKS_BASE_URL;
-  }
-
-  private static HttpTransportFactory buildHttpTransportFactory(Builder builder) {
-    if (builder.getProxyEndpoint() == null
-        && builder.getUseSystemPropertyProxyValues() == null
-        && builder.getUseEnvironmentVariableProxyValues() == null) {
-      return null;
-    }
-    HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
-    if (Boolean.FALSE.equals(builder.getUseSystemPropertyProxyValues())) {
-      httpClientBuilder.setRoutePlanner(
-          new org.apache.http.impl.conn.DefaultRoutePlanner(
-              org.apache.http.impl.conn.DefaultSchemePortResolver.INSTANCE) {
-            @Override
-            protected org.apache.http.HttpHost determineProxy(
-                org.apache.http.HttpHost target,
-                org.apache.http.HttpRequest request,
-                org.apache.http.protocol.HttpContext context) {
-              return null;
-            }
-          });
-    } else {
-      httpClientBuilder.useSystemProperties();
-    }
-    httpClientBuilder.setDefaultRequestConfig(buildRequestConfig(builder));
-    CloseableHttpClient httpClient = httpClientBuilder.build();
-    ApacheHttpTransport transport = new ApacheHttpTransport(httpClient);
-    return () -> transport;
-  }
-
-  private static RequestConfig buildRequestConfig(Builder builder) {
-    RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
-    if (builder.getProxyEndpoint() != null) {
-      URI endpoint = builder.getProxyEndpoint();
-      requestConfigBuilder.setProxy(
-          new org.apache.http.HttpHost(
-              endpoint.getHost(), endpoint.getPort(), endpoint.getScheme()));
-    }
-    return requestConfigBuilder.build();
   }
 
   @Override

@@ -32,9 +32,6 @@ class StsVerifierTest {
               builder
                   .withRegion("test-region")
                   .withEndpoint(URI.create("http://localhost:1234"))
-                  .withProxyEndpoint(URI.create("http://localhost:8888"))
-                  .withUseSystemPropertyProxyValues(true)
-                  .withUseEnvironmentVariableProxyValues(false)
                   .build();
           assertNotNull(verifier);
 
