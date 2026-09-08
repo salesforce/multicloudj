@@ -59,6 +59,21 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 
 ### Provider-Specific Notes
 
+**GCP — tuning directory and many-small-object transfers**
+
+GCP directory uploads and downloads run through a `TransferManager` whose parallelism equals its worker-pool size. Because GCS traffic uses HTTP/1.1 — where connection count equals concurrency — the connection pool must be large enough to feed those workers. The default pool is small, so transfers of many small objects can be bottlenecked well below the achievable rate.
+
+For directory or many-small-object workloads on GCP, raise both together:
+
+```java
+BucketClient gcp = BucketClient.builder("gcp")
+    .withBucket("my-bucket")
+    .withMaxConnections(200)                 // feed the worker pool; on GCS this also caps concurrency
+    .withTransferManagerThreadPoolSize(64)   // directory transfer parallelism
+    .build();
+```
+
+Higher values raise the per-client connection footprint, so size them to your workload — callers that only transfer single objects do not need to change the defaults.
 
 ---
 
