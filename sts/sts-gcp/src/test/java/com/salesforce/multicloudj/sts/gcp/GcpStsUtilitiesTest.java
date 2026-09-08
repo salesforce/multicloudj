@@ -9,9 +9,25 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.json.webtoken.JsonWebSignature;
 import com.google.api.client.json.webtoken.JsonWebToken;
+import com.google.api.gax.rpc.ApiException;
+import com.google.api.gax.rpc.StatusCode;
+import com.google.auth.oauth2.ComputeEngineCredentials;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ImpersonatedCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
+import com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
@@ -27,6 +43,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 class GcpStsUtilitiesTest {
 
@@ -141,9 +159,133 @@ class GcpStsUtilitiesTest {
     Assertions.assertInstanceOf(UnknownException.class, mapped);
   }
 
+  @Test
+  void mapExceptionMapsApiExceptionStatusCodes() {
+    GcpStsUtilities utilities = new GcpStsUtilities();
+    assertExceptionMapping(utilities, StatusCode.Code.CANCELLED, UnknownException.class);
+    assertExceptionMapping(utilities, StatusCode.Code.UNKNOWN, UnknownException.class);
+    assertExceptionMapping(
+        utilities, StatusCode.Code.INVALID_ARGUMENT, InvalidArgumentException.class);
+    assertExceptionMapping(
+        utilities, StatusCode.Code.DEADLINE_EXCEEDED, DeadlineExceededException.class);
+    assertExceptionMapping(utilities, StatusCode.Code.NOT_FOUND, ResourceNotFoundException.class);
+    assertExceptionMapping(
+        utilities, StatusCode.Code.ALREADY_EXISTS, ResourceAlreadyExistsException.class);
+    assertExceptionMapping(
+        utilities, StatusCode.Code.PERMISSION_DENIED, UnAuthorizedException.class);
+    assertExceptionMapping(
+        utilities, StatusCode.Code.RESOURCE_EXHAUSTED, ResourceExhaustedException.class);
+    assertExceptionMapping(
+        utilities, StatusCode.Code.FAILED_PRECONDITION, FailedPreconditionException.class);
+    assertExceptionMapping(utilities, StatusCode.Code.ABORTED, DeadlineExceededException.class);
+    assertExceptionMapping(
+        utilities, StatusCode.Code.OUT_OF_RANGE, InvalidArgumentException.class);
+    assertExceptionMapping(
+        utilities, StatusCode.Code.UNIMPLEMENTED, UnSupportedOperationException.class);
+    assertExceptionMapping(utilities, StatusCode.Code.INTERNAL, UnknownException.class);
+    assertExceptionMapping(utilities, StatusCode.Code.UNAVAILABLE, UnknownException.class);
+    assertExceptionMapping(utilities, StatusCode.Code.DATA_LOSS, UnknownException.class);
+    assertExceptionMapping(
+        utilities, StatusCode.Code.UNAUTHENTICATED, UnAuthorizedException.class);
+  }
+
+  @Test
+  void mapExceptionWithNullStatusCodeWrapsAsUnknown() {
+    ApiException apiException = Mockito.mock(ApiException.class);
+    Mockito.when(apiException.getStatusCode()).thenReturn(null);
+    Assertions.assertInstanceOf(
+        UnknownException.class, new GcpStsUtilities().mapException(apiException));
+  }
+
+  @Test
+  void credentialsOverriderRoleIsUsedAsSigningServiceAccount() throws Exception {
+    String role = "impersonated-sa@my-project.iam.gserviceaccount.com";
+    GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+    builder.withCredentialsOverrider(
+        new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE).withRole(role).build());
+    GcpStsUtilities utilities = builder.build(this::signAnyPayload, null);
+
+    SignedAuthRequest signed =
+        utilities.newCloudNativeAuthSignedRequest(null, SignOptions.builder().build());
+    JsonWebSignature parsed =
+        JsonWebSignature.parse(GsonFactory.getDefaultInstance(), signed.getSignedIdentity());
+    Assertions.assertEquals(role, parsed.getPayload().getIssuer());
+    Assertions.assertEquals(role, parsed.getPayload().getSubject());
+  }
+
+  @Test
+  void resolvesServiceAccountFromServiceAccountCredentials() throws Exception {
+    ServiceAccountCredentials credentials = Mockito.mock(ServiceAccountCredentials.class);
+    Mockito.when(credentials.getClientEmail()).thenReturn(SERVICE_ACCOUNT);
+    Assertions.assertEquals(SERVICE_ACCOUNT, resolvedIssuerWithApplicationDefault(credentials));
+  }
+
+  @Test
+  void resolvesServiceAccountFromImpersonatedCredentials() throws Exception {
+    ImpersonatedCredentials credentials = Mockito.mock(ImpersonatedCredentials.class);
+    Mockito.when(credentials.getAccount()).thenReturn(SERVICE_ACCOUNT);
+    Assertions.assertEquals(SERVICE_ACCOUNT, resolvedIssuerWithApplicationDefault(credentials));
+  }
+
+  @Test
+  void resolvesServiceAccountFromComputeEngineCredentials() throws Exception {
+    ComputeEngineCredentials credentials = Mockito.mock(ComputeEngineCredentials.class);
+    Mockito.when(credentials.getAccount()).thenReturn(SERVICE_ACCOUNT);
+    Assertions.assertEquals(SERVICE_ACCOUNT, resolvedIssuerWithApplicationDefault(credentials));
+  }
+
+  /**
+   * Signs an identity while Application Default Credentials resolve to {@code credentials}, and
+   * returns the {@code iss} claim of the produced JWT (i.e. the auto-detected service account).
+   */
+  private String resolvedIssuerWithApplicationDefault(GoogleCredentials credentials)
+      throws Exception {
+    GcpStsUtilities utilities =
+        new GcpStsUtilities.Builder().build(this::signAnyPayload, null);
+    try (MockedStatic<GoogleCredentials> mockedGoogleCreds =
+        Mockito.mockStatic(GoogleCredentials.class)) {
+      mockedGoogleCreds
+          .when(GoogleCredentials::getApplicationDefault)
+          .thenReturn(credentials);
+      SignedAuthRequest signed =
+          utilities.newCloudNativeAuthSignedRequest(null, SignOptions.builder().build());
+      return JsonWebSignature.parse(GsonFactory.getDefaultInstance(), signed.getSignedIdentity())
+          .getPayload()
+          .getIssuer();
+    }
+  }
+
+  private void assertExceptionMapping(
+      GcpStsUtilities utilities,
+      StatusCode.Code statusCode,
+      Class<? extends SubstrateSdkException> expected) {
+    ApiException apiException = Mockito.mock(ApiException.class);
+    StatusCode mockStatusCode = Mockito.mock(StatusCode.class);
+    Mockito.when(apiException.getStatusCode()).thenReturn(mockStatusCode);
+    Mockito.when(mockStatusCode.getCode()).thenReturn(statusCode);
+    Assertions.assertInstanceOf(expected, utilities.mapException(apiException));
+  }
+
   /** Builds a signer whose signing seam signs the claims payload with the test RSA key. */
   private GcpStsUtilities signer() {
     return new GcpStsUtilities.Builder().build(this::signPayload, SERVICE_ACCOUNT);
+  }
+
+  /** Signs the claims for any service account without asserting a specific resource name. */
+  private String signAnyPayload(String serviceAccountName, String payload)
+      throws java.io.IOException {
+    JsonWebToken.Payload claims =
+        GsonFactory.getDefaultInstance()
+            .createJsonParser(payload)
+            .parse(JsonWebToken.Payload.class);
+    JsonWebSignature.Header header =
+        new JsonWebSignature.Header().setAlgorithm("RS256").setType("JWT").setKeyId(KID);
+    try {
+      return JsonWebSignature.signUsingRsaSha256(
+          keyPair.getPrivate(), GsonFactory.getDefaultInstance(), header, claims);
+    } catch (java.security.GeneralSecurityException e) {
+      throw new java.io.IOException(e);
+    }
   }
 
   private String signPayload(String serviceAccountName, String payload) throws java.io.IOException {
