@@ -41,7 +41,6 @@ public class AwsStsVerifier extends AbstractStsVerifier {
   private static final String DEFAULT_API_VERSION = "2011-06-15";
 
   private final HttpClient httpClient;
-  private final URI endpointOverride;
 
   public AwsStsVerifier() {
     this(new Builder());
@@ -49,14 +48,12 @@ public class AwsStsVerifier extends AbstractStsVerifier {
 
   public AwsStsVerifier(Builder builder) {
     super(builder);
-    this.endpointOverride = builder.getEndpoint();
     this.httpClient = HttpClient.newHttpClient();
   }
 
   /** Constructor that accepts a preconfigured HTTP client, used by tests. */
   public AwsStsVerifier(Builder builder, HttpClient httpClient) {
     super(builder);
-    this.endpointOverride = builder.getEndpoint();
     this.httpClient = httpClient;
   }
 
@@ -85,9 +82,11 @@ public class AwsStsVerifier extends AbstractStsVerifier {
     String version = params.getOrDefault(VERSION_PARAM, DEFAULT_API_VERSION);
     String body = ACTION_PARAM + "=" + action + "&" + VERSION_PARAM + "=" + version;
 
-    URI replayTarget = endpointOverride != null ? endpointOverride : stripQuery(identityUri);
+    // The replay target is the presigned URL from the signed identity with its query stripped; the
+    // signed parameters are re-added below as request headers.
     HttpRequest.Builder requestBuilder =
-        HttpRequest.newBuilder(replayTarget).POST(HttpRequest.BodyPublishers.ofString(body));
+        HttpRequest.newBuilder(stripQuery(identityUri))
+            .POST(HttpRequest.BodyPublishers.ofString(body));
     for (Map.Entry<String, String> param : params.entrySet()) {
       if (ACTION_PARAM.equals(param.getKey()) || VERSION_PARAM.equals(param.getKey())) {
         continue;

@@ -1,16 +1,15 @@
 package com.salesforce.multicloudj.sts.gcp;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.get;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
-
-import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.json.webtoken.JsonWebSignature;
 import com.google.api.client.json.webtoken.JsonWebToken;
+import com.google.api.client.testing.http.MockHttpTransport;
+import com.google.api.client.testing.http.MockLowLevelHttpRequest;
+import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
+import com.google.auth.http.HttpTransportFactory;
 import com.google.auth.oauth2.ComputeEngineCredentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ImpersonatedCredentials;
@@ -35,14 +34,12 @@ import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.math.BigInteger;
-import java.net.URI;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,21 +51,11 @@ class GcpStsUtilitiesTest {
   private static final String SERVICE_ACCOUNT = "test-sa@my-project.iam.gserviceaccount.com";
   private static final String KID = "test-key-1";
 
-  private WireMockServer wireMockServer;
   private KeyPair keyPair;
 
   @BeforeEach
   void setUp() throws Exception {
     keyPair = KeyPairGenerator.getInstance("RSA").generateKeyPair();
-    wireMockServer = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-    wireMockServer.start();
-  }
-
-  @AfterEach
-  void tearDown() {
-    if (wireMockServer != null) {
-      wireMockServer.stop();
-    }
   }
 
   @Test
@@ -167,7 +154,6 @@ class GcpStsUtilitiesTest {
 
   @Test
   void signedJwtRoundTripsThroughVerifier() {
-    stubJwks();
     Map<String, String> customHeaders = new LinkedHashMap<>();
     customHeaders.put("x-target-resource", "my-service");
 
@@ -373,32 +359,42 @@ class GcpStsUtilitiesTest {
     }
   }
 
+  /** Builds a verifier whose JWKS fetch returns the current key pair's public key document. */
   private GcpStsVerifier verifier() {
-    return new GcpStsVerifier.Builder()
-        .withEndpoint(URI.create("http://localhost:" + wireMockServer.port()))
-        .build();
+    HttpTransportFactory factory = () -> transportReturning(jwksBody());
+    return new GcpStsVerifier.Builder().build(factory);
   }
 
-  private void stubJwks() {
+  private static HttpTransport transportReturning(String body) {
+    return new MockHttpTransport() {
+      @Override
+      public MockLowLevelHttpRequest buildRequest(String method, String url) {
+        return new MockLowLevelHttpRequest() {
+          @Override
+          public MockLowLevelHttpResponse execute() {
+            MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+            response.setStatusCode(200);
+            response.setContentType("application/json");
+            response.setContent(body);
+            return response;
+          }
+        };
+      }
+    };
+  }
+
+  private String jwksBody() {
     RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
     Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
     String n = encoder.encodeToString(toUnsignedBytes(publicKey.getModulus()));
     String e = encoder.encodeToString(toUnsignedBytes(publicKey.getPublicExponent()));
-    String jwks =
-        "{\"keys\":[{\"kty\":\"RSA\",\"alg\":\"RS256\",\"use\":\"sig\",\"kid\":\""
-            + KID
-            + "\",\"n\":\""
-            + n
-            + "\",\"e\":\""
-            + e
-            + "\"}]}";
-    wireMockServer.stubFor(
-        get(urlMatching("/service_accounts/v1/metadata/jwk/.*"))
-            .willReturn(
-                aResponse()
-                    .withStatus(200)
-                    .withHeader("Content-Type", "application/json")
-                    .withBody(jwks)));
+    return "{\"keys\":[{\"kty\":\"RSA\",\"alg\":\"RS256\",\"use\":\"sig\",\"kid\":\""
+        + KID
+        + "\",\"n\":\""
+        + n
+        + "\",\"e\":\""
+        + e
+        + "\"}]}";
   }
 
   private static byte[] toUnsignedBytes(BigInteger value) {

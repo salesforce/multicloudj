@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableSet;
 import com.salesforce.multicloudj.sts.driver.AbstractStsVerifier;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
-import java.net.URI;
 import java.util.ServiceLoader;
 
 /**
@@ -134,17 +133,6 @@ public class StsVerifier {
      */
     public StsVerifierBuilder withRegion(String region) {
       this.builder.withRegion(region);
-      return this;
-    }
-
-    /**
-     * Sets the endpoint override for the STS verifier.
-     *
-     * @param endpoint The endpoint to set.
-     * @return This StsVerifierBuilder instance.
-     */
-    public StsVerifierBuilder withEndpoint(URI endpoint) {
-      this.builder.withEndpoint(endpoint);
       return this;
     }
 

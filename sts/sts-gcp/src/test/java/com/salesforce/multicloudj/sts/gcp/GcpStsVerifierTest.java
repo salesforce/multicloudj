@@ -1,15 +1,12 @@
 package com.salesforce.multicloudj.sts.gcp;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.get;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
-
-import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
-import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.json.webtoken.JsonWebSignature;
 import com.google.api.client.json.webtoken.JsonWebToken;
+import com.google.api.client.testing.http.MockHttpTransport;
+import com.google.api.client.testing.http.MockLowLevelHttpRequest;
+import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import com.google.auth.http.HttpTransportFactory;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
@@ -18,14 +15,14 @@ import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
-import java.net.URI;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
 import java.util.Base64;
-import org.junit.jupiter.api.AfterEach;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,21 +33,11 @@ class GcpStsVerifierTest {
       "test-sa@my-project.iam.gserviceaccount.com";
   private static final String KID = "test-key-1";
 
-  private WireMockServer wireMockServer;
   private KeyPair keyPair;
 
   @BeforeEach
   void setUp() throws Exception {
     keyPair = KeyPairGenerator.getInstance("RSA").generateKeyPair();
-    wireMockServer = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-    wireMockServer.start();
-  }
-
-  @AfterEach
-  void tearDown() {
-    if (wireMockServer != null) {
-      wireMockServer.stop();
-    }
   }
 
   @Test
@@ -60,7 +47,6 @@ class GcpStsVerifierTest {
 
   @Test
   void returnsCallerIdentityFromValidJwt() throws Exception {
-    stubJwks();
     String jwt = signJwt(Instant.now(), null);
 
     CallerIdentity identity = verifier().verifySignedAuthRequest(jwt);
@@ -78,7 +64,6 @@ class GcpStsVerifierTest {
 
   @Test
   void expiredJwtThrowsUnauthorized() throws Exception {
-    stubJwks();
     String jwt = signJwt(Instant.now().minusSeconds(3600), null);
 
     Assertions.assertThrows(
@@ -87,7 +72,6 @@ class GcpStsVerifierTest {
 
   @Test
   void unknownKeyIdThrowsNotFound() throws Exception {
-    stubJwks();
     String jwt = signJwt(Instant.now(), "other-kid", null);
 
     Assertions.assertThrows(
@@ -96,7 +80,6 @@ class GcpStsVerifierTest {
 
   @Test
   void tamperedSignatureThrowsUnauthorized() throws Exception {
-    stubJwks();
     String jwt = signJwt(Instant.now(), null);
     String tampered = jwt.substring(0, jwt.length() - 4) + "AAAA";
 
@@ -106,7 +89,6 @@ class GcpStsVerifierTest {
 
   @Test
   void matchingExpectedCustomHeaderPasses() throws Exception {
-    stubJwks();
     String jwt = signJwt(Instant.now(), "my-service");
     ValidateOptions options =
         ValidateOptions.builder()
@@ -119,7 +101,6 @@ class GcpStsVerifierTest {
 
   @Test
   void mismatchedExpectedCustomHeaderFails() throws Exception {
-    stubJwks();
     String jwt = signJwt(Instant.now(), "my-service");
     ValidateOptions options =
         ValidateOptions.builder().withExpectedCustomHeader("x-target-resource", "other").build();
@@ -158,15 +139,15 @@ class GcpStsVerifierTest {
 
   @Test
   void jwksFetchFailureThrowsUnknown() throws Exception {
-    // No JWKS stub configured; WireMock returns 404 and the fetch fails.
+    // The JWKS endpoint returns 404 and the fetch fails.
     String jwt = signJwt(Instant.now(), null);
+    GcpStsVerifier verifier = verifierReturning(404, "");
     Assertions.assertThrows(
-        UnknownException.class, () -> verifier().verifySignedAuthRequest(jwt));
+        UnknownException.class, () -> verifier.verifySignedAuthRequest(jwt));
   }
 
   @Test
   void issuedInFutureThrowsUnauthorized() throws Exception {
-    stubJwks();
     String jwt = signJwt(Instant.now().plusSeconds(3600), null);
     Assertions.assertThrows(
         UnAuthorizedException.class, () -> verifier().verifySignedAuthRequest(jwt));
@@ -174,7 +155,6 @@ class GcpStsVerifierTest {
 
   @Test
   void issuerWithoutServiceAccountDomainYieldsEmptyAccountId() throws Exception {
-    stubJwks();
     String jwt = signJwtWithIssuer(Instant.now(), "plain-issuer-no-at-sign");
 
     CallerIdentity identity = verifier().verifySignedAuthRequest(jwt);
@@ -188,31 +168,24 @@ class GcpStsVerifierTest {
     String jwks =
         "{\"keys\":[{\"kty\":\"oct\",\"kid\":\"" + KID + "\"},"
             + "{\"kty\":\"RSA\",\"kid\":\"" + KID + "\",\"e\":\"AQAB\"}]}";
-    wireMockServer.stubFor(
-        get(urlMatching("/service_accounts/v1/metadata/jwk/.*"))
-            .willReturn(
-                aResponse()
-                    .withStatus(200)
-                    .withHeader("Content-Type", "application/json")
-                    .withBody(jwks)));
     String jwt = signJwt(Instant.now(), null);
 
+    GcpStsVerifier verifier = verifierReturning(200, jwks);
     Assertions.assertThrows(
-        ResourceNotFoundException.class, () -> verifier().verifySignedAuthRequest(jwt));
+        ResourceNotFoundException.class, () -> verifier.verifySignedAuthRequest(jwt));
   }
 
   @Test
   void cachedKeysReusedOnSecondCall() throws Exception {
-    stubJwks();
-    GcpStsVerifier verifier = verifier();
+    AtomicInteger fetchCount = new AtomicInteger();
+    HttpTransportFactory factory = () -> countingTransport(fetchCount, jwksBody());
+    GcpStsVerifier verifier = new GcpStsVerifier.Builder().build(factory);
     String jwt1 = signJwt(Instant.now(), null);
     String jwt2 = signJwt(Instant.now(), null);
 
     Assertions.assertEquals(SERVICE_ACCOUNT, verifier.verifySignedAuthRequest(jwt1).getUserId());
     Assertions.assertEquals(SERVICE_ACCOUNT, verifier.verifySignedAuthRequest(jwt2).getUserId());
-    wireMockServer.verify(
-        1, com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor(
-            urlMatching("/service_accounts/v1/metadata/jwk/.*")));
+    Assertions.assertEquals(1, fetchCount.get());
   }
 
   @Test
@@ -229,13 +202,9 @@ class GcpStsVerifierTest {
 
   @Test
   void verifiesThroughSuppliedTransportFactory() throws Exception {
-    stubJwks();
     String jwt = signJwt(Instant.now(), null);
-    HttpTransportFactory factory = NetHttpTransport::new;
-    GcpStsVerifier verifier =
-        new GcpStsVerifier.Builder()
-            .withEndpoint(URI.create("http://localhost:" + wireMockServer.port()))
-            .build(factory);
+    HttpTransportFactory factory = () -> transportReturning(200, jwksBody());
+    GcpStsVerifier verifier = new GcpStsVerifier.Builder().build(factory);
 
     CallerIdentity identity = verifier.verifySignedAuthRequest(jwt);
     Assertions.assertEquals(SERVICE_ACCOUNT, identity.getUserId());
@@ -243,7 +212,6 @@ class GcpStsVerifierTest {
 
   @Test
   void missingExpectedCustomHeaderFails() throws Exception {
-    stubJwks();
     String jwt = signJwt(Instant.now(), null);
     ValidateOptions options =
         ValidateOptions.builder().withExpectedCustomHeader("x-absent-header", "value").build();
@@ -254,7 +222,6 @@ class GcpStsVerifierTest {
 
   @Test
   void issuerWithNonServiceAccountDomainYieldsEmptyAccountId() throws Exception {
-    stubJwks();
     String jwt = signJwtWithIssuer(Instant.now(), "user@example.com");
 
     CallerIdentity identity = verifier().verifySignedAuthRequest(jwt);
@@ -264,36 +231,79 @@ class GcpStsVerifierTest {
 
   @Test
   void jwksWithoutKeysArrayThrowsNotFound() throws Exception {
-    stubJwksBody("{\"metadata\":\"no keys here\"}");
     String jwt = signJwt(Instant.now(), null);
+    GcpStsVerifier verifier = verifierReturning(200, "{\"metadata\":\"no keys here\"}");
 
     Assertions.assertThrows(
-        ResourceNotFoundException.class, () -> verifier().verifySignedAuthRequest(jwt));
+        ResourceNotFoundException.class, () -> verifier.verifySignedAuthRequest(jwt));
   }
 
   @Test
   void jwksWithNonObjectKeyEntryThrowsNotFound() throws Exception {
-    stubJwksBody("{\"keys\":[\"not-an-object\"]}");
     String jwt = signJwt(Instant.now(), null);
+    GcpStsVerifier verifier = verifierReturning(200, "{\"keys\":[\"not-an-object\"]}");
 
     Assertions.assertThrows(
-        ResourceNotFoundException.class, () -> verifier().verifySignedAuthRequest(jwt));
+        ResourceNotFoundException.class, () -> verifier.verifySignedAuthRequest(jwt));
   }
 
   @Test
   void jwksWithMalformedModulusThrowsUnknown() throws Exception {
-    stubJwksBody(
-        "{\"keys\":[{\"kty\":\"RSA\",\"kid\":\"" + KID + "\",\"n\":\"@@@\",\"e\":\"AQAB\"}]}");
     String jwt = signJwt(Instant.now(), null);
+    GcpStsVerifier verifier =
+        verifierReturning(
+            200,
+            "{\"keys\":[{\"kty\":\"RSA\",\"kid\":\"" + KID + "\",\"n\":\"@@@\",\"e\":\"AQAB\"}]}");
 
     Assertions.assertThrows(
-        UnknownException.class, () -> verifier().verifySignedAuthRequest(jwt));
+        UnknownException.class, () -> verifier.verifySignedAuthRequest(jwt));
   }
 
+  /** Builds a verifier whose JWKS fetch returns a 200 with the current key pair's JWKS document. */
   private GcpStsVerifier verifier() {
-    return new GcpStsVerifier.Builder()
-        .withEndpoint(URI.create("http://localhost:" + wireMockServer.port()))
-        .build();
+    return verifierReturning(200, jwksBody());
+  }
+
+  private static GcpStsVerifier verifierReturning(int status, String body) {
+    HttpTransportFactory factory = () -> transportReturning(status, body);
+    return new GcpStsVerifier.Builder().build(factory);
+  }
+
+  private static HttpTransport transportReturning(int status, String body) {
+    return new MockHttpTransport() {
+      @Override
+      public MockLowLevelHttpRequest buildRequest(String method, String url) {
+        return new MockLowLevelHttpRequest() {
+          @Override
+          public MockLowLevelHttpResponse execute() {
+            MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+            response.setStatusCode(status);
+            response.setContentType("application/json");
+            response.setContent(body);
+            return response;
+          }
+        };
+      }
+    };
+  }
+
+  private static HttpTransport countingTransport(AtomicInteger counter, String body) {
+    return new MockHttpTransport() {
+      @Override
+      public MockLowLevelHttpRequest buildRequest(String method, String url) {
+        counter.incrementAndGet();
+        return new MockLowLevelHttpRequest() {
+          @Override
+          public MockLowLevelHttpResponse execute() {
+            MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+            response.setStatusCode(200);
+            response.setContentType("application/json");
+            response.setContent(body);
+            return response;
+          }
+        };
+      }
+    };
   }
 
   private static String manualToken(String headerJson, String payloadJson) {
@@ -327,30 +337,18 @@ class GcpStsVerifierTest {
         keyPair.getPrivate(), GsonFactory.getDefaultInstance(), header, payload);
   }
 
-  private void stubJwks() {
+  private String jwksBody() {
     RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
     Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
     String n = encoder.encodeToString(toUnsignedBytes(publicKey.getModulus()));
     String e = encoder.encodeToString(toUnsignedBytes(publicKey.getPublicExponent()));
-    String jwks =
-        "{\"keys\":[{\"kty\":\"RSA\",\"alg\":\"RS256\",\"use\":\"sig\",\"kid\":\""
-            + KID
-            + "\",\"n\":\""
-            + n
-            + "\",\"e\":\""
-            + e
-            + "\"}]}";
-    stubJwksBody(jwks);
-  }
-
-  private void stubJwksBody(String body) {
-    wireMockServer.stubFor(
-        get(urlMatching("/service_accounts/v1/metadata/jwk/.*"))
-            .willReturn(
-                aResponse()
-                    .withStatus(200)
-                    .withHeader("Content-Type", "application/json")
-                    .withBody(body)));
+    return "{\"keys\":[{\"kty\":\"RSA\",\"alg\":\"RS256\",\"use\":\"sig\",\"kid\":\""
+        + KID
+        + "\",\"n\":\""
+        + n
+        + "\",\"e\":\""
+        + e
+        + "\"}]}";
   }
 
   private String signJwt(Instant issuedAt, String targetResource) throws Exception {

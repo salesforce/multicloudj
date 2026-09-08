@@ -56,7 +56,6 @@ public class GcpStsVerifier extends AbstractStsVerifier {
   private static final long DEFAULT_CACHE_TTL_SECONDS = 3600L;
 
   private final HttpTransportFactory httpTransportFactory;
-  private final String jwksBaseUrl;
   private final JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
   private final Map<String, CachedKeys> keyCache = new ConcurrentHashMap<>();
 
@@ -67,14 +66,12 @@ public class GcpStsVerifier extends AbstractStsVerifier {
   public GcpStsVerifier(Builder builder) {
     super(builder);
     this.httpTransportFactory = null;
-    this.jwksBaseUrl = resolveJwksBaseUrl(builder);
   }
 
   /** Constructor that accepts a preconfigured transport factory, used by tests. */
   public GcpStsVerifier(Builder builder, HttpTransportFactory httpTransportFactory) {
     super(builder);
     this.httpTransportFactory = httpTransportFactory;
-    this.jwksBaseUrl = resolveJwksBaseUrl(builder);
   }
 
   @Override
@@ -182,7 +179,7 @@ public class GcpStsVerifier extends AbstractStsVerifier {
     }
 
     String url =
-        jwksBaseUrl
+        DEFAULT_JWKS_BASE_URL
             + JWKS_PATH
             + URLEncoder.encode(serviceAccountEmail, StandardCharsets.UTF_8);
     GenericJson response;
@@ -249,14 +246,6 @@ public class GcpStsVerifier extends AbstractStsVerifier {
 
   private static String asString(Object value) {
     return value == null ? null : String.valueOf(value);
-  }
-
-  private static String resolveJwksBaseUrl(Builder builder) {
-    if (builder.getEndpoint() != null) {
-      String endpoint = builder.getEndpoint().toString();
-      return endpoint.endsWith("/") ? endpoint.substring(0, endpoint.length() - 1) : endpoint;
-    }
-    return DEFAULT_JWKS_BASE_URL;
   }
 
   @Override

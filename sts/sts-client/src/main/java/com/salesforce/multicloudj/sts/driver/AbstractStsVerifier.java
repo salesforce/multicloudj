@@ -3,7 +3,6 @@ package com.salesforce.multicloudj.sts.driver;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
-import java.net.URI;
 import lombok.Getter;
 
 /**
@@ -68,7 +67,6 @@ public abstract class AbstractStsVerifier implements Provider {
   public abstract static class Builder<A extends AbstractStsVerifier, T extends Builder<A, T>>
       implements Provider.Builder {
     @Getter protected String region;
-    @Getter protected URI endpoint;
     protected String providerId;
 
     /**
@@ -79,17 +77,6 @@ public abstract class AbstractStsVerifier implements Provider {
      */
     public T withRegion(String region) {
       this.region = region;
-      return self();
-    }
-
-    /**
-     * Sets the endpoint to override.
-     *
-     * @param endpoint The endpoint to set.
-     * @return This Builder instance.
-     */
-    public T withEndpoint(URI endpoint) {
-      this.endpoint = endpoint;
       return self();
     }
 

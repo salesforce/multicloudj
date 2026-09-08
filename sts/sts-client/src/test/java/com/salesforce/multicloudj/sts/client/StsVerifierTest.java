@@ -10,7 +10,6 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.driver.AbstractStsVerifier;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
-import java.net.URI;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceLoader;
@@ -28,11 +27,7 @@ class StsVerifierTest {
   void buildsVerifierAndValidatesSignedIdentity() {
     withMockedProvider(
         builder -> {
-          StsVerifier verifier =
-              builder
-                  .withRegion("test-region")
-                  .withEndpoint(URI.create("http://localhost:1234"))
-                  .build();
+          StsVerifier verifier = builder.withRegion("test-region").build();
           assertNotNull(verifier);
 
           CallerIdentity identity = verifier.validateSignedAuthRequest("caller-1");
