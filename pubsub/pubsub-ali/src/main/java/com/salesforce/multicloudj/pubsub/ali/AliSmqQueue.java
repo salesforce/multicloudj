@@ -50,9 +50,9 @@ public class AliSmqQueue extends AliBaseTopic<AliSmqQueue> {
    * any call is made.
    *
    * <p>The entire batch is converted to SMQ SDK messages up front, before any {@code
-   * batchPutMessage} call, so a purely local conversion failure (for example an unsupported
-   * metadata map, see {@code toSmqMessage}) fails fast without leaving an earlier sub-batch already
-   * published.
+   * batchPutMessage} call, so a purely local conversion failure (for example metadata that exceeds
+   * the SMQ per-message limits, see {@code toSmqMessage}) fails fast without leaving an earlier
+   * sub-batch already published.
    *
    * <p>SMQ's {@code batchPutMessage} may accept some messages in a batch while rejecting others.
    * On any per-message failure this surfaces the first rejected entry and fails the entire batch,
@@ -67,8 +67,9 @@ public class AliSmqQueue extends AliBaseTopic<AliSmqQueue> {
     }
     // Split and convert the whole batch before sending anything: splitBySize fails fast on a single
     // message that alone exceeds the per-request limit, and converting every sub-batch up front
-    // makes a local conversion failure (for example unsupported metadata) surface before the first
-    // batchPutMessage call, so no earlier sub-batch is published on a local error.
+    // makes a local conversion failure (for example metadata over the SMQ per-message limits)
+    // surface before the first batchPutMessage call, so no earlier sub-batch is published on a
+    // local error.
     List<List<com.aliyun.mns.model.Message>> convertedSubBatches = new ArrayList<>();
     for (List<Message> subBatch : splitBySize(messages)) {
       List<com.aliyun.mns.model.Message> smqMessages = new ArrayList<>(subBatch.size());
