@@ -18,7 +18,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
@@ -32,6 +34,10 @@ import org.xml.sax.InputSource;
  * <p>The signed identity is a URL rooted at the STS endpoint whose query string carries the STS
  * action, version, and every signed request header. Replaying that request lets AWS STS validate
  * the SigV4 signature and return the identity of the credentials that produced it.
+ *
+ * <p>The URL host is untrusted input, so before replaying, the verifier requires an https scheme
+ * and confirms the host is a genuine AWS STS endpoint. This prevents a crafted signed identity from
+ * redirecting the replay to an attacker-controlled server that could return a forged identity.
  */
 @AutoService(AbstractStsVerifier.class)
 public class AwsStsVerifier extends AbstractStsVerifier {
@@ -39,6 +45,14 @@ public class AwsStsVerifier extends AbstractStsVerifier {
   private static final String VERSION_PARAM = "Version";
   private static final String DEFAULT_API_ACTION_NAME = "GetCallerIdentity";
   private static final String DEFAULT_API_VERSION = "2011-06-15";
+  private static final String HTTPS_SCHEME = "https";
+
+  // AWS STS endpoint hostnames: the global sts.amazonaws.com, regional sts.<region>.amazonaws.com,
+  // their FIPS variants, and the China partition (.amazonaws.com.cn). The signed identity carries a
+  // host, but it is untrusted input; the request is only replayed when the host is a genuine STS
+  // endpoint so a crafted URL cannot redirect the replay to an attacker-controlled server.
+  private static final Pattern STS_HOST_PATTERN =
+      Pattern.compile("^sts(-fips)?(\\.[a-z0-9-]+)?\\.amazonaws\\.com(\\.cn)?$");
 
   private final HttpClient httpClient;
 
@@ -70,6 +84,7 @@ public class AwsStsVerifier extends AbstractStsVerifier {
     }
 
     URI identityUri = URI.create(signedIdentity);
+    verifyStsEndpoint(identityUri);
     Map<String, String> params = parseQuery(identityUri.getRawQuery());
 
     // The signed request carries its headers as query parameters. Custom headers are validated
@@ -116,6 +131,19 @@ public class AwsStsVerifier extends AbstractStsVerifier {
     }
 
     return parseCallerIdentity(response.body());
+  }
+
+  private static void verifyStsEndpoint(URI identityUri) {
+    String scheme = identityUri.getScheme();
+    if (scheme == null || !HTTPS_SCHEME.equalsIgnoreCase(scheme)) {
+      throw new UnAuthorizedException(
+          "signed identity must target an https STS endpoint, got scheme: " + scheme);
+    }
+    String host = identityUri.getHost();
+    if (host == null || !STS_HOST_PATTERN.matcher(host.toLowerCase(Locale.ROOT)).matches()) {
+      throw new UnAuthorizedException(
+          "signed identity does not target a recognized AWS STS endpoint: " + host);
+    }
   }
 
   private static void verifyExpectedCustomHeaders(
