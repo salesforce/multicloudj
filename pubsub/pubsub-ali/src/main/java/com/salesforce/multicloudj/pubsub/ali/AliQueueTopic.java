@@ -3,8 +3,6 @@ package com.salesforce.multicloudj.pubsub.ali;
 import com.aliyun.mns.client.CloudQueue;
 import com.aliyun.mns.client.MNSClient;
 import com.aliyun.mns.common.BatchSendException;
-import com.aliyun.mns.common.ClientException;
-import com.aliyun.mns.common.ServiceException;
 import com.aliyun.mns.model.ErrorMessageResult;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -84,8 +82,6 @@ public class AliQueueTopic extends AliBaseTopic<AliQueueTopic> {
         queue.batchPutMessage(mnsMessages);
       } catch (BatchSendException e) {
         throw mapFailedEntry(e);
-      } catch (ServiceException | ClientException e) {
-        throw mapException(e);
       }
     }
   }

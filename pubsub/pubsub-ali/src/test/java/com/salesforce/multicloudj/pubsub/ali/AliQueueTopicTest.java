@@ -21,7 +21,6 @@ import com.aliyun.mns.common.ServiceException;
 import com.aliyun.mns.model.ErrorMessageResult;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
-import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
@@ -91,18 +90,21 @@ public class AliQueueTopicTest {
   }
 
   @Test
-  void serviceExceptionIsMappedToTypedException() {
+  void doSendBatchPropagatesNonBatchServiceExceptionForFrameworkToMap() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
     AliQueueTopic topic = topic(client, queue);
 
+    // A non-batch ServiceException (unlike a BatchSendException carrying per-entry results) is not
+    // mapped inside doSendBatch: it propagates raw so the pubsub client framework maps it via
+    // mapException, the same contract every provider relies on. The error-code translation itself
+    // (for example AccessDenied -> UnAuthorizedException) is covered by MnsExceptionMapperTest.
     ServiceException denied = mock(ServiceException.class);
-    when(denied.getErrorCode()).thenReturn("AccessDenied");
     when(queue.batchPutMessage(any())).thenThrow(denied);
 
-    assertThrows(
-        UnAuthorizedException.class,
-        () -> topic.send(Message.builder().withBody("x".getBytes(UTF_8)).build()));
+    List<Message> batch = List.of(Message.builder().withBody("x".getBytes(UTF_8)).build());
+    ServiceException thrown = assertThrows(ServiceException.class, () -> topic.doSendBatch(batch));
+    assertSame(denied, thrown);
   }
 
   @Test
