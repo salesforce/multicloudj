@@ -42,7 +42,9 @@ public class CommonErrorCodeMapping {
             Map.entry("RequestTimeTooSkewed", InvalidArgumentException.class),
             Map.entry("SignatureDoesNotMatch", InvalidArgumentException.class),
             Map.entry("BadDigest", InvalidArgumentException.class),
-            Map.entry("TokenRefreshRequired", UnAuthorizedException.class));
+            Map.entry("TokenRefreshRequired", UnAuthorizedException.class),
+            Map.entry("ExpiredToken", UnAuthorizedException.class),
+            Map.entry("ExpiredTokenException", UnAuthorizedException.class));
   }
 
   public static Map<String, Class<? extends SubstrateSdkException>> get() {
