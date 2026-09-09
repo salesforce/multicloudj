@@ -108,12 +108,18 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
     }
 
     HttpRequest signed = builder.build();
+
+    // The signed request URL carries the action, version, every signed query parameter, and the
+    // computed signature, so it is a self-contained, replayable representation of the identity.
+    String signedIdentity = signedRequest.getSysUrl();
+
     return new SignedAuthRequest(
         signed,
         new StsCredentials(
             credentials.getAccessKeyId(),
             credentials.getAccessKeySecret(),
-            credentials.getSessionToken()));
+            credentials.getSessionToken()),
+        signedIdentity);
   }
 
   public static class Builder extends AbstractStsUtilities.Builder<AliStsUtilities> {
