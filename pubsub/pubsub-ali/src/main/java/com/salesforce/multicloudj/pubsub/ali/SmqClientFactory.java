@@ -20,9 +20,9 @@ import java.util.Locale;
  * a non-null endpoint is required: the account id is not derivable from region and credentials
  * alone.
  */
-public final class MnsClientUtil {
+public final class SmqClientFactory {
 
-  private MnsClientUtil() {}
+  private SmqClientFactory() {}
 
   /**
    * Builds an {@link MNSClient}.
@@ -38,13 +38,13 @@ public final class MnsClientUtil {
    * @throws UnSupportedOperationException if the credentials override type is not yet supported
    *     ({@code ASSUME_ROLE} / {@code ASSUME_ROLE_WEB_IDENTITY})
    */
-  public static MNSClient buildMnsClient(
+  public static MNSClient buildSmqClient(
       URI endpoint, CredentialsOverrider credentialsOverrider, URI proxyEndpoint) {
     return buildCloudAccount(endpoint, credentialsOverrider, proxyEndpoint).getMNSClient();
   }
 
   /**
-   * Builds the {@link CloudAccount} used by {@link #buildMnsClient}; package-private so unit tests
+   * Builds the {@link CloudAccount} used by {@link #buildSmqClient}; package-private so unit tests
    * can assert the endpoint and credential wiring directly.
    */
   static CloudAccount buildCloudAccount(
@@ -52,7 +52,7 @@ public final class MnsClientUtil {
     validateEndpoint(endpoint);
     ClientConfiguration clientConfiguration = buildClientConfiguration(proxyEndpoint);
     AlibabaCloudCredentialsProvider credentialsProvider =
-        MnsCredentialsProvider.getCredentialsProvider(credentialsOverrider);
+        SmqCredentialsProvider.getCredentialsProvider(credentialsOverrider);
     if (credentialsProvider == null) {
       // Absent override: resolve the Alibaba default credential chain (environment variables,
       // system properties, OIDC/RRSA, credentials files, ECS/ECI instance roles).
