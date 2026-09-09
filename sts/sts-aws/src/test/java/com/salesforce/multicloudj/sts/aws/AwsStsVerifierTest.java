@@ -15,6 +15,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 class AwsStsVerifierTest {
 
@@ -178,6 +179,45 @@ class AwsStsVerifierTest {
 
     CallerIdentity identity =
         new AwsStsVerifier.Builder().build(httpClient).verifySignedAuthRequest(identityWithHost);
+    Assertions.assertEquals("123456789012", identity.getAccountId());
+  }
+
+  @Test
+  void untrustedHostIsRejectedWithoutReplay() {
+    // A crafted signed identity pointing at an attacker-controlled host that would happily return a
+    // well-formed GetCallerIdentity response must be rejected before any replay happens, otherwise
+    // the attacker forges an identity. The client is never touched.
+    HttpClient httpClient = mock(HttpClient.class);
+    String forgedIdentity =
+        "https://localhost:9999/?Action=GetCallerIdentity&Version=2011-06-15";
+
+    AwsStsVerifier verifier = new AwsStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnAuthorizedException.class, () -> verifier.verifySignedAuthRequest(forgedIdentity));
+    Mockito.verifyNoInteractions(httpClient);
+  }
+
+  @Test
+  void nonHttpsSchemeIsRejected() {
+    HttpClient httpClient = mock(HttpClient.class);
+    String insecureIdentity =
+        "http://sts.us-west-2.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15";
+
+    AwsStsVerifier verifier = new AwsStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnAuthorizedException.class, () -> verifier.verifySignedAuthRequest(insecureIdentity));
+    Mockito.verifyNoInteractions(httpClient);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void globalStsEndpointIsAccepted() throws Exception {
+    HttpClient httpClient = okClient();
+    String globalIdentity =
+        "https://sts.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15";
+
+    CallerIdentity identity =
+        new AwsStsVerifier.Builder().build(httpClient).verifySignedAuthRequest(globalIdentity);
     Assertions.assertEquals("123456789012", identity.getAccountId());
   }
 

@@ -15,6 +15,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 class AliStsVerifierTest {
 
@@ -143,6 +144,46 @@ class AliStsVerifierTest {
     AliStsVerifier verifier = new AliStsVerifier.Builder().build(httpClient);
     Assertions.assertThrows(
         UnknownException.class, () -> verifier.verifySignedAuthRequest(IDENTITY));
+  }
+
+  @Test
+  void untrustedHostIsRejectedWithoutReplay() {
+    // A crafted signed identity pointing at an attacker-controlled host that would happily return a
+    // well-formed identity response must be rejected before any replay happens, otherwise the
+    // attacker forges an identity. The client is never touched.
+    HttpClient httpClient = mock(HttpClient.class);
+    String forgedIdentity =
+        "https://localhost:9999/?Action=GetCallerIdentity&Version=2015-04-01&Format=JSON";
+
+    AliStsVerifier verifier = new AliStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnAuthorizedException.class, () -> verifier.verifySignedAuthRequest(forgedIdentity));
+    Mockito.verifyNoInteractions(httpClient);
+  }
+
+  @Test
+  void nonHttpsSchemeIsRejected() {
+    HttpClient httpClient = mock(HttpClient.class);
+    String insecureIdentity =
+        "http://sts.cn-hangzhou.aliyuncs.com/?Action=GetCallerIdentity&Version=2015-04-01"
+            + "&Format=JSON";
+
+    AliStsVerifier verifier = new AliStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnAuthorizedException.class, () -> verifier.verifySignedAuthRequest(insecureIdentity));
+    Mockito.verifyNoInteractions(httpClient);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void centralStsEndpointIsAccepted() throws Exception {
+    HttpClient httpClient = okClient();
+    String centralIdentity =
+        "https://sts.aliyuncs.com/?Action=GetCallerIdentity&Version=2015-04-01&Format=JSON";
+
+    CallerIdentity identity =
+        new AliStsVerifier.Builder().build(httpClient).verifySignedAuthRequest(centralIdentity);
+    Assertions.assertEquals("123456789012", identity.getAccountId());
   }
 
   @SuppressWarnings("unchecked")
