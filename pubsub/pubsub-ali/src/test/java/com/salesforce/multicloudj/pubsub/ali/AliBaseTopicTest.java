@@ -1,12 +1,22 @@
 package com.salesforce.multicloudj.pubsub.ali;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.aliyun.mns.model.MessagePropertyValue;
+import com.aliyun.mns.model.PropertyType;
 import com.aliyun.mns.model.serialize.queue.MessageListSerializer;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -61,6 +71,354 @@ public class AliBaseTopicTest {
             "each serialized sub-batch must stay within the 64 KB per-request limit");
       }
     }
+  }
+
+  @Test
+  void estimatedRequestSizeCoversUserProperties() throws Exception {
+    // The metadata byte accounting must be a true upper bound on what the SMQ SDK actually
+    // serializes, including XML escaping of values. Build a batch whose messages carry keys that
+    // need hex-escaping and values with XML-special characters, serialize exactly as
+    // batchPutMessage does, and confirm the estimate is at least the serialized size.
+    try (AliSmqQueue topic = new AliSmqQueue()) {
+      List<Message> batch =
+          List.of(
+              Message.builder()
+                  .withBody("body-1".getBytes(UTF_8))
+                  .withMetadata("trace.id", "a&b<c>d\"e")
+                  .withMetadata("plainKey", "value")
+                  .build(),
+              Message.builder().withBody("body-2".getBytes(UTF_8)).withMetadata("k_2", "").build());
+      long estimate = AliBaseTopic.FIXED_REQUEST_OVERHEAD_BYTES;
+      for (Message message : batch) {
+        estimate += topic.measureWireSize(message);
+      }
+      assertTrue(
+          estimate >= serializedLength(topic, batch),
+          "estimated request size must be an upper bound on the serialized size with properties");
+    }
+  }
+
+  @Test
+  void estimatedRequestSizeCoversBinaryUserPropertyValue() throws Exception {
+    // A metadata value carrying an XML-illegal control byte cannot ride as XML text, so it rides
+    // as a BINARY property whose wire form is the base64 of its UTF-8 bytes (a 4/3 inflation, not
+    // the up-to-5x XML-escape expansion a STRING value gets). The byte accounting must stay a true
+    // upper bound on that base64 form, or a metadata-heavy message near the 64 KB cap could
+    // under-count and slip past the guard. A several-hundred-byte value exercises the base64
+    // inflation; confirm the estimate is at least the real MessageListSerializer output. A BINARY
+    // value's wire form is the base64 of its default-charset bytes, which equal its UTF-8 bytes
+    // only on a UTF-8-default JVM (the supported configuration).
+    assumeTrue(
+        Charset.defaultCharset().equals(StandardCharsets.UTF_8),
+        "BINARY value sizing asserted only on a UTF-8-default JVM");
+    try (AliSmqQueue topic = new AliSmqQueue()) {
+      // A leading U+0001 (an XML-illegal C0 control byte) makes the whole value XML-unsafe.
+      String binaryValue = (char) 1 + "v".repeat(400);
+      List<Message> batch =
+          List.of(
+              Message.builder()
+                  .withBody("body".getBytes(UTF_8))
+                  .withMetadata("trace.id", binaryValue)
+                  .build());
+      // The XML-illegal control byte forces the value onto the BINARY (base64) property path.
+      assertEquals(
+          PropertyType.BINARY, propertyFor(topic, "trace.id", binaryValue).getDataType());
+      long estimate = AliBaseTopic.FIXED_REQUEST_OVERHEAD_BYTES;
+      for (Message message : batch) {
+        estimate += topic.measureWireSize(message);
+      }
+      assertTrue(
+          estimate >= serializedLength(topic, batch),
+          "estimated request size must be an upper bound on the serialized size with a "
+              + "BINARY-valued property");
+    }
+  }
+
+  @Test
+  void metadataAttributesCountTowardTheBatchByteLimit() throws Exception {
+    try (AliSmqQueue topic = new AliSmqQueue()) {
+      // Two messages with tiny bodies but large metadata (three max-length-valued attributes each,
+      // ~60 KB on the wire per message) exceed the 64 KB per-request cap together, so the byte
+      // guard must split them into separate sub-batches even though their bodies alone would fit.
+      Message heavy1 = messageWithLargeMetadata("m1");
+      Message heavy2 = messageWithLargeMetadata("m2");
+      // A single such message stays under the per-request cap (it is not rejected outright)...
+      assertTrue(
+          AliBaseTopic.FIXED_REQUEST_OVERHEAD_BYTES + topic.measureWireSize(heavy1)
+              <= AliBaseTopic.MAX_BATCH_BYTE_SIZE);
+      // ...but the two together do not, so splitBySize separates them.
+      assertEquals(2, topic.splitBySize(List.of(heavy1, heavy2)).size());
+      // The split is driven by the metadata, not the body: the same bodies with no metadata pack
+      // into a single sub-batch.
+      List<List<Message>> bodyOnly =
+          topic.splitBySize(
+              List.of(
+                  Message.builder().withBody("x").build(),
+                  Message.builder().withBody("x").build()));
+      assertEquals(1, bodyOnly.size());
+    }
+  }
+
+  @Test
+  void metadataKeyCodecRoundTripsRepresentativeKeys() {
+    String[] keys = {
+      "simple",
+      "with-hyphen",
+      "MiXeD123",
+      "dotted.key",
+      "under_score",
+      "space key",
+      "colon:semi;comma,",
+      "unicode-café-Ω",
+      "__0x41__",
+      " ",
+      "\t",
+      "a..b",
+      ".leading",
+      "trailing."
+    };
+    for (String key : keys) {
+      String encoded = AliBaseTopic.encodeMetadataKey(key);
+      assertEquals(
+          key,
+          AliBaseTopic.decodeMetadataKey(encoded),
+          "key must round-trip through encode/decode: " + key);
+    }
+  }
+
+  @Test
+  void encodedMetadataKeyStaysWithinSmqAttributeNameCharset() {
+    // Encoded keys use only [A-Za-z0-9._-] and never a leading, trailing, or consecutive dot, so
+    // they satisfy the SMQ attribute-name charset and its dot-position rules for any input.
+    String[] keys = {
+      "dotted.key", "a..b", ".x.", "space and & < >", "café", "trailing.", ".lead", "__0x41__"
+    };
+    for (String key : keys) {
+      String encoded = AliBaseTopic.encodeMetadataKey(key);
+      assertTrue(encoded.matches("[A-Za-z0-9._-]*"), "encoded key charset: " + encoded);
+      assertFalse(encoded.startsWith("."), "encoded key must not start with a dot: " + encoded);
+      assertFalse(encoded.endsWith("."), "encoded key must not end with a dot: " + encoded);
+      assertFalse(encoded.contains(".."), "encoded key must not hold consecutive dots: " + encoded);
+    }
+  }
+
+  @Test
+  void encodeMetadataKeyPassesThroughConformingKeys() {
+    // Alphanumerics, '-', '_', and a single interior '.' are all within the SMQ attribute-name
+    // charset, so a conforming key rides the wire unescaped and decodes back identical.
+    for (String key : new String[] {"abc-DEF-123", "under_score", "a_b_c", "trace.id", "a.b.c"}) {
+      String encoded = AliBaseTopic.encodeMetadataKey(key);
+      assertEquals(key, encoded, "conforming key must pass through raw: " + key);
+      assertEquals(key, AliBaseTopic.decodeMetadataKey(encoded));
+    }
+  }
+
+  @Test
+  void encodeMetadataKeyEscapesNonConformingBytesAndDotBoundaries() {
+    // A space (and any byte outside [A-Za-z0-9._-]) is hex-escaped; an underscore and an interior
+    // isolated dot ride raw; a leading, trailing, or consecutive dot is escaped as __0x2E__.
+    assertEquals("a__0x20__b", AliBaseTopic.encodeMetadataKey("a b"));
+    assertEquals("a_b", AliBaseTopic.encodeMetadataKey("a_b"));
+    assertEquals("a.b", AliBaseTopic.encodeMetadataKey("a.b"));
+    assertEquals("__0x2E__a", AliBaseTopic.encodeMetadataKey(".a"));
+    assertEquals("a__0x2E__", AliBaseTopic.encodeMetadataKey("a."));
+    assertEquals("a__0x2E____0x2E__b", AliBaseTopic.encodeMetadataKey("a..b"));
+  }
+
+  @Test
+  void encodeMetadataKeyHardensLiteralEscapeTokenSoItRoundTrips() {
+    // A user key literally containing an "__0x..__" escape token must not be misread on decode as
+    // the byte it looks like: encode disrupts the marker so the exact literal round-trips.
+    String literal = "__0x41__";
+    String encoded = AliBaseTopic.encodeMetadataKey(literal);
+    assertNotEquals(literal, encoded, "the literal escape token must be disrupted on the wire");
+    assertEquals(literal, AliBaseTopic.decodeMetadataKey(encoded));
+    assertNotEquals("A", AliBaseTopic.decodeMetadataKey(encoded), "must not decode as byte 0x41");
+  }
+
+  @Test
+  void encodeMetadataKeyRejectsEncodedKeyOverLengthLimit() {
+    // Each space hex-escapes to 8 characters, so 33 spaces encode to 264 characters, over the SMQ
+    // 256-character attribute-name limit; the message must fail fast rather than be rejected by the
+    // service. A conforming 256-character key stays within the limit.
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> AliBaseTopic.encodeMetadataKey(" ".repeat(33)));
+    assertEquals(256, AliBaseTopic.encodeMetadataKey("a".repeat(256)).length());
+  }
+
+  @Test
+  void metadataValueRidesAsStringWhenXmlSafeAndBinaryWhenNot() throws Exception {
+    try (AliSmqQueue topic = new AliSmqQueue()) {
+      // An XML-safe value (incl. XML specials and multibyte) rides as a STRING property and reads
+      // back exactly.
+      MessagePropertyValue string = propertyFor(topic, "k", "a & b < c > 世界");
+      assertEquals(PropertyType.STRING, string.getDataType());
+      assertEquals("a & b < c > 世界", string.getStringValueByType());
+      // An XML-unsafe value (an XML-illegal control byte) rides as a BINARY property and still
+      // reads back exactly via getStringValueByType.
+      MessagePropertyValue binary = propertyFor(topic, "k", "x\u0000y");
+      assertEquals(PropertyType.BINARY, binary.getDataType());
+      assertEquals("x\u0000y", binary.getStringValueByType());
+      // An empty value rides as a present STRING "".
+      MessagePropertyValue empty = propertyFor(topic, "k", "");
+      assertEquals(PropertyType.STRING, empty.getDataType());
+      assertEquals("", empty.getStringValueByType());
+    }
+  }
+
+  @Test
+  void binaryValueCharsetGuardAcceptsValuesOnUtf8DefaultJvm() {
+    // The BINARY charset guard rejects a value only when the JVM default charset would not
+    // reproduce its UTF-8 bytes. On a UTF-8-default JVM (the supported configuration) the two
+    // encodings always agree, so no XML-unsafe value is spuriously rejected; the throw path is
+    // exercised only where the default charset differs from UTF-8, which a unit test cannot force
+    // in-process.
+    assumeTrue(
+        Charset.defaultCharset().equals(StandardCharsets.UTF_8),
+        "guard behavior asserted only on a UTF-8-default JVM");
+    for (String value :
+        new String[] {"x\u0000y", "before\uFFFFafter",
+            "世界", "", "plain"}) {
+      assertFalse(
+          AliBaseTopic.binaryValueCorruptsUnderDefaultCharset(value),
+          "no value should be rejected on a UTF-8-default JVM: [" + value + "]");
+    }
+  }
+
+  @Test
+  void binaryValueLengthLimitIsMeasuredOnItsBase64WireForm() throws Exception {
+    // An XML-unsafe value rides as a BINARY property whose wire form is the base64 of its UTF-8
+    // bytes, and SMQ measures the 4096-character per-value limit on that base64 text. So the raw
+    // value may hold at most 3072 UTF-8 bytes: base64 inflates a 3-byte group to 4 characters, so
+    // 3072 bytes encode to exactly 4096 characters (accepted, rides as BINARY) while one more byte
+    // encodes to 4100 characters (rejected fail-fast). A single-byte XML-illegal control character
+    // (U+0001) makes the value XML-unsafe with its character count equal to its UTF-8 byte count. A
+    // BINARY value's wire form is the base64 of its default-charset bytes, which equal its UTF-8
+    // bytes only on a UTF-8-default JVM (the supported configuration).
+    assumeTrue(
+        Charset.defaultCharset().equals(StandardCharsets.UTF_8),
+        "BINARY value length asserted only on a UTF-8-default JVM");
+    try (AliSmqQueue topic = new AliSmqQueue()) {
+      String atLimit = String.valueOf((char) 1).repeat(3072);
+      MessagePropertyValue property = propertyFor(topic, "k", atLimit);
+      assertEquals(
+          PropertyType.BINARY,
+          property.getDataType(),
+          "a 3072-byte XML-unsafe value (base64 length 4096) must be accepted as BINARY");
+
+      String overLimit = String.valueOf((char) 1).repeat(3073);
+      Message message =
+          Message.builder().withBody("b".getBytes(UTF_8)).withMetadata("k", overLimit).build();
+      assertThrows(
+          InvalidArgumentException.class,
+          () -> topic.toSmqMessage(message),
+          "a 3073-byte XML-unsafe value (base64 length 4100) must be rejected fail-fast");
+    }
+  }
+
+  @Test
+  void stringValueLengthLimitCountsLogicalCharacters() throws Exception {
+    // An XML-safe value rides as a STRING property (XML text), and SMQ measures the 4096-character
+    // per-value limit in logical characters: XML escaping and multibyte UTF-8 encoding do not count
+    // toward it. A 4096-character value of '&' (which escapes to ~20 KB on the wire) and a
+    // 4096-character multibyte value (~12 KB of UTF-8) are both accepted as STRING properties; only
+    // a value over 4096 logical characters is rejected, regardless of how large it is in bytes.
+    try (AliSmqQueue topic = new AliSmqQueue()) {
+      String ampersands = "&".repeat(AliBaseTopic.MAX_PROPERTY_VALUE_LENGTH);
+      assertEquals(
+          PropertyType.STRING,
+          propertyFor(topic, "k", ampersands).getDataType(),
+          "a 4096-char value that escapes to ~20 KB on the wire must be accepted as STRING");
+
+      String multibyte = "世".repeat(AliBaseTopic.MAX_PROPERTY_VALUE_LENGTH);
+      assertEquals(
+          PropertyType.STRING,
+          propertyFor(topic, "k", multibyte).getDataType(),
+          "a 4096-char multibyte value (~12 KB of UTF-8) must be accepted as STRING");
+
+      String tooLong = "&".repeat(AliBaseTopic.MAX_PROPERTY_VALUE_LENGTH + 1);
+      Message message =
+          Message.builder().withBody("b".getBytes(UTF_8)).withMetadata("k", tooLong).build();
+      assertThrows(
+          InvalidArgumentException.class,
+          () -> topic.toSmqMessage(message),
+          "a value over 4096 logical characters must be rejected regardless of byte size");
+    }
+  }
+
+  /** Builds the SMQ user property a publisher would set for {@code key -> value}. */
+  private static MessagePropertyValue propertyFor(AliSmqQueue topic, String key, String value) {
+    com.aliyun.mns.model.Message wire =
+        topic.toSmqMessage(
+            Message.builder().withBody("b".getBytes(UTF_8)).withMetadata(key, value).build());
+    return wire.getUserProperties().get(AliBaseTopic.encodeMetadataKey(key));
+  }
+
+  @Test
+  void encodeMetadataKeyRejectsNullOrEmptyKey() {
+    // An empty key would encode to an empty wire name (<Name/>), which SMQ rejects with an opaque
+    // error and the SDK silently drops on receive; both null and empty must fail fast at the codec.
+    assertThrows(InvalidArgumentException.class, () -> AliBaseTopic.encodeMetadataKey(null));
+    assertThrows(InvalidArgumentException.class, () -> AliBaseTopic.encodeMetadataKey(""));
+  }
+
+  @Test
+  void toSmqMessageRejectsEmptyMetadataKey() throws Exception {
+    // End-to-end: a message carrying an empty metadata key must be rejected before publish (as the
+    // other per-message limits are), not shipped as an <Name/> the service rejects opaquely.
+    try (AliSmqQueue topic = new AliSmqQueue()) {
+      Message message =
+          Message.builder().withBody("b".getBytes(UTF_8)).withMetadata("", "value").build();
+      assertThrows(InvalidArgumentException.class, () -> topic.toSmqMessage(message));
+    }
+  }
+
+  @Test
+  void encodeMetadataKeyKeepsWhitespaceKeysSoTheyAreNotOverRejected() {
+    // A whitespace-only key is not empty on the wire: it hex-escapes to a valid, non-empty SMQ
+    // attribute name and round-trips, so it must pass through rather than be over-rejected.
+    assertEquals("__0x20__", AliBaseTopic.encodeMetadataKey(" "));
+    assertEquals(" ", AliBaseTopic.decodeMetadataKey(AliBaseTopic.encodeMetadataKey(" ")));
+    assertEquals("__0x09__", AliBaseTopic.encodeMetadataKey("\t"));
+    assertEquals("\t", AliBaseTopic.decodeMetadataKey(AliBaseTopic.encodeMetadataKey("\t")));
+  }
+
+  @Test
+  void decodeMetadataKeyTreatsMalformedTokenAsLiteral() {
+    // A "__0x" sequence not completed by two hex digits and "__" is not a valid token, so it
+    // decodes literally rather than throwing.
+    assertEquals("__0xZZ__", AliBaseTopic.decodeMetadataKey("__0xZZ__"));
+    assertEquals("__0x", AliBaseTopic.decodeMetadataKey("__0x"));
+    assertEquals(null, AliBaseTopic.decodeMetadataKey(null));
+  }
+
+  @Test
+  void isXmlSafeDetectsNoncharacterAtEndOfBuffer() {
+    // The noncharacter scan matches a 3-byte U+FFFE/U+FFFF sequence at any offset, including one
+    // occupying the final three bytes. Verify the end-of-buffer boundary is not off-by-one: a body
+    // whose last three bytes are U+FFFE (EF BF BE) or U+FFFF (EF BF BF) is reported XML-unsafe, as
+    // an interior noncharacter is (covered in
+    // isXmlSafeAcceptsAllowedWhitespaceAndRejectsOtherControlBytes).
+    assertFalse(
+        AliBaseTopic.isXmlSafe(new byte[] {'o', 'k', (byte) 0xEF, (byte) 0xBF, (byte) 0xBE}),
+        "a body ending in U+FFFE (EF BF BE) is XML-illegal");
+    assertFalse(
+        AliBaseTopic.isXmlSafe(new byte[] {'o', 'k', (byte) 0xEF, (byte) 0xBF, (byte) 0xBF}),
+        "a body ending in U+FFFF (EF BF BF) is XML-illegal");
+    // The 3-byte sequence occupying the entire buffer is detected too.
+    assertFalse(
+        AliBaseTopic.isXmlSafe(new byte[] {(byte) 0xEF, (byte) 0xBF, (byte) 0xBE}),
+        "a body that is only U+FFFE is XML-illegal");
+  }
+
+  private static Message messageWithLargeMetadata(String keyPrefix) {
+    String value = "v".repeat(AliBaseTopic.MAX_PROPERTY_VALUE_LENGTH);
+    Message.Builder builder = Message.builder().withBody("x");
+    for (int i = 0; i < 3; i++) {
+      builder.withMetadata(keyPrefix + "-" + i, value);
+    }
+    return builder.build();
   }
 
   private static void assertEstimateIsUpperBound(AliSmqQueue topic, List<Message> messages)

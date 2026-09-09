@@ -7,6 +7,7 @@ import com.aliyun.mns.common.ClientException;
 import com.aliyun.mns.common.ServiceException;
 import com.aliyun.mns.common.ServiceHandlingRequiredException;
 import com.aliyun.mns.model.ErrorMessageResult;
+import com.aliyun.mns.model.MessagePropertyValue;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -18,6 +19,7 @@ import com.salesforce.multicloudj.pubsub.driver.AckInfo;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -115,16 +117,44 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
   /**
    * Converts an SMQ SDK message into a multicloudj {@link Message}.
    *
-   * <p>The body is base64-decoded back to raw bytes. Message metadata (SMQ user properties) is not
-   * yet decoded; a follow-up change populates it here.
+   * <p>The body is base64-decoded back to raw bytes. SMQ user properties are decoded back into
+   * message metadata: each property key is un-escaped via {@link AliBaseTopic#decodeMetadataKey}
+   * and its value read with {@code getStringValueByType}.
    */
   private Message toMessage(com.aliyun.mns.model.Message smqMessage) {
     byte[] body = smqMessage.getMessageBodyAsBytes();
-    return Message.builder()
-        .withBody(body == null ? new byte[0] : body)
-        .withAckID(new AliAckID(smqMessage.getReceiptHandle()))
-        .withLoggableID(smqMessage.getMessageId())
-        .build();
+    Message.Builder builder =
+        Message.builder()
+            .withBody(body == null ? new byte[0] : body)
+            .withAckID(new AliAckID(smqMessage.getReceiptHandle()))
+            .withLoggableID(smqMessage.getMessageId());
+    Map<String, String> metadata = decodeMetadata(smqMessage.getUserProperties());
+    if (!metadata.isEmpty()) {
+      builder.withMetadata(metadata);
+    }
+    return builder.build();
+  }
+
+  /**
+   * Decodes SMQ user properties back into message metadata: un-escapes each key via
+   * {@link AliBaseTopic#decodeMetadataKey} and reads each value natively via {@code
+   * getStringValueByType} (which returns a STRING property's text and a BINARY property's
+   * UTF-8-decoded bytes uniformly, the reverse of the publisher's native encoding and coalescing a
+   * null value to the empty string). Returns an empty map when the message carries no user
+   * properties.
+   */
+  private static Map<String, String> decodeMetadata(
+      Map<String, MessagePropertyValue> userProperties) {
+    Map<String, String> metadata = new HashMap<>();
+    if (userProperties == null || userProperties.isEmpty()) {
+      return metadata;
+    }
+    for (Map.Entry<String, MessagePropertyValue> entry : userProperties.entrySet()) {
+      MessagePropertyValue value = entry.getValue();
+      String stringValue = value == null ? "" : value.getStringValueByType();
+      metadata.put(AliBaseTopic.decodeMetadataKey(entry.getKey()), stringValue);
+    }
+    return metadata;
   }
 
   @Override

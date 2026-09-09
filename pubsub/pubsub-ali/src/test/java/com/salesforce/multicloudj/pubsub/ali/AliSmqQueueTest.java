@@ -19,15 +19,17 @@ import com.aliyun.mns.client.MNSClient;
 import com.aliyun.mns.common.BatchSendException;
 import com.aliyun.mns.common.ServiceException;
 import com.aliyun.mns.model.ErrorMessageResult;
+import com.aliyun.mns.model.MessagePropertyValue;
+import com.aliyun.mns.model.PropertyType;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -78,15 +80,113 @@ public class AliSmqQueueTest {
   }
 
   @Test
-  void sendMessageWithMetadataThrowsUnsupportedAndDoesNotPublish() {
+  void sendMessageWithMetadataPublishesUserProperties() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
     AliSmqQueue topic = topic(client, queue);
 
-    Message message =
-        Message.builder().withBody("x".getBytes(UTF_8)).withMetadata("k", "v").build();
-    assertThrows(UnSupportedOperationException.class, () -> topic.send(message));
+    topic.send(Message.builder().withBody("hello".getBytes(UTF_8)).withMetadata("k", "v").build());
+
+    com.aliyun.mns.model.Message sent = captureSingleSent(queue);
+    // The body is unchanged and the metadata rides along as a STRING user property.
+    assertArrayEquals("hello".getBytes(UTF_8), sent.getMessageBodyAsBytes());
+    Map<String, MessagePropertyValue> props = sent.getUserProperties();
+    assertEquals(1, props.size());
+    MessagePropertyValue value = props.get("k");
+    assertEquals(PropertyType.STRING, value.getDataType());
+    assertEquals("v", value.getStringValueByType());
+  }
+
+  @Test
+  void sendMessageEncodesNonConformingMetadataKeysToSmqCharset() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliSmqQueue topic = topic(client, queue);
+
+    // The space is outside the SMQ attribute-name charset, so it is hex-escaped; the interior dot
+    // and the underscore ride raw. The escaped key stays within the SMQ-safe charset and
+    // round-trips.
+    String rawKey = "trace.id key_1";
+    topic.send(Message.builder().withBody("b".getBytes(UTF_8)).withMetadata(rawKey, "42").build());
+
+    com.aliyun.mns.model.Message sent = captureSingleSent(queue);
+    Map<String, MessagePropertyValue> props = sent.getUserProperties();
+    String encodedKey = props.keySet().iterator().next();
+    assertEquals(AliBaseTopic.encodeMetadataKey(rawKey), encodedKey);
+    assertTrue(
+        encodedKey.matches("[A-Za-z0-9._-]+"), "encoded key must be SMQ-attribute-name safe");
+    assertEquals(rawKey, AliBaseTopic.decodeMetadataKey(encodedKey));
+    assertEquals("42", props.get(encodedKey).getStringValueByType());
+  }
+
+  @Test
+  void sendMessageCoalescesNullMetadataValueToEmptyString() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliSmqQueue topic = topic(client, queue);
+
+    // The SMQ MessagePropertyValue(STRING, value) constructor rejects a null value, so a null
+    // metadata value must be coalesced to "" rather than throwing.
+    topic.send(Message.builder().withBody("b".getBytes(UTF_8)).withMetadata("k", null).build());
+
+    com.aliyun.mns.model.Message sent = captureSingleSent(queue);
+    MessagePropertyValue value = sent.getUserProperties().get("k");
+    assertEquals(PropertyType.STRING, value.getDataType());
+    assertEquals("", value.getStringValueByType());
+  }
+
+  @Test
+  void sendMessageCarriesEmptyMetadataValueAsEmptyString() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliSmqQueue topic = topic(client, queue);
+
+    topic.send(Message.builder().withBody("b".getBytes(UTF_8)).withMetadata("k", "").build());
+
+    com.aliyun.mns.model.Message sent = captureSingleSent(queue);
+    MessagePropertyValue value = sent.getUserProperties().get("k");
+    assertEquals(PropertyType.STRING, value.getDataType());
+    assertEquals("", value.getStringValueByType());
+  }
+
+  @Test
+  void sendMessageWithTooManyMetadataAttributesFailsFast() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliSmqQueue topic = topic(client, queue);
+
+    Message.Builder builder = Message.builder().withBody("b".getBytes(UTF_8));
+    for (int i = 0; i <= AliBaseTopic.MAX_USER_PROPERTIES; i++) {
+      builder.withMetadata("k" + i, "v");
+    }
+    Message message = builder.build();
+
+    assertThrows(InvalidArgumentException.class, () -> topic.send(message));
     verify(queue, never()).batchPutMessage(any());
+  }
+
+  @Test
+  void sendMessageWithTooLongMetadataValueFailsFast() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliSmqQueue topic = topic(client, queue);
+
+    String tooLong = "x".repeat(AliBaseTopic.MAX_PROPERTY_VALUE_LENGTH + 1);
+    Message message =
+        Message.builder().withBody("b".getBytes(UTF_8)).withMetadata("k", tooLong).build();
+
+    assertThrows(InvalidArgumentException.class, () -> topic.send(message));
+    verify(queue, never()).batchPutMessage(any());
+  }
+
+  /** Captures the single SMQ message sent through the queue's one batchPutMessage call. */
+  private static com.aliyun.mns.model.Message captureSingleSent(CloudQueue queue) {
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<com.aliyun.mns.model.Message>> captor = ArgumentCaptor.forClass(List.class);
+    verify(queue).batchPutMessage(captor.capture());
+    List<com.aliyun.mns.model.Message> sent = captor.getValue();
+    assertEquals(1, sent.size());
+    return sent.get(0);
   }
 
   @Test
@@ -225,16 +325,18 @@ public class AliSmqQueueTest {
     AliSmqQueue topic = topic(client, queue);
 
     // Three 20 KB bodies each encode to ~26 KB, so the 64 KB per-request cap splits the batch into
-    // [first, second] and [third]. The third message carries metadata, which toSmqMessage rejects
-    // locally. Because the whole batch is converted before any batchPutMessage call, that local
-    // rejection must fail fast without publishing the earlier, already-split sub-batch.
+    // [first, second] and [third]. The third message carries a metadata value over the SMQ
+    // per-value limit, which toSmqMessage rejects locally. Because the whole batch is converted
+    // before any batchPutMessage call, that local rejection must fail fast without publishing the
+    // earlier, already-split sub-batch.
+    String tooLong = "x".repeat(AliBaseTopic.MAX_PROPERTY_VALUE_LENGTH + 1);
     List<Message> batch =
         List.of(
             Message.builder().withBody(bytesOf(20_000)).build(),
             Message.builder().withBody(bytesOf(20_000)).build(),
-            Message.builder().withBody(bytesOf(20_000)).withMetadata("k", "v").build());
+            Message.builder().withBody(bytesOf(20_000)).withMetadata("k", tooLong).build());
 
-    assertThrows(UnSupportedOperationException.class, () -> topic.doSendBatch(batch));
+    assertThrows(InvalidArgumentException.class, () -> topic.doSendBatch(batch));
     verify(queue, never()).batchPutMessage(any());
   }
 
