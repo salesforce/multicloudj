@@ -38,7 +38,7 @@ public class AliBaseTopicTest {
     // exactly what batchPutMessage transmits) for representative batches: a tiny single message, a
     // single message near the per-message limit, and a full 16-message batch near the packing
     // boundary. Pure client-side serialization: no network, no credentials.
-    try (AliQueueTopic topic = new AliQueueTopic()) {
+    try (AliSmqQueue topic = new AliSmqQueue()) {
       assertEstimateIsUpperBound(topic, uniform(1, 3));
       assertEstimateIsUpperBound(topic, uniform(1, 48_000));
       assertEstimateIsUpperBound(topic, uniform(16, 3_000));
@@ -50,7 +50,7 @@ public class AliBaseTopicTest {
     // An over-limit logical batch is packed by splitBySize into sub-batches; each sub-batch, once
     // serialized by the SMQ SDK, must stay within the documented 64 KB per-request limit. Three
     // ~20 KB bodies (each ~26 KB base64) force a split into more than one sub-batch.
-    try (AliQueueTopic topic = new AliQueueTopic()) {
+    try (AliSmqQueue topic = new AliSmqQueue()) {
       List<Message> batch = uniform(3, 20_000);
       List<List<Message>> subBatches = topic.splitBySize(batch);
       assertTrue(
@@ -63,7 +63,7 @@ public class AliBaseTopicTest {
     }
   }
 
-  private static void assertEstimateIsUpperBound(AliQueueTopic topic, List<Message> messages)
+  private static void assertEstimateIsUpperBound(AliSmqQueue topic, List<Message> messages)
       throws Exception {
     long estimate = AliBaseTopic.FIXED_REQUEST_OVERHEAD_BYTES;
     for (Message message : messages) {
@@ -82,7 +82,7 @@ public class AliBaseTopicTest {
   }
 
   /** Serializes the batch exactly as batchPutMessage does and returns the byte length. */
-  private static long serializedLength(AliQueueTopic topic, List<Message> messages)
+  private static long serializedLength(AliSmqQueue topic, List<Message> messages)
       throws Exception {
     List<com.aliyun.mns.model.Message> mnsMessages = new ArrayList<>();
     for (Message message : messages) {

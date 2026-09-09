@@ -32,7 +32,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-public class AliQueueTopicTest {
+public class AliSmqQueueTest {
 
   private final List<AutoCloseable> closeables = new ArrayList<>();
 
@@ -44,19 +44,19 @@ public class AliQueueTopicTest {
     closeables.clear();
   }
 
-  private AliQueueTopic topic(MNSClient client, CloudQueue queue) {
+  private AliSmqQueue topic(MNSClient client, CloudQueue queue) {
     when(client.getQueueRef("test-queue")).thenReturn(queue);
-    AliQueueTopic.Builder builder = new AliQueueTopic.Builder();
+    AliSmqQueue.Builder builder = new AliSmqQueue.Builder();
     builder.withMnsClient(client);
     builder.withTopicName("test-queue");
-    AliQueueTopic topic = builder.build();
+    AliSmqQueue topic = builder.build();
     closeables.add(topic);
     return topic;
   }
 
   @Test
   void getProviderIdIsAliSmqQueue() throws Exception {
-    try (AliQueueTopic t = new AliQueueTopic()) {
+    try (AliSmqQueue t = new AliSmqQueue()) {
       assertEquals("alismqqueue", t.getProviderId());
     }
   }
@@ -65,7 +65,7 @@ public class AliQueueTopicTest {
   void sendBodyOnlyMessagePutsBase64BodyToQueue() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
-    AliQueueTopic topic = topic(client, queue);
+    AliSmqQueue topic = topic(client, queue);
 
     topic.send(Message.builder().withBody("hello".getBytes(UTF_8)).build());
 
@@ -81,7 +81,7 @@ public class AliQueueTopicTest {
   void sendMessageWithMetadataThrowsUnsupportedAndDoesNotPublish() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
-    AliQueueTopic topic = topic(client, queue);
+    AliSmqQueue topic = topic(client, queue);
 
     Message message =
         Message.builder().withBody("x".getBytes(UTF_8)).withMetadata("k", "v").build();
@@ -93,7 +93,7 @@ public class AliQueueTopicTest {
   void doSendBatchPropagatesNonBatchServiceExceptionForFrameworkToMap() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
-    AliQueueTopic topic = topic(client, queue);
+    AliSmqQueue topic = topic(client, queue);
 
     // A non-batch ServiceException (unlike a BatchSendException carrying per-entry results) is not
     // mapped inside doSendBatch: it propagates raw so the pubsub client framework maps it via
@@ -111,7 +111,7 @@ public class AliQueueTopicTest {
   void perMessageFailedEntryIsSurfaced() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
-    AliQueueTopic topic = topic(client, queue);
+    AliSmqQueue topic = topic(client, queue);
 
     // SMQ throws BatchSendException (never returns a flagged list) when a message in the batch
     // fails; the exception carries the per-message error detail.
@@ -132,7 +132,7 @@ public class AliQueueTopicTest {
   void doSendBatchFailsWholeBatchOnMixedBatchSendResult() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
-    AliQueueTopic topic = topic(client, queue);
+    AliSmqQueue topic = topic(client, queue);
 
     // SMQ's batchPutMessage may accept some messages while rejecting others; on any failure it
     // throws BatchSendException whose result list mixes accepted entries (isErrorMessage()==false)
@@ -166,7 +166,7 @@ public class AliQueueTopicTest {
   void mappedPartialBatchFailureRetainsOriginalBatchSendExceptionInCausalChain() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
-    AliQueueTopic topic = topic(client, queue);
+    AliSmqQueue topic = topic(client, queue);
 
     ErrorMessageResult error = new ErrorMessageResult();
     error.setErrorCode("QueueNotExist");
@@ -191,7 +191,7 @@ public class AliQueueTopicTest {
   void oversizedLogicalBatchIsSplitIntoServiceValidSubBatches() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
-    AliQueueTopic topic = topic(client, queue);
+    AliSmqQueue topic = topic(client, queue);
 
     // Three 20 KB bodies each encode to ~26 KB on the wire, so the 64 KB per-request cap admits at
     // most two per sub-batch: the batch must split into more than one batchPutMessage call.
@@ -222,7 +222,7 @@ public class AliQueueTopicTest {
   void localConversionErrorInLaterSubBatchDoesNotPublishEarlierSubBatch() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
-    AliQueueTopic topic = topic(client, queue);
+    AliSmqQueue topic = topic(client, queue);
 
     // Three 20 KB bodies each encode to ~26 KB, so the 64 KB per-request cap splits the batch into
     // [first, second] and [third]. The third message carries metadata, which toMnsMessage rejects
@@ -242,7 +242,7 @@ public class AliQueueTopicTest {
   void singleMessageOverLimitFailsFastWithoutPublishing() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
-    AliQueueTopic topic = topic(client, queue);
+    AliSmqQueue topic = topic(client, queue);
 
     // A 50 KB body encodes to ~66 KB on the wire, exceeding the 64 KB per-request cap on its own,
     // so it can never be sent in any batch.
@@ -256,7 +256,7 @@ public class AliQueueTopicTest {
   void underLimitBatchIsSentInASingleCall() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
-    AliQueueTopic topic = topic(client, queue);
+    AliSmqQueue topic = topic(client, queue);
 
     List<Message> batch =
         List.of(
@@ -276,14 +276,14 @@ public class AliQueueTopicTest {
   @Test
   void builderRequiresTopicName() {
     MNSClient client = mock(MNSClient.class);
-    AliQueueTopic.Builder builder = new AliQueueTopic.Builder();
+    AliSmqQueue.Builder builder = new AliSmqQueue.Builder();
     builder.withMnsClient(client);
     assertThrows(InvalidArgumentException.class, builder::build);
   }
 
   @Test
   void builderRequiresEndpointWhenNoClientInjected() {
-    AliQueueTopic.Builder builder = new AliQueueTopic.Builder();
+    AliSmqQueue.Builder builder = new AliSmqQueue.Builder();
     builder.withTopicName("test-queue");
     // No MNSClient and no endpoint -> client construction rejects the missing endpoint.
     assertThrows(InvalidArgumentException.class, builder::build);
@@ -293,7 +293,7 @@ public class AliQueueTopicTest {
   void closeClosesMnsClientOnNormalPath() throws Exception {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
-    AliQueueTopic topic = topicWithClient(client, queue);
+    AliSmqQueue topic = topicWithClient(client, queue);
 
     topic.close();
 
@@ -306,7 +306,7 @@ public class AliQueueTopicTest {
     CloudQueue queue = mock(CloudQueue.class);
     RuntimeException clientCloseError = new RuntimeException("client close failed");
     doThrow(clientCloseError).when(client).close();
-    AliQueueTopic topic = topicWithClient(client, queue);
+    AliSmqQueue topic = topicWithClient(client, queue);
 
     // When shutdown succeeds, a client-close failure is not swallowed: it propagates directly.
     RuntimeException thrown = assertThrows(RuntimeException.class, topic::close);
@@ -319,7 +319,7 @@ public class AliQueueTopicTest {
     CloudQueue queue = mock(CloudQueue.class);
     RuntimeException clientCloseError = new RuntimeException("client close failed");
     doThrow(clientCloseError).when(client).close();
-    AliQueueTopic topic = topicWithClient(client, queue);
+    AliSmqQueue topic = topicWithClient(client, queue);
 
     // Induce a super.close() failure. This drain failure cannot be provoked through the public
     // send API: send() is synchronous and fully drains before returning, AbstractTopic.close()
@@ -342,15 +342,15 @@ public class AliQueueTopicTest {
     assertSame(clientCloseError, thrown.getSuppressed()[0]);
   }
 
-  private static AliQueueTopic topicWithClient(MNSClient client, CloudQueue queue) {
+  private static AliSmqQueue topicWithClient(MNSClient client, CloudQueue queue) {
     when(client.getQueueRef("test-queue")).thenReturn(queue);
-    AliQueueTopic.Builder builder = new AliQueueTopic.Builder();
+    AliSmqQueue.Builder builder = new AliSmqQueue.Builder();
     builder.withMnsClient(client);
     builder.withTopicName("test-queue");
     return builder.build();
   }
 
-  private static void setBatcher(AliQueueTopic topic, Batcher<Message> batcher) throws Exception {
+  private static void setBatcher(AliSmqQueue topic, Batcher<Message> batcher) throws Exception {
     Field field = AbstractTopic.class.getDeclaredField("batcher");
     field.setAccessible(true);
     field.set(topic, batcher);

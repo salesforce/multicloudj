@@ -19,18 +19,18 @@ import java.util.List;
  * alismqqueue} provider id.
  */
 @AutoService(AbstractTopic.class)
-public class AliQueueTopic extends AliBaseTopic<AliQueueTopic> {
+public class AliSmqQueue extends AliBaseTopic<AliSmqQueue> {
 
   public static final String PROVIDER_ID = "alismqqueue";
 
   private final MNSClient mnsClient;
   private final CloudQueue queue;
 
-  public AliQueueTopic() {
+  public AliSmqQueue() {
     this(new Builder());
   }
 
-  AliQueueTopic(Builder builder) {
+  AliSmqQueue(Builder builder) {
     super(builder);
     this.mnsClient = builder.mnsClient;
     this.queue = builder.queue;
@@ -140,8 +140,8 @@ public class AliQueueTopic extends AliBaseTopic<AliQueueTopic> {
     return new Builder();
   }
 
-  /** Builder for {@link AliQueueTopic}. */
-  public static class Builder extends AliBaseTopic.Builder<Builder, AliQueueTopic> {
+  /** Builder for {@link AliSmqQueue}. */
+  public static class Builder extends AliBaseTopic.Builder<Builder, AliSmqQueue> {
 
     private CloudQueue queue;
 
@@ -155,7 +155,7 @@ public class AliQueueTopic extends AliBaseTopic<AliQueueTopic> {
     }
 
     @Override
-    public AliQueueTopic build() {
+    public AliSmqQueue build() {
       if (topicName == null || topicName.trim().isEmpty()) {
         throw new InvalidArgumentException("Topic name cannot be null or empty");
       }
@@ -163,7 +163,7 @@ public class AliQueueTopic extends AliBaseTopic<AliQueueTopic> {
         mnsClient = MnsClientUtil.buildMnsClient(endpoint, credentialsOverrider, proxyEndpoint);
       }
       queue = mnsClient.getQueueRef(topicName);
-      return new AliQueueTopic(this);
+      return new AliSmqQueue(this);
     }
   }
 }

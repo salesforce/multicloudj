@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Verifies the Alibaba pubsub providers are discoverable through the public client builders, i.e.
- * that the {@code @AutoService} registrations on {@link AliQueueTopic} and {@link AliSubscription}
+ * that the {@code @AutoService} registrations on {@link AliSmqQueue} and {@link AliSubscription}
  * are present so Java's {@code ServiceLoader} can find them by provider id.
  *
  * <p>{@code TopicClient.builder(id)} and {@code SubscriptionClient.builder(id)} resolve the
@@ -25,7 +25,7 @@ public class AliPubsubProviderDiscoveryTest {
   @Test
   void topicClientBuilderDiscoversAliSmqQueueProvider() {
     // Resolving the "alismqqueue" id through the public builder requires the ServiceLoader
-    // registration on AliQueueTopic; without it the constructor throws IllegalArgumentException.
+    // registration on AliSmqQueue; without it the constructor throws IllegalArgumentException.
     assertNotNull(assertDoesNotThrow(() -> TopicClient.builder("alismqqueue")));
   }
 
