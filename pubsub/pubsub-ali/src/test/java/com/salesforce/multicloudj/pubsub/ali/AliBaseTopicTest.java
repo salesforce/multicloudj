@@ -7,7 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import com.aliyun.mns.client.CloudQueue;
+import com.aliyun.mns.client.MNSClient;
 import com.aliyun.mns.model.MessagePropertyValue;
 import com.aliyun.mns.model.PropertyType;
 import com.aliyun.mns.model.serialize.queue.MessageListSerializer;
@@ -47,11 +51,17 @@ public class AliBaseTopicTest {
     // bound on the request the SMQ SDK actually serializes (MessageListSerializer,
     // exactly what batchPutMessage transmits) for representative batches: a tiny single message, a
     // single message near the per-message limit, and a full 16-message batch near the packing
-    // boundary. Pure client-side serialization: no network, no credentials.
-    try (AliSmqQueue topic = new AliSmqQueue()) {
-      assertEstimateIsUpperBound(topic, uniform(1, 3));
-      assertEstimateIsUpperBound(topic, uniform(1, 48_000));
-      assertEstimateIsUpperBound(topic, uniform(16, 3_000));
+    // boundary. Covers both body wire forms: AUTO carries these UTF-8 bodies raw, ALWAYS
+    // base64-encodes them. Pure client-side serialization: no network, no credentials.
+    try (AliSmqQueue rawTopic = new AliSmqQueue()) {
+      assertEstimateIsUpperBound(rawTopic, uniform(1, 3));
+      assertEstimateIsUpperBound(rawTopic, uniform(1, 48_000));
+      assertEstimateIsUpperBound(rawTopic, uniform(16, 3_000));
+    }
+    try (AliSmqQueue base64Topic = alwaysBase64Topic()) {
+      assertEstimateIsUpperBound(base64Topic, uniform(1, 3));
+      assertEstimateIsUpperBound(base64Topic, uniform(1, 48_000));
+      assertEstimateIsUpperBound(base64Topic, uniform(16, 3_000));
     }
   }
 
@@ -59,8 +69,8 @@ public class AliBaseTopicTest {
   void everySubBatchFromSplitBySizeSerializesWithinTheLimit() throws Exception {
     // An over-limit logical batch is packed by splitBySize into sub-batches; each sub-batch, once
     // serialized by the SMQ SDK, must stay within the documented 64 KB per-request limit. Three
-    // ~20 KB bodies (each ~26 KB base64) force a split into more than one sub-batch.
-    try (AliSmqQueue topic = new AliSmqQueue()) {
+    // ~20 KB bodies (each ~26 KB base64 under ALWAYS) force a split into more than one sub-batch.
+    try (AliSmqQueue topic = alwaysBase64Topic()) {
       List<Message> batch = uniform(3, 20_000);
       List<List<Message>> subBatches = topic.splitBySize(batch);
       assertTrue(
@@ -95,6 +105,30 @@ public class AliBaseTopicTest {
       assertTrue(
           estimate >= serializedLength(topic, batch),
           "estimated request size must be an upper bound on the serialized size with properties");
+    }
+  }
+
+  @Test
+  void crHeavyRawBodyIsSizedAtLeastItsSerializedLength() throws Exception {
+    // The SMQ SDK serializes carriage return (0x0D) in XML text as the numeric character reference
+    // "&#13;", a multi-byte expansion, while line feed and tab stay one byte. A CR-heavy raw body
+    // under AUTO must be sized with that expansion charged, or a body near the 64 KB cap could
+    // under-count and slip past the guard. Prove the estimate is a true upper bound on the real
+    // MessageListSerializer output for a body that is almost all CRs.
+    StringBuilder crHeavy = new StringBuilder();
+    for (int i = 0; i < 8_000; i++) {
+      crHeavy.append("\r\n");
+    }
+    try (AliSmqQueue topic = new AliSmqQueue()) {
+      List<Message> batch =
+          List.of(Message.builder().withBody(crHeavy.toString().getBytes(UTF_8)).build());
+      long estimate = AliBaseTopic.FIXED_REQUEST_OVERHEAD_BYTES;
+      for (Message message : batch) {
+        estimate += topic.measureWireSize(message);
+      }
+      assertTrue(
+          estimate >= serializedLength(topic, batch),
+          "a CR-heavy raw body must be sized at least its serialized (CR-expanded) length");
     }
   }
 
@@ -137,8 +171,8 @@ public class AliBaseTopicTest {
   @Test
   void metadataAttributesCountTowardTheBatchByteLimit() throws Exception {
     try (AliSmqQueue topic = new AliSmqQueue()) {
-      // Two messages with tiny bodies but large metadata (three max-length-valued attributes each,
-      // ~60 KB on the wire per message) exceed the 64 KB per-request cap together, so the byte
+      // Two messages with tiny bodies but large metadata (ten max-length-valued attributes each,
+      // ~42 KB on the wire per message) exceed the 64 KB per-request cap together, so the byte
       // guard must split them into separate sub-batches even though their bodies alone would fit.
       Message heavy1 = messageWithLargeMetadata("m1");
       Message heavy2 = messageWithLargeMetadata("m2");
@@ -156,6 +190,62 @@ public class AliBaseTopicTest {
                   Message.builder().withBody("x").build(),
                   Message.builder().withBody("x").build()));
       assertEquals(1, bodyOnly.size());
+    }
+  }
+
+  @Test
+  void plainTextMetadataValuesAtMaxLengthAreNotOverRejected() throws Exception {
+    // A STRING metadata value rides as XML text charged its exact XML-escaped byte length, so
+    // ordinary escape-free text costs one wire byte per byte rather than a blanket worst-case
+    // multiple. Four attributes each holding the documented 4096-character per-value maximum of
+    // plain ASCII total ~17 KB on the wire, well under the 64 KB per-request cap, so such a message
+    // must be accepted by the byte guard rather than falsely rejected as oversized.
+    try (AliSmqQueue topic = new AliSmqQueue()) {
+      Message.Builder builder = Message.builder().withBody("b".getBytes(UTF_8));
+      for (int i = 0; i < 4; i++) {
+        builder.withMetadata("key" + i, "a".repeat(AliBaseTopic.MAX_PROPERTY_VALUE_LENGTH));
+      }
+      Message message = builder.build();
+      List<Message> batch = List.of(message);
+
+      long requestSize = AliBaseTopic.FIXED_REQUEST_OVERHEAD_BYTES + topic.measureWireSize(message);
+      assertTrue(
+          requestSize < AliBaseTopic.MAX_BATCH_BYTE_SIZE,
+          "four max-length plain-text metadata values must estimate well under the 64 KB cap, not "
+              + "over it; measured "
+              + requestSize);
+      // The byte guard must pack the message (not throw it out as oversized): splitBySize returns a
+      // single sub-batch, and the estimate stays a true upper bound on the real serialized size.
+      List<List<Message>> subBatches = topic.splitBySize(batch);
+      assertEquals(1, subBatches.size());
+      assertTrue(
+          requestSize >= serializedLength(topic, batch),
+          "the estimate must remain an upper bound on the serialized size");
+    }
+  }
+
+  @Test
+  void escapeHeavyMetadataValueIsSizedAtLeastItsSerializedLength() throws Exception {
+    // A STRING metadata value is charged its exact XML-escaped byte length, so an escape-heavy
+    // value (each '&' expands to "&amp;", each '<'/'>' to their entities) and a mixed plain+escape
+    // value must both still estimate at least their real MessageListSerializer output. This proves
+    // the per-byte accounting never under-counts the escaped wire form, which would slip an
+    // oversized request past the 64 KB guard (a fail-open the exact sizing must not introduce).
+    try (AliSmqQueue topic = new AliSmqQueue()) {
+      List<Message> batch =
+          List.of(
+              Message.builder()
+                  .withBody("b".getBytes(UTF_8))
+                  .withMetadata("all-amp", "&".repeat(2000))
+                  .withMetadata("mixed", "plain-" + "<&>".repeat(500) + "-tail")
+                  .build());
+      long estimate = AliBaseTopic.FIXED_REQUEST_OVERHEAD_BYTES;
+      for (Message message : batch) {
+        estimate += topic.measureWireSize(message);
+      }
+      assertTrue(
+          estimate >= serializedLength(topic, batch),
+          "escape-heavy STRING metadata must be sized at least its XML-escaped serialized length");
     }
   }
 
@@ -277,9 +367,7 @@ public class AliBaseTopicTest {
     assumeTrue(
         Charset.defaultCharset().equals(StandardCharsets.UTF_8),
         "guard behavior asserted only on a UTF-8-default JVM");
-    for (String value :
-        new String[] {"x\u0000y", "before\uFFFFafter",
-            "世界", "", "plain"}) {
+    for (String value : new String[] {"x\u0000y", "before\uFFFFafter", "世界", "", "plain"}) {
       assertFalse(
           AliBaseTopic.binaryValueCorruptsUnderDefaultCharset(value),
           "no value should be rejected on a UTF-8-default JVM: [" + value + "]");
@@ -394,6 +482,44 @@ public class AliBaseTopicTest {
   }
 
   @Test
+  void isXmlSafeAcceptsAllowedWhitespaceAndRejectsOtherControlBytes() {
+    // XML 1.0 permits tab, LF and CR among the C0 controls; every other control byte
+    // (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F) is illegal in XML text and must be reported unsafe.
+    assertTrue(AliBaseTopic.isXmlSafe(new byte[0]), "empty body is XML-safe");
+    assertTrue(AliBaseTopic.isXmlSafe(new byte[] {'\t'}), "tab (0x09) is XML-safe");
+    assertTrue(AliBaseTopic.isXmlSafe(new byte[] {'\n'}), "LF (0x0A) is XML-safe");
+    assertTrue(AliBaseTopic.isXmlSafe(new byte[] {'\r'}), "CR (0x0D) is XML-safe");
+    assertTrue(
+        AliBaseTopic.isXmlSafe("plain text <>&".getBytes(UTF_8)),
+        "printable ASCII incl. XML specials is XML-safe");
+    assertTrue(AliBaseTopic.isXmlSafe("é-Ω-😀".getBytes(UTF_8)), "multibyte UTF-8 is XML-safe");
+
+    assertFalse(AliBaseTopic.isXmlSafe(new byte[] {0x00}), "NUL (0x00) is XML-illegal");
+    assertFalse(AliBaseTopic.isXmlSafe(new byte[] {0x0B}), "vertical tab (0x0B) is XML-illegal");
+    assertFalse(AliBaseTopic.isXmlSafe(new byte[] {0x0C}), "form feed (0x0C) is XML-illegal");
+    assertFalse(AliBaseTopic.isXmlSafe(new byte[] {0x1F}), "unit separator (0x1F) is XML-illegal");
+    assertFalse(
+        AliBaseTopic.isXmlSafe(new byte[] {'o', 'k', 0x08, 'x'}),
+        "an embedded backspace (0x08) makes the body XML-illegal");
+
+    // U+FFFE and U+FFFF are valid UTF-8 (EF BF BE / EF BF BF) but XML 1.0 forbids them in text.
+    assertFalse(
+        AliBaseTopic.isXmlSafe(new byte[] {'o', 'k', (byte) 0xEF, (byte) 0xBF, (byte) 0xBE, 'x'}),
+        "U+FFFE (EF BF BE) is XML-illegal even though it is valid UTF-8");
+    assertFalse(
+        AliBaseTopic.isXmlSafe(new byte[] {'o', 'k', (byte) 0xEF, (byte) 0xBF, (byte) 0xBF, 'x'}),
+        "U+FFFF (EF BF BF) is XML-illegal even though it is valid UTF-8");
+    // The noncharacter check must not misfire on ordinary multibyte UTF-8: U+FFFD (EF BF BD, one
+    // byte below U+FFFE) and a 4-byte code point (U+1F600, F0 9F 98 80) stay XML-safe.
+    byte[] replacementThenEmoji = {
+      (byte) 0xEF, (byte) 0xBF, (byte) 0xBD, (byte) 0xF0, (byte) 0x9F, (byte) 0x98, (byte) 0x80
+    };
+    assertTrue(
+        AliBaseTopic.isXmlSafe(replacementThenEmoji),
+        "ordinary multibyte UTF-8 (incl. U+FFFD and 4-byte code points) stays XML-safe");
+  }
+
+  @Test
   void isXmlSafeDetectsNoncharacterAtEndOfBuffer() {
     // The noncharacter scan matches a 3-byte U+FFFE/U+FFFF sequence at any offset, including one
     // occupying the final three bytes. Verify the end-of-buffer boundary is not off-by-one: a body
@@ -412,12 +538,54 @@ public class AliBaseTopicTest {
         "a body that is only U+FFFE is XML-illegal");
   }
 
+  @Test
+  void autoBase64EncodesBodyEndingInNoncharacter() throws Exception {
+    // Downstream of isXmlSafe: under AUTO, a valid-UTF-8 body ending in an XML-illegal noncharacter
+    // cannot ride as raw XML text, so toSmqMessage base64-encodes it and sets the reserved flag so
+    // the receiver decodes it. Confirms the trailing-noncharacter case drives the same base64
+    // decision an interior noncharacter does.
+    try (AliSmqQueue topic = new AliSmqQueue()) {
+      byte[] endsWithFffe = {'d', 'a', 't', 'a', (byte) 0xEF, (byte) 0xBF, (byte) 0xBE};
+      byte[] endsWithFfff = {'d', 'a', 't', 'a', (byte) 0xEF, (byte) 0xBF, (byte) 0xBF};
+      assertTrue(
+          bodyRidesAsBase64(topic, endsWithFffe),
+          "a body ending in U+FFFE must be base64-encoded and flagged under AUTO");
+      assertTrue(
+          bodyRidesAsBase64(topic, endsWithFfff),
+          "a body ending in U+FFFF must be base64-encoded and flagged under AUTO");
+      // A control-free, XML-safe UTF-8 body still rides raw (no flag), so the flag tracks the
+      // noncharacter itself, not merely the act of calling toSmqMessage.
+      assertFalse(
+          bodyRidesAsBase64(topic, "plain-text".getBytes(UTF_8)),
+          "an XML-safe body must ride raw, without the base64 flag, under AUTO");
+    }
+  }
+
+  /** True if AUTO placed {@code body} on the wire base64-encoded (the reserved flag is set). */
+  private static boolean bodyRidesAsBase64(AliSmqQueue topic, byte[] body) {
+    com.aliyun.mns.model.Message wire =
+        topic.toSmqMessage(Message.builder().withBody(body).build());
+    return wire.getUserProperties() != null
+        && wire.getUserProperties().containsKey(AliBaseTopic.RESERVED_BASE64_FLAG_KEY);
+  }
+
   private static Message messageWithLargeMetadata(String keyPrefix) {
     String value = "v".repeat(AliBaseTopic.MAX_PROPERTY_VALUE_LENGTH);
     Message.Builder builder = Message.builder().withBody("x");
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 10; i++) {
       builder.withMetadata(keyPrefix + "-" + i, value);
     }
+    return builder.build();
+  }
+
+  /** Builds an AliSmqQueue pinned to ALWAYS-base64 so bodies are sized by their base64 form. */
+  private static AliSmqQueue alwaysBase64Topic() {
+    MNSClient client = mock(MNSClient.class);
+    when(client.getQueueRef("size-test")).thenReturn(mock(CloudQueue.class));
+    AliSmqQueue.Builder builder = new AliSmqQueue.Builder();
+    builder.withSmqClient(client);
+    builder.withTopicName("size-test");
+    builder.withBodyEncodingStrategy(AliBaseTopic.Base64EncodingStrategy.ALWAYS);
     return builder.build();
   }
 

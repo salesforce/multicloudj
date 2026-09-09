@@ -10,6 +10,10 @@ import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,13 +43,13 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
   // batch request. The byte guard (see splitBySize) keeps a conservative upper bound on the actual
   // SDK-serialized request under this documented limit. The SDK serializes a batch as one XML
   // document, so its serialized size is a fixed per-request framing (the XML prolog and the
-  // <Messages> root element), independent of message count, plus for each message its
-  // base64-encoded body and a small per-message XML envelope (<Message><MessageBody>...).
-  // toSmqMessage sends each body base64-encoded (MessageBodyType.BASE64), so a raw body of N bytes
-  // occupies 4*ceil(N/3) wire bytes. FIXED_REQUEST_OVERHEAD_BYTES covers the per-request framing
-  // and MESSAGE_ENVELOPE_OVERHEAD_BYTES covers the per-message framing; both reserve conservative
-  // headroom so the estimated size (fixed overhead + per-message base64 body + framing allowance)
-  // is always at least the true serialized size and stays under the documented 64 KB limit.
+  // <Messages> root element), independent of message count, plus for each message its serialized
+  // body, its user-property (metadata) block, and a small per-message XML envelope
+  // (<Message><MessageBody>...). A base64-encoded body of N raw bytes occupies 4*ceil(N/3) wire
+  // bytes; a raw body occupies its XML-escaped byte length (see measureWireSize).
+  // FIXED_REQUEST_OVERHEAD_BYTES covers the per-request framing and MESSAGE_ENVELOPE_OVERHEAD_BYTES
+  // covers the per-message framing; both reserve conservative headroom so the estimated size is
+  // always at least the true serialized size and stays under the documented 64 KB limit.
   protected static final int MAX_BATCH_BYTE_SIZE = 64 * 1024;
   // Measured fixed per-request framing (XML prolog + <Messages> root) is ~114 bytes; rounded up to
   // 256 for buffer.
@@ -68,11 +72,6 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
   // rounded up so the estimate stays a conservative upper bound on the serialized size.
   private static final int USER_PROPERTIES_WRAPPER_OVERHEAD_BYTES = 48;
   private static final int PROPERTY_FRAMING_OVERHEAD_BYTES = 96;
-  // The SMQ SDK serializes a STRING user-property value as XML text via a JAXP Transformer, which
-  // escapes '&', '<' and '>' in text content (worst case '&' -> "&amp;", a 5x expansion) and a
-  // carriage return as the numeric character reference "&#13;" (also 5 bytes). Bounding the
-  // serialized value at 5x its UTF-8 byte length keeps the size estimate an upper bound.
-  private static final int MAX_XML_TEXT_ESCAPE_EXPANSION = 5;
 
   // Non-conforming metadata-key bytes are hex-escaped as "__0xHH__". The escape token starts with
   // this marker; the two hex digits and the closing "__" complete it.
@@ -80,8 +79,50 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
   private static final String KEY_ESCAPE_SUFFIX = "__";
   private static final char[] HEX_DIGITS = "0123456789ABCDEF".toCharArray();
 
+  // Reserved user property recording that the body was base64-encoded, so the receiver knows to
+  // base64-decode it. A user metadata key that would otherwise encode to this same wire name is
+  // force-escaped by encodeMetadataKey (see its reserved-flag collision handling), so no user
+  // attribute can ever masquerade as — or be stripped as — this flag.
+  static final String RESERVED_BASE64_FLAG_KEY = "base64encoded";
+
+  /**
+   * How message bodies are placed on the SMQ wire, and the round-trip contract for readers.
+   *
+   * <p>SMQ carries a message body as XML text, so a body that is not XML-safe UTF-8 (or that a
+   * caller wants encoded regardless) must be base64-encoded to survive the round trip; base64 costs
+   * a ~33% size increase. When a body is base64-encoded, the reserved
+   * {@link #RESERVED_BASE64_FLAG_KEY} user property is set so the subscription knows to decode it;
+   * the subscription base64-decodes a received body ONLY when that flag is present.
+   *
+   * <p><b>Interop contract:</b> a body published and consumed through this SDK round-trips
+   * transparently — the caller's exact bytes are returned. The flag is specific to this SDK, so
+   * when the producer or consumer is NOT this SDK the caller owns the encoding contract:
+   * <ul>
+   *   <li>A non-SDK consumer reading a body this SDK base64-encoded must base64-decode it
+   *       itself.</li>
+   *   <li>A body from a non-SDK producer carries no flag, so the subscription returns it as the raw
+   *       wire bytes unchanged; if that producer base64-encoded the body, the caller must decode
+   *       it.</li>
+   * </ul>
+   * Use {@link #ALWAYS} to guarantee every body is base64 on the wire for a non-SDK consumer that
+   * expects that encoding.
+   */
+  public enum Base64EncodingStrategy {
+    /**
+     * Base64-encode only bodies that are not XML-safe UTF-8; carry XML-safe UTF-8 bodies as-is. A
+     * body is XML-safe UTF-8 when it decodes as valid UTF-8 and contains no XML-illegal control
+     * byte (see {@link #isXmlSafe}).
+     */
+    AUTO,
+    /** Always base64-encode the body. */
+    ALWAYS
+  }
+
+  private final Base64EncodingStrategy bodyEncodingStrategy;
+
   protected AliBaseTopic(Builder<?, T> builder) {
     super(builder);
+    this.bodyEncodingStrategy = builder.bodyEncodingStrategy;
   }
 
   /**
@@ -101,17 +142,29 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
   }
 
   /**
-   * Returns the SMQ wire size of {@code message}: the base64-encoded body length (bodies are sent
-   * as {@link MessageBodyType#BASE64}) plus a fixed per-message XML envelope allowance, plus the
-   * serialized size of the message metadata carried as SMQ user properties.
+   * Returns a conservative upper bound on the SMQ wire size of {@code message}: the serialized body
+   * (base64-encoded or raw XML text, per the configured {@link Base64EncodingStrategy}), a fixed
+   * per-message XML envelope allowance, the serialized size of the message metadata carried as SMQ
+   * user properties, and — when the body is base64-encoded — the reserved base64 flag property.
    *
    * <p>Isolated as a pure size function so it can later be handed to the shared batcher as a
    * per-provider sizer instead of being enforced here.
    */
   protected long measureWireSize(Message message) {
-    byte[] body = message.getBody();
-    int rawLength = body == null ? 0 : body.length;
-    return encodedWireSize(rawLength) + metadataWireSize(message.getMetadata());
+    byte[] body = message.getBody() == null ? new byte[0] : message.getBody();
+    boolean base64 = shouldBase64EncodeBody(body);
+    long size = base64 ? encodedWireSize(body.length) : rawBodyWireSize(body);
+    Map<String, String> metadata = message.getMetadata();
+    size += metadataWireSize(metadata);
+    if (base64) {
+      // The base64 flag rides as an extra user property; count it, and count the <UserProperties>
+      // wrapper when the message has no other metadata that would already carry it.
+      if (metadata == null || metadata.isEmpty()) {
+        size += USER_PROPERTIES_WRAPPER_OVERHEAD_BYTES;
+      }
+      size += propertyWireSize(RESERVED_BASE64_FLAG_KEY, "true");
+    }
+    return size;
   }
 
   /**
@@ -144,8 +197,9 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
 
   /**
    * Upper bound on the serialized wire byte length of a user-property value. An XML-safe value
-   * rides as a {@link PropertyType#STRING} property (XML text), so it is bounded by its XML-escaped
-   * UTF-8 byte length ({@link #MAX_XML_TEXT_ESCAPE_EXPANSION}x). An XML-unsafe value rides as a
+   * rides as a {@link PropertyType#STRING} property (XML text), so it is bounded by its exact
+   * XML-escaped byte length (see {@link #xmlEscapedByteLength}) — 1 byte per ordinary byte, more
+   * only for the few bytes XML escaping expands. An XML-unsafe value rides as a
    * {@link PropertyType#BINARY} property, whose wire form is the base64 of its UTF-8 bytes (4
    * characters per 3-byte group, rounded up); the base64 alphabet is XML-safe, so no escaping
    * expansion applies.
@@ -153,7 +207,7 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
   static long valueWireSize(String value) {
     byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
     if (isXmlSafe(bytes)) {
-      return (long) MAX_XML_TEXT_ESCAPE_EXPANSION * bytes.length;
+      return xmlEscapedByteLength(bytes);
     }
     return base64Length(bytes.length);
   }
@@ -182,15 +236,90 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
   }
 
   /**
+   * Computes an upper bound on the SMQ wire size of a raw ({@link MessageBodyType#RAW_STRING})
+   * body: its XML-escaped byte length plus the fixed per-message XML envelope allowance. A raw body
+   * is serialized as XML text, so {@code '&'}, {@code '<'} and {@code '>'} expand to their entity
+   * references and carriage return ({@code 0x0D}) to a numeric character reference; all other bytes
+   * (including tab, line feed, and UTF-8 continuation bytes) serialize unchanged. The raw path only
+   * ever carries XML-safe UTF-8 (AUTO base64-encodes anything that is not), so no XML-illegal
+   * control byte ever reaches this sizer.
+   */
+  static long rawBodyWireSize(byte[] body) {
+    return xmlEscapedByteLength(body) + MESSAGE_ENVELOPE_OVERHEAD_BYTES;
+  }
+
+  /**
+   * Sum of the {@link #escapedByteLength XML-escaped byte length} of every byte in {@code bytes}: a
+   * conservative upper bound on the byte count the SMQ SDK produces when it serializes those bytes
+   * as XML text. Shared by the raw body sizer ({@link #rawBodyWireSize}) and the STRING
+   * user-property value sizer ({@link #valueWireSize}), so both charge XML escaping per byte rather
+   * than by a blanket worst-case multiplier.
+   */
+  static long xmlEscapedByteLength(byte[] bytes) {
+    long escaped = 0L;
+    for (byte raw : bytes) {
+      escaped += escapedByteLength(raw & 0xFF);
+    }
+    return escaped;
+  }
+
+  /**
+   * Upper bound on the serialized byte count of a single body byte under XML text escaping:
+   * {@code '&'} becomes {@code "&amp;"}, {@code '<'}/{@code '>'} their entities, and carriage
+   * return ({@code 0x0D}) the numeric character reference {@code "&#13;"} (so it survives XML
+   * line-ending normalization); tab ({@code 0x09}), line feed ({@code 0x0A}) and every other byte
+   * (including UTF-8 continuation bytes) serialize unchanged. 6 conservatively covers every escaped
+   * form.
+   */
+  private static int escapedByteLength(int b) {
+    if (b == '&' || b == '<' || b == '>' || b == '\r') {
+      return 6;
+    }
+    return 1;
+  }
+
+  /**
+   * Whether the body is base64-encoded on the wire for the configured strategy: always under
+   * {@link Base64EncodingStrategy#ALWAYS}, and under {@link Base64EncodingStrategy#AUTO} only when
+   * the body is not XML-safe UTF-8 — that is, when it is not valid UTF-8 or contains an XML-illegal
+   * control byte, neither of which can be carried losslessly as raw XML text.
+   */
+  private boolean shouldBase64EncodeBody(byte[] body) {
+    switch (bodyEncodingStrategy) {
+      case ALWAYS:
+        return true;
+      case AUTO:
+      default:
+        return !(isValidUtf8(body) && isXmlSafe(body));
+    }
+  }
+
+  /** True if {@code body} is a valid UTF-8 byte sequence. */
+  private static boolean isValidUtf8(byte[] body) {
+    CharsetDecoder decoder =
+        StandardCharsets.UTF_8
+            .newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT);
+    try {
+      decoder.decode(ByteBuffer.wrap(body));
+      return true;
+    } catch (CharacterCodingException e) {
+      return false;
+    }
+  }
+
+  /**
    * True if {@code body} contains no XML 1.0-illegal content. XML text forbids the C0 control
    * characters except tab ({@code 0x09}), line feed ({@code 0x0A}), and carriage return
    * ({@code 0x0D}) — any byte in {@code 0x00}–{@code 0x08}, {@code 0x0B}, {@code 0x0C}, or
    * {@code 0x0E}–{@code 0x1F} — and also the noncharacter code points {@code U+FFFE} and
    * {@code U+FFFF} (the UTF-8 sequences {@code EF BF BE} / {@code EF BF BF}), which are valid UTF-8
-   * but illegal in XML text and rejected by the service. Such a metadata value cannot be carried as
-   * raw XML text, so it is carried as a BINARY property instead. The C0 controls are single-byte
-   * and the noncharacters a fixed 3-byte sequence in valid UTF-8, so a byte-level scan suffices for
-   * the metadata value STRING/BINARY choice.
+   * but illegal in XML text and rejected by the service. None can be carried as raw XML text, so
+   * such a body is base64-encoded and such a metadata value is carried as a BINARY property
+   * instead. The C0 controls are single-byte and the noncharacters a fixed 3-byte sequence in valid
+   * UTF-8, so a byte-level scan suffices both for the {@link #shouldBase64EncodeBody AUTO} body
+   * predicate (paired with {@link #isValidUtf8}) and for the metadata value STRING/BINARY choice.
    */
   static boolean isXmlSafe(byte[] body) {
     for (int i = 0; i < body.length; i++) {
@@ -234,7 +363,8 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
         throw new InvalidArgumentException(
             "message exceeds the Alibaba SMQ per-request size limit of "
                 + MAX_BATCH_BYTE_SIZE
-                + " bytes (fixed request overhead plus base64-encoded body and envelope); measured "
+                + " bytes (fixed request overhead plus serialized body, metadata, and envelope);"
+                + " measured "
                 + (FIXED_REQUEST_OVERHEAD_BYTES + wireSize)
                 + " bytes");
       }
@@ -260,8 +390,10 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
   /**
    * Converts a multicloudj {@link Message} into an SMQ SDK message.
    *
-   * <p>The body is carried as base64 on the wire ({@link MessageBodyType#BASE64}) so raw bytes
-   * round-trip losslessly.
+   * <p>The body is placed on the wire per the configured {@link Base64EncodingStrategy}: as base64
+   * ({@link MessageBodyType#BASE64}) or as raw XML text ({@link MessageBodyType#RAW_STRING}). When
+   * base64 is applied, the reserved {@link #RESERVED_BASE64_FLAG_KEY} user property is set so the
+   * receiver knows to base64-decode the body.
    *
    * <p>Message metadata is mapped onto SMQ user properties natively: each entry's key is
    * {@link #encodeMetadataKey escaped} to the SMQ attribute-name charset, and its value is carried
@@ -270,13 +402,23 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
    * limits (at most {@link #MAX_USER_PROPERTIES} attributes, each value at most
    * {@link #MAX_PROPERTY_VALUE_LENGTH} characters, each encoded key at most
    * {@link #MAX_USER_PROPERTY_KEY_LENGTH} characters) are enforced fail-fast here so an over-limit
-   * message is rejected before publish.
+   * message is rejected before publish; when the body is base64-encoded the reserved flag occupies
+   * one of those attribute slots, so the effective metadata cap is one lower.
    */
   protected com.aliyun.mns.model.Message toSmqMessage(Message message) {
-    byte[] body = message.getBody();
+    byte[] body = message.getBody() == null ? new byte[0] : message.getBody();
+    boolean base64 = shouldBase64EncodeBody(body);
     com.aliyun.mns.model.Message smqMessage = new com.aliyun.mns.model.Message();
-    smqMessage.setMessageBody(body == null ? new byte[0] : body, MessageBodyType.BASE64);
-    Map<String, MessagePropertyValue> userProperties = toUserProperties(message.getMetadata());
+    smqMessage.setMessageBody(
+        body, base64 ? MessageBodyType.BASE64 : MessageBodyType.RAW_STRING);
+    Map<String, MessagePropertyValue> userProperties =
+        toUserProperties(message.getMetadata(), base64);
+    if (base64) {
+      if (userProperties == null) {
+        userProperties = new HashMap<>();
+      }
+      userProperties.put(RESERVED_BASE64_FLAG_KEY, new MessagePropertyValue(true));
+    }
     if (userProperties != null) {
       smqMessage.setUserProperties(userProperties);
     }
@@ -289,20 +431,34 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
    * and its per-value length limit enforced by {@link #toPropertyValue} against the form the value
    * takes on the wire.
    *
-   * @throws InvalidArgumentException if the metadata has more than {@link #MAX_USER_PROPERTIES}
-   *     attributes, or if any value exceeds the SMQ per-value length limit on its wire form (see
-   *     {@link #toPropertyValue})
+   * <p>When {@code base64Applies}, the caller adds the reserved base64 flag as an extra user
+   * property, so it counts toward SMQ's {@link #MAX_USER_PROPERTIES} cap: the metadata may then
+   * carry at most {@code MAX_USER_PROPERTIES - 1} attributes (the flag brings the wire total to
+   * exactly the cap). Enforcing that effective cap here keeps an over-limit message from slipping
+   * past this fail-fast check only to be rejected by the service once the flag is added.
+   *
+   * @param base64Applies whether the body will be base64-encoded, reserving one user-property slot
+   *     for the base64 flag
+   * @throws InvalidArgumentException if the metadata exceeds the effective attribute cap (
+   *     {@link #MAX_USER_PROPERTIES}, or one fewer when {@code base64Applies}), or if any value
+   *     exceeds the SMQ per-value length limit on its wire form (see {@link #toPropertyValue})
    */
-  private static Map<String, MessagePropertyValue> toUserProperties(Map<String, String> metadata) {
+  private static Map<String, MessagePropertyValue> toUserProperties(
+      Map<String, String> metadata, boolean base64Applies) {
     if (metadata == null || metadata.isEmpty()) {
       return null;
     }
-    if (metadata.size() > MAX_USER_PROPERTIES) {
+    int effectiveMaxProperties = base64Applies ? MAX_USER_PROPERTIES - 1 : MAX_USER_PROPERTIES;
+    if (metadata.size() > effectiveMaxProperties) {
       throw new InvalidArgumentException(
           "message metadata has "
               + metadata.size()
               + " attributes, exceeding the Alibaba SMQ limit of "
-              + MAX_USER_PROPERTIES);
+              + MAX_USER_PROPERTIES
+              + " user properties"
+              + (base64Applies
+                  ? " (the base64 body flag reserves one, leaving " + effectiveMaxProperties + ")"
+                  : ""));
     }
     Map<String, MessagePropertyValue> userProperties = new HashMap<>();
     for (Map.Entry<String, String> entry : metadata.entrySet()) {
@@ -394,8 +550,10 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
    * Alphanumerics, {@code '-'} and {@code '_'} pass through unchanged; an interior isolated
    * {@code '.'} passes through, while a leading, trailing, or consecutive dot is escaped as
    * {@code __0x2E__}; every other byte is escaped as {@code __0xHH__} over the key's UTF-8 bytes.
-   * An underscore that begins a literal {@code __0x} escape marker is escaped so decode cannot
-   * mistake the user's text for an encoded byte (the escaped byte still round-trips).
+   * Two collisions are hardened so the wire form always decodes back to the original key: an
+   * underscore that begins a literal {@code __0x} escape marker is escaped so decode cannot mistake
+   * the user's text for an encoded byte, and a key that would encode to the reserved base64 flag
+   * name has its first byte force-escaped so it can never masquerade as the flag.
    * {@link #decodeMetadataKey} reverses it.
    *
    * @throws InvalidArgumentException if the key is null or empty, or its encoded form exceeds
@@ -412,6 +570,12 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
     }
     byte[] bytes = key.getBytes(StandardCharsets.UTF_8);
     String encoded = encodeKeyBytes(bytes, false);
+    // Reserved-flag-key collision: a user key whose wire form would equal the reserved flag name
+    // must not masquerade as (or be stripped as) the flag. Force-escape its first byte so the wire
+    // key differs from the reserved name while still decoding back to the user's key.
+    if (encoded.equals(RESERVED_BASE64_FLAG_KEY)) {
+      encoded = encodeKeyBytes(bytes, true);
+    }
     // Defensive: a non-empty key never encodes to an empty form, but guard it explicitly so an
     // empty wire name can never reach SMQ regardless of how the key was constructed.
     if (encoded.isEmpty()) {
@@ -431,8 +595,8 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
   /**
    * Encodes a key's UTF-8 {@code bytes} into the SMQ attribute-name charset (see
    * {@link #encodeMetadataKey}). When {@code forceEscapeFirstByte} is set, the first byte is always
-   * escaped even if it would otherwise pass through, which lets the caller break a collision with a
-   * reserved wire name while preserving a lossless round trip.
+   * escaped even if it would otherwise pass through, which lets the caller break a collision with
+   * the reserved flag name while preserving a lossless round trip.
    */
   private static String encodeKeyBytes(byte[] bytes, boolean forceEscapeFirstByte) {
     StringBuilder encoded = new StringBuilder(bytes.length);
@@ -560,6 +724,7 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
       extends AbstractTopic.Builder<TTopic> {
 
     protected MNSClient smqClient;
+    protected Base64EncodingStrategy bodyEncodingStrategy = Base64EncodingStrategy.AUTO;
 
     /**
      * Injects a pre-built {@link MNSClient}. Primarily a test hook; when unset the client
@@ -567,6 +732,15 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
      */
     public TBuilder withSmqClient(MNSClient smqClient) {
       this.smqClient = smqClient;
+      return self();
+    }
+
+    /**
+     * Sets how message bodies are placed on the SMQ wire. Defaults to
+     * {@link Base64EncodingStrategy#AUTO}. A null argument resets the default.
+     */
+    public TBuilder withBodyEncodingStrategy(Base64EncodingStrategy strategy) {
+      this.bodyEncodingStrategy = strategy == null ? Base64EncodingStrategy.AUTO : strategy;
       return self();
     }
 

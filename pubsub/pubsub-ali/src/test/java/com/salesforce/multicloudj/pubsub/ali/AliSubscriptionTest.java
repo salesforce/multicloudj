@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -93,7 +94,8 @@ public class AliSubscriptionTest {
   void doReceiveBatchDecodesBodyAckIdAndLoggableId() throws Exception {
     CloudQueue queue = mock(CloudQueue.class);
     com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
-    raw.setMessageBody("hello".getBytes(UTF_8), MessageBodyType.BASE64);
+    // No base64 flag, so the body is read as raw (the AUTO wire form for a valid UTF-8 body).
+    raw.setMessageBody("hello".getBytes(UTF_8), MessageBodyType.RAW_STRING);
     raw.setReceiptHandle("rh-1");
     raw.setMessageId("mid-1");
     when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
@@ -155,6 +157,95 @@ public class AliSubscriptionTest {
     List<Message> received = sub.doReceiveBatch(10);
 
     assertNull(received.get(0).getMetadata());
+  }
+
+  @Test
+  void doReceiveBatchBase64DecodesFlaggedBodyAndStripsFlag() throws Exception {
+    CloudQueue queue = mock(CloudQueue.class);
+    com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
+    byte[] nonUtf8 = {(byte) 0xFF, 0x00, (byte) 0xAB};
+    raw.setMessageBody(nonUtf8, MessageBodyType.BASE64);
+    raw.setReceiptHandle("rh-1");
+    raw.setMessageId("mid-1");
+    Map<String, MessagePropertyValue> props = new HashMap<>();
+    props.put(AliBaseTopic.RESERVED_BASE64_FLAG_KEY, new MessagePropertyValue(true));
+    props.put(
+        AliBaseTopic.encodeMetadataKey("trace.id"),
+        new MessagePropertyValue(PropertyType.STRING, "abc"));
+    raw.setUserProperties(props);
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+
+    AliSubscription sub = subscription(queue);
+    Message received = sub.doReceiveBatch(10).get(0);
+
+    // The flagged body is base64-decoded back to the exact non-UTF-8 bytes...
+    assertArrayEquals(nonUtf8, received.getBody());
+    // ...the user metadata is decoded, and the reserved flag is stripped, not surfaced as metadata.
+    Map<String, String> metadata = received.getMetadata();
+    assertEquals(1, metadata.size());
+    assertEquals("abc", metadata.get("trace.id"));
+    assertFalse(metadata.containsKey(AliBaseTopic.RESERVED_BASE64_FLAG_KEY));
+  }
+
+  @Test
+  void publishReceiveRoundTripsUtf8BodyAndMetadata() throws Exception {
+    CloudQueue queue = mock(CloudQueue.class);
+    Message original =
+        Message.builder()
+            .withBody("payload".getBytes(UTF_8))
+            .withMetadata("trace.id", "req-42")
+            .withMetadata("empty", "")
+            .build();
+
+    com.aliyun.mns.model.Message wire =
+        publisherMessage(original, AliBaseTopic.Base64EncodingStrategy.AUTO);
+    Message received = receiveWire(queue, wire);
+
+    // A valid UTF-8 body rides raw and its metadata round-trips exactly.
+    assertArrayEquals("payload".getBytes(UTF_8), received.getBody());
+    assertEquals(original.getMetadata(), received.getMetadata());
+  }
+
+  @Test
+  void publishReceiveRoundTripsNonUtf8BodyAndMetadata() throws Exception {
+    CloudQueue queue = mock(CloudQueue.class);
+    byte[] nonUtf8 = {(byte) 0xFF, (byte) 0xFE, 0x10, (byte) 0x80};
+    Message original = Message.builder().withBody(nonUtf8).withMetadata("k.1", "v").build();
+
+    com.aliyun.mns.model.Message wire =
+        publisherMessage(original, AliBaseTopic.Base64EncodingStrategy.AUTO);
+    Message received = receiveWire(queue, wire);
+
+    // A non-UTF-8 body is base64-encoded on publish and losslessly recovered on receive.
+    assertArrayEquals(nonUtf8, received.getBody());
+    assertEquals(original.getMetadata(), received.getMetadata());
+  }
+
+  /** Builds the SMQ wire message as an AliSmqQueue publisher would, with the given strategy. */
+  private static com.aliyun.mns.model.Message publisherMessage(
+      Message message, AliBaseTopic.Base64EncodingStrategy strategy) throws Exception {
+    MNSClient client = mock(MNSClient.class);
+    when(client.getQueueRef("pub")).thenReturn(mock(CloudQueue.class));
+    AliSmqQueue.Builder builder = new AliSmqQueue.Builder();
+    builder.withSmqClient(client);
+    builder.withTopicName("pub");
+    builder.withBodyEncodingStrategy(strategy);
+    try (AliSmqQueue publisher = builder.build()) {
+      com.aliyun.mns.model.Message wire = publisher.toSmqMessage(message);
+      wire.setReceiptHandle("rh");
+      wire.setMessageId("mid");
+      return wire;
+    }
+  }
+
+  /** Feeds one wire message through the subscriber's receive path and returns the decoded one. */
+  private Message receiveWire(CloudQueue queue, com.aliyun.mns.model.Message wire)
+      throws Exception {
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(wire));
+    AliSubscription sub = subscription(queue);
+    List<Message> received = sub.doReceiveBatch(10);
+    assertEquals(1, received.size());
+    return received.get(0);
   }
 
   @Test
@@ -602,6 +693,38 @@ public class AliSubscriptionTest {
         "BINARY metadata round trip is asserted only on a UTF-8-default JVM");
     assertMetadataValueRoundTrips("before\u0000after");
     assertMetadataValueRoundTrips("before\uFFFFafter");
+  }
+
+  @Test
+  void userMetadataKeyEqualToReservedFlagRoundTripsAndFlagIsStillStripped() throws Exception {
+    // A user metadata key equal to the reserved base64 flag name must not collide with the flag on
+    // the wire: encodeMetadataKey force-escapes it so it rides as a distinct wire key, surviving as
+    // user metadata, while the reserved flag is still stripped from the decoded metadata.
+    CloudQueue queue = mock(CloudQueue.class);
+    byte[] nonUtf8 = {(byte) 0xFF, 0x00};
+    Message original =
+        Message.builder()
+            .withBody(nonUtf8) // non-UTF-8 body -> base64 -> reserved flag set
+            .withMetadata(AliBaseTopic.RESERVED_BASE64_FLAG_KEY, "user-value")
+            .build();
+
+    com.aliyun.mns.model.Message wire =
+        publisherMessage(original, AliBaseTopic.Base64EncodingStrategy.AUTO);
+    // The user's key is force-escaped to a distinct wire name, so the reserved flag and the user
+    // attribute are two separate properties on the wire.
+    String userWireKey = AliBaseTopic.encodeMetadataKey(AliBaseTopic.RESERVED_BASE64_FLAG_KEY);
+    assertNotEquals(AliBaseTopic.RESERVED_BASE64_FLAG_KEY, userWireKey);
+    assertTrue(wire.getUserProperties().containsKey(AliBaseTopic.RESERVED_BASE64_FLAG_KEY));
+    assertTrue(wire.getUserProperties().containsKey(userWireKey));
+    assertEquals(2, wire.getUserProperties().size());
+
+    Message received = receiveWire(queue, wire);
+    // The flag is honored (body base64-decoded)...
+    assertArrayEquals(nonUtf8, received.getBody());
+    // ...the user's base64encoded key round-trips as the sole metadata entry, and the flag is not
+    // surfaced as metadata.
+    assertEquals(1, received.getMetadata().size());
+    assertEquals("user-value", received.getMetadata().get(AliBaseTopic.RESERVED_BASE64_FLAG_KEY));
   }
 
   /**
