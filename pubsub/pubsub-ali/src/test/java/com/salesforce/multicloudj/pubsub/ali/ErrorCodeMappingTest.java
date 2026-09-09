@@ -84,7 +84,7 @@ public class ErrorCodeMappingTest {
   void mapsUnknownAndUnmappedCodes() {
     assertEquals(UnknownException.class, getException("SomethingUnmapped"));
     assertEquals(UnknownException.class, getException(null));
-    // Guard against re-introducing guessed codes that are not real MNS wire values.
+    // Guard against re-introducing guessed codes that are not real SMQ wire values.
     assertEquals(UnknownException.class, getException("InvalidTopicName"));
     assertEquals(UnknownException.class, getException("InvalidSecurityToken"));
   }

@@ -16,7 +16,7 @@ import java.util.Map;
  * Abstract base for Alibaba SMQ (MNS) topic (publisher) implementations.
  *
  * <p>Holds the logic shared by every SMQ publisher: converting a multicloudj {@link Message} into
- * the SMQ SDK message ({@link #toMnsMessage}), the batch limits ({@link #createBatcherOptions}),
+ * the SMQ SDK message ({@link #toSmqMessage}), the batch limits ({@link #createBatcherOptions}),
  * and error translation ({@link #mapException}). Concrete subclasses implement {@code doSendBatch}
  * with the queue- or topic-specific SMQ call.
  */
@@ -36,7 +36,7 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
   // document, so its serialized size is a fixed per-request framing (the XML prolog and the
   // <Messages> root element), independent of message count, plus for each message its
   // base64-encoded body and a small per-message XML envelope (<Message><MessageBody>...).
-  // toMnsMessage sends each body base64-encoded (MessageBodyType.BASE64), so a raw body of N bytes
+  // toSmqMessage sends each body base64-encoded (MessageBodyType.BASE64), so a raw body of N bytes
   // occupies 4*ceil(N/3) wire bytes. FIXED_REQUEST_OVERHEAD_BYTES covers the per-request framing
   // and MESSAGE_ENVELOPE_OVERHEAD_BYTES covers the per-message framing; both reserve conservative
   // headroom so the estimated size (fixed overhead + per-message base64 body + framing allowance)
@@ -82,7 +82,7 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
 
   /**
    * Computes the SMQ wire size of a body of {@code rawLength} raw bytes: the base64 encoding
-   * toMnsMessage uses (4 characters per 3-byte group, rounded up) plus the fixed per-message XML
+   * toSmqMessage uses (4 characters per 3-byte group, rounded up) plus the fixed per-message XML
    * envelope allowance.
    *
    * <p>Computed in {@code long} so a near-2 GB raw body cannot overflow the multiplication into a
@@ -137,7 +137,7 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
 
   @Override
   public SubstrateSdkException mapException(Throwable t) {
-    return MnsExceptionMapper.map(t);
+    return SmqExceptionMapper.map(t);
   }
 
   /**
@@ -150,16 +150,16 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
    * rejected rather than silently dropped. Metadata encoding is added in a follow-up change, at
    * which point this method maps the metadata onto the SMQ message user properties.
    */
-  protected com.aliyun.mns.model.Message toMnsMessage(Message message) {
+  protected com.aliyun.mns.model.Message toSmqMessage(Message message) {
     Map<String, String> metadata = message.getMetadata();
     if (metadata != null && !metadata.isEmpty()) {
       throw new UnSupportedOperationException(
           "message metadata is not yet supported by the Alibaba SMQ provider");
     }
     byte[] body = message.getBody();
-    com.aliyun.mns.model.Message mnsMessage = new com.aliyun.mns.model.Message();
-    mnsMessage.setMessageBody(body == null ? new byte[0] : body, MessageBodyType.BASE64);
-    return mnsMessage;
+    com.aliyun.mns.model.Message smqMessage = new com.aliyun.mns.model.Message();
+    smqMessage.setMessageBody(body == null ? new byte[0] : body, MessageBodyType.BASE64);
+    return smqMessage;
   }
 
   /** Base builder shared by the SMQ publisher builders. */
@@ -167,14 +167,14 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
           TBuilder extends Builder<TBuilder, TTopic>, TTopic extends AliBaseTopic<TTopic>>
       extends AbstractTopic.Builder<TTopic> {
 
-    protected MNSClient mnsClient;
+    protected MNSClient smqClient;
 
     /**
      * Injects a pre-built {@link MNSClient}. Primarily a test hook; when unset the client
      * is built from the endpoint, credentials, and proxy in {@code build()}.
      */
-    public TBuilder withMnsClient(MNSClient mnsClient) {
-      this.mnsClient = mnsClient;
+    public TBuilder withSmqClient(MNSClient smqClient) {
+      this.smqClient = smqClient;
       return self();
     }
 

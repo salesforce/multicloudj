@@ -84,12 +84,12 @@ public class AliBaseTopicTest {
   /** Serializes the batch exactly as batchPutMessage does and returns the byte length. */
   private static long serializedLength(AliSmqQueue topic, List<Message> messages)
       throws Exception {
-    List<com.aliyun.mns.model.Message> mnsMessages = new ArrayList<>();
+    List<com.aliyun.mns.model.Message> smqMessages = new ArrayList<>();
     for (Message message : messages) {
-      mnsMessages.add(topic.toMnsMessage(message));
+      smqMessages.add(topic.toSmqMessage(message));
     }
     MessageListSerializer serializer = new MessageListSerializer();
-    try (InputStream in = serializer.serialize(mnsMessages, "UTF-8")) {
+    try (InputStream in = serializer.serialize(smqMessages, "UTF-8")) {
       ByteArrayOutputStream buffer = new ByteArrayOutputStream();
       byte[] chunk = new byte[8192];
       int read;

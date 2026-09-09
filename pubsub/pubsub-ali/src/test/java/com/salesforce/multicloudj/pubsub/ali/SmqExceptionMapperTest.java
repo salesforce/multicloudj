@@ -15,46 +15,46 @@ import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import org.junit.jupiter.api.Test;
 
-public class MnsExceptionMapperTest {
+public class SmqExceptionMapperTest {
 
   @Test
   void serviceExceptionMapsByErrorCode() {
     ServiceException auth = mock(ServiceException.class);
     when(auth.getErrorCode()).thenReturn("AccessDenied");
-    assertInstanceOf(UnAuthorizedException.class, MnsExceptionMapper.map(auth));
+    assertInstanceOf(UnAuthorizedException.class, SmqExceptionMapper.map(auth));
 
     ServiceException notFound = mock(ServiceException.class);
     when(notFound.getErrorCode()).thenReturn("QueueNotExist");
-    assertInstanceOf(ResourceNotFoundException.class, MnsExceptionMapper.map(notFound));
+    assertInstanceOf(ResourceNotFoundException.class, SmqExceptionMapper.map(notFound));
   }
 
   @Test
   void serviceHandlingRequiredExceptionMapsByErrorCode() {
     ServiceHandlingRequiredException e = mock(ServiceHandlingRequiredException.class);
     when(e.getErrorCode()).thenReturn("MessageNotExist");
-    assertInstanceOf(ResourceNotFoundException.class, MnsExceptionMapper.map(e));
+    assertInstanceOf(ResourceNotFoundException.class, SmqExceptionMapper.map(e));
   }
 
   @Test
   void clientExceptionMapsToUnknown() {
     ClientException e = mock(ClientException.class);
-    assertInstanceOf(UnknownException.class, MnsExceptionMapper.map(e));
+    assertInstanceOf(UnknownException.class, SmqExceptionMapper.map(e));
   }
 
   @Test
   void illegalArgumentMapsToInvalidArgument() {
     assertInstanceOf(
-        InvalidArgumentException.class, MnsExceptionMapper.map(new IllegalArgumentException("x")));
+        InvalidArgumentException.class, SmqExceptionMapper.map(new IllegalArgumentException("x")));
   }
 
   @Test
   void unknownThrowableMapsToUnknown() {
-    assertInstanceOf(UnknownException.class, MnsExceptionMapper.map(new RuntimeException("x")));
+    assertInstanceOf(UnknownException.class, SmqExceptionMapper.map(new RuntimeException("x")));
   }
 
   @Test
   void substrateSdkExceptionIsPassedThrough() {
     SubstrateSdkException original = new InvalidArgumentException("boom");
-    assertSame(original, MnsExceptionMapper.map(original));
+    assertSame(original, SmqExceptionMapper.map(original));
   }
 }

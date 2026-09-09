@@ -64,7 +64,7 @@ public class AliSubscriptionTest {
     MNSClient client = mock(MNSClient.class);
     when(client.getQueueRef("test-queue")).thenReturn(queue);
     AliSubscription.Builder builder = new AliSubscription.Builder();
-    builder.withMnsClient(client);
+    builder.withSmqClient(client);
     builder.withSubscriptionName("test-queue");
     if (nackTimeout != null) {
       builder.withNackVisibilityTimeout(nackTimeout);
@@ -417,12 +417,12 @@ public class AliSubscriptionTest {
   void builderRequiresSubscriptionName() {
     MNSClient client = mock(MNSClient.class);
     AliSubscription.Builder builder = new AliSubscription.Builder();
-    builder.withMnsClient(client);
+    builder.withSmqClient(client);
     assertThrows(InvalidArgumentException.class, builder::build);
   }
 
   @Test
-  void closeClosesMnsClientOnNormalPath() throws Exception {
+  void closeClosesSmqClientOnNormalPath() throws Exception {
     MNSClient client = mock(MNSClient.class);
     AliSubscription sub = subscriptionWithClient(client);
 
@@ -432,7 +432,7 @@ public class AliSubscriptionTest {
   }
 
   @Test
-  void closeSurfacesMnsClientCloseFailureWhenShutdownSucceeds() {
+  void closeSurfacesSmqClientCloseFailureWhenShutdownSucceeds() {
     MNSClient client = mock(MNSClient.class);
     RuntimeException clientCloseError = new RuntimeException("client close failed");
     doThrow(clientCloseError).when(client).close();
@@ -444,7 +444,7 @@ public class AliSubscriptionTest {
   }
 
   @Test
-  void closeClosesMnsClientAndPreservesPrimaryWhenShutdownFails() throws Exception {
+  void closeClosesSmqClientAndPreservesPrimaryWhenShutdownFails() throws Exception {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
     RuntimeException clientCloseError = new RuntimeException("client close failed");
@@ -463,7 +463,7 @@ public class AliSubscriptionTest {
     // The shutdown failure is surfaced as the primary exception; its cause is the mapped ack-drain
     // failure (AccessDenied -> UnAuthorizedException)...
     assertInstanceOf(UnAuthorizedException.class, thrown.getCause());
-    // ...the MNS client is still closed on the failure path (no leak)...
+    // ...the SMQ client is still closed on the failure path (no leak)...
     verify(client).close();
     // ...and the client-close failure is attached as suppressed rather than masking the primary.
     assertEquals(1, thrown.getSuppressed().length);
@@ -482,7 +482,7 @@ public class AliSubscriptionTest {
     MNSClient client = mock(MNSClient.class);
     when(client.getQueueRef("test-queue")).thenReturn(queue);
     AliSubscription.Builder builder = new AliSubscription.Builder();
-    builder.withMnsClient(client);
+    builder.withSmqClient(client);
     builder.withSubscriptionName("test-queue");
     // A value above the SMQ maximum is accepted (no throw) and clamped to 30s.
     assertDoesNotThrow(() -> builder.withWaitTimeSeconds(60));
@@ -502,7 +502,7 @@ public class AliSubscriptionTest {
   private static AliSubscription subscriptionWithClient(MNSClient client, CloudQueue queue) {
     when(client.getQueueRef("test-queue")).thenReturn(queue);
     AliSubscription.Builder builder = new AliSubscription.Builder();
-    builder.withMnsClient(client);
+    builder.withSmqClient(client);
     builder.withSubscriptionName("test-queue");
     return builder.build();
   }

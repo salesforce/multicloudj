@@ -51,7 +51,7 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
   private static final String MESSAGE_NOT_EXIST = "MessageNotExist";
   private static final String RECEIPT_HANDLE_ERROR = "ReceiptHandleError";
 
-  private final MNSClient mnsClient;
+  private final MNSClient smqClient;
   private final CloudQueue queue;
   private final int waitSeconds;
 
@@ -61,7 +61,7 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
 
   AliSubscription(Builder builder) {
     super(builder);
-    this.mnsClient = builder.mnsClient;
+    this.smqClient = builder.smqClient;
     this.queue = builder.queue;
     this.waitSeconds = (int) Math.min(Math.max(builder.waitSeconds, 0), MAX_WAIT_SECONDS);
   }
@@ -94,8 +94,8 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
     }
 
     List<Message> messages = new ArrayList<>(raw.size());
-    for (com.aliyun.mns.model.Message mnsMessage : raw) {
-      messages.add(toMessage(mnsMessage));
+    for (com.aliyun.mns.model.Message smqMessage : raw) {
+      messages.add(toMessage(smqMessage));
     }
     return messages;
   }
@@ -118,12 +118,12 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
    * <p>The body is base64-decoded back to raw bytes. Message metadata (SMQ user properties) is not
    * yet decoded; a follow-up change populates it here.
    */
-  private Message toMessage(com.aliyun.mns.model.Message mnsMessage) {
-    byte[] body = mnsMessage.getMessageBodyAsBytes();
+  private Message toMessage(com.aliyun.mns.model.Message smqMessage) {
+    byte[] body = smqMessage.getMessageBodyAsBytes();
     return Message.builder()
         .withBody(body == null ? new byte[0] : body)
-        .withAckID(new AliAckID(mnsMessage.getReceiptHandle()))
-        .withLoggableID(mnsMessage.getMessageId())
+        .withAckID(new AliAckID(smqMessage.getReceiptHandle()))
+        .withLoggableID(smqMessage.getMessageId())
         .build();
   }
 
@@ -177,7 +177,7 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
     for (ErrorMessageResult error : failures.values()) {
       String code = error == null ? null : error.getErrorCode();
       if (!isAlreadyGone(code)) {
-        throw MnsExceptionMapper.mapErrorCode(code, toSurface);
+        throw SmqExceptionMapper.mapErrorCode(code, toSurface);
       }
     }
   }
@@ -294,7 +294,7 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
 
   @Override
   public SubstrateSdkException mapException(Throwable t) {
-    return MnsExceptionMapper.map(t);
+    return SmqExceptionMapper.map(t);
   }
 
   @Override
@@ -303,19 +303,19 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
       super.close();
     } catch (Throwable primary) {
       // Keep the shutdown failure (draining pending acks or reporting an ack error) as the primary
-      // exception, but still close the MNS client so its HTTP resources are not leaked; a
+      // exception, but still close the SMQ client so its HTTP resources are not leaked; a
       // client-close failure is attached as suppressed rather than replacing the primary.
-      if (mnsClient != null) {
+      if (smqClient != null) {
         try {
-          mnsClient.close();
+          smqClient.close();
         } catch (Throwable clientCloseError) {
           primary.addSuppressed(clientCloseError);
         }
       }
       throw primary;
     }
-    if (mnsClient != null) {
-      mnsClient.close();
+    if (smqClient != null) {
+      smqClient.close();
     }
   }
 
@@ -360,7 +360,7 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
   /** Builder for {@link AliSubscription}. */
   public static class Builder extends AbstractSubscription.Builder<AliSubscription> {
 
-    private MNSClient mnsClient;
+    private MNSClient smqClient;
     private CloudQueue queue;
     private long waitSeconds = 0;
 
@@ -372,8 +372,8 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
      * Injects a pre-built {@link MNSClient}. Primarily a test hook; when unset the client
      * is built from the endpoint, credentials, and proxy in {@code build()}.
      */
-    public Builder withMnsClient(MNSClient mnsClient) {
-      this.mnsClient = mnsClient;
+    public Builder withSmqClient(MNSClient smqClient) {
+      this.smqClient = smqClient;
       return this;
     }
 
@@ -397,10 +397,10 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
       if (subscriptionName == null || subscriptionName.trim().isEmpty()) {
         throw new InvalidArgumentException("Subscription name cannot be null or empty");
       }
-      if (mnsClient == null) {
-        mnsClient = MnsClientUtil.buildMnsClient(endpoint, credentialsOverrider, proxyEndpoint);
+      if (smqClient == null) {
+        smqClient = SmqClientFactory.buildSmqClient(endpoint, credentialsOverrider, proxyEndpoint);
       }
-      queue = mnsClient.getQueueRef(subscriptionName);
+      queue = smqClient.getQueueRef(subscriptionName);
       return new AliSubscription(this);
     }
   }

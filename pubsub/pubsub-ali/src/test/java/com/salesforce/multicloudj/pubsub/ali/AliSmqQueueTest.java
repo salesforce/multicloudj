@@ -47,7 +47,7 @@ public class AliSmqQueueTest {
   private AliSmqQueue topic(MNSClient client, CloudQueue queue) {
     when(client.getQueueRef("test-queue")).thenReturn(queue);
     AliSmqQueue.Builder builder = new AliSmqQueue.Builder();
-    builder.withMnsClient(client);
+    builder.withSmqClient(client);
     builder.withTopicName("test-queue");
     AliSmqQueue topic = builder.build();
     closeables.add(topic);
@@ -98,7 +98,7 @@ public class AliSmqQueueTest {
     // A non-batch ServiceException (unlike a BatchSendException carrying per-entry results) is not
     // mapped inside doSendBatch: it propagates raw so the pubsub client framework maps it via
     // mapException, the same contract every provider relies on. The error-code translation itself
-    // (for example AccessDenied -> UnAuthorizedException) is covered by MnsExceptionMapperTest.
+    // (for example AccessDenied -> UnAuthorizedException) is covered by SmqExceptionMapperTest.
     ServiceException denied = mock(ServiceException.class);
     when(queue.batchPutMessage(any())).thenThrow(denied);
 
@@ -225,7 +225,7 @@ public class AliSmqQueueTest {
     AliSmqQueue topic = topic(client, queue);
 
     // Three 20 KB bodies each encode to ~26 KB, so the 64 KB per-request cap splits the batch into
-    // [first, second] and [third]. The third message carries metadata, which toMnsMessage rejects
+    // [first, second] and [third]. The third message carries metadata, which toSmqMessage rejects
     // locally. Because the whole batch is converted before any batchPutMessage call, that local
     // rejection must fail fast without publishing the earlier, already-split sub-batch.
     List<Message> batch =
@@ -277,7 +277,7 @@ public class AliSmqQueueTest {
   void builderRequiresTopicName() {
     MNSClient client = mock(MNSClient.class);
     AliSmqQueue.Builder builder = new AliSmqQueue.Builder();
-    builder.withMnsClient(client);
+    builder.withSmqClient(client);
     assertThrows(InvalidArgumentException.class, builder::build);
   }
 
@@ -290,7 +290,7 @@ public class AliSmqQueueTest {
   }
 
   @Test
-  void closeClosesMnsClientOnNormalPath() throws Exception {
+  void closeClosesSmqClientOnNormalPath() throws Exception {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
     AliSmqQueue topic = topicWithClient(client, queue);
@@ -301,7 +301,7 @@ public class AliSmqQueueTest {
   }
 
   @Test
-  void closeSurfacesMnsClientCloseFailureWhenShutdownSucceeds() {
+  void closeSurfacesSmqClientCloseFailureWhenShutdownSucceeds() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
     RuntimeException clientCloseError = new RuntimeException("client close failed");
@@ -314,7 +314,7 @@ public class AliSmqQueueTest {
   }
 
   @Test
-  void closeClosesMnsClientAndPreservesPrimaryWhenShutdownFails() throws Exception {
+  void closeClosesSmqClientAndPreservesPrimaryWhenShutdownFails() throws Exception {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
     RuntimeException clientCloseError = new RuntimeException("client close failed");
@@ -335,7 +335,7 @@ public class AliSmqQueueTest {
     RuntimeException thrown = assertThrows(RuntimeException.class, topic::close);
     // The shutdown failure is surfaced as the primary exception...
     assertSame(flushError, thrown);
-    // ...the MNS client is still closed on the failure path (no leak)...
+    // ...the SMQ client is still closed on the failure path (no leak)...
     verify(client).close();
     // ...and the client-close failure is attached as suppressed rather than masking the primary.
     assertEquals(1, thrown.getSuppressed().length);
@@ -345,7 +345,7 @@ public class AliSmqQueueTest {
   private static AliSmqQueue topicWithClient(MNSClient client, CloudQueue queue) {
     when(client.getQueueRef("test-queue")).thenReturn(queue);
     AliSmqQueue.Builder builder = new AliSmqQueue.Builder();
-    builder.withMnsClient(client);
+    builder.withSmqClient(client);
     builder.withTopicName("test-queue");
     return builder.build();
   }

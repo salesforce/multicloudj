@@ -23,7 +23,7 @@ public class AliSmqQueue extends AliBaseTopic<AliSmqQueue> {
 
   public static final String PROVIDER_ID = "alismqqueue";
 
-  private final MNSClient mnsClient;
+  private final MNSClient smqClient;
   private final CloudQueue queue;
 
   public AliSmqQueue() {
@@ -32,7 +32,7 @@ public class AliSmqQueue extends AliBaseTopic<AliSmqQueue> {
 
   AliSmqQueue(Builder builder) {
     super(builder);
-    this.mnsClient = builder.mnsClient;
+    this.smqClient = builder.smqClient;
     this.queue = builder.queue;
   }
 
@@ -51,7 +51,7 @@ public class AliSmqQueue extends AliBaseTopic<AliSmqQueue> {
    *
    * <p>The entire batch is converted to SMQ SDK messages up front, before any {@code
    * batchPutMessage} call, so a purely local conversion failure (for example an unsupported
-   * metadata map, see {@code toMnsMessage}) fails fast without leaving an earlier sub-batch already
+   * metadata map, see {@code toSmqMessage}) fails fast without leaving an earlier sub-batch already
    * published.
    *
    * <p>SMQ's {@code batchPutMessage} may accept some messages in a batch while rejecting others.
@@ -71,15 +71,15 @@ public class AliSmqQueue extends AliBaseTopic<AliSmqQueue> {
     // batchPutMessage call, so no earlier sub-batch is published on a local error.
     List<List<com.aliyun.mns.model.Message>> convertedSubBatches = new ArrayList<>();
     for (List<Message> subBatch : splitBySize(messages)) {
-      List<com.aliyun.mns.model.Message> mnsMessages = new ArrayList<>(subBatch.size());
+      List<com.aliyun.mns.model.Message> smqMessages = new ArrayList<>(subBatch.size());
       for (Message message : subBatch) {
-        mnsMessages.add(toMnsMessage(message));
+        smqMessages.add(toSmqMessage(message));
       }
-      convertedSubBatches.add(mnsMessages);
+      convertedSubBatches.add(smqMessages);
     }
-    for (List<com.aliyun.mns.model.Message> mnsMessages : convertedSubBatches) {
+    for (List<com.aliyun.mns.model.Message> smqMessages : convertedSubBatches) {
       try {
-        queue.batchPutMessage(mnsMessages);
+        queue.batchPutMessage(smqMessages);
       } catch (BatchSendException e) {
         throw mapFailedEntry(e);
       }
@@ -99,7 +99,7 @@ public class AliSmqQueue extends AliBaseTopic<AliSmqQueue> {
           ErrorMessageResult error = result.getErrorMessageDetail();
           String code = error == null ? null : error.getErrorCode();
           String detail = error == null ? "" : error.getErrorMessage();
-          return MnsExceptionMapper.mapErrorCode(
+          return SmqExceptionMapper.mapErrorCode(
               code,
               new RuntimeException(
                   "SMQ batchPutMessage reported a failed entry: code="
@@ -119,19 +119,19 @@ public class AliSmqQueue extends AliBaseTopic<AliSmqQueue> {
       super.close();
     } catch (Throwable primary) {
       // Keep the shutdown failure (flushing pending batches) as the primary exception, but still
-      // close the MNS client so its HTTP resources are not leaked; a client-close failure is
+      // close the SMQ client so its HTTP resources are not leaked; a client-close failure is
       // attached as suppressed rather than replacing the primary.
-      if (mnsClient != null) {
+      if (smqClient != null) {
         try {
-          mnsClient.close();
+          smqClient.close();
         } catch (Throwable clientCloseError) {
           primary.addSuppressed(clientCloseError);
         }
       }
       throw primary;
     }
-    if (mnsClient != null) {
-      mnsClient.close();
+    if (smqClient != null) {
+      smqClient.close();
     }
   }
 
@@ -159,10 +159,10 @@ public class AliSmqQueue extends AliBaseTopic<AliSmqQueue> {
       if (topicName == null || topicName.trim().isEmpty()) {
         throw new InvalidArgumentException("Topic name cannot be null or empty");
       }
-      if (mnsClient == null) {
-        mnsClient = MnsClientUtil.buildMnsClient(endpoint, credentialsOverrider, proxyEndpoint);
+      if (smqClient == null) {
+        smqClient = SmqClientFactory.buildSmqClient(endpoint, credentialsOverrider, proxyEndpoint);
       }
-      queue = mnsClient.getQueueRef(topicName);
+      queue = smqClient.getQueueRef(topicName);
       return new AliSmqQueue(this);
     }
   }

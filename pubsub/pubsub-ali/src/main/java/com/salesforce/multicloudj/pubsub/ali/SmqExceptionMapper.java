@@ -11,15 +11,15 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 /**
  * Translates Alibaba SMQ (MNS) SDK throwables into multicloudj {@link SubstrateSdkException}s.
  *
- * <p>Shared by the SMQ topic and subscription implementations. MNS surfaces
+ * <p>Shared by the SMQ topic and subscription implementations. SMQ surfaces
  * failures as {@link ServiceException} (server-side, carries the wire {@code Code}), {@link
  * ClientException} (client-side / transport), and the checked {@link
  * ServiceHandlingRequiredException} (per-message handling failure on pop/delete, also carries a
  * {@code Code}).
  */
-final class MnsExceptionMapper {
+final class SmqExceptionMapper {
 
-  private MnsExceptionMapper() {}
+  private SmqExceptionMapper() {}
 
   static SubstrateSdkException map(Throwable t) {
     Class<? extends SubstrateSdkException> exceptionClass;
@@ -36,7 +36,7 @@ final class MnsExceptionMapper {
     } else {
       exceptionClass = UnknownException.class;
     }
-    // MNS exceptions do not expose an HTTP status, so we let the exception type's default
+    // SMQ exceptions do not expose an HTTP status, so we let the exception type's default
     // retryability apply (null hint); ErrorCodeMapping already routes throttling codes to a
     // retryable ResourceExhaustedException.
     return ExceptionHandler.build(exceptionClass, t, null);
