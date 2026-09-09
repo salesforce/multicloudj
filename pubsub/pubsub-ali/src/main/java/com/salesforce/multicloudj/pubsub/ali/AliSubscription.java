@@ -80,7 +80,8 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
     } catch (ServiceException e) {
       // An empty queue surfaces as MessageNotExist; treat it as "no messages", not an error.
       if (queue.isMessageNotExist(e)) {
-        return sleepThenEmpty();
+        backOffIfShortPoll();
+        return new ArrayList<>();
       }
       throw mapException(e);
     } catch (ClientException | ServiceHandlingRequiredException e) {
@@ -88,7 +89,8 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
     }
 
     if (raw == null || raw.isEmpty()) {
-      return sleepThenEmpty();
+      backOffIfShortPoll();
+      return new ArrayList<>();
     }
 
     List<Message> messages = new ArrayList<>(raw.size());
@@ -98,7 +100,7 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
     return messages;
   }
 
-  private List<Message> sleepThenEmpty() {
+  private void backOffIfShortPoll() {
     // Only back off when not long-polling; a long-poll receive already blocks server-side.
     if (waitSeconds <= 0) {
       try {
@@ -108,7 +110,6 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
         throw new SubstrateSdkException("Interrupted while waiting for messages", e);
       }
     }
-    return new ArrayList<>();
   }
 
   /**
