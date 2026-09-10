@@ -897,9 +897,9 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testDoListBlobVersions_mapsCreatedAndNoncurrentAt() {
+  void testDoListBlobVersions_mapsCreatedAndArchivedAt() {
     // Given: two generations of the same key. The newer one is still current (no delete time);
-    // the older one was superseded and carries a delete time that maps to noncurrentAt.
+    // the older one was superseded and carries a delete time that maps to archivedAt.
     Instant currentCreated = Instant.parse("2024-01-03T00:00:00Z");
     Instant olderCreated = Instant.parse("2024-01-01T00:00:00Z");
     Instant olderDeleted = Instant.parse("2024-01-03T00:00:00Z");
@@ -938,15 +938,15 @@ class GcpBlobStoreTest {
     BlobMetadata current = iterator.next();
     assertEquals("2", current.getVersionId());
     assertEquals(currentCreated, current.getCreatedTime());
-    assertNull(current.getNoncurrentAt());
-    assertFalse(current.isDeleteMarker());
+    assertNull(current.getArchivedAt());
+    assertFalse(current.isArchived());
 
     assertTrue(iterator.hasNext());
     BlobMetadata older = iterator.next();
     assertEquals("1", older.getVersionId());
     assertEquals(olderCreated, older.getCreatedTime());
-    assertEquals(olderDeleted, older.getNoncurrentAt());
-    assertFalse(older.isDeleteMarker());
+    assertEquals(olderDeleted, older.getArchivedAt());
+    assertFalse(older.isArchived());
 
     assertFalse(iterator.hasNext());
   }

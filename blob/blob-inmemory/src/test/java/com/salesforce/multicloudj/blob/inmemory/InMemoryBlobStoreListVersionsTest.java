@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link InMemoryBlobStore#doListBlobVersions} covering the delete-marker timeline, the
- * {@code includeDeleteMarkers} flag, and cloud-neutral {@code noncurrentAt} computation.
+ * {@code includeArchived} flag, and cloud-neutral {@code archivedAt} computation.
  */
 class InMemoryBlobStoreListVersionsTest {
 
@@ -48,12 +48,12 @@ class InMemoryBlobStoreListVersionsTest {
         .getVersionId();
   }
 
-  private List<BlobMetadata> list(String key, boolean includeDeleteMarkers) {
+  private List<BlobMetadata> list(String key, boolean includeArchived) {
     Iterator<BlobMetadata> it =
         store.listBlobVersions(
             ListBlobVersionsRequest.builder()
                 .withKey(key)
-                .withIncludeDeleteMarkers(includeDeleteMarkers)
+                .withIncludeArchived(includeArchived)
                 .build());
     List<BlobMetadata> out = new ArrayList<>();
     it.forEachRemaining(out::add);
@@ -72,7 +72,7 @@ class InMemoryBlobStoreListVersionsTest {
     assertEquals(2, versions.size());
     assertEquals(vB, versions.get(0).getVersionId());
     assertEquals(vA, versions.get(1).getVersionId());
-    versions.forEach(v -> assertFalse(v.isDeleteMarker()));
+    versions.forEach(v -> assertFalse(v.isArchived()));
   }
 
   @Test
@@ -87,38 +87,38 @@ class InMemoryBlobStoreListVersionsTest {
     assertEquals(3, entries.size());
     // Newest-first: B (current) -> delete marker -> A.
     assertEquals(vB, entries.get(0).getVersionId());
-    assertFalse(entries.get(0).isDeleteMarker());
+    assertFalse(entries.get(0).isArchived());
 
-    assertTrue(entries.get(1).isDeleteMarker());
+    assertTrue(entries.get(1).isArchived());
     assertNull(entries.get(1).getETag());
 
     assertEquals(vA, entries.get(2).getVersionId());
-    assertFalse(entries.get(2).isDeleteMarker());
+    assertFalse(entries.get(2).isArchived());
   }
 
   @Test
-  void noncurrentAt_reflectsSupersessionEvenWhenMarkerHidden() {
+  void archivedAt_reflectsSupersessionEvenWhenMarkerHidden() {
     String key = "obj";
     upload(key, "A");
     store.delete(key, null);
     upload(key, "B");
 
-    // With the marker hidden, the older version's noncurrentAt must still be the marker's
+    // With the marker hidden, the older version's archivedAt must still be the marker's
     // creation time (the instant it stopped being current), not version B's creation time.
     List<BlobMetadata> hidden = list(key, false);
     List<BlobMetadata> shown = list(key, true);
 
     // Current version is never superseded.
-    assertNull(hidden.get(0).getNoncurrentAt());
+    assertNull(hidden.get(0).getArchivedAt());
 
     BlobMetadata markerEntry = shown.get(1);
-    assertTrue(markerEntry.isDeleteMarker());
+    assertTrue(markerEntry.isArchived());
 
     BlobMetadata oldestHidden = hidden.get(1);
-    assertNotNull(oldestHidden.getNoncurrentAt());
-    assertEquals(markerEntry.getCreatedTime(), oldestHidden.getNoncurrentAt());
+    assertNotNull(oldestHidden.getArchivedAt());
+    assertEquals(markerEntry.getCreatedTime(), oldestHidden.getArchivedAt());
     // Validity interval is end-exclusive: version A's window ends exactly at the marker instant.
-    assertTrue(oldestHidden.getCreatedTime().isBefore(oldestHidden.getNoncurrentAt()));
+    assertTrue(oldestHidden.getCreatedTime().isBefore(oldestHidden.getArchivedAt()));
   }
 
   @Test
@@ -131,7 +131,7 @@ class InMemoryBlobStoreListVersionsTest {
     List<BlobMetadata> before = list(key, true);
     String markerVersionId =
         before.stream()
-            .filter(BlobMetadata::isDeleteMarker)
+            .filter(BlobMetadata::isArchived)
             .map(BlobMetadata::getVersionId)
             .findFirst()
             .orElseThrow();
@@ -139,7 +139,7 @@ class InMemoryBlobStoreListVersionsTest {
     store.delete(key, markerVersionId);
 
     List<BlobMetadata> after = list(key, true);
-    after.forEach(v -> assertFalse(v.isDeleteMarker()));
+    after.forEach(v -> assertFalse(v.isArchived()));
   }
 
   @Test

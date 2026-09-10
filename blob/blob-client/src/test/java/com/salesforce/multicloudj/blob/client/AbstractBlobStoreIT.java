@@ -6379,20 +6379,20 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertTrue(
           defaultByVersion.containsKey(versionB), "Default listing should include version B");
       Assertions.assertTrue(
-          defaultByVersion.values().stream().noneMatch(BlobMetadata::isDeleteMarker),
+          defaultByVersion.values().stream().noneMatch(BlobMetadata::isArchived),
           "Default listing must not surface delete markers");
 
-      // Point-in-time semantics: A was superseded (has a noncurrentAt), B is current (has none).
+      // Point-in-time semantics: A was superseded (has a archivedAt), B is current (has none).
       BlobMetadata metaA = defaultByVersion.get(versionA);
       BlobMetadata metaB = defaultByVersion.get(versionB);
       Assertions.assertNotNull(
-          metaA.getNoncurrentAt(), "Superseded version A should report a noncurrentAt instant");
+          metaA.getArchivedAt(), "Superseded version A should report a archivedAt instant");
       Assertions.assertNull(
-          metaB.getNoncurrentAt(), "Current version B should not report a noncurrentAt instant");
+          metaB.getArchivedAt(), "Current version B should not report a archivedAt instant");
       if (metaA.getCreatedTime() != null) {
         Assertions.assertFalse(
-            metaA.getNoncurrentAt().isBefore(metaA.getCreatedTime()),
-            "Validity interval [createdTime, noncurrentAt) must be non-negative");
+            metaA.getArchivedAt().isBefore(metaA.getCreatedTime()),
+            "Validity interval [createdTime, archivedAt) must be non-negative");
       }
 
       // Both content versions must be downloadable by their versionIds.
@@ -6412,23 +6412,39 @@ public abstract class AbstractBlobStoreIT {
           includedByVersion.keySet().containsAll(defaultByVersion.keySet()),
           "Opt-in listing should contain every content version the default listing returned");
       Assertions.assertEquals(
-          metaA.getNoncurrentAt(),
-          includedByVersion.get(versionA).getNoncurrentAt(),
-          "noncurrentAt for a content version must not depend on the includeDeleteMarkers flag");
+          metaA.getArchivedAt(),
+          includedByVersion.get(versionA).getArchivedAt(),
+          "archivedAt for a content version must not depend on the includeArchived flag");
       Assertions.assertTrue(
           includedByVersion.size() >= defaultByVersion.size(),
           "Opt-in listing must not drop any entries relative to the default listing");
       Assertions.assertTrue(
           includedByVersion.values().stream()
-              .filter(BlobMetadata::isDeleteMarker)
+              .filter(BlobMetadata::isArchived)
               .allMatch(m -> key.equals(m.getKey())),
-          "Any surfaced delete marker must belong to the requested key");
+          "Any surfaced archived entry must belong to the requested key");
+
+      // Stores that model deletion as a standalone delete marker (rather than archiving a content
+      // generation) must actually surface that marker when the opt-in flag is set; otherwise the
+      // superset assertions above pass vacuously. GCS has no standalone marker to emit and is
+      // exempt.
+      boolean surfacesStandaloneDeleteMarkers = !GCP_PROVIDER_ID.equals(harness.getProviderId());
+      if (surfacesStandaloneDeleteMarkers) {
+        long archivedCount =
+            includedByVersion.values().stream().filter(BlobMetadata::isArchived).count();
+        Assertions.assertTrue(
+            archivedCount > 0,
+            "Opt-in listing must surface the delete marker created by the unqualified delete");
+        Assertions.assertTrue(
+            includedByVersion.size() > defaultByVersion.size(),
+            "Opt-in listing must add the delete marker on top of the content versions");
+      }
     } finally {
       try {
         List<BlobIdentifier> toDelete = new ArrayList<>();
         Iterator<BlobMetadata> allEntries =
             bucketClient.listBlobVersions(
-                ListBlobVersionsRequest.builder().withKey(key).withIncludeDeleteMarkers(true)
+                ListBlobVersionsRequest.builder().withKey(key).withIncludeArchived(true)
                     .build());
         allEntries.forEachRemaining(
             v -> toDelete.add(new BlobIdentifier(v.getKey(), v.getVersionId())));
@@ -6442,12 +6458,12 @@ public abstract class AbstractBlobStoreIT {
   }
 
   private static Map<String, BlobMetadata> collectByVersionId(
-      BucketClient bucketClient, String key, boolean includeDeleteMarkers) {
+      BucketClient bucketClient, String key, boolean includeArchived) {
     Iterator<BlobMetadata> iterator =
         bucketClient.listBlobVersions(
             ListBlobVersionsRequest.builder()
                 .withKey(key)
-                .withIncludeDeleteMarkers(includeDeleteMarkers)
+                .withIncludeArchived(includeArchived)
                 .build());
     Map<String, BlobMetadata> byVersion = new HashMap<>();
     iterator.forEachRemaining(v -> byVersion.put(v.getVersionId(), v));

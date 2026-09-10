@@ -408,13 +408,13 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
   /**
    * Lists versions for a single key using S3's paginated {@code ListObjectVersions} API.
    *
-   * <p>Only entries for the requested key are returned. When {@code includeDeleteMarkers} is set on
-   * the request, delete-marker entries are merged with content versions on a single timeline;
-   * otherwise only content versions are returned.
+   * <p>Only entries for the requested key are returned. When {@code includeArchived} is set on the
+   * request, delete-marker entries are merged with content versions on a single timeline; otherwise
+   * only content versions are returned.
    */
   protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
     return new BlobMetadataIterator(
-        s3Client, getBucket(), request.getKey(), request.isIncludeDeleteMarkers());
+        s3Client, getBucket(), request.getKey(), request.isIncludeArchived());
   }
 
   /**

@@ -11,15 +11,15 @@ public class ListBlobVersionsRequest {
   private final String key;
 
   /**
-   * When {@code true}, the listing includes delete-marker entries in addition to content versions.
-   * When {@code false} (the default), only content versions are returned. Defaults to {@code false}
-   * so existing callers observe no behavioral change.
+   * When {@code true}, the listing includes archived (delete-marker) entries in addition to content
+   * versions. When {@code false} (the default), only content versions are returned. Defaults to
+   * {@code false} so existing callers observe no behavioral change.
    */
-  private final boolean includeDeleteMarkers;
+  private final boolean includeArchived;
 
   private ListBlobVersionsRequest(Builder builder) {
     this.key = builder.key;
-    this.includeDeleteMarkers = builder.includeDeleteMarkers;
+    this.includeArchived = builder.includeArchived;
   }
 
   public static Builder builder() {
@@ -28,7 +28,7 @@ public class ListBlobVersionsRequest {
 
   public static class Builder {
     private String key;
-    private boolean includeDeleteMarkers = false;
+    private boolean includeArchived = false;
 
     public Builder withKey(String key) {
       this.key = key;
@@ -36,13 +36,13 @@ public class ListBlobVersionsRequest {
     }
 
     /**
-     * Controls whether delete-marker entries are included in the version listing.
+     * Controls whether archived (delete-marker) entries are included in the version listing.
      *
-     * @param includeDeleteMarkers {@code true} to include delete markers, {@code false} (default)
-     *     to return only content versions.
+     * @param includeArchived {@code true} to include archived entries, {@code false} (default) to
+     *     return only content versions.
      */
-    public Builder withIncludeDeleteMarkers(boolean includeDeleteMarkers) {
-      this.includeDeleteMarkers = includeDeleteMarkers;
+    public Builder withIncludeArchived(boolean includeArchived) {
+      this.includeArchived = includeArchived;
       return this;
     }
 

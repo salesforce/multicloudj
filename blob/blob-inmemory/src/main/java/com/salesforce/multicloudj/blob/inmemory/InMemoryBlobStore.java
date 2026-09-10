@@ -615,9 +615,9 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   /**
    * Lists every version of an exact key on a single timeline. Content versions and, when requested,
    * delete markers are ordered newest-first. Delete markers are always considered when computing
-   * each entry's supersession time so that a content version's {@code noncurrentAt} reflects the
+   * each entry's supersession time so that a content version's {@code archivedAt} reflects the
    * moment it stopped being current even when the superseding entry is a delete marker; markers are
-   * emitted only when {@code includeDeleteMarkers} is set.
+   * emitted only when {@code includeArchived} is set.
    */
   @Override
   protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
@@ -655,19 +655,19 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     List<BlobMetadata> result = new ArrayList<>(entries.size());
     for (int i = 0; i < entries.size(); i++) {
       TimelineEntry entry = entries.get(i);
-      Instant noncurrentAt = (i == 0) ? null : entries.get(i - 1).createdTime;
+      Instant archivedAt = (i == 0) ? null : entries.get(i - 1).createdTime;
       if (entry.deleteMarker) {
-        if (!request.isIncludeDeleteMarkers()) {
+        if (!request.isIncludeArchived()) {
           continue;
         }
         result.add(
             BlobMetadata.builder()
                 .key(key)
                 .versionId(entry.versionId)
-                .deleteMarker(true)
+                .archived(true)
                 .lastModified(entry.createdTime)
                 .createdTime(entry.createdTime)
-                .noncurrentAt(noncurrentAt)
+                .archivedAt(archivedAt)
                 .build());
       } else {
         StoredBlob blob = entry.blob;
@@ -684,7 +684,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .contentType(blob.getContentType())
                 .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
                 .checksum(toDriverChecksum(blob.getData()))
-                .noncurrentAt(noncurrentAt)
+                .archivedAt(archivedAt)
                 .build());
       }
     }

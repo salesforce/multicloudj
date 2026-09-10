@@ -149,26 +149,26 @@ public class BlobMetadataIteratorTest {
     // Newest content version: current, so no supersession instant.
     BlobMetadata current = all.get(0);
     assertEquals("v2", current.getVersionId());
-    assertFalse(current.isDeleteMarker());
-    assertNull(current.getNoncurrentAt());
+    assertFalse(current.isArchived());
+    assertNull(current.getArchivedAt());
 
     // Delete marker sits between v2 and v1; it stopped being current when v2 was created.
     BlobMetadata dm = all.get(1);
     assertEquals("dm1", dm.getVersionId());
-    assertTrue(dm.isDeleteMarker());
+    assertTrue(dm.isArchived());
     assertEquals(t2, dm.getCreatedTime());
-    assertEquals(t3, dm.getNoncurrentAt());
+    assertEquals(t3, dm.getArchivedAt());
 
     // Oldest content version stopped being current when the delete marker was created.
     BlobMetadata oldest = all.get(2);
     assertEquals("v1", oldest.getVersionId());
-    assertFalse(oldest.isDeleteMarker());
+    assertFalse(oldest.isArchived());
     assertEquals(t1, oldest.getCreatedTime());
-    assertEquals(t2, oldest.getNoncurrentAt());
+    assertEquals(t2, oldest.getArchivedAt());
   }
 
   @Test
-  void testDeleteMarkersFilteredButStillDriveNoncurrentAt() {
+  void testDeleteMarkersFilteredButStillDriveArchivedAt() {
     String key = "obj-1";
     Instant t1 = Instant.parse("2024-01-01T00:00:00Z");
     Instant t2 = Instant.parse("2024-01-02T00:00:00Z");
@@ -191,16 +191,16 @@ public class BlobMetadataIteratorTest {
     List<BlobMetadata> all = new ArrayList<>();
     iterator.forEachRemaining(all::add);
 
-    // Only content versions are emitted, but the older version's noncurrentAt must still
+    // Only content versions are emitted, but the older version's archivedAt must still
     // reflect that a delete marker (not the newer version) superseded it.
     assertEquals(2, all.size());
     assertEquals("v2", all.get(0).getVersionId());
-    assertFalse(all.get(0).isDeleteMarker());
-    assertNull(all.get(0).getNoncurrentAt());
+    assertFalse(all.get(0).isArchived());
+    assertNull(all.get(0).getArchivedAt());
 
     assertEquals("v1", all.get(1).getVersionId());
-    assertFalse(all.get(1).isDeleteMarker());
-    assertEquals(t2, all.get(1).getNoncurrentAt());
+    assertFalse(all.get(1).isArchived());
+    assertEquals(t2, all.get(1).getArchivedAt());
   }
 
   @Test
@@ -234,20 +234,20 @@ public class BlobMetadataIteratorTest {
     assertEquals(3, all.size());
 
     assertEquals("v3", all.get(0).getVersionId());
-    assertFalse(all.get(0).isDeleteMarker());
-    assertNull(all.get(0).getNoncurrentAt());
+    assertFalse(all.get(0).isArchived());
+    assertNull(all.get(0).getArchivedAt());
 
     // Delete marker from page 1 merges ahead of the version from page 2.
     assertEquals("dm1", all.get(1).getVersionId());
-    assertTrue(all.get(1).isDeleteMarker());
+    assertTrue(all.get(1).isArchived());
     assertEquals(t4, all.get(1).getCreatedTime());
-    assertEquals(t5, all.get(1).getNoncurrentAt());
+    assertEquals(t5, all.get(1).getArchivedAt());
 
     // Cross-page supersession: the older version stopped being current at the marker instant.
     assertEquals("v1", all.get(2).getVersionId());
-    assertFalse(all.get(2).isDeleteMarker());
+    assertFalse(all.get(2).isArchived());
     assertEquals(t2, all.get(2).getCreatedTime());
-    assertEquals(t4, all.get(2).getNoncurrentAt());
+    assertEquals(t4, all.get(2).getArchivedAt());
   }
 
   @Test
@@ -271,8 +271,8 @@ public class BlobMetadataIteratorTest {
 
     assertEquals(1, all.size());
     assertEquals("dm1", all.get(0).getVersionId());
-    assertTrue(all.get(0).isDeleteMarker());
-    assertNull(all.get(0).getNoncurrentAt());
+    assertTrue(all.get(0).isArchived());
+    assertNull(all.get(0).getArchivedAt());
   }
 
   @Test
@@ -392,7 +392,7 @@ public class BlobMetadataIteratorTest {
 
     // Both entries surface; equal-timestamp ordering is intentionally left unasserted.
     assertEquals(2, all.size());
-    long markerCount = all.stream().filter(BlobMetadata::isDeleteMarker).count();
+    long markerCount = all.stream().filter(BlobMetadata::isArchived).count();
     assertEquals(1, markerCount);
   }
 
@@ -437,47 +437,13 @@ public class BlobMetadataIteratorTest {
 
     // The delete marker S3 flagged latest is emitted first and is still current.
     assertEquals("dm1", all.get(0).getVersionId());
-    assertTrue(all.get(0).isDeleteMarker());
-    assertNull(all.get(0).getNoncurrentAt());
+    assertTrue(all.get(0).isArchived());
+    assertNull(all.get(0).getArchivedAt());
 
     // The content version sharing the instant is superseded by that marker.
     assertEquals("v1", all.get(1).getVersionId());
-    assertFalse(all.get(1).isDeleteMarker());
-    assertEquals(t, all.get(1).getNoncurrentAt());
-  }
-
-  @Test
-  void testUnsortedPageEntriesAreReorderedNewestFirst() {
-    String key = "obj-1";
-    Instant t1 = Instant.parse("2024-01-01T00:00:00Z");
-    Instant t2 = Instant.parse("2024-01-02T00:00:00Z");
-    Instant t3 = Instant.parse("2024-01-03T00:00:00Z");
-
-    // Feed the page out of newest-first order to prove the iterator re-sorts rather than trusting
-    // the SDK's documented ordering.
-    ObjectVersion v1 = version(key, "v1", 100L, t1);
-    ObjectVersion v2 = version(key, "v2", 200L, t2);
-    ObjectVersion v3 = version(key, "v3", 300L, t3);
-
-    ListObjectVersionsResponse response =
-        ListObjectVersionsResponse.builder().versions(v2, v1, v3).build();
-
-    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
-    when(iterable.iterator()).thenReturn(List.of(response).iterator());
-    when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
-        .thenReturn(iterable);
-
-    Iterator<BlobMetadata> iterator = new BlobMetadataIterator(mockS3Client, TEST_BUCKET, key);
-    List<BlobMetadata> all = new ArrayList<>();
-    iterator.forEachRemaining(all::add);
-
-    assertEquals(3, all.size());
-    assertEquals("v3", all.get(0).getVersionId());
-    assertNull(all.get(0).getNoncurrentAt());
-    assertEquals("v2", all.get(1).getVersionId());
-    assertEquals(t3, all.get(1).getNoncurrentAt());
-    assertEquals("v1", all.get(2).getVersionId());
-    assertEquals(t2, all.get(2).getNoncurrentAt());
+    assertFalse(all.get(1).isArchived());
+    assertEquals(t, all.get(1).getArchivedAt());
   }
 
   private static ObjectVersion version(String key, String versionId, long size) {

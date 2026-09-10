@@ -593,8 +593,8 @@ public class GcpBlobStore extends AbstractBlobStore {
    * <p>GCS represents a deletion of the live object by archiving the current generation and setting
    * its time-deleted; there is no separate delete-marker object. Each returned generation therefore
    * carries its creation time and, when it is no longer current, the time it stopped being current
-   * as {@code noncurrentAt}. The {@code includeDeleteMarkers} request flag has no extra entries to
-   * surface here because GCS does not produce standalone delete markers.
+   * as {@code archivedAt}. The {@code includeArchived} request flag has no extra entries to surface
+   * here because GCS does not produce standalone delete markers.
    */
   @Override
   protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
@@ -618,13 +618,11 @@ public class GcpBlobStore extends AbstractBlobStore {
       @Override
       public BlobMetadata next() {
         Blob blob = blobIterator.next();
-        java.time.OffsetDateTime versionTimestamp = blob.getCreateTimeOffsetDateTime();
-        java.time.Instant createdTime =
-            versionTimestamp != null ? versionTimestamp.toInstant() : null;
+        OffsetDateTime versionTimestamp = blob.getCreateTimeOffsetDateTime();
+        Instant createdTime = versionTimestamp != null ? versionTimestamp.toInstant() : null;
         // A generation that is no longer current reports the instant it was superseded/deleted.
-        java.time.OffsetDateTime deletedTimestamp = blob.getDeleteTimeOffsetDateTime();
-        java.time.Instant noncurrentAt =
-            deletedTimestamp != null ? deletedTimestamp.toInstant() : null;
+        OffsetDateTime deletedTimestamp = blob.getDeleteTimeOffsetDateTime();
+        Instant archivedAt = deletedTimestamp != null ? deletedTimestamp.toInstant() : null;
         return BlobMetadata.builder()
             .key(blob.getName())
             .versionId(blob.getGeneration() != null ? blob.getGeneration().toString() : null)
@@ -632,7 +630,7 @@ public class GcpBlobStore extends AbstractBlobStore {
             .objectSize(blob.getSize() != null ? blob.getSize() : 0L)
             .lastModified(createdTime)
             .createdTime(createdTime)
-            .noncurrentAt(noncurrentAt)
+            .archivedAt(archivedAt)
             .build();
       }
     };
