@@ -53,6 +53,9 @@ public class ErrorCodeMapping {
     ERROR_MAPPING.put("MissingReceiptHandle", InvalidArgumentException.class);
     ERROR_MAPPING.put("MissingVisibilityTimeout", InvalidArgumentException.class);
     ERROR_MAPPING.put("ReceiptHandleError", InvalidArgumentException.class);
+    // Per-message body exceeds the documented SMQ size limit; splitBySize normally fail-fasts an
+    // over-limit message before send, so this completes coverage of the documented size code.
+    ERROR_MAPPING.put("MessageBodyOverSizeLimit", InvalidArgumentException.class);
 
     // Missing resources (HTTP 404).
     ERROR_MAPPING.put("QueueNotExist", ResourceNotFoundException.class);

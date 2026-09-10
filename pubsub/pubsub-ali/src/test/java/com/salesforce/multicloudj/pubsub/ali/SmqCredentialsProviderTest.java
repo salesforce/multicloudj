@@ -16,7 +16,7 @@ import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.junit.jupiter.api.Test;
 
-public class MnsCredentialsProviderTest {
+public class SmqCredentialsProviderTest {
 
   private static CredentialsOverrider session(StsCredentials credentials) {
     return new CredentialsOverrider.Builder(CredentialsType.SESSION)
@@ -26,19 +26,19 @@ public class MnsCredentialsProviderTest {
 
   @Test
   void nullOverriderReturnsNull() {
-    assertNull(MnsCredentialsProvider.getCredentialsProvider(null));
+    assertNull(SmqCredentialsProvider.getCredentialsProvider(null));
   }
 
   @Test
   void nullTypeReturnsNull() {
     CredentialsOverrider overrider = new CredentialsOverrider.Builder(null).build();
-    assertNull(MnsCredentialsProvider.getCredentialsProvider(overrider));
+    assertNull(SmqCredentialsProvider.getCredentialsProvider(overrider));
   }
 
   @Test
   void sessionMapsToStaticCredentialsProvider() throws Exception {
     AlibabaCloudCredentialsProvider provider =
-        MnsCredentialsProvider.getCredentialsProvider(
+        SmqCredentialsProvider.getCredentialsProvider(
             session(new StsCredentials("key", "secret", "token")));
 
     assertInstanceOf(StaticCredentialsProvider.class, provider);
@@ -54,7 +54,7 @@ public class MnsCredentialsProviderTest {
     // Blank/empty field values are not validated here; they are passed to the SDK, which
     // evaluates them at request time.
     AlibabaCloudCredentialsProvider provider =
-        MnsCredentialsProvider.getCredentialsProvider(session(new StsCredentials("", "", "")));
+        SmqCredentialsProvider.getCredentialsProvider(session(new StsCredentials("", "", "")));
     assertInstanceOf(StaticCredentialsProvider.class, provider);
     assertEquals("", provider.getCredentials().getAccessKeyId());
   }
@@ -65,7 +65,7 @@ public class MnsCredentialsProviderTest {
         new CredentialsOverrider.Builder(CredentialsType.SESSION).build();
     assertThrows(
         InvalidArgumentException.class,
-        () -> MnsCredentialsProvider.getCredentialsProvider(overrider));
+        () -> SmqCredentialsProvider.getCredentialsProvider(overrider));
   }
 
   @Test
@@ -77,7 +77,7 @@ public class MnsCredentialsProviderTest {
             .build();
     assertThrows(
         UnSupportedOperationException.class,
-        () -> MnsCredentialsProvider.getCredentialsProvider(overrider));
+        () -> SmqCredentialsProvider.getCredentialsProvider(overrider));
   }
 
   @Test
@@ -86,6 +86,6 @@ public class MnsCredentialsProviderTest {
         new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE_WEB_IDENTITY).build();
     assertThrows(
         UnSupportedOperationException.class,
-        () -> MnsCredentialsProvider.getCredentialsProvider(overrider));
+        () -> SmqCredentialsProvider.getCredentialsProvider(overrider));
   }
 }
