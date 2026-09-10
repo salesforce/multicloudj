@@ -25,9 +25,9 @@ import com.salesforce.multicloudj.sts.model.StsCredentials;
  *       {@link UnSupportedOperationException} (TODO: not yet implemented for SMQ).
  * </ul>
  */
-public final class MnsCredentialsProvider {
+public final class SmqCredentialsProvider {
 
-  private MnsCredentialsProvider() {}
+  private SmqCredentialsProvider() {}
 
   /**
    * Returns an Alibaba credentials provider for the given overrider, or {@code null} only when the
