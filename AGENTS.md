@@ -184,6 +184,13 @@ protected PutObjectResponse doPutObject(PutObjectRequest request) {
 
 The driver contract and conformance tests ensure all providers behave the same for end users. Providers achieve this independently, not by copying or comparing with each other.
 
+### Git operations
+
+- Claude Code users should consult `~/.claude/config.md` for local Git push
+  authentication instructions.
+- Other agents should use the Git and GitHub authentication configured in their
+  environment and follow their applicable approval and sandbox rules.
+
 ## Build Configuration
 
 - **Java Version**: Requires Java 17+, targets Java 17 bytecode
