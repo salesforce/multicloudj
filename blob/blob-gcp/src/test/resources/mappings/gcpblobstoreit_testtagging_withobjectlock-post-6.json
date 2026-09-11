@@ -1,5 +1,5 @@
 {
-  "id" : "7f23f689-10de-4555-bef1-a45ef3220ca0",
+  "id" : "ff6f945a-41bd-415b-9195-f2b590156b45",
   "name" : "GcpBlobStoreIT_testTagging_withObjectLock-POST-6",
   "request" : {
     "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fblob-for-tagging-objectlock",
@@ -17,28 +17,28 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"generation\":\"1784554987882405\",\"metadata\":{\"gcp-tag-tag1\":null,\"gcp-tag-tag3\":\"value3\"},\"name\":\"conformance-tests/blob-for-tagging-objectlock\"}",
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"generation\":\"1787646108061732\",\"metadata\":{\"gcp-tag-tag1\":null,\"gcp-tag-tag3\":\"value3\"},\"name\":\"conformance-tests/blob-for-tagging-objectlock\"}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/blob-for-tagging-objectlock/1784554987882405\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fblob-for-tagging-objectlock\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fblob-for-tagging-objectlock?generation=1784554987882405&alt=media\",\n  \"name\": \"conformance-tests/blob-for-tagging-objectlock\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1784554987882405\",\n  \"metageneration\": \"2\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"34\",\n  \"md5Hash\": \"fhoYDt3ji+s3dJJLcNy/xw==\",\n  \"crc32c\": \"Np37Cg==\",\n  \"etag\": \"CKWPirGx4ZUDEAI=\",\n  \"timeCreated\": \"2026-07-20T13:43:07.955Z\",\n  \"updated\": \"2026-07-20T13:43:09.547Z\",\n  \"timeStorageClassUpdated\": \"2026-07-20T13:43:07.955Z\",\n  \"timeFinalized\": \"2026-07-20T13:43:07.955Z\",\n  \"metadata\": {\n    \"gcp-tag-tag3\": \"value3\"\n  }\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/blob-for-tagging-objectlock/1787646108061732\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fblob-for-tagging-objectlock\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fblob-for-tagging-objectlock?generation=1787646108061732&alt=media\",\n  \"name\": \"conformance-tests/blob-for-tagging-objectlock\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1787646108061732\",\n  \"metageneration\": \"2\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"34\",\n  \"md5Hash\": \"fhoYDt3ji+s3dJJLcNy/xw==\",\n  \"crc32c\": \"Np37Cg==\",\n  \"etag\": \"CKSghdqsu5YDEAI=\",\n  \"timeCreated\": \"2026-08-25T08:21:48.135Z\",\n  \"updated\": \"2026-08-25T08:21:50.309Z\",\n  \"timeStorageClassUpdated\": \"2026-08-25T08:21:48.135Z\",\n  \"timeFinalized\": \"2026-08-25T08:21:48.135Z\",\n  \"metadata\": {\n    \"gcp-tag-tag3\": \"value3\"\n  }\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CKWPirGx4ZUDEAI=",
-      "X-GUploader-UploadID" : "AKhXX7L1dhjcGYBMX55fsu59J43_-LKzmsGJu7AgrRHW7p2A3A86PgDlbFTI4DT4mtd1sIVfi_b_Ixk",
+      "ETag" : "CKSghdqsu5YDEAI=",
+      "X-GUploader-UploadID" : "AJjja9bSCMe-8m-x6Lv5JyhWIc39W3DZI6Sq9Q680edDhefjomk1x5ZoV1xDc-NWPlhJg3hv",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Mon, 20 Jul 2026 13:43:09 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:21:50 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "7f23f689-10de-4555-bef1-a45ef3220ca0",
+  "uuid" : "ff6f945a-41bd-415b-9195-f2b590156b45",
   "persistent" : true,
-  "insertionIndex" : 1433
+  "insertionIndex" : 161
 }

@@ -1,23 +1,45 @@
 {
-  "id" : "5cc39f63-8730-4584-a84a-117b31f729e5",
+  "id" : "09e9a846-82a1-449e-9c49-de226ef3ba64",
   "name" : "AwsBlobStoreIT_testListPage_WithDelimiter_ReturnsCommonPrefixes-GET-4",
   "request" : {
-    "url" : "/chameleon-jcloud?list-type=2&delimiter=%2F&prefix=conformance-tests%2Fcommon-prefix-basic%2F",
-    "method" : "GET"
+    "urlPath" : "/chameleon-jcloud",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "delimiter" : {
+        "hasExactly" : [ {
+          "equalTo" : "/"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/common-prefix-basic/"
+        } ]
+      }
+    }
   },
   "response" : {
     "status" : 200,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/common-prefix-basic/</Prefix><KeyCount>3</KeyCount><MaxKeys>1000</MaxKeys><Delimiter>/</Delimiter><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/common-prefix-basic/root.txt</Key><LastModified>2026-04-02T04:52:46.000Z</LastModified><ETag>&quot;098f6bcd4621d373cade4e832627b4f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>4</Size><StorageClass>STANDARD</StorageClass></Contents><CommonPrefixes><Prefix>conformance-tests/common-prefix-basic/dir1/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>conformance-tests/common-prefix-basic/dir2/</Prefix></CommonPrefixes></ListBucketResult>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/common-prefix-basic/</Prefix><KeyCount>3</KeyCount><MaxKeys>1000</MaxKeys><Delimiter>/</Delimiter><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/common-prefix-basic/root.txt</Key><LastModified>2026-08-25T09:46:05.000Z</LastModified><ETag>&quot;098f6bcd4621d373cade4e832627b4f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>4</Size><StorageClass>STANDARD</StorageClass></Contents><CommonPrefixes><Prefix>conformance-tests/common-prefix-basic/dir1/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>conformance-tests/common-prefix-basic/dir2/</Prefix></CommonPrefixes></ListBucketResult>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "BFTTWME6EDXTC7BP",
-      "x-amz-id-2" : "CLLFE1/ouALsPQgynZN0dHi9VEuhKHS8TbXeL6XCyRgKJRpSgJLu2SHPVz63/6XZXPtfM1MBtxdcGzpspqLX9xF0lPsCdykX",
+      "x-amz-request-id" : "R59MAY9MQWBD5BYR",
+      "x-amz-id-2" : "ZbzO3iXTobJUSpwhr4YBXiQ2K0cry6Is3i35VNyRmCUYAfrI7NN2jNMGH/FV2vytA4bfChYYbhM=",
       "x-amz-bucket-region" : "us-west-2",
-      "Date" : "Thu, 02 Apr 2026 04:52:47 GMT",
+      "Date" : "Tue, 25 Aug 2026 09:46:06 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "5cc39f63-8730-4584-a84a-117b31f729e5",
+  "uuid" : "09e9a846-82a1-449e-9c49-de226ef3ba64",
   "persistent" : true,
-  "insertionIndex" : 649
+  "insertionIndex" : 689
 }

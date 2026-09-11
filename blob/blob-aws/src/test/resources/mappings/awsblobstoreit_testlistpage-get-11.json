@@ -1,5 +1,5 @@
 {
-  "id" : "04204c4d-040e-4751-9d48-2b24ea96c594",
+  "id" : "fcba2220-11ea-4aad-b6d8-b2fb6978c161",
   "name" : "AwsBlobStoreIT_testListPage-GET-11",
   "request" : {
     "urlPath" : "/chameleon-jcloud",
@@ -34,17 +34,17 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/blob-for-list-page/prefix</Prefix><NextContinuationToken>11XNfTHt6WtKNKF8Nxbh7cjCaJcx4EubG7QIgpnMsWpxu6XScIXoHiH2Sti2E249z71eTgXWm9hf3xyw4vPUxowZidVypI6Yb</NextContinuationToken><KeyCount>2</KeyCount><MaxKeys>2</MaxKeys><Delimiter>-</Delimiter><IsTruncated>true</IsTruncated><Contents><Key>conformance-tests/blob-for-list-page/prefix_3</Key><LastModified>2026-03-04T21:00:28.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents><CommonPrefixes><Prefix>conformance-tests/blob-for-list-page/prefix-</Prefix></CommonPrefixes></ListBucketResult>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/blob-for-list-page/prefix</Prefix><NextContinuationToken>1XHp559kHSHy9vWchQ767LSauc4etOhJ4f7fM/uyQhD9LqH+c+Fxb/kYRU+zTJl1QMFiSuz6XK5G7GzzTCwIWdLHUqjcq5aRl</NextContinuationToken><KeyCount>2</KeyCount><MaxKeys>2</MaxKeys><Delimiter>-</Delimiter><IsTruncated>true</IsTruncated><Contents><Key>conformance-tests/blob-for-list-page/prefix_3</Key><LastModified>2026-08-25T09:48:34.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents><CommonPrefixes><Prefix>conformance-tests/blob-for-list-page/prefix-</Prefix></CommonPrefixes></ListBucketResult>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "8K7WCRCC8E2B9YSP",
-      "x-amz-id-2" : "Ff9uFV3FpZJHBj3HiImo8UiNtUIf+uAFTI/KoAYWRoyytCPtO6LoFEF6BvrsEP050nw5lXt9nM6oy/98wIVW+0EZJJ3DxOjC",
+      "x-amz-request-id" : "CMCKR3ZB0RFZN1T7",
+      "x-amz-id-2" : "BcNKXyOr0xT15Hj2R2c2UC2C5GRrVR5eXdV7gWmeB6qfhfgOe0uxnqB24zxrZ3PtBCmY/p2pcPN4oLAkRBKbS1ZmFG9dddb2",
       "x-amz-bucket-region" : "us-west-2",
-      "Date" : "Wed, 04 Mar 2026 21:00:31 GMT",
+      "Date" : "Tue, 25 Aug 2026 09:48:40 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "04204c4d-040e-4751-9d48-2b24ea96c594",
+  "uuid" : "fcba2220-11ea-4aad-b6d8-b2fb6978c161",
   "persistent" : true,
-  "insertionIndex" : 617
+  "insertionIndex" : 876
 }

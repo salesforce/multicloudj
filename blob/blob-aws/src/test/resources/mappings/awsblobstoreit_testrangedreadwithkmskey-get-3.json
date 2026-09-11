@@ -1,32 +1,31 @@
 {
-  "id" : "f188869d-625e-4724-bf01-72fe9f68bfe1",
+  "id" : "a2ebe310-0a86-4a67-ba4d-1cbd002a7cdb",
   "name" : "AwsBlobStoreIT_testRangedReadWithKmsKey-GET-3",
   "request" : {
     "url" : "/chameleon-jcloud/conformance-tests/kms/ranged-read",
     "method" : "GET"
   },
   "response" : {
-    "status" : 200,
-    "base64Body" : "c3QgZGF0YSBmb3IgdGhlIEtNUyDnClOaziq/JEfJC1z3XdFl",
+    "status" : 206,
+    "base64Body" : "c3QgZGF0YSBmb3IgdGhlIEtNUyA=",
     "headers" : {
       "Accept-Ranges" : "bytes",
       "Server" : "AmazonS3",
-      "ETag" : "\"2d2f86c1416f323f491784c289d21128\"",
+      "ETag" : "\"83ae6e81e1efd35d5666fdf10196450f\"",
+      "Content-Range" : "bytes 10-29/51",
       "x-amz-server-side-encryption-aws-kms-key-id" : "arn:aws:kms:us-west-2:654654370895:key/faa140af-8195-49c0-9f8a-f03e9fd47d89",
-      "Last-Modified" : "Wed, 04 Mar 2026 20:59:07 GMT",
-      "x-amz-request-id" : "RSKY6SR1C1HJH4TK",
+      "Last-Modified" : "Tue, 25 Aug 2026 09:44:23 GMT",
+      "x-amz-request-id" : "V8PSNB0JDF9G9HWY",
       "x-amz-server-side-encryption" : "aws:kms",
-      "x-amz-id-2" : "u3qFK/z0yAbAIYyVmxaoWaFf3Py1j8QownQHmC9W4zRfhV/7VoJCuf7dsakRl6RgPD6zFeO9PHDkZNJyahWOrnSuiY2La9vo",
-      "x-amz-content-range" : "bytes 10-29/51",
-      "x-amz-transfer-encoding" : "append-md5",
-      "Date" : "Wed, 04 Mar 2026 20:59:08 GMT",
+      "x-amz-id-2" : "wIf5Lme3GFAZSMo/oAxIpRGI1DKHpeFxcsjQScjbqp5lql2YfKd+KP1axAgB1DAlqaLCQJToOx6aLYz/rwiPSMiU4ZL+COiI",
+      "Date" : "Tue, 25 Aug 2026 09:44:23 GMT",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "f188869d-625e-4724-bf01-72fe9f68bfe1",
+  "uuid" : "a2ebe310-0a86-4a67-ba4d-1cbd002a7cdb",
   "persistent" : true,
-  "scenarioName" : "scenario-1-chameleon-jcloud-conformance-tests-kms-ranged-read",
+  "scenarioName" : "AwsBlobStoreIT_testRangedReadWithKmsKey-scenario-1-chameleon-jcloud-conformance-tests-kms-ranged-read",
   "requiredScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-kms-ranged-read-2",
   "newScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-kms-ranged-read-3",
-  "insertionIndex" : 422
+  "insertionIndex" : 582
 }

@@ -1,5 +1,5 @@
 {
-  "id" : "c65cd0ce-4332-4ba9-a5da-17820fd04e61",
+  "id" : "b32039a0-24b9-4c1d-a2f1-e99704cf462d",
   "name" : "AwsBlobStoreIT_testVersionedCopy-GET-12",
   "request" : {
     "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/versionedCopy/blob",
@@ -12,32 +12,33 @@
     "queryParameters" : {
       "versionId" : {
         "hasExactly" : [ {
-          "equalTo" : "TUROlqpdqCOeV0e7rT.oUHLFiwlXE5tE"
+          "equalTo" : "upQ4a37KBhwqYkjROSxs7CCSgvfwofOL"
         } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "base64Body" : "VGhpcyBpcyB0aGUgc2Vjb25kIHZlcnNpb24gb2YgdGhlIGJsb2LaSwZrOyMkXiounqMs91Jj",
+    "base64Body" : "VGhpcyBpcyB0aGUgc2Vjb25kIHZlcnNpb24gb2YgdGhlIGJsb2I=",
     "headers" : {
       "Accept-Ranges" : "bytes",
       "Server" : "AmazonS3",
       "ETag" : "\"da4b066b3b23245e2a2e9ea32cf75263\"",
-      "Last-Modified" : "Wed, 04 Mar 2026 20:57:20 GMT",
-      "x-amz-request-id" : "CPYC713JS9XTS51E",
+      "x-amz-checksum-crc64nvme" : "QJFaFb/w52U=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "Last-Modified" : "Tue, 25 Aug 2026 09:39:09 GMT",
+      "x-amz-request-id" : "RAN8G7R2YKFY5C1P",
       "x-amz-server-side-encryption" : "AES256",
-      "x-amz-id-2" : "ZXMJ5ct9BD4u+b6igOGZvzgyLYW4/buIqPtgPVyA6qACmLfRQM30a7+OfgwjfOiUze9Lzi2dAbIgYdsklOLpw4Gd0odnv9pp",
-      "x-amz-transfer-encoding" : "append-md5",
-      "x-amz-version-id" : "TUROlqpdqCOeV0e7rT.oUHLFiwlXE5tE",
-      "Date" : "Wed, 04 Mar 2026 20:57:23 GMT",
+      "x-amz-id-2" : "9w0x5IsgDtA1SIgrWDJGi6G8HDF0nO8OFmTAVntNCAiMQ8dWmUK3szR9wjYM236q0/uldGqWxUg=",
+      "x-amz-version-id" : "upQ4a37KBhwqYkjROSxs7CCSgvfwofOL",
+      "Date" : "Tue, 25 Aug 2026 09:39:16 GMT",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "c65cd0ce-4332-4ba9-a5da-17820fd04e61",
+  "uuid" : "b32039a0-24b9-4c1d-a2f1-e99704cf462d",
   "persistent" : true,
-  "scenarioName" : "scenario-2-chameleon-jcloud-versioned-conformance-tests-versionedCopy-blob",
+  "scenarioName" : "AwsBlobStoreIT_testVersionedCopy-scenario-2-chameleon-jcloud-versioned-conformance-tests-versionedCopy-blob",
   "requiredScenarioState" : "Started",
   "newScenarioState" : "scenario-2-chameleon-jcloud-versioned-conformance-tests-versionedCopy-blob-2",
-  "insertionIndex" : 192
+  "insertionIndex" : 239
 }

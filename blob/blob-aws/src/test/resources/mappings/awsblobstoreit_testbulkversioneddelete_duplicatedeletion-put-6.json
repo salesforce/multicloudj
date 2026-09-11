@@ -1,5 +1,5 @@
 {
-  "id" : "fbdb100a-df8c-4bee-a49e-6f0a95815776",
+  "id" : "8e9e1d27-5ea3-45e2-8715-e0012aa44bea",
   "name" : "AwsBlobStoreIT_testBulkVersionedDelete_duplicateDeletion-PUT-6",
   "request" : {
     "url" : "/chameleon-jcloud-versioned/conformance-tests/bulkDeleteByVersion/happy8",
@@ -15,14 +15,14 @@
       "ETag" : "\"0ca93d8143deb5608806b7013cb0f86d\"",
       "x-amz-checksum-crc64nvme" : "2UVYPg8Xfso=",
       "x-amz-checksum-type" : "FULL_OBJECT",
-      "x-amz-request-id" : "5V0QAR2BEJJ8FQ22",
+      "x-amz-request-id" : "H0NY0QZPCXMGYP5Q",
       "x-amz-server-side-encryption" : "AES256",
-      "x-amz-id-2" : "8wfnnHRzA/WjhJ/tzscCafZFPrvUmwuLrSwaf+NFECMiJ/dPpV0BvR/dlGLvSHZxXberg2Ibtfm7yYldILUkmVNdmkXFfYGS",
-      "x-amz-version-id" : "MMlycxkCxAMRh.grTxF9IC5fME6buPnv",
-      "Date" : "Wed, 04 Mar 2026 20:59:32 GMT"
+      "x-amz-id-2" : "X//AVXREx8J0JPGdzJXUjAbrwDQJF3BC84BoaKiJeLAneXw8CFGztTdRw/q6e4L6UuCKKuWydys=",
+      "x-amz-version-id" : "dpb.iScV7soEgwkm7LEf6dDyAC99UsR8",
+      "Date" : "Tue, 25 Aug 2026 09:46:17 GMT"
     }
   },
-  "uuid" : "fbdb100a-df8c-4bee-a49e-6f0a95815776",
+  "uuid" : "8e9e1d27-5ea3-45e2-8715-e0012aa44bea",
   "persistent" : true,
-  "insertionIndex" : 482
+  "insertionIndex" : 709
 }

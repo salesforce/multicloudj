@@ -1,0 +1,47 @@
+{
+  "id" : "fd3ea122-f3ac-4636-9433-86aa25a2785a",
+  "name" : "GcpBlobStoreIT_testDelete-GET-8",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "maxResults" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "blob-that-doesnt-exist"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AJjja9avk-OaMAQiq3_1Yl9wjT6MiyUPXwtGWMZszQadVgGM6HK11NmrsEe5qUSsSRWfKDM",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Tue, 25 Aug 2026 08:32:26 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:32:26 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "fd3ea122-f3ac-4636-9433-86aa25a2785a",
+  "persistent" : true,
+  "insertionIndex" : 1028
+}

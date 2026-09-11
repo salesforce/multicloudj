@@ -1,0 +1,25 @@
+{
+  "id" : "a596bbaa-9536-439d-85e2-a61e9c14e2c0",
+  "name" : "GcpBlobStoreIT_testUpload_emptyContent-DELETE-32",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fupload%2FemptyContent_ByteArray",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AJjja9bORj88byE7MhnLigG5nsESGI03obN-JqNVG0cCaXCgznGET-LKflk7m7po61_1MyDA",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:34:35 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "a596bbaa-9536-439d-85e2-a61e9c14e2c0",
+  "persistent" : true,
+  "insertionIndex" : 1303
+}

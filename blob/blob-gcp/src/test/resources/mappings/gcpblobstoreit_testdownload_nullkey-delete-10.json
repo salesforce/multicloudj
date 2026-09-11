@@ -1,0 +1,28 @@
+{
+  "id" : "9e34b81d-ac06-453f-afdf-321496add51e",
+  "name" : "GcpBlobStoreIT_testDownload_nullKey-DELETE-10",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdownload_null_key_versioned",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AJjja9ZJJX4xFSS3Ok8f3VdhF2yoV9BdRf3PiAlG13rJb0UBvBHEHPzKt2rbaVu2fl7cbdM",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:23:04 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "9e34b81d-ac06-453f-afdf-321496add51e",
+  "persistent" : true,
+  "scenarioName" : "GcpBlobStoreIT_testDownload_nullKey-scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-download_null_key_versioned",
+  "requiredScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-download_null_key_versioned-2",
+  "newScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-download_null_key_versioned-3",
+  "insertionIndex" : 235
+}

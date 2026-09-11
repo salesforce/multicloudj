@@ -1,5 +1,5 @@
 {
-  "id" : "3246aec7-06f4-4212-bd54-fc0fe846b6be",
+  "id" : "c86e968a-f34f-4acb-a96d-fb3661c38635",
   "name" : "GcpBlobStoreIT_testDeleteDirectory_basic-POST-9",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
@@ -33,16 +33,16 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AAVLpEgu1M1PTP0BLt6sVLiGuWI4l0q_bB3vUnQzdPBc7FxsrHZHAzxl7a-f2f6W3nKxlS_suFaAw3j2Avb00vtUs6ges86xMt4Pdzq1pFuEFQ",
+      "X-GUploader-UploadID" : "AJjja9ZEiF6ZgsD8RPB9OEZmfwIccChlMsLyYv994hlVqA50tHLgWZnlchFgWX4h7m9twGw3nYT3ljIn61Ooju3JToSUig7U-negahJxMgaqCPU",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Wed, 27 May 2026 15:02:02 GMT",
-      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/directory/delete-basic-v1/subdir/delete2.txt&uploadType=resumable&upload_id=AAVLpEgu1M1PTP0BLt6sVLiGuWI4l0q_bB3vUnQzdPBc7FxsrHZHAzxl7a-f2f6W3nKxlS_suFaAw3j2Avb00vtUs6ges86xMt4Pdzq1pFuEFQ",
+      "Date" : "Tue, 25 Aug 2026 08:34:55 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/directory/delete-basic-v1/subdir/delete2.txt&uploadType=resumable&upload_id=AJjja9ZEiF6ZgsD8RPB9OEZmfwIccChlMsLyYv994hlVqA50tHLgWZnlchFgWX4h7m9twGw3nYT3ljIn61Ooju3JToSUig7U-negahJxMgaqCPU",
       "Content-Type" : "text/plain; charset=utf-8"
     }
   },
-  "uuid" : "3246aec7-06f4-4212-bd54-fc0fe846b6be",
+  "uuid" : "c86e968a-f34f-4acb-a96d-fb3661c38635",
   "persistent" : true,
-  "insertionIndex" : 1424
+  "insertionIndex" : 1336
 }

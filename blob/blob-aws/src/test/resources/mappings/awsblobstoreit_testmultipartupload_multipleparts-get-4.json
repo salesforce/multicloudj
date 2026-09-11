@@ -1,5 +1,5 @@
 {
-  "id" : "5dbb385c-7a43-40bd-9372-6d8999e8f571",
+  "id" : "ed5bedf1-275e-432a-aeaf-55893878732b",
   "name" : "AwsBlobStoreIT_testMultipartUpload_multipleParts-GET-4",
   "request" : {
     "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-multipleParts",
@@ -12,23 +12,23 @@
     "queryParameters" : {
       "uploadId" : {
         "hasExactly" : [ {
-          "equalTo" : "pppqb3HhtFuUlNvhZB0QuNbptrEqBxhua.cJky8hXBLZaPgEwOxHf9p2exg4W31F_k0LYxWKhxprcCBv_gf0fubLsJ7FJRXgMN10Vny69BBnuMfKhHKvYSspUtSYM0mI.f26sGEA2B9im.SGQVHsHnFeYaQRXJsw2ANq1654rVJt9PinTv1Fi2njgsOomg_Z"
+          "equalTo" : "77G9ivJv_HtVL9tnpFyPiszBoj5Xxl_1dOuR_CFFdZt_vRNINtpmxzxGVDNh7Vv7ac6bTI2JCnilef1GjwJ7ZApUNPK7FFvUR4M3EM3rJ0cNGEll3uZDWFctOspF.ah4xB3Z8PlU0fn.bB.wNY8TmRmByth5CA5VTv.AqfHeHCRi2BZqPs4G2EDDE2tjA6L_LTSkytYqOZ1EUvUdGzoZUg--"
         } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-multipleParts</Key><UploadId>pppqb3HhtFuUlNvhZB0QuNbptrEqBxhua.cJky8hXBLZaPgEwOxHf9p2exg4W31F_k0LYxWKhxprcCBv_gf0fubLsJ7FJRXgMN10Vny69BBnuMfKhHKvYSspUtSYM0mI.f26sGEA2B9im.SGQVHsHnFeYaQRXJsw2ANq1654rVJt9PinTv1Fi2njgsOomg_Z</UploadId><Initiator><ID>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-rose.yang@02adc20a-81c9-42d9-a905-4ed2386a6621</ID><DisplayName>PCSKAdministratorAccessRole/PCSK-rose.yang@02adc20a-81c9-42d9-a905-4ed2386a6621</DisplayName></Initiator><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>4</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><LastModified>2026-04-09T18:24:33.000Z</LastModified><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>2</PartNumber><LastModified>2026-04-09T18:24:34.000Z</LastModified><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>3</PartNumber><LastModified>2026-04-09T18:24:36.000Z</LastModified><ETag>&quot;fe9e522b589ef23e2c49b65c0522ce97&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>4</PartNumber><LastModified>2026-04-09T18:24:38.000Z</LastModified><ETag>&quot;00ad619297ccd041956fe69be4251d30&quot;</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-multipleParts</Key><UploadId>77G9ivJv_HtVL9tnpFyPiszBoj5Xxl_1dOuR_CFFdZt_vRNINtpmxzxGVDNh7Vv7ac6bTI2JCnilef1GjwJ7ZApUNPK7FFvUR4M3EM3rJ0cNGEll3uZDWFctOspF.ah4xB3Z8PlU0fn.bB.wNY8TmRmByth5CA5VTv.AqfHeHCRi2BZqPs4G2EDDE2tjA6L_LTSkytYqOZ1EUvUdGzoZUg--</UploadId><Initiator><ID>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-sriram.guduri@bf6f24fd-dd5f-4e44-a80e-2397a8e5c3da</ID><DisplayName>PCSKAdministratorAccessRole/PCSK-sriram.guduri@bf6f24fd-dd5f-4e44-a80e-2397a8e5c3da</DisplayName></Initiator><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>4</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><LastModified>2026-08-25T09:44:06.000Z</LastModified><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>2</PartNumber><LastModified>2026-08-25T09:44:09.000Z</LastModified><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>3</PartNumber><LastModified>2026-08-25T09:44:12.000Z</LastModified><ETag>&quot;fe9e522b589ef23e2c49b65c0522ce97&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>4</PartNumber><LastModified>2026-08-25T09:44:15.000Z</LastModified><ETag>&quot;00ad619297ccd041956fe69be4251d30&quot;</ETag><Size>5242880</Size></Part></ListPartsResult>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "98CD4JN02AB5YS0C",
-      "x-amz-id-2" : "XEx9N6AL1ErPiCJpMMpB/kyZRahkldIza6syiMjQ2TjpPgOGqZvR7GBHquJr3i/ajlewzkjgBsI=",
-      "Date" : "Thu, 09 Apr 2026 18:24:40 GMT",
+      "x-amz-request-id" : "156F3JG8GSFR9GA3",
+      "x-amz-id-2" : "/n/pHamJKg2QKS6wNo6zp1j1fy5MnSl6QgtN8C11REsnVLYtfOcWWYDgCVzfxDX7D9f46jz4XKg=",
+      "Date" : "Tue, 25 Aug 2026 09:44:18 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "5dbb385c-7a43-40bd-9372-6d8999e8f571",
+  "uuid" : "ed5bedf1-275e-432a-aeaf-55893878732b",
   "persistent" : true,
-  "insertionIndex" : 731
+  "insertionIndex" : 572
 }

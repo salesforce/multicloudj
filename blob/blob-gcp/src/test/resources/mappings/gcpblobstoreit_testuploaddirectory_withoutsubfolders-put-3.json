@@ -1,5 +1,5 @@
 {
-  "id" : "fb192349-557a-4848-a09d-4e5ab7eacf3c",
+  "id" : "b9b21765-fc55-434e-a5a8-3e638336b6a3",
   "name" : "GcpBlobStoreIT_testUploadDirectory_withoutSubFolders-PUT-3",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
@@ -22,7 +22,7 @@
       },
       "upload_id" : {
         "hasExactly" : [ {
-          "equalTo" : "AAVLpEi08EnfpIv9mfsr53l8lixuAnkDx-IwVYf7RsBlkte6WhO5IScd_Llm6KFxL5R4qxLyBJ_-3Lm8ALJ74mAe8B--_xYgEGAxn7MNTYTvVw"
+          "equalTo" : "AJjja9a9zcBbTqMcozkUC0_Ye5a2rMBPeiBQOcHE312iTVux9C_KufmaP7dPtrmt_BsmfizaWCmM2Y5BX9xE5scK2u5g946-suJpIkTefMeX5NM"
         } ]
       }
     },
@@ -33,21 +33,21 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/directory/upload-no-subfolder-v1/top-level.txt/1779893591739641\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fupload-no-subfolder-v1%2Ftop-level.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fupload-no-subfolder-v1%2Ftop-level.txt?generation=1779893591739641&alt=media\",\n  \"name\": \"conformance-tests/directory/upload-no-subfolder-v1/top-level.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1779893591739641\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"17\",\n  \"md5Hash\": \"Fjp9UX+m7cD0JnAxHd4WHw==\",\n  \"crc32c\": \"WJQqWw==\",\n  \"etag\": \"CPmZmKrc2ZQDEAE=\",\n  \"timeCreated\": \"2026-05-27T14:53:11.801Z\",\n  \"updated\": \"2026-05-27T14:53:11.801Z\",\n  \"timeStorageClassUpdated\": \"2026-05-27T14:53:11.801Z\",\n  \"timeFinalized\": \"2026-05-27T14:53:11.801Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/directory/upload-no-subfolder-v1/top-level.txt/1787646799906139\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fupload-no-subfolder-v1%2Ftop-level.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fupload-no-subfolder-v1%2Ftop-level.txt?generation=1787646799906139&alt=media\",\n  \"name\": \"conformance-tests/directory/upload-no-subfolder-v1/top-level.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1787646799906139\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"17\",\n  \"md5Hash\": \"Fjp9UX+m7cD0JnAxHd4WHw==\",\n  \"crc32c\": \"WJQqWw==\",\n  \"etag\": \"CNuK+KOvu5YDEAE=\",\n  \"timeCreated\": \"2026-08-25T08:33:19.986Z\",\n  \"updated\": \"2026-08-25T08:33:19.986Z\",\n  \"timeStorageClassUpdated\": \"2026-08-25T08:33:19.986Z\",\n  \"timeFinalized\": \"2026-08-25T08:33:19.986Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CPmZmKrc2ZQDEAE=",
-      "X-GUploader-UploadID" : "AAVLpEi08EnfpIv9mfsr53l8lixuAnkDx-IwVYf7RsBlkte6WhO5IScd_Llm6KFxL5R4qxLyBJ_-3Lm8ALJ74mAe8B--_xYgEGAxn7MNTYTvVw",
+      "ETag" : "CNuK+KOvu5YDEAE=",
+      "X-GUploader-UploadID" : "AJjja9a9zcBbTqMcozkUC0_Ye5a2rMBPeiBQOcHE312iTVux9C_KufmaP7dPtrmt_BsmfizaWCmM2Y5BX9xE5scK2u5g946-suJpIkTefMeX5NM",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Wed, 27 May 2026 14:53:11 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:33:20 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "fb192349-557a-4848-a09d-4e5ab7eacf3c",
+  "uuid" : "b9b21765-fc55-434e-a5a8-3e638336b6a3",
   "persistent" : true,
-  "insertionIndex" : 1381
+  "insertionIndex" : 1114
 }

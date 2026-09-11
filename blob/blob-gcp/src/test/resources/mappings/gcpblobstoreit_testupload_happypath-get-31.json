@@ -1,0 +1,47 @@
+{
+  "id" : "a247a7e9-21cd-4165-8f1f-7eebd22ad05b",
+  "name" : "GcpBlobStoreIT_testUpload_happyPath-GET-31",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "maxResults" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/upload/happyPath_File"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/upload/happyPath_File/1787646614023856\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fupload%2FhappyPath_File\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fupload%2FhappyPath_File?generation=1787646614023856&alt=media\",\n      \"name\": \"conformance-tests/upload/happyPath_File\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n      \"generation\": \"1787646614023856\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"17\",\n      \"md5Hash\": \"cBu9S94e4E47BZb2OZTrrg==\",\n      \"crc32c\": \"E30mnQ==\",\n      \"etag\": \"CLDdpsuuu5YDEAE=\",\n      \"timeCreated\": \"2026-08-25T08:30:14.104Z\",\n      \"updated\": \"2026-08-25T08:30:14.104Z\",\n      \"timeStorageClassUpdated\": \"2026-08-25T08:30:14.104Z\",\n      \"timeFinalized\": \"2026-08-25T08:30:14.104Z\"\n    }\n  ]\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AJjja9bFINBrUvy9bHCHe-Uqe9SlBzGAeqhAB32dh7t_FSmcychzL8-YUqMZE--5iYnewXnj",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Tue, 25 Aug 2026 08:30:15 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:30:15 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "a247a7e9-21cd-4165-8f1f-7eebd22ad05b",
+  "persistent" : true,
+  "insertionIndex" : 830
+}

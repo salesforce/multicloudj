@@ -1,0 +1,48 @@
+{
+  "id" : "be3c5064-1e0a-4af0-a939-511f7b1017f4",
+  "name" : "GcpBlobStoreIT_testUploadDirectory_WithObjectLock-POST-18",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/directory-objectlock/upload-with-lock/file1.txt"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"metadata\":{},\"name\":\"conformance-tests/directory-objectlock/upload-with-lock/file1.txt\",\"retention\":{\"mode\":\"Unlocked\",\"retainUntilTime\":\"2030-04-30T00:00:00.000Z\"},\"temporaryHold\":true}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AJjja9atBTLVZl1SttwJqwQT3Bh-bP-czglcMcN6mvs-2-b7NCs8Ux8R8u0vFb290rZH61cDa-WeKg_fv4pZzAzHqKnNmDrnqExxaC58_ZfN_Q",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 25 Aug 2026 08:35:37 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/directory-objectlock/upload-with-lock/file1.txt&uploadType=resumable&upload_id=AJjja9atBTLVZl1SttwJqwQT3Bh-bP-czglcMcN6mvs-2-b7NCs8Ux8R8u0vFb290rZH61cDa-WeKg_fv4pZzAzHqKnNmDrnqExxaC58_ZfN_Q",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "be3c5064-1e0a-4af0-a939-511f7b1017f4",
+  "persistent" : true,
+  "insertionIndex" : 1436
+}

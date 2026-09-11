@@ -1,5 +1,5 @@
 {
-  "id" : "ee41fb69-114f-4411-91f2-cb8737ca7237",
+  "id" : "d0f137d0-badd-47d3-b70c-580dae4c3867",
   "name" : "AwsBlobStoreIT_testCopyFrom-GET-12",
   "request" : {
     "url" : "/chameleon-jcloud/conformance-tests/blob-for-copyFrom",
@@ -7,26 +7,27 @@
   },
   "response" : {
     "status" : 200,
-    "base64Body" : "UGxlYXNlIGNvcHkgdGhpcyBkYXRhIXCiuJV9B69maq1ggMV2p00=",
+    "base64Body" : "UGxlYXNlIGNvcHkgdGhpcyBkYXRhIQ==",
     "headers" : {
-      "Accept-Ranges" : "bytes",
       "x-amz-meta-key1" : "value1",
       "x-amz-meta-key2" : "value2",
       "Server" : "AmazonS3",
-      "ETag" : "\"70a2b8957d07af666aad6080c576a74d\"",
-      "Last-Modified" : "Wed, 04 Mar 2026 20:58:19 GMT",
-      "x-amz-request-id" : "TNDZW2NGS69KNP45",
+      "Last-Modified" : "Tue, 25 Aug 2026 09:42:24 GMT",
       "x-amz-server-side-encryption" : "AES256",
-      "x-amz-id-2" : "2lzdRK8uLUU6cY4YoFKHmwvm9XYGXhK7XwlHGGzQDxK9eFNK1jreOqeijij1PO2Z6RfTYL21zOZrn4qn9PyD/n1chW6jrKwM",
-      "x-amz-transfer-encoding" : "append-md5",
-      "Date" : "Wed, 04 Mar 2026 20:58:20 GMT",
+      "Date" : "Tue, 25 Aug 2026 09:42:27 GMT",
+      "Accept-Ranges" : "bytes",
+      "ETag" : "\"70a2b8957d07af666aad6080c576a74d\"",
+      "x-amz-checksum-crc64nvme" : "p4GJSOlB5kg=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "S4W8033R6BYSMZ0W",
+      "x-amz-id-2" : "cz56H539bHNELcrzr4tARDTAJBtJfFxHl/j7qgx8LLv3t4moZrbgI7X0GpozQlCDSqZwWlfh1ho=",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "ee41fb69-114f-4411-91f2-cb8737ca7237",
+  "uuid" : "d0f137d0-badd-47d3-b70c-580dae4c3867",
   "persistent" : true,
-  "scenarioName" : "scenario-2-chameleon-jcloud-conformance-tests-blob-for-copyFrom",
+  "scenarioName" : "AwsBlobStoreIT_testCopyFrom-scenario-2-chameleon-jcloud-conformance-tests-blob-for-copyFrom",
   "requiredScenarioState" : "Started",
   "newScenarioState" : "scenario-2-chameleon-jcloud-conformance-tests-blob-for-copyFrom-2",
-  "insertionIndex" : 329
+  "insertionIndex" : 467
 }

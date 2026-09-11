@@ -1,0 +1,37 @@
+{
+  "id" : "00e18d19-9c1f-44ae-8d2e-930c9847ebf0",
+  "name" : "AwsBlobStoreIT_testListBlobVersions_happy-POST-0",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "delete" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Object><Key>conformance-tests/list-object-versions/exact-three-versions-blob</Key><VersionId>Jj21L6UXTRH7.6_A3ZFsDr23RmUHt86b</VersionId></Object><Object><Key>conformance-tests/list-object-versions/exact-three-versions-blob</Key><VersionId>7SouqHN2OBjwxpKVche.nzG8ykEmsjfZ</VersionId></Object><Object><Key>conformance-tests/list-object-versions/exact-three-versions-blob</Key><VersionId>BsR1Zrcs_Y5MQvBHK1cQb8iKhPDuAusk</VersionId></Object></Delete>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Deleted><Key>conformance-tests/list-object-versions/exact-three-versions-blob</Key><VersionId>7SouqHN2OBjwxpKVche.nzG8ykEmsjfZ</VersionId></Deleted><Deleted><Key>conformance-tests/list-object-versions/exact-three-versions-blob</Key><VersionId>BsR1Zrcs_Y5MQvBHK1cQb8iKhPDuAusk</VersionId></Deleted><Deleted><Key>conformance-tests/list-object-versions/exact-three-versions-blob</Key><VersionId>Jj21L6UXTRH7.6_A3ZFsDr23RmUHt86b</VersionId></Deleted></DeleteResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "TE2QS1WV632SYBSQ",
+      "x-amz-id-2" : "WtNyCIUSdN/ehtzniW0w+mphOr5+aEEutn6cEiljqyfNTT4C5n+tS0hqQN+Mh1a2P88+b4T3rqJ4lSoM0E1pJAQF+k3nb/sS",
+      "Date" : "Tue, 25 Aug 2026 09:40:27 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "00e18d19-9c1f-44ae-8d2e-930c9847ebf0",
+  "persistent" : true,
+  "insertionIndex" : 313
+}

@@ -1,5 +1,5 @@
 {
-  "id" : "02de6c68-2f9e-4f6f-be89-a948c55adcf3",
+  "id" : "6c8a0c8e-5182-4a25-b5ad-c1db7b6106d5",
   "name" : "AwsBlobStoreIT_testRangedRead-GET-18",
   "request" : {
     "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/testRangedRead_versioned",
@@ -12,33 +12,32 @@
     "queryParameters" : {
       "versionId" : {
         "hasExactly" : [ {
-          "equalTo" : "eMd_Pw6t8hkKUUcim8K4DbeJucVAy9lr"
+          "equalTo" : "aL2GWHYNUR_AsdY5BPMwYhOGI4s0T27q"
         } ]
       }
     }
   },
   "response" : {
-    "status" : 200,
-    "base64Body" : "VGhpcyBpcyB0ZQHLzoyhpCEY15Kn4MRsJf0=",
+    "status" : 206,
+    "base64Body" : "VGhpcyBpcyB0ZQ==",
     "headers" : {
       "Accept-Ranges" : "bytes",
       "Server" : "AmazonS3",
       "ETag" : "\"4fe58d952a4f5588f32b30a5f9b62cda\"",
-      "Last-Modified" : "Wed, 04 Mar 2026 21:00:03 GMT",
-      "x-amz-request-id" : "0ATXAA0J026JQX24",
+      "Content-Range" : "bytes 0-9/47",
+      "Last-Modified" : "Tue, 25 Aug 2026 09:47:26 GMT",
+      "x-amz-request-id" : "ZZ0V96XCBNXG9QWT",
       "x-amz-server-side-encryption" : "AES256",
-      "x-amz-id-2" : "JHB5Kg6Vyj11XJ2t5Zocm7e9c/I6wdVrV07pRmCdUxcAzhI6f8YXjy/FuwOgwXzuOdt9tyPOCgilYZD39+UEYXIUqSpaRwtB",
-      "x-amz-content-range" : "bytes 0-9/47",
-      "x-amz-transfer-encoding" : "append-md5",
-      "x-amz-version-id" : "eMd_Pw6t8hkKUUcim8K4DbeJucVAy9lr",
-      "Date" : "Wed, 04 Mar 2026 21:00:03 GMT",
+      "x-amz-id-2" : "4UFym1NlHGStr3/aRgytI7zYtyxnOvVVuBL6I7NMWGodU/Vv7j1BKCH2KhMoT9v1flm4NG90NvqhkvVUdXNMbTsi0rHS8Kof",
+      "x-amz-version-id" : "aL2GWHYNUR_AsdY5BPMwYhOGI4s0T27q",
+      "Date" : "Tue, 25 Aug 2026 09:47:26 GMT",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "02de6c68-2f9e-4f6f-be89-a948c55adcf3",
+  "uuid" : "6c8a0c8e-5182-4a25-b5ad-c1db7b6106d5",
   "persistent" : true,
-  "scenarioName" : "scenario-4-chameleon-jcloud-versioned-conformance-tests-testRangedRead_versioned",
+  "scenarioName" : "AwsBlobStoreIT_testRangedRead-scenario-4-chameleon-jcloud-versioned-conformance-tests-testRangedRead_versioned",
   "requiredScenarioState" : "Started",
   "newScenarioState" : "scenario-4-chameleon-jcloud-versioned-conformance-tests-testRangedRead_versioned-2",
-  "insertionIndex" : 510
+  "insertionIndex" : 742
 }
