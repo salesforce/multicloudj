@@ -1,12 +1,17 @@
 # AGENTS.md
 
-This file provides shared guidance to Codex and Claude Code when working with code in this repository.
+This file provides shared guidance to AI coding agents working in this repository.
+`AGENTS.md` is the canonical source for repository architecture, commands, testing
+conventions, and development rules. Tool-specific entry points should import or
+link to this file rather than duplicate it.
 
 ## Instruction Loading
 
 - Read this file completely before doing repository work.
 - `CLAUDE.md` imports this file so Claude Code and Codex use the same repository guidance.
-- When working in a Git worktree other than the task's initial working directory, read that worktree's root `AGENTS.md` completely before taking repository actions. Changing a command's working directory does not refresh already-loaded task instructions.
+- When working in a Git worktree other than the task's initial working directory, read that
+  worktree's root `AGENTS.md` completely before taking repository actions. Changing a command's
+  working directory does not refresh already-loaded task instructions.
 
 ## Project Overview
 
@@ -51,7 +56,6 @@ Clients are instantiated using builder pattern: `BlobClient.builder("aws").withR
 
 ## Common Commands
 
-
 ### Building and Testing
 
 ```bash
@@ -75,7 +79,6 @@ f. mvn test -pl blob/blob-aws -Dtest=AwsBlobStoreTest
 
 # Run integration tests with recording mode (updates test fixtures)
 g. mvn test -pl blob/blob-aws -Dtest=AwsBlobStoreIT -Drecord
-
 ```
 
 ## Testing Conventions
@@ -94,15 +97,28 @@ g. mvn test -pl blob/blob-aws -Dtest=AwsBlobStoreIT -Drecord
 
 Conformance tests require valid cloud credentials:
 - AWS: Set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, if they are not available, ask the user.
-- GCP: Set `GOOGLE_APPLICATION_CREDENTIALS` pointing to service account JSON,  if they are not available, ask the user.
+- GCP: Set `GOOGLE_APPLICATION_CREDENTIALS` pointing to service account JSON, if they are not available, ask the user.
 - Alibaba: It depends upon the cloud service, for tablestore it's:
   - `TABLESTORE_ACCESS_KEY_ID`, `TABLESTORE_ACCESS_KEY_SECRET`, `TABLESTORE_SESSION_TOKEN`
 
 ## Development Guidelines
 
+### Agent Skills
+
+The canonical repository skills live under `.agents/skills/`. Claude Code
+discovers the same skills through the `.claude/skills` compatibility symlink.
+Edit only the canonical skill tree.
+
+- `multicloudj-feature-dev` is required before implementing any new feature,
+  operation, service module, cross-provider behavior, or conformance test.
+- `docs-guides` handles documentation-site guide creation and updates.
+
+Invoke skills using the syntax supported by the active agent, such as
+`$multicloudj-feature-dev` in Codex or `/multicloudj-feature-dev` in Claude Code.
+
 ### Feature Development Workflow
 
-**CRITICAL: When implementing ANY new feature in multicloudj, you MUST invoke the `multicloudj-feature-dev` skill BEFORE starting any implementation work. Use `$multicloudj-feature-dev` in Codex or `/multicloudj-feature-dev` in Claude Code.**
+**CRITICAL: When implementing ANY new feature in multicloudj, you MUST invoke the `multicloudj-feature-dev` skill BEFORE starting any implementation work.**
 
 This skill is REQUIRED for:
 - Adding new operations or methods to any service (blob, docstore, pubsub, sts, etc.)
@@ -209,7 +225,10 @@ The driver contract and conformance tests ensure all providers behave the same f
 
 ### Git operations
 
-Use the Git and GitHub authentication configured for the active agent environment, and follow that environment's approval and sandbox rules.
+- Claude Code users should consult `~/.claude/config.md` for local Git push
+  authentication instructions.
+- Other agents should use the Git and GitHub authentication configured in their
+  environment and follow their applicable approval and sandbox rules.
 
 ## Build Configuration
 
