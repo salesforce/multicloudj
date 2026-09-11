@@ -4,7 +4,7 @@ target/
 .project
 .idea/
 .claude/*
-!.claude/skills/
+!.claude/skills
 *.iml
 *.eml
 *.ipr
