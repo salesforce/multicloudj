@@ -1,8 +1,10 @@
 package com.salesforce.multicloudj.blob.driver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -76,5 +78,22 @@ public class UploadRequestTest {
     assertEquals(key, request.getKey());
     assertNotNull(request.getMetadata());
     assertNotNull(request.getTags());
+    assertFalse(request.isCreateIfAbsent());
+  }
+
+  @Test
+  void testBuilder_WithCreateIfAbsent() {
+    UploadRequest request =
+        UploadRequest.builder().withKey("test-key").withCreateIfAbsent(true).build();
+
+    assertTrue(request.isCreateIfAbsent());
+  }
+
+  @Test
+  void testToBuilder_PreservesCreateIfAbsent() {
+    UploadRequest request =
+        UploadRequest.builder().withKey("test-key").withCreateIfAbsent(true).build();
+
+    assertTrue(request.toBuilder().build().isCreateIfAbsent());
   }
 }

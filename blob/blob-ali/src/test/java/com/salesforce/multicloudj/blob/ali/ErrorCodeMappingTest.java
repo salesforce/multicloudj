@@ -4,6 +4,7 @@ import static com.salesforce.multicloudj.blob.ali.ErrorCodeMapping.getException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -25,5 +26,6 @@ public class ErrorCodeMappingTest {
     assertEquals(InvalidArgumentException.class, getException("InvalidBucketName"));
     assertEquals(InvalidArgumentException.class, getException("MissingArgument"));
     assertEquals(InvalidArgumentException.class, getException("InvalidDigest"));
+    assertEquals(ResourceAlreadyExistsException.class, getException("FileAlreadyExists"));
   }
 }

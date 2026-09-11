@@ -483,6 +483,15 @@ public class AwsAsyncBlobStoreTest {
     return mockResponse;
   }
 
+  private S3Exception buildS3Exception(int statusCode, String errorCode) {
+    return (S3Exception)
+        S3Exception.builder()
+            .statusCode(statusCode)
+            .message(errorCode)
+            .awsErrorDetails(AwsErrorDetails.builder().errorCode(errorCode).build())
+            .build();
+  }
+
   @Test
   void testDoUploadInputStream() throws ExecutionException, InterruptedException {
     doReturn(CompletableFuture.completedFuture(buildMockPutObjectResponse()))
@@ -521,6 +530,23 @@ public class AwsAsyncBlobStoreTest {
         .when(mockS3Client)
         .putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
     verifyUploadTestResults(aws.doUpload(generateTestUploadRequest(), new byte[1024]).get());
+  }
+
+  @Test
+  void testDoUploadCreateIfAbsentCollisionPropagatesNativeException() {
+    S3Exception collision = buildS3Exception(412, "PreconditionFailed");
+    doReturn(CompletableFuture.failedFuture(collision))
+        .when(mockS3Client)
+        .putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
+    UploadRequest request =
+        generateTestUploadRequest().toBuilder().withCreateIfAbsent(true).build();
+
+    ExecutionException thrown =
+        assertThrows(
+            ExecutionException.class,
+            () -> aws.doUpload(request, new byte[1024]).get());
+
+    assertEquals(collision, thrown.getCause());
   }
 
   @Test
