@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.observability.MetricsPublisher;
 import com.salesforce.multicloudj.common.observability.TracingPolicy;
 import com.salesforce.multicloudj.common.provider.SdkProvider;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
@@ -41,6 +42,7 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   private Boolean useEnvironmentVariableProxyValues;
   private String quotaProjectId;
   private TracingPolicy tracingPolicy;
+  private MetricsPublisher metricsPublisher;
 
   public BlobStoreBuilder<T> providerId(String providerId) {
     this.providerId = providerId;
@@ -129,6 +131,39 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   public BlobStoreBuilder<T> withIdleConnectionTimeout(Duration idleConnectionTimeout) {
     validator.validateDuration(idleConnectionTimeout);
     this.idleConnectionTimeout = idleConnectionTimeout;
+    return this;
+  }
+
+  /**
+   * Method to supply a cloud-agnostic metrics publisher. When set, the client forwards collected
+   * client-level metrics (for example connection-pool saturation and request/acquisition latency)
+   * to this publisher. When left unset, no metrics are collected or published and client behavior
+   * is unchanged.
+   *
+   * <p>The underlying cloud SDKs expose different telemetry models, so the breadth of metrics
+   * varies by provider:
+   *
+   * <ul>
+   *   <li><b>AWS</b>: fully supported. Metrics are bridged to the AWS SDK's native metric
+   *       publisher SPI and cover both the synchronous and asynchronous HTTP connection pools,
+   *       including connection-pool saturation and request/acquisition latency.
+   *   <li><b>GCP</b>: connection-pool utilization is supported. The GCP storage SDK provides no
+   *       push callback, so pool statistics (max/leased/available/pending connections) are sampled
+   *       from the HTTP connection pool after each request and forwarded to this publisher.
+   *   <li><b>Alibaba</b>: connection-pool utilization is supported. The Alibaba OSS SDK provides no
+   *       push callback, so pool statistics (max/leased/available/pending connections) are sampled
+   *       from the HTTP connection pools after each request and forwarded to this publisher.
+   * </ul>
+   *
+   * <p>Supplying a publisher is always safe: if a provider cannot produce a given metric it is
+   * simply not emitted, and if a provider's connection pool is unavailable the hook degrades to a
+   * no-op. It never alters client behavior and never throws.
+   *
+   * @param metricsPublisher The publisher to receive client metrics, or {@code null} to disable.
+   * @return An instance of self
+   */
+  public BlobStoreBuilder<T> withMetricsPublisher(MetricsPublisher metricsPublisher) {
+    this.metricsPublisher = metricsPublisher;
     return this;
   }
 

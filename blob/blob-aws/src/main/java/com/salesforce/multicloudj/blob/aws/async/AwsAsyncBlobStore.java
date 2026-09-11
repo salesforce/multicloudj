@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.blob.aws.async;
 import com.salesforce.multicloudj.blob.async.driver.AbstractAsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
+import com.salesforce.multicloudj.blob.aws.AwsMetricsPublisherAdapter;
 import com.salesforce.multicloudj.blob.aws.AwsSdkService;
 import com.salesforce.multicloudj.blob.aws.AwsTransformer;
 import com.salesforce.multicloudj.blob.aws.AwsTransformerSupplier;
@@ -713,21 +714,30 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       }
       builder.multipartConfiguration(configBuilder.build());
 
-      // Configure retry strategy if specified
-      if (config.getRetryConfig() != null) {
+      // Configure retry strategy and/or metrics if specified. A single overrideConfiguration
+      // call is used for both because the AWS SDK replaces (rather than merges) the override
+      // configuration on each call.
+      if (config.getRetryConfig() != null || config.getMetricsPublisher() != null) {
         // Create a temporary transformer instance for retry strategy conversion
         AwsTransformer transformer = config.getTransformerSupplier().get(config.getBucket());
         builder.overrideConfiguration(
             overrideConfig -> {
-              overrideConfig.retryStrategy(transformer.toAwsRetryStrategy(config.getRetryConfig()));
-              // Set API call timeouts if provided
-              if (config.getRetryConfig().getAttemptTimeout() != null) {
-                overrideConfig.apiCallAttemptTimeout(
-                    Duration.ofMillis(config.getRetryConfig().getAttemptTimeout()));
+              if (config.getRetryConfig() != null) {
+                overrideConfig.retryStrategy(
+                    transformer.toAwsRetryStrategy(config.getRetryConfig()));
+                // Set API call timeouts if provided
+                if (config.getRetryConfig().getAttemptTimeout() != null) {
+                  overrideConfig.apiCallAttemptTimeout(
+                      Duration.ofMillis(config.getRetryConfig().getAttemptTimeout()));
+                }
+                if (config.getRetryConfig().getTotalTimeout() != null) {
+                  overrideConfig.apiCallTimeout(
+                      Duration.ofMillis(config.getRetryConfig().getTotalTimeout()));
+                }
               }
-              if (config.getRetryConfig().getTotalTimeout() != null) {
-                overrideConfig.apiCallTimeout(
-                    Duration.ofMillis(config.getRetryConfig().getTotalTimeout()));
+              if (config.getMetricsPublisher() != null) {
+                overrideConfig.addMetricPublisher(
+                    new AwsMetricsPublisherAdapter(config.getMetricsPublisher()));
               }
             });
       }
