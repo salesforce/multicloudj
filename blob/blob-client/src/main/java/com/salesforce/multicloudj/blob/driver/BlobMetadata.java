@@ -47,4 +47,19 @@ public class BlobMetadata {
 
   /** The correlation ID associated with the operation that produced this metadata. */
   private final String correlationId;
+
+  /**
+   * Whether this entry records that the object was archived (deleted) at a point in time rather
+   * than a downloadable content version. Defaults to {@code false} for content versions and for
+   * stores that do not surface archived entries.
+   */
+  private final boolean archived;
+
+  /**
+   * The instant at which this version stopped being the current version, or {@code null} if it is
+   * still current (or the store does not report it). Together with {@link #createdTime} this
+   * defines the version's validity interval {@code [createdTime, archivedAt)}, with the end instant
+   * exclusive.
+   */
+  private final Instant archivedAt;
 }

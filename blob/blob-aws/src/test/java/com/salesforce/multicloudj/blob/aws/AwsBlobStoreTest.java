@@ -2382,13 +2382,17 @@ public class AwsBlobStoreTest {
   void testDoListBlobVersions_multiplePages() {
     String key = "obj-1";
 
+    // Newest-first across pages, matching S3's ordering: page1 holds the newest version.
+    Instant t1 = Instant.parse("2024-01-01T00:00:00Z");
+    Instant t2 = Instant.parse("2024-01-02T00:00:00Z");
+    Instant t3 = Instant.parse("2024-01-03T00:00:00Z");
     ObjectVersion version1 =
         ObjectVersion.builder()
             .key("obj-1")
             .versionId("v1")
             .eTag("etag-v1")
             .size(100L)
-            .lastModified(Instant.now())
+            .lastModified(t1)
             .build();
     ObjectVersion version2 =
         ObjectVersion.builder()
@@ -2396,7 +2400,7 @@ public class AwsBlobStoreTest {
             .versionId("v2")
             .eTag("etag-v2")
             .size(200L)
-            .lastModified(Instant.now())
+            .lastModified(t2)
             .build();
     ObjectVersion version3 =
         ObjectVersion.builder()
@@ -2404,13 +2408,13 @@ public class AwsBlobStoreTest {
             .versionId("v3")
             .eTag("etag-v3")
             .size(300L)
-            .lastModified(Instant.now())
+            .lastModified(t3)
             .build();
 
     ListObjectVersionsResponse page1 =
-        ListObjectVersionsResponse.builder().versions(version1).build();
+        ListObjectVersionsResponse.builder().versions(version3).build();
     ListObjectVersionsResponse page2 =
-        ListObjectVersionsResponse.builder().versions(version2, version3).build();
+        ListObjectVersionsResponse.builder().versions(version2, version1).build();
 
     ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
     when(iterable.iterator()).thenReturn(List.of(page1, page2).iterator());
@@ -2425,9 +2429,9 @@ public class AwsBlobStoreTest {
     versions.forEachRemaining(allVersions::add);
 
     assertEquals(3, allVersions.size());
-    assertEquals("v1", allVersions.get(0).getVersionId());
+    assertEquals("v3", allVersions.get(0).getVersionId());
     assertEquals("v2", allVersions.get(1).getVersionId());
-    assertEquals("v3", allVersions.get(2).getVersionId());
+    assertEquals("v1", allVersions.get(2).getVersionId());
   }
 
   @Test

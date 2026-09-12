@@ -630,9 +630,18 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
     return transformer.toListBlobsPageResponse(response);
   }
 
+  /**
+   * Lists the versions of a single object as an iterator of {@link BlobMetadata}, newest first.
+   *
+   * <p>Only entries for the requested key are returned. When {@code includeArchived} is set on the
+   * request, OSS delete-marker entries are merged with content versions on a single timeline;
+   * otherwise only content versions are returned. See {@link BlobMetadataIterator} for the merge
+   * and supersession semantics.
+   */
   @Override
   protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
-    return new BlobMetadataIterator(ossClient, getBucket(), request.getKey());
+    return new BlobMetadataIterator(
+        ossClient, getBucket(), request.getKey(), request.isIncludeArchived());
   }
 
   /**
