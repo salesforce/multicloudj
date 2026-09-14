@@ -1,0 +1,39 @@
+{
+  "id" : "a8523dfe-6348-4688-8797-88599def15d0",
+  "name" : "AliBlobStoreIT_testTagging_lifecycleExpiration-GET-1",
+  "request" : {
+    "urlPath" : "/conformance-tests/blob-for-lifecycle-expiration",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Tagging>\n  <TagSet>\n    <Tag>\n      <Key>unrelated</Key>\n      <Value>value</Value>\n    </Tag>\n  </TagSet>\n</Tagging>\n",
+    "headers" : {
+      "x-oss-request-id" : "6AA856A64C586D373387D1C1",
+      "x-oss-server-time" : "53",
+      "Server" : "AliyunOSS",
+      "Date" : "Mon, 14 Sep 2026 20:18:46 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "a8523dfe-6348-4688-8797-88599def15d0",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-conformance-tests-blob-for-lifecycle-expiration",
+  "requiredScenarioState" : "scenario-1-conformance-tests-blob-for-lifecycle-expiration-2",
+  "insertionIndex" : 759
+}
