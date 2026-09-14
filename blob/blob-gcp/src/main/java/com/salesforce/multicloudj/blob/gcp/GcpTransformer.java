@@ -10,6 +10,7 @@ import com.google.cloud.storage.StorageClass;
 import com.google.common.collect.ImmutableMap;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BlobStore;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.Checksum;
@@ -465,7 +466,55 @@ public class GcpTransformer {
       builder.setContentType(contentType);
     }
 
+    applyLifecycleExpiration(builder, metadata);
+
     return builder.build();
+  }
+
+  /**
+   * Stamps the object's custom time when the reserved lifecycle-expiration tag carries a positive
+   * day count. GCS lifecycle rules cannot match on custom object metadata, so the custom time
+   * serves as the durable per-object marker that a bucket rule keyed on {@code daysSinceCustomTime}
+   * uses to expire the object. The reserved tag's value is the number of days the object should
+   * live from its creation time; on upload the object's creation time is "now", so the SDK stamps
+   * {@code customTime = now + days}. This is a no-op when the reserved tag is absent or its value
+   * is not a positive integer (for example a "never expire" sentinel), leaving any existing custom
+   * time untouched.
+   *
+   * @param builder the blob info builder being assembled
+   * @param prefixedMetadata object metadata whose tag entries are prefixed with {@code TAG_PREFIX}
+   */
+  public void applyLifecycleExpiration(
+      BlobInfo.Builder builder, Map<String, String> prefixedMetadata) {
+    if (prefixedMetadata == null) {
+      return;
+    }
+    Integer days =
+        parseExpirationDays(
+            prefixedMetadata.get(TAG_PREFIX + BlobStore.LIFECYCLE_EXPIRATION_TAG_KEY));
+    if (days != null) {
+      builder.setCustomTimeOffsetDateTime(OffsetDateTime.now(ZoneOffset.UTC).plusDays(days));
+    }
+  }
+
+  /**
+   * Parses the reserved lifecycle-expiration tag value as a positive number of days. Returns {@code
+   * null} when the value is absent, blank, or not a positive integer (for example a "never expire"
+   * sentinel), signaling that the object should carry no expiration marker.
+   *
+   * @param tagValue the raw value of the reserved lifecycle-expiration tag, or {@code null}
+   * @return the positive day count, or {@code null} when the object should not expire
+   */
+  static Integer parseExpirationDays(String tagValue) {
+    if (StringUtils.isBlank(tagValue)) {
+      return null;
+    }
+    try {
+      int days = Integer.parseInt(tagValue.trim());
+      return days > 0 ? days : null;
+    } catch (NumberFormatException e) {
+      return null;
+    }
   }
 
   public Storage.BlobTargetOption[] getKmsTargetOptions(UploadRequest uploadRequest) {

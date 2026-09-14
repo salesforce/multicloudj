@@ -47,6 +47,7 @@ import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobStoreBuilder;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -943,8 +944,27 @@ public class GcpBlobStore extends AbstractBlobStore {
       tags.forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
     }
 
-    Blob updatedBlob = blob.toBuilder().setMetadata(metadata).build();
-    storage.update(updatedBlob);
+    Blob.Builder builder = blob.toBuilder().setMetadata(metadata);
+
+    // setTags replaces the full tag set, so reconcile the lifecycle-expiration marker: stamp the
+    // custom time when the reserved tag now carries a positive day count, and clear it otherwise so
+    // the object stops matching the daysSinceCustomTime bucket rule. The tag value is the number of
+    // days the object should live measured from its creation time, so the object expires the same
+    // number of days after creation regardless of when the tag was set.
+    Integer expirationDays =
+        tags != null
+            ? GcpTransformer.parseExpirationDays(tags.get(BlobStore.LIFECYCLE_EXPIRATION_TAG_KEY))
+            : null;
+    if (expirationDays != null) {
+      OffsetDateTime creationTime = blob.getCreateTimeOffsetDateTime();
+      OffsetDateTime anchor =
+          creationTime != null ? creationTime : OffsetDateTime.now(ZoneOffset.UTC);
+      builder.setCustomTimeOffsetDateTime(anchor.plusDays(expirationDays));
+    } else if (blob.getCustomTimeOffsetDateTime() != null) {
+      builder.setCustomTimeOffsetDateTime(null);
+    }
+
+    storage.update(builder.build());
   }
 
   @Override
@@ -1147,6 +1167,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       if (!metadata.isEmpty()) {
         b.setMetadata(metadata);
       }
+      transformer.applyLifecycleExpiration(b, metadata);
       return b.build();
     };
   }

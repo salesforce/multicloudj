@@ -1,0 +1,20 @@
+{
+  "id" : "0697c3f6-85f8-481d-8bf6-ee52bb317e08",
+  "name" : "AwsBlobStoreIT_testTagging_lifecycleExpiration-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-lifecycle-expiration",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "KHFY2S8CMRY1KDHF",
+      "x-amz-id-2" : "ans7xGpTee6c0/oa7vQXLdklZg3+xhpKBxgngyfgoVZLySezMzXzqaXT2pwrMg2mKmPK8vm8qe2h8AYhAup3BWvb6TBh5XUJxq+5Tr47wQE=",
+      "Date" : "Mon, 14 Sep 2026 18:12:42 GMT"
+    }
+  },
+  "uuid" : "0697c3f6-85f8-481d-8bf6-ee52bb317e08",
+  "persistent" : true,
+  "insertionIndex" : 781
+}

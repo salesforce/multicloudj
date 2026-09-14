@@ -19,6 +19,32 @@ import java.util.Map;
 public interface BlobStore extends SdkService, Provider {
 
   /**
+   * Reserved tag key that marks an object for lifecycle-based deletion.
+   *
+   * <p>When an object is tagged with this key (via {@link #setTags} or by including it in an
+   * upload's tags), the object is flagged to expire. The tag's value is the number of days the
+   * object should live, measured from its creation time: a value of {@code "30"} requests deletion
+   * roughly 30 days after the object was created, regardless of when the tag itself was set. A
+   * value that is absent, blank, or not a positive integer (for example a "never expire" sentinel)
+   * leaves the object unmarked.
+   *
+   * <p>The deletion itself is performed by a bucket lifecycle rule that must be configured
+   * out-of-band; this SDK only records the per-object marker, it does not create or manage the
+   * bucket lifecycle rule. The rule each substrate needs:
+   *
+   * <ul>
+   *   <li>An object-tag-based expiration rule that filters on this tag key and deletes the object
+   *       the tagged number of days after creation (native object tags).
+   *   <li>An expiration rule keyed off the object's custom time, which the SDK stamps to {@code
+   *       creationTime + days} when this tag carries a positive day count.
+   * </ul>
+   *
+   * <p>Removing this tag via {@link #setTags} clears the marker so the object is no longer subject
+   * to that expiration rule.
+   */
+  String LIFECYCLE_EXPIRATION_TAG_KEY = "expiration-days";
+
+  /**
    * Returns the bucket this blob store operates against.
    *
    * @return the bucket this blob store operates against
