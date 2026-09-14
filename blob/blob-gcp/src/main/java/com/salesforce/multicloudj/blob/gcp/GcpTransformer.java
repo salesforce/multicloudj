@@ -8,7 +8,6 @@ import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageClass;
 import com.google.common.collect.ImmutableMap;
-import com.salesforce.multicloudj.blob.driver.BlobConstants;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
@@ -31,6 +30,7 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
@@ -491,7 +491,7 @@ public class GcpTransformer {
     }
     Integer days =
         parseExpirationDays(
-            prefixedMetadata.get(TAG_PREFIX + BlobConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
+            prefixedMetadata.get(TAG_PREFIX + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
     if (days != null) {
       builder.setCustomTimeOffsetDateTime(OffsetDateTime.now(ZoneOffset.UTC).plusDays(days));
     }

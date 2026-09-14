@@ -59,7 +59,6 @@ import com.google.cloud.storage.transfermanager.TransferStatus;
 import com.google.cloud.storage.transfermanager.UploadJob;
 import com.google.cloud.storage.transfermanager.UploadResult;
 import com.google.common.io.ByteStreams;
-import com.salesforce.multicloudj.blob.driver.BlobConstants;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
@@ -1440,7 +1439,7 @@ class GcpBlobStoreTest {
     when(mockBuilder.setMetadata(anyMap())).thenReturn(mockBuilder);
     when(mockBuilder.build()).thenReturn(updatedBlob);
 
-    gcpBlobStore.doSetTags(TEST_KEY, Map.of(BlobConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "30"));
+    gcpBlobStore.doSetTags(TEST_KEY, Map.of(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "30"));
 
     // The reserved tag stamps a custom time 30 days after creation so the daysSinceCustomTime
     // bucket rule expires the object the tagged number of days after it was created
@@ -1463,7 +1462,7 @@ class GcpBlobStoreTest {
     when(mockBuilder.build()).thenReturn(updatedBlob);
 
     // A non-numeric "never expire" sentinel is stored verbatim but marks no expiration
-    gcpBlobStore.doSetTags(TEST_KEY, Map.of(BlobConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "Never"));
+    gcpBlobStore.doSetTags(TEST_KEY, Map.of(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "Never"));
 
     verify(mockBuilder, never()).setCustomTimeOffsetDateTime(any());
     verify(mockStorage).update(updatedBlob);
