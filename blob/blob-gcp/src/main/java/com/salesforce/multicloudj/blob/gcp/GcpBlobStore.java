@@ -45,9 +45,9 @@ import com.google.cloud.storage.transfermanager.UploadResult;
 import com.google.common.collect.Iterators;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
+import com.salesforce.multicloudj.blob.driver.BlobConstants;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
-import com.salesforce.multicloudj.blob.driver.BlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobStoreBuilder;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -953,7 +953,8 @@ public class GcpBlobStore extends AbstractBlobStore {
     // number of days after creation regardless of when the tag was set.
     Integer expirationDays =
         tags != null
-            ? GcpTransformer.parseExpirationDays(tags.get(BlobStore.LIFECYCLE_EXPIRATION_TAG_KEY))
+            ? GcpTransformer.parseExpirationDays(
+                tags.get(BlobConstants.LIFECYCLE_EXPIRATION_TAG_KEY))
             : null;
     if (expirationDays != null) {
       OffsetDateTime creationTime = blob.getCreateTimeOffsetDateTime();

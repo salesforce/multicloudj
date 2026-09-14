@@ -15,8 +15,8 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Storage;
+import com.salesforce.multicloudj.blob.driver.BlobConstants;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
-import com.salesforce.multicloudj.blob.driver.BlobStore;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.Checksum;
@@ -209,7 +209,7 @@ class GcpTransformerTest {
   void testToBlobInfo_withExpirationTag_stampsCustomTimeDaysFromNow() {
     // Given the reserved lifecycle-expiration tag requests a 30-day lifetime
     Map<String, String> tags = new HashMap<>();
-    tags.put(BlobStore.LIFECYCLE_EXPIRATION_TAG_KEY, "30");
+    tags.put(BlobConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "30");
     UploadRequest uploadRequest =
         UploadRequest.builder().withKey(TEST_KEY).withTags(tags).build();
 
@@ -229,7 +229,7 @@ class GcpTransformerTest {
     assertFalse(customTime.isAfter(after.plusDays(30)));
     assertEquals(
         "30",
-        blobInfo.getMetadata().get("gcp-tag-" + BlobStore.LIFECYCLE_EXPIRATION_TAG_KEY));
+        blobInfo.getMetadata().get("gcp-tag-" + BlobConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
   }
 
   @Test
@@ -251,7 +251,7 @@ class GcpTransformerTest {
   void testToBlobInfo_withNeverExpirationTag_doesNotStampCustomTime() {
     // Given the reserved tag carries a non-numeric "never expire" sentinel
     Map<String, String> tags = new HashMap<>();
-    tags.put(BlobStore.LIFECYCLE_EXPIRATION_TAG_KEY, "Never");
+    tags.put(BlobConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "Never");
     UploadRequest uploadRequest =
         UploadRequest.builder().withKey(TEST_KEY).withTags(tags).build();
 
@@ -262,7 +262,7 @@ class GcpTransformerTest {
     assertNull(blobInfo.getCustomTimeOffsetDateTime());
     assertEquals(
         "Never",
-        blobInfo.getMetadata().get("gcp-tag-" + BlobStore.LIFECYCLE_EXPIRATION_TAG_KEY));
+        blobInfo.getMetadata().get("gcp-tag-" + BlobConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
   }
 
   @Test
@@ -270,7 +270,7 @@ class GcpTransformerTest {
     // Positive day count -> stamps custom time ~10 days out
     BlobInfo.Builder withTag = BlobInfo.newBuilder(TEST_BUCKET, TEST_KEY);
     Map<String, String> present = new HashMap<>();
-    present.put("gcp-tag-" + BlobStore.LIFECYCLE_EXPIRATION_TAG_KEY, "10");
+    present.put("gcp-tag-" + BlobConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "10");
     OffsetDateTime before = OffsetDateTime.now(ZoneOffset.UTC);
     transformer.applyLifecycleExpiration(withTag, present);
     OffsetDateTime customTime = withTag.build().getCustomTimeOffsetDateTime();
@@ -288,7 +288,7 @@ class GcpTransformerTest {
     // Non-positive / non-numeric value -> no marker
     BlobInfo.Builder never = BlobInfo.newBuilder(TEST_BUCKET, TEST_KEY);
     Map<String, String> sentinel = new HashMap<>();
-    sentinel.put("gcp-tag-" + BlobStore.LIFECYCLE_EXPIRATION_TAG_KEY, "Never");
+    sentinel.put("gcp-tag-" + BlobConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "Never");
     transformer.applyLifecycleExpiration(never, sentinel);
     assertNull(never.build().getCustomTimeOffsetDateTime());
   }

@@ -1,10 +1,10 @@
 package com.salesforce.multicloudj.blob.client;
 
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
+import com.salesforce.multicloudj.blob.driver.BlobConstants;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
-import com.salesforce.multicloudj.blob.driver.BlobStore;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -4095,7 +4095,7 @@ public abstract class AbstractBlobStoreIT {
 
   /**
    * Conformance test for the reserved lifecycle-expiration tag. Verifies the reserved key
-   * ({@link BlobStore#LIFECYCLE_EXPIRATION_TAG_KEY} with a day-count value) is accepted and
+   * ({@link BlobConstants#LIFECYCLE_EXPIRATION_TAG_KEY} with a day-count value) is accepted and
    * round-trips through {@code setTags}, and that removing it via {@code setTags} clears it. The
    * out-of-band bucket lifecycle rule that performs the deletion is not exercised here; this locks
    * in that every provider persists the reserved tag like any other tag rather than rejecting or
@@ -4121,7 +4121,7 @@ public abstract class AbstractBlobStoreIT {
       }
 
       // Positive: setting the reserved tag with a day-count value round-trips like any other tag.
-      Map<String, String> tags = Map.of(BlobStore.LIFECYCLE_EXPIRATION_TAG_KEY, "30");
+      Map<String, String> tags = Map.of(BlobConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "30");
       bucketClient.setTags(key, tags);
       Map<String, String> tagResults = bucketClient.getTags(key);
       Assertions.assertEquals(
@@ -4133,7 +4133,7 @@ public abstract class AbstractBlobStoreIT {
       bucketClient.setTags(key, Map.of("unrelated", "value"));
       tagResults = bucketClient.getTags(key);
       Assertions.assertFalse(
-          tagResults.containsKey(BlobStore.LIFECYCLE_EXPIRATION_TAG_KEY),
+          tagResults.containsKey(BlobConstants.LIFECYCLE_EXPIRATION_TAG_KEY),
           "testTagging_lifecycleExpiration: reserved tag was not cleared by setTags");
     } finally {
       safeDeleteBlobs(bucketClient, key);

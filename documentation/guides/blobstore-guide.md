@@ -159,6 +159,35 @@ Map<String, String> tags = bucketClient.getTags("object-key");
 bucketClient.setTags("object-key", Map.of("env", "prod"));
 ```
 
+### Lifecycle expiration via a reserved tag
+
+The SDK reserves the tag key `expiration-days` to mark an object for lifecycle-based deletion.
+Its value is the number of days the object should live, measured **from the object's creation
+time** — a value of `"30"` requests deletion roughly 30 days after the object was created,
+regardless of when the tag was set. A value that is absent, blank, or not a positive integer
+(for example a "never expire" sentinel) leaves the object unmarked. Removing the tag clears the
+marker.
+
+```java
+// mark the object to expire ~30 days after it was created
+bucketClient.setTags("object-key", Map.of("expiration-days", "30"));
+
+// clear the marker
+bucketClient.setTags("object-key", Map.of());
+```
+
+The SDK only records the per-object marker; the **actual deletion is performed by a bucket
+lifecycle rule that you configure out-of-band** (the SDK does not create or manage it). Each
+substrate needs a rule of the following shape:
+
+- A tag-filtered expiration rule that matches the `expiration-days` object tag and deletes the
+  object the tagged number of days after creation (for substrates whose lifecycle rules can filter
+  on native object tags).
+- An expiration rule keyed off the object's custom time. For substrates without tag-filtered
+  lifecycle rules, the SDK stamps the object's custom time to `creationTime + days`, so a rule that
+  deletes objects a given number of days after their custom time (e.g. `daysSinceCustomTime: 0`)
+  removes it on schedule.
+
 ---
 
 ## Observability: Correlation, Tenant, and Service IDs
