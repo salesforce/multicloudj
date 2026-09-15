@@ -589,6 +589,12 @@ public class GcpBlobStore extends AbstractBlobStore {
    * over-fetch sibling keys (for example, {@code key-1} when searching for {@code key}). To avoid
    * that, this uses {@code [key, key + '\0')} bounds and still applies an exact-name filter as a
    * defensive guard.
+   *
+   * <p>GCS represents a deletion of the live object by archiving the current generation and setting
+   * its time-deleted; there is no separate delete-marker object. Each returned generation therefore
+   * carries its creation time and, when it is no longer current, the time it stopped being current
+   * as {@code archivedAt}. The {@code includeArchived} request flag has no extra entries to surface
+   * here because GCS does not produce standalone delete markers.
    */
   @Override
   protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
@@ -612,13 +618,19 @@ public class GcpBlobStore extends AbstractBlobStore {
       @Override
       public BlobMetadata next() {
         Blob blob = blobIterator.next();
-        java.time.OffsetDateTime versionTimestamp = blob.getCreateTimeOffsetDateTime();
+        OffsetDateTime versionTimestamp = blob.getCreateTimeOffsetDateTime();
+        Instant createdTime = versionTimestamp != null ? versionTimestamp.toInstant() : null;
+        // A generation that is no longer current reports the instant it was superseded/deleted.
+        OffsetDateTime deletedTimestamp = blob.getDeleteTimeOffsetDateTime();
+        Instant archivedAt = deletedTimestamp != null ? deletedTimestamp.toInstant() : null;
         return BlobMetadata.builder()
             .key(blob.getName())
             .versionId(blob.getGeneration() != null ? blob.getGeneration().toString() : null)
             .eTag(blob.getEtag())
             .objectSize(blob.getSize() != null ? blob.getSize() : 0L)
-            .lastModified(versionTimestamp != null ? versionTimestamp.toInstant() : null)
+            .lastModified(createdTime)
+            .createdTime(createdTime)
+            .archivedAt(archivedAt)
             .build();
       }
     };
