@@ -55,6 +55,7 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 |--------------|-----|-----|-----|----------|
 | **Async Operations** | ✅ Supported | ✅ Supported | ✅ Supported | CompletableFuture-based async API via AsyncBucketClient |
 | **Bucket Operations** | ✅ Supported | ✅ Supported | ✅ Supported | List buckets via BlobClient |
+| **Lifecycle Expiration Tag** | ✅ Supported | ✅ Supported | ✅ Supported | Reserved `expiration-days` tag marks an object for lifecycle expiration; deletion is performed by an out-of-band bucket rule ([details](#lifecycle-expiration-via-tagging)) |
 
 ### Configuration Options
 
@@ -86,6 +87,7 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 - **Threshold Bytes**: Maps to `thresholdInBytes` — default 150MB, configurable
 - **Max Concurrency**: Configured via `ExecutorService` or CRT client `maxConcurrency`
 - **Target Throughput / Max Native Memory**: Available only with the CRT-based client, activated when parallel downloads are enabled
+- **Lifecycle Expiration Tag**: The reserved `expiration-days` tag is stored as an object tag; a per-value S3 lifecycle rule keyed on that tag performs the deletion ([details](#aws-s3-1))
 
 #### GCP GCS
 - **Parallel Uploads**: Automatic when file size exceeds SDK threshold; uses `ParallelCompositeUpload` (default threshold: 150MB, configurable via `isAllowParallelCompositeUpload`)
@@ -94,12 +96,14 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 - **Max Concurrency**: Configured via `setMaxWorkers()` on the Transfer Manager
 - **Max Connections**: Sets `maxConnTotal`/`maxConnPerRoute` on the Apache HTTP client; with a single host, this also caps concurrent transfers
 - **Threshold Bytes**: 4*`setPerWorkerBufferSize`, defaults to 64MiB
+- **Lifecycle Expiration Tag**: GCS lifecycle rules cannot match on tags, so the SDK stamps the object's custom time (`customTime = creation time + days`); a single `daysSinceCustomTime` bucket rule covers every day-count value ([details](#gcp-gcs-1))
 
 #### Alibaba OSS
 - **Parallel Uploads**: Via `InitiateMultipartUpload` and `UploadPart` APIs
 - **Parallel Downloads**: Uses the OSS SDK transfer-manager `Downloader` (concurrent range GETs) on the async client; activated per-request via `DownloadRequest.withParallelDownload(true)`, and applies to whole-object downloads (no explicit byte range)
 - **Max Concurrency**: Manual thread pool configuration via a thread pool
 - **Part Buffer Size**: Direct part size available in API but not as a builder config
+- **Lifecycle Expiration Tag**: The reserved `expiration-days` tag is stored as an object tag; a per-value OSS lifecycle rule keyed on that tag performs the deletion ([details](#alibaba-oss-1))
 
 ---
 
@@ -274,6 +278,94 @@ CopyResponse response = bucketClient.copy(copyRequest);
 BlobMetadata metadata = bucketClient.getMetadata("object-key", null);
 Map<String, String> tags = bucketClient.getTags("object-key");
 bucketClient.setTags("object-key", Map.of("env", "prod"));
+```
+
+---
+
+## Lifecycle Expiration via Tagging
+
+`expiration-days` is a **reserved tag key**. Setting it with a positive integer value marks the object as eligible for lifecycle-based expiration, where the value is the number of days from the object's creation time after which it should expire:
+
+```java
+// Mark the object to expire 30 days after its creation time
+bucketClient.setTags("blob-key", Map.of("expiration-days", "30"));
+```
+
+The SDK only **classifies** the object as eligible; it does not delete it. The actual deletion is performed by a **bucket lifecycle rule that you configure out-of-band** (for example, with Terraform) on the bucket. The two pieces work together: the reserved tag marks each object, and the bucket rule expires objects that carry the marker.
+
+**Forward-only:** once an object has been marked, the expiration can only be moved to a **later** time. Lowering the value or removing the tag does not retract an expiration that was already scheduled; only extending it to a later date takes effect. A non-positive or non-integer value (for example a "never expire" sentinel) leaves any existing marker untouched.
+
+The lifecycle rule differs by provider — see below. All examples use Terraform (HCL).
+
+### AWS S3
+
+The S3 lifecycle filter matches an exact tag key/value and the expiration interval is a fixed number of days, so you configure **one rule per supported day-count value**:
+
+```hcl
+resource "aws_s3_bucket_lifecycle_configuration" "expiration" {
+  bucket = aws_s3_bucket.example.id
+
+  rule {
+    id     = "expire-after-30-days"
+    status = "Enabled"
+
+    filter {
+      tag {
+        key   = "expiration-days"
+        value = "30"
+      }
+    }
+
+    expiration {
+      days = 30
+    }
+  }
+}
+```
+
+### GCP GCS
+
+Cloud Storage lifecycle rules cannot match on object tags, so the SDK stamps the object's **custom time** (`customTime = creation time + expiration-days`). A **single rule** keyed on `days_since_custom_time` then covers every day-count value:
+
+```hcl
+resource "google_storage_bucket" "expiration" {
+  name = "example-bucket"
+
+  lifecycle_rule {
+    condition {
+      days_since_custom_time = 0
+    }
+    action {
+      type = "Delete"
+    }
+  }
+}
+```
+
+### Alibaba OSS
+
+OSS matches an exact tag key/value and the expiration interval is a fixed number of days, so you configure **one rule per supported day-count value**:
+
+```hcl
+resource "alicloud_oss_bucket_lifecycle" "expiration" {
+  bucket = alicloud_oss_bucket.example.bucket
+
+  rule {
+    id     = "expire-after-30-days"
+    status = "Enabled"
+
+    filter {
+      tag {
+        key   = "expiration-days"
+        value = "30"
+      }
+    }
+
+    expiration {
+      days = 30
+    }
+  }
+}
 ```
 
 ---
