@@ -342,6 +342,98 @@ tags.put("tag2", "value2");
 client.setTags("blob-key", tags);
 ```
 
+## blob_setTags_lifecycle_expiration
+
+`expiration-days` is a reserved tag key. Setting it with a positive integer value marks the object
+as eligible for lifecycle-based expiration, where the value is the number of days from the object's
+creation time after which it should expire.
+
+The SDK only *classifies* the object as eligible; it does not delete it. The actual deletion is
+performed by a bucket lifecycle rule that you configure out-of-band on the bucket. Set the tag from
+your application:
+
+```
+// Mark the object to expire 30 days after its creation time
+client.setTags("blob-key", Map.of("expiration-days", "30"));
+```
+
+Once an object has been marked, the expiration can only be moved to a later time. Lowering the value
+or removing the tag does not retract an expiration that was already scheduled; only extending it to a
+later date takes effect.
+
+### AWS (S3) lifecycle rule
+
+The S3 lifecycle filter matches an exact tag key/value and the expiration interval is a fixed number
+of days, so you configure one rule per supported day-count value:
+
+```hcl
+resource "aws_s3_bucket_lifecycle_configuration" "expiration" {
+  bucket = aws_s3_bucket.example.id
+
+  rule {
+    id     = "expire-after-30-days"
+    status = "Enabled"
+
+    filter {
+      tag {
+        key   = "expiration-days"
+        value = "30"
+      }
+    }
+
+    expiration {
+      days = 30
+    }
+  }
+}
+```
+
+### GCP (Cloud Storage) lifecycle rule
+
+Cloud Storage stamps a custom time on the object, so a single rule covers every day-count value:
+
+```hcl
+resource "google_storage_bucket" "expiration" {
+  name = "example-bucket"
+
+  lifecycle_rule {
+    condition {
+      days_since_custom_time = 0
+    }
+    action {
+      type = "Delete"
+    }
+  }
+}
+```
+
+### Alibaba (OSS) lifecycle rule
+
+OSS matches an exact tag key/value and the expiration interval is a fixed number of days, so you
+configure one rule per supported day-count value:
+
+```hcl
+resource "alicloud_oss_bucket_lifecycle" "expiration" {
+  bucket = alicloud_oss_bucket.example.bucket
+
+  rule {
+    id     = "expire-after-30-days"
+    status = "Enabled"
+
+    filter {
+      tag {
+        key   = "expiration-days"
+        value = "30"
+      }
+    }
+
+    expiration {
+      days = 30
+    }
+  }
+}
+```
+
 ## blob_generatePresignedUrl
 
 ```
