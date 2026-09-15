@@ -186,6 +186,92 @@ class AliStsVerifierTest {
     Assertions.assertEquals("123456789012", identity.getAccountId());
   }
 
+  @Test
+  @SuppressWarnings("unchecked")
+  void vpcStsEndpointIsAccepted() throws Exception {
+    HttpClient httpClient = okClient();
+    String vpcIdentity =
+        "https://sts-vpc.cn-hangzhou.aliyuncs.com/?Action=GetCallerIdentity&Version=2015-04-01"
+            + "&Format=JSON";
+
+    CallerIdentity identity =
+        new AliStsVerifier.Builder().build(httpClient).verifySignedAuthRequest(vpcIdentity);
+    Assertions.assertEquals("123456789012", identity.getAccountId());
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void uppercaseHostIsAccepted() throws Exception {
+    // The host is untrusted input and may arrive in any case; it is lowercased before matching, so
+    // an uppercase STS host must still be accepted.
+    HttpClient httpClient = okClient();
+    String upperIdentity =
+        "https://STS.CN-HANGZHOU.ALIYUNCS.COM/?Action=GetCallerIdentity&Version=2015-04-01"
+            + "&Format=JSON";
+
+    CallerIdentity identity =
+        new AliStsVerifier.Builder().build(httpClient).verifySignedAuthRequest(upperIdentity);
+    Assertions.assertEquals("123456789012", identity.getAccountId());
+  }
+
+  @Test
+  void lookAlikeHostWithStsSuffixIsRejected() {
+    // A host that merely ends in a genuine-looking segment but is rooted at an attacker domain must
+    // be rejected before any replay happens.
+    HttpClient httpClient = mock(HttpClient.class);
+    String forgedIdentity =
+        "https://sts.cn-hangzhou.aliyuncs.com.attacker.com/?Action=GetCallerIdentity"
+            + "&Version=2015-04-01&Format=JSON";
+
+    AliStsVerifier verifier = new AliStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnAuthorizedException.class, () -> verifier.verifySignedAuthRequest(forgedIdentity));
+    Mockito.verifyNoInteractions(httpClient);
+  }
+
+  @Test
+  void hostWithStsPrefixOnAttackerDomainIsRejected() {
+    // "sts" appearing as a label inside an attacker-controlled domain must not be mistaken for a
+    // genuine STS endpoint.
+    HttpClient httpClient = mock(HttpClient.class);
+    String forgedIdentity =
+        "https://sts.aliyuncs.evil.com/?Action=GetCallerIdentity&Version=2015-04-01&Format=JSON";
+
+    AliStsVerifier verifier = new AliStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnAuthorizedException.class, () -> verifier.verifySignedAuthRequest(forgedIdentity));
+    Mockito.verifyNoInteractions(httpClient);
+  }
+
+  @Test
+  void hostWithoutStsPrefixIsRejected() {
+    // A host under aliyuncs.com that is not an STS endpoint must be rejected.
+    HttpClient httpClient = mock(HttpClient.class);
+    String forgedIdentity =
+        "https://notsts.cn-hangzhou.aliyuncs.com/?Action=GetCallerIdentity&Version=2015-04-01"
+            + "&Format=JSON";
+
+    AliStsVerifier verifier = new AliStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnAuthorizedException.class, () -> verifier.verifySignedAuthRequest(forgedIdentity));
+    Mockito.verifyNoInteractions(httpClient);
+  }
+
+  @Test
+  void hostWithExtraSubdomainIsRejected() {
+    // Only a single region label is permitted between the sts prefix and aliyuncs.com; extra labels
+    // must be rejected.
+    HttpClient httpClient = mock(HttpClient.class);
+    String forgedIdentity =
+        "https://sts.extra.cn-hangzhou.aliyuncs.com/?Action=GetCallerIdentity&Version=2015-04-01"
+            + "&Format=JSON";
+
+    AliStsVerifier verifier = new AliStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnAuthorizedException.class, () -> verifier.verifySignedAuthRequest(forgedIdentity));
+    Mockito.verifyNoInteractions(httpClient);
+  }
+
   @SuppressWarnings("unchecked")
   private static HttpClient okClient() throws IOException, InterruptedException {
     HttpClient httpClient = mock(HttpClient.class);

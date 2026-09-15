@@ -221,6 +221,100 @@ class AwsStsVerifierTest {
     Assertions.assertEquals("123456789012", identity.getAccountId());
   }
 
+  @Test
+  @SuppressWarnings("unchecked")
+  void fipsStsEndpointIsAccepted() throws Exception {
+    HttpClient httpClient = okClient();
+    String fipsIdentity =
+        "https://sts-fips.us-west-2.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15";
+
+    CallerIdentity identity =
+        new AwsStsVerifier.Builder().build(httpClient).verifySignedAuthRequest(fipsIdentity);
+    Assertions.assertEquals("123456789012", identity.getAccountId());
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void chinaPartitionStsEndpointIsAccepted() throws Exception {
+    HttpClient httpClient = okClient();
+    String chinaIdentity =
+        "https://sts.cn-north-1.amazonaws.com.cn/?Action=GetCallerIdentity&Version=2011-06-15";
+
+    CallerIdentity identity =
+        new AwsStsVerifier.Builder().build(httpClient).verifySignedAuthRequest(chinaIdentity);
+    Assertions.assertEquals("123456789012", identity.getAccountId());
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void uppercaseHostIsAccepted() throws Exception {
+    // The host is untrusted input and may arrive in any case; it is lowercased before matching, so
+    // an uppercase STS host must still be accepted.
+    HttpClient httpClient = okClient();
+    String upperIdentity =
+        "https://STS.US-WEST-2.AMAZONAWS.COM/?Action=GetCallerIdentity&Version=2011-06-15";
+
+    CallerIdentity identity =
+        new AwsStsVerifier.Builder().build(httpClient).verifySignedAuthRequest(upperIdentity);
+    Assertions.assertEquals("123456789012", identity.getAccountId());
+  }
+
+  @Test
+  void lookAlikeHostWithStsSuffixIsRejected() {
+    // A host that merely ends in a genuine-looking segment but is rooted at an attacker domain must
+    // be rejected before any replay happens.
+    HttpClient httpClient = mock(HttpClient.class);
+    String forgedIdentity =
+        "https://sts.us-west-2.amazonaws.com.attacker.com/?Action=GetCallerIdentity"
+            + "&Version=2011-06-15";
+
+    AwsStsVerifier verifier = new AwsStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnAuthorizedException.class, () -> verifier.verifySignedAuthRequest(forgedIdentity));
+    Mockito.verifyNoInteractions(httpClient);
+  }
+
+  @Test
+  void hostWithStsPrefixOnAttackerDomainIsRejected() {
+    // "sts" appearing as a label inside an attacker-controlled domain must not be mistaken for a
+    // genuine STS endpoint.
+    HttpClient httpClient = mock(HttpClient.class);
+    String forgedIdentity =
+        "https://sts.amazonaws.evil.com/?Action=GetCallerIdentity&Version=2011-06-15";
+
+    AwsStsVerifier verifier = new AwsStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnAuthorizedException.class, () -> verifier.verifySignedAuthRequest(forgedIdentity));
+    Mockito.verifyNoInteractions(httpClient);
+  }
+
+  @Test
+  void hostWithoutStsPrefixIsRejected() {
+    // A host under amazonaws.com that is not an STS endpoint must be rejected.
+    HttpClient httpClient = mock(HttpClient.class);
+    String forgedIdentity =
+        "https://notsts.us-west-2.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15";
+
+    AwsStsVerifier verifier = new AwsStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnAuthorizedException.class, () -> verifier.verifySignedAuthRequest(forgedIdentity));
+    Mockito.verifyNoInteractions(httpClient);
+  }
+
+  @Test
+  void hostWithExtraSubdomainIsRejected() {
+    // Only a single region label is permitted between the sts prefix and amazonaws.com; extra
+    // labels must be rejected.
+    HttpClient httpClient = mock(HttpClient.class);
+    String forgedIdentity =
+        "https://sts.extra.us-west-2.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15";
+
+    AwsStsVerifier verifier = new AwsStsVerifier.Builder().build(httpClient);
+    Assertions.assertThrows(
+        UnAuthorizedException.class, () -> verifier.verifySignedAuthRequest(forgedIdentity));
+    Mockito.verifyNoInteractions(httpClient);
+  }
+
   @SuppressWarnings("unchecked")
   private static HttpClient okClient() throws IOException, InterruptedException {
     HttpClient httpClient = mock(HttpClient.class);

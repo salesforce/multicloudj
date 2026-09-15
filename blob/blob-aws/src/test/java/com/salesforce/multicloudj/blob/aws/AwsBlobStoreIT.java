@@ -120,15 +120,17 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
     /**
      * Records the {@code x-amz-meta-sdk-logging-*} request headers as stub match conditions so the
      * replay-mode upload IT verifies the SDK actually sends the service/tenant/correlation ids on
-     * the PUT (not just that a recorded HEAD response echoes them back). If the SDK stops sending
-     * one of these headers, the recorded PUT stub no longer matches and the IT fails.
+     * the PUT (not just that a recorded HEAD response echoes them back). The create-if-absent
+     * precondition header is captured for the same reason. If the SDK stops sending one of these
+     * headers, the recorded PUT stub no longer matches and the IT fails.
      */
     @Override
     public List<String> getRecordingCaptureHeaders() {
       return List.of(
           getMetadataHeader(SdkLoggingMetadataKeys.SERVICE_ID),
           getMetadataHeader(SdkLoggingMetadataKeys.TENANT_ID),
-          getMetadataHeader(SdkLoggingMetadataKeys.CORRELATION_ID));
+          getMetadataHeader(SdkLoggingMetadataKeys.CORRELATION_ID),
+          "If-None-Match");
     }
 
     @Override

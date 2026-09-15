@@ -143,6 +143,25 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testUploadCreateIfAbsentUsesConditionalPut() {
+    UploadRequest request =
+        UploadRequest.builder().withKey(SOME_KEY).withCreateIfAbsent(true).build();
+
+    PutObjectRequest actual = transformer.toRequest(request);
+
+    assertEquals("*", actual.ifNoneMatch());
+  }
+
+  @Test
+  void testUploadDefaultDoesNotUseConditionalPut() {
+    UploadRequest request = UploadRequest.builder().withKey(SOME_KEY).build();
+
+    PutObjectRequest actual = transformer.toRequest(request);
+
+    assertNull(actual.ifNoneMatch());
+  }
+
+  @Test
   void testUploadWithKmsKey() {
     var key = "some-key";
     var metadata = Map.of("some-key", "some-value");

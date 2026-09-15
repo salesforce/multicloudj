@@ -83,6 +83,17 @@ public class AliTransformerTest {
   }
 
   @Test
+  void testToPutObjectRequestWithCreateIfAbsentForbidsOverwrite() {
+    UploadRequest request =
+        UploadRequest.builder().withKey("some-key").withCreateIfAbsent(true).build();
+
+    var actual =
+        transformer.toPutObjectRequest(request, BinaryData.fromBytes("data".getBytes()));
+
+    assertEquals(Boolean.TRUE, actual.forbidOverwrite());
+  }
+
+  @Test
   void testToPutObjectRequestWithKmsKey() {
     var key = "some-key";
     var metadata = Map.of("some-key", "some-value");

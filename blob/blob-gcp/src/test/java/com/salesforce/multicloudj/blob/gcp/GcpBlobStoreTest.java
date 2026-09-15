@@ -338,6 +338,48 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoUpload_WithInputStream_CreateIfAbsentCollisionPropagatesNativeException()
+      throws IOException {
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey(TEST_KEY).withCreateIfAbsent(true).build();
+    StorageException collision = new StorageException(412, "Precondition Failed");
+
+    when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.getBlobWriteOptions(uploadRequest))
+        .thenReturn(new Storage.BlobWriteOption[] {Storage.BlobWriteOption.doesNotExist()});
+    when(mockStorage.createFrom(
+            eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
+        .thenThrow(collision);
+
+    StorageException exception =
+        assertThrows(
+            StorageException.class,
+            () -> gcpBlobStore.doUpload(uploadRequest, new ByteArrayInputStream(TEST_CONTENT)));
+
+    assertEquals(collision, exception);
+  }
+
+  @Test
+  void testDoUpload_WithoutCreateIfAbsentPreservesStorageException() throws IOException {
+    UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
+    StorageException collision = new StorageException(412, "Precondition Failed");
+
+    when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.getBlobWriteOptions(uploadRequest))
+        .thenReturn(new Storage.BlobWriteOption[0]);
+    when(mockStorage.createFrom(
+            eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
+        .thenThrow(collision);
+
+    StorageException exception =
+        assertThrows(
+            StorageException.class,
+            () -> gcpBlobStore.doUpload(uploadRequest, new ByteArrayInputStream(TEST_CONTENT)));
+
+    assertEquals(collision, exception);
+  }
+
+  @Test
   void testDoUpload_WithByteArray() throws IOException {
     // Given
     UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
