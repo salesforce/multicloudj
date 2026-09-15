@@ -72,6 +72,7 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 | **Part Buffer Size** | ⚠️ Indirect                          | ✅ Supported | ⚠️ API-level only | Size of each part in multipart upload |
 | **Threshold Bytes** | ⚠️ Indirect through part buffer size | ✅ Supported | ❌ Not supported | File size threshold to trigger multipart upload |
 | **Max Concurrency** | ✅ Supported                          | ✅ Supported | ✅ Supported | Maximum concurrent transfer threads |
+| **Max Connections** | ✅ Supported                          | ✅ Supported | ✅ Supported | Maximum connections in the client's HTTP connection pool |
 | **Parallel Downloads** | ✅ Supported                          | ✅ Supported | ✅ Supported | Parallel range-based downloads (ALI: async client only, whole-object downloads) |
 | **Target Throughput (Gbps)** | ❌ Not supported                      | ✅ CRT client only | ❌ Not supported | Network throughput hint |
 | **Max Native Memory Limit** | ❌ Not supported                      | ✅ CRT client only | ❌ Not supported | Caps native memory for CRT client |
@@ -91,7 +92,7 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 - **Parallel Downloads**: Uses `AllowDivideAndConquerDownload(true)` for parallel range-based downloads (configurable via `isAllowDivideAndConquer`)
 - **Part Buffer Size**: Indirect support via `setPerWorkerBufferSize` in Transfer Manager
 - **Max Concurrency**: Configured via `setMaxWorkers()` on the Transfer Manager
-- **Max Connections**: On GCS, the connection limit also caps how many transfers can run in parallel, since all traffic goes to one host
+- **Max Connections**: Sets `maxConnTotal`/`maxConnPerRoute` on the Apache HTTP client; with a single host, this also caps concurrent transfers
 - **Threshold Bytes**: 4*`setPerWorkerBufferSize`, defaults to 64MiB
 
 #### Alibaba OSS
