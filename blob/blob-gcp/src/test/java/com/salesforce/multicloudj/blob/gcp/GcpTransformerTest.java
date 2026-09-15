@@ -35,6 +35,7 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.File;
@@ -202,6 +203,106 @@ class GcpTransformerTest {
     // Verify tags are added with TAG_PREFIX
     assertEquals("production", blobInfo.getMetadata().get("gcp-tag-environment"));
     assertEquals("team-a", blobInfo.getMetadata().get("gcp-tag-owner"));
+  }
+
+  @Test
+  void testToBlobInfo_withExpirationTag_stampsCustomTimeDaysFromNow() {
+    // Given the reserved lifecycle-expiration tag requests a 30-day lifetime
+    Map<String, String> tags = new HashMap<>();
+    tags.put(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "30");
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey(TEST_KEY).withTags(tags).build();
+
+    OffsetDateTime before = OffsetDateTime.now(ZoneOffset.UTC);
+
+    // When
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    OffsetDateTime after = OffsetDateTime.now(ZoneOffset.UTC);
+
+    // Then the object's custom time is stamped ~30 days out (creation time is "now" on upload) so
+    // a daysSinceCustomTime rule can expire it, and the tag itself is still persisted as prefixed
+    // metadata
+    OffsetDateTime customTime = blobInfo.getCustomTimeOffsetDateTime();
+    assertNotNull(customTime);
+    assertFalse(customTime.isBefore(before.plusDays(30)));
+    assertFalse(customTime.isAfter(after.plusDays(30)));
+    assertEquals(
+        "30",
+        blobInfo.getMetadata().get("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
+  }
+
+  @Test
+  void testToBlobInfo_withoutExpirationTag_doesNotStampCustomTime() {
+    // Given only non-reserved tags are present
+    Map<String, String> tags = new HashMap<>();
+    tags.put("environment", "production");
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey(TEST_KEY).withTags(tags).build();
+
+    // When
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    // Then no custom time marker is added
+    assertNull(blobInfo.getCustomTimeOffsetDateTime());
+  }
+
+  @Test
+  void testToBlobInfo_withNeverExpirationTag_doesNotStampCustomTime() {
+    // Given the reserved tag carries a non-numeric "never expire" sentinel
+    Map<String, String> tags = new HashMap<>();
+    tags.put(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "Never");
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey(TEST_KEY).withTags(tags).build();
+
+    // When
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    // Then no custom time marker is added, but the tag is still persisted verbatim
+    assertNull(blobInfo.getCustomTimeOffsetDateTime());
+    assertEquals(
+        "Never",
+        blobInfo.getMetadata().get("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
+  }
+
+  @Test
+  void testApplyLifecycleExpiration_stampsCustomTimeOnlyForPositiveDayCount() {
+    // Positive day count -> stamps custom time ~10 days out
+    BlobInfo.Builder withTag = BlobInfo.newBuilder(TEST_BUCKET, TEST_KEY);
+    Map<String, String> present = new HashMap<>();
+    present.put("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "10");
+    OffsetDateTime before = OffsetDateTime.now(ZoneOffset.UTC);
+    transformer.applyLifecycleExpiration(withTag, present);
+    OffsetDateTime customTime = withTag.build().getCustomTimeOffsetDateTime();
+    assertNotNull(customTime);
+    assertFalse(customTime.isBefore(before.plusDays(10)));
+    assertFalse(customTime.isAfter(OffsetDateTime.now(ZoneOffset.UTC).plusDays(10)));
+
+    // Absent -> leaves custom time untouched (null)
+    BlobInfo.Builder withoutTag = BlobInfo.newBuilder(TEST_BUCKET, TEST_KEY);
+    Map<String, String> absent = new HashMap<>();
+    absent.put("gcp-tag-environment", "production");
+    transformer.applyLifecycleExpiration(withoutTag, absent);
+    assertNull(withoutTag.build().getCustomTimeOffsetDateTime());
+
+    // Non-positive / non-numeric value -> no marker
+    BlobInfo.Builder never = BlobInfo.newBuilder(TEST_BUCKET, TEST_KEY);
+    Map<String, String> sentinel = new HashMap<>();
+    sentinel.put("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "Never");
+    transformer.applyLifecycleExpiration(never, sentinel);
+    assertNull(never.build().getCustomTimeOffsetDateTime());
+  }
+
+  @Test
+  void testParseExpirationDays() {
+    assertEquals(30, GcpTransformer.parseExpirationDays("30"));
+    assertEquals(10, GcpTransformer.parseExpirationDays("  10 "));
+    assertNull(GcpTransformer.parseExpirationDays(null));
+    assertNull(GcpTransformer.parseExpirationDays(""));
+    assertNull(GcpTransformer.parseExpirationDays("Never"));
+    assertNull(GcpTransformer.parseExpirationDays("true"));
+    assertNull(GcpTransformer.parseExpirationDays("0"));
+    assertNull(GcpTransformer.parseExpirationDays("-5"));
   }
 
   @Test

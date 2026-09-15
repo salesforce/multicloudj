@@ -1,0 +1,31 @@
+{
+  "id" : "16b6ff12-ce96-4e6c-bb69-d5f311a0fb06",
+  "name" : "AliBlobStoreIT_testTagging_lifecycleExpiration-PUT-5",
+  "request" : {
+    "url" : "/conformance-tests/blob-for-lifecycle-expiration",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "bGlmZWN5Y2xlIGV4cGlyYXRpb24gdGVzdCBkYXRh"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6AA856A2079ACC3033686F4D",
+      "x-oss-server-time" : "61",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "12739172459993525672",
+      "ETag" : "\"54FCD4DB0716526895833D0D38DBEF24\"",
+      "Date" : "Mon, 14 Sep 2026 20:18:43 GMT",
+      "Content-MD5" : "VPzU2wcWUmiVgz0NONvvJA=="
+    }
+  },
+  "uuid" : "16b6ff12-ce96-4e6c-bb69-d5f311a0fb06",
+  "persistent" : true,
+  "insertionIndex" : 763
+}

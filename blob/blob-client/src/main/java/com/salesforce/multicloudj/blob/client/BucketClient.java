@@ -716,6 +716,16 @@ public class BucketClient implements AutoCloseable {
   /**
    * Sets tags on a blob.
    *
+   * <p>{@code expiration-days} is a reserved tag key. Setting it with a positive integer
+   * value marks the object as eligible for lifecycle-based expiration, where the value is
+   * the number of days from the object's creation time after which it should expire. The
+   * SDK only classifies the object; the actual deletion is performed by a bucket lifecycle
+   * rule that must be configured separately.
+   *
+   * <p>Once an object has been marked, the expiration can only be moved to a later time.
+   * Lowering the value or removing the tag does not retract an expiration that was already
+   * scheduled; only extending it to a later date takes effect.
+   *
    * @param key Name of the blob to set tags on
    * @param tags The tags to set
    * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the blob
