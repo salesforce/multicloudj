@@ -4105,8 +4105,8 @@ public abstract class AbstractBlobStoreIT {
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
-    // Documented reserved lifecycle-expiration tag key (see the blob store guide). The conformance
-    // suite references the published contract string directly so it stays provider-agnostic.
+    // Documented reserved lifecycle-expiration tag key. The conformance suite references the
+    // published contract string directly so it stays provider-agnostic.
     final String reservedKey = "expiration-days";
     String key = "conformance-tests/blob-for-lifecycle-expiration";
     try {

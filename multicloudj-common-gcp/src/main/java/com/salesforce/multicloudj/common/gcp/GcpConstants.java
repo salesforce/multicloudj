@@ -12,7 +12,7 @@ public class GcpConstants {
    * blank, or not a positive integer leaves the object unmarked. The GCP blob implementation stamps
    * the object's custom time from this marker so a bucket lifecycle rule keyed off custom time can
    * delete the object; the deletion itself is performed by a bucket lifecycle rule configured
-   * out-of-band. See the blob store guide for the behavior and the bucket rule required.
+   * out-of-band.
    */
   public static final String LIFECYCLE_EXPIRATION_TAG_KEY = "expiration-days";
 }
