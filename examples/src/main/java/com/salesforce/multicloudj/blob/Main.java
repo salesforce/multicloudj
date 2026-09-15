@@ -619,6 +619,75 @@ public class Main {
     client.setTags("blob-key", tags);
   }
 
+  /**
+   * Marks an object for lifecycle-based expiration using the reserved {@code expiration-days} tag.
+   *
+   * <p>{@code expiration-days} is a reserved tag key. Setting it with a positive integer value
+   * marks the object as eligible for expiration, where the value is the number of days from the
+   * object's creation time after which it should expire. The SDK only <em>classifies</em> the
+   * object; it does not delete it. The actual deletion is performed by a bucket lifecycle rule you
+   * configure out-of-band on the bucket. Once an object has been marked, the expiration can only be
+   * moved to a later time - lowering the value or removing the tag does not retract an expiration
+   * that was already scheduled.
+   *
+   * <p>The out-of-band lifecycle rule you provision on the bucket depends on the provider:
+   *
+   * <p>AWS (S3): the lifecycle filter matches an exact tag key/value and the expiration interval is
+   * a fixed number of days, so provision one rule per supported day-count value. For
+   * {@code expiration-days=30}:
+   *
+   * <pre>{@code
+   * resource "aws_s3_bucket_lifecycle_configuration" "expiration" {
+   *   bucket = aws_s3_bucket.example.id
+   *   rule {
+   *     id     = "expire-after-30-days"
+   *     status = "Enabled"
+   *     filter { tag { key = "expiration-days" value = "30" } }
+   *     expiration { days = 30 }
+   *   }
+   * }
+   * }</pre>
+   *
+   * <p>GCP (Cloud Storage): the SDK stamps a custom time on the object, so a single rule covers
+   * every day-count value:
+   *
+   * <pre>{@code
+   * resource "google_storage_bucket" "expiration" {
+   *   name = "example-bucket"
+   *   lifecycle_rule {
+   *     condition { days_since_custom_time = 0 }
+   *     action    { type = "Delete" }
+   *   }
+   * }
+   * }</pre>
+   *
+   * <p>Alibaba (OSS): the lifecycle rule matches an exact tag key/value and the expiration interval
+   * is a fixed number of days, so provision one rule per supported day-count value. For
+   * {@code expiration-days=30}:
+   *
+   * <pre>{@code
+   * resource "alicloud_oss_bucket_lifecycle" "expiration" {
+   *   bucket = alicloud_oss_bucket.example.bucket
+   *   rule {
+   *     id     = "expire-after-30-days"
+   *     status = "Enabled"
+   *     filter { tag { key = "expiration-days" value = "30" } }
+   *     expiration { days = 30 }
+   *   }
+   * }
+   * }</pre>
+   */
+  public static void setLifecycleExpirationTag() {
+    // Get the BucketClient instance using the getBucketClient method
+    BucketClient client = getBucketClient(getProvider());
+
+    // Mark the object to expire 30 days after its creation time. The bucket lifecycle rule
+    // (provisioned out-of-band, see the Javadoc above) performs the actual deletion.
+    client.setTags("blob-key", Map.of("expiration-days", "30"));
+
+    getLogger().info("Marked blob-key with expiration-days=30");
+  }
+
   // Shared constants used by the directory-operation example flow so that the upload,
   // download, delete and verification steps all agree on the same paths/keys.
   private static final String LOCAL_SOURCE_DIRECTORY = "/tmp/test-directory";
