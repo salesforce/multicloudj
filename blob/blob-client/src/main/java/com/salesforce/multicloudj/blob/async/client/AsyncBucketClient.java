@@ -394,7 +394,16 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx -> blobStore.getTags(key).exceptionally(this::handleException));
   }
 
-  /** Sets tags on a blob */
+  /**
+   * Sets tags on a blob.
+   *
+   * <p>{@code expiration-days} is a reserved tag key. Setting it with a positive integer
+   * value marks the object as eligible for lifecycle-based expiration, where the value is
+   * the number of days from the object's creation time after which it should expire. The
+   * SDK only classifies the object; the actual deletion is performed by a bucket lifecycle
+   * rule that must be configured separately. See the documentation site for how to
+   * configure that rule.
+   */
   public CompletableFuture<Void> setTags(String key, Map<String, String> tags) {
     return multiCloudJLogger.traceAsyncOperation(
         BlobSpanNames.SET_TAGS,
