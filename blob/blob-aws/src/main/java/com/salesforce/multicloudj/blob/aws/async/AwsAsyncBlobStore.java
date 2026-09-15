@@ -278,8 +278,11 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
   @Override
   protected CompletableFuture<Void> doDelete(Collection<BlobIdentifier> objects) {
-    var request = transformer.toDeleteRequests(objects);
-    return client.deleteObjects(request).thenAccept(response -> {});
+    CompletableFuture<?>[] deletions =
+        transformer.toDeleteRequests(objects).stream()
+            .map(request -> client.deleteObjects(request))
+            .toArray(CompletableFuture[]::new);
+    return CompletableFuture.allOf(deletions);
   }
 
   @Override
