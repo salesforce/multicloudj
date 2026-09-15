@@ -28,6 +28,9 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.observability.MultiCloudJLogger;
 import com.salesforce.multicloudj.common.observability.OperationContext;
@@ -94,8 +97,7 @@ public class BucketClient implements AutoCloseable {
           try {
             return withCorrelationId(blobStore.upload(enriched, inputStream), ctx);
           } catch (Throwable t) {
-            propagate(t);
-            return null;
+            throw mapUploadException(enriched, t);
           }
         });
   }
@@ -118,8 +120,7 @@ public class BucketClient implements AutoCloseable {
           try {
             return withCorrelationId(blobStore.upload(enriched, content), ctx);
           } catch (Throwable t) {
-            propagate(t);
-            return null;
+            throw mapUploadException(enriched, t);
           }
         });
   }
@@ -142,8 +143,7 @@ public class BucketClient implements AutoCloseable {
           try {
             return withCorrelationId(blobStore.upload(enriched, file), ctx);
           } catch (Throwable t) {
-            propagate(t);
-            return null;
+            throw mapUploadException(enriched, t);
           }
         });
   }
@@ -166,8 +166,7 @@ public class BucketClient implements AutoCloseable {
           try {
             return withCorrelationId(blobStore.upload(enriched, path), ctx);
           } catch (Throwable t) {
-            propagate(t);
-            return null;
+            throw mapUploadException(enriched, t);
           }
         });
   }
@@ -717,6 +716,16 @@ public class BucketClient implements AutoCloseable {
   /**
    * Sets tags on a blob.
    *
+   * <p>{@code expiration-days} is a reserved tag key. Setting it with a positive integer
+   * value marks the object as eligible for lifecycle-based expiration, where the value is
+   * the number of days from the object's creation time after which it should expire. The
+   * SDK only classifies the object; the actual deletion is performed by a bucket lifecycle
+   * rule that must be configured separately.
+   *
+   * <p>Once an object has been marked, the expiration can only be moved to a later time.
+   * Lowering the value or removing the tag does not retract an expiration that was already
+   * scheduled; only extending it to a later date takes effect.
+   *
    * @param key Name of the blob to set tags on
    * @param tags The tags to set
    * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the blob
@@ -976,6 +985,23 @@ public class BucketClient implements AutoCloseable {
 
   private void propagate(Throwable t) {
     throw blobStore.mapException(t);
+  }
+
+  private SubstrateSdkException mapUploadException(UploadRequest request, Throwable t) {
+    SubstrateSdkException mapped = blobStore.mapException(t);
+    if (!request.isCreateIfAbsent()) {
+      return mapped;
+    }
+
+    Throwable cause = mapped.getCause() != null ? mapped.getCause() : mapped;
+    if (mapped instanceof FailedPreconditionException) {
+      return new ResourceAlreadyExistsException("Blob already exists", cause);
+    }
+    if (mapped instanceof ResourceConflictException) {
+      return new ResourceConflictException(
+          "Conditional blob upload conflicted", cause, true);
+    }
+    return mapped;
   }
 
   private static UploadResponse withCorrelationId(UploadResponse r, OperationContext ctx) {

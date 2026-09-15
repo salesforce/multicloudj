@@ -104,6 +104,7 @@ import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
@@ -193,6 +194,11 @@ public class AliBlobStoreTest {
 
     assertInstanceOf(
         UnknownException.class, ali.mapException(new IOException("Channel is closed")));
+
+    ServiceException collision = mock(ServiceException.class);
+    when(collision.errorCode()).thenReturn("FileAlreadyExists");
+    when(collision.statusCode()).thenReturn(409);
+    assertInstanceOf(ResourceAlreadyExistsException.class, ali.mapException(collision));
   }
 
   @Test

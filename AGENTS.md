@@ -5,6 +5,14 @@ This file provides shared guidance to AI coding agents working in this repositor
 conventions, and development rules. Tool-specific entry points should import or
 link to this file rather than duplicate it.
 
+## Instruction Loading
+
+- Read this file completely before doing repository work.
+- `CLAUDE.md` imports this file so Claude Code and Codex use the same repository guidance.
+- When working in a Git worktree other than the task's initial working directory, read that
+  worktree's root `AGENTS.md` completely before taking repository actions. Changing a command's
+  working directory does not refresh already-loaded task instructions.
+
 ## Project Overview
 
 MultiCloudJ is a cloud-agnostic Java SDK providing unified interfaces for cloud services across AWS, GCP, and Alibaba Cloud. The SDK uses Java Service Provider Interface (SPI) pattern to load provider-specific implementations at runtime.
@@ -119,6 +127,37 @@ This skill is REQUIRED for:
 - Implementing conformance tests
 
 DO NOT skip this skill - it ensures proper cross-cloud implementation, semantic uniformity, and prevents costly rework from discovering provider incompatibilities late.
+
+### Exception Handling Boundary
+
+**CRITICAL: Public client classes own the exception-handling and translation boundary.**
+
+- Provider operation methods (for example, `doUpload`, `doDownload`, and `doDelete`) MUST NOT catch native cloud SDK exceptions merely to translate them into MultiCloudJ exceptions.
+- Native cloud SDK exceptions must propagate to the public client layer. The public client catches the failure and calls the provider's `mapException(Throwable)` implementation.
+- Provider-specific `mapException` implementations and `ErrorCodeMapping` classes may inspect native exception types and error codes, but they must only classify them into cloud-agnostic MultiCloudJ exception types. They must not contain request- or operation-specific business logic.
+- Request-aware exception normalization belongs in the specific public client operation that has the required request context. Keep that logic scoped to the affected operation; do not change a shared/global exception handler for one feature.
+- Async clients follow the same rule. Unwrap async wrapper exceptions only at the narrow client operation boundary that requires it unless a separate, explicitly reviewed change is intended to update exception behavior for every async operation.
+- A provider method may catch an exception only when the exception is part of the provider operation's control flow (for example, converting a provider 404 into `false` for an existence check), for resource cleanup, or to convert a checked exception that cannot propagate. Such catches must not bypass the public client's normal provider-exception mapping boundary.
+
+The expected pattern is:
+
+```java
+// Provider implementation: let native unchecked SDK exceptions propagate.
+@Override
+protected UploadResponse doUpload(UploadRequest request, byte[] content) {
+  return transformer.toUploadResponse(
+      nativeClient.putObject(transformer.toRequest(request), content));
+}
+
+// Public client: own the exception boundary.
+public UploadResponse upload(UploadRequest request, byte[] content) {
+  try {
+    return blobStore.upload(request, content);
+  } catch (Throwable t) {
+    throw blobStore.mapException(t);
+  }
+}
+```
 
 ### Dependency management
 - Never add cloud specific dependency in cloud-agnostic package.

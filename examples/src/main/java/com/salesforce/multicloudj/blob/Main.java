@@ -619,6 +619,28 @@ public class Main {
     client.setTags("blob-key", tags);
   }
 
+  /**
+   * Marks an object for lifecycle-based expiration using the reserved {@code expiration-days} tag.
+   *
+   * <p>{@code expiration-days} is a reserved tag key. Setting it with a positive integer value
+   * marks the object as eligible for expiration, where the value is the number of days from the
+   * object's creation time after which it should expire. The SDK only <em>classifies</em> the
+   * object; it does not delete it. The actual deletion is performed by a bucket lifecycle rule that
+   * must be configured separately on the bucket. Once an object has been marked, the expiration can
+   * only be moved to a later time - lowering the value or removing the tag does not retract an
+   * expiration that was already scheduled.
+   */
+  public static void setLifecycleExpirationTag() {
+    // Get the BucketClient instance using the getBucketClient method
+    BucketClient client = getBucketClient(getProvider());
+
+    // Mark the object to expire 30 days after its creation time. The bucket lifecycle rule
+    // (configured separately on the bucket) performs the actual deletion.
+    client.setTags("blob-key", Map.of("expiration-days", "30"));
+
+    getLogger().info("Marked blob-key with expiration-days=30");
+  }
+
   // Shared constants used by the directory-operation example flow so that the upload,
   // download, delete and verification steps all agree on the same paths/keys.
   private static final String LOCAL_SOURCE_DIRECTORY = "/tmp/test-directory";

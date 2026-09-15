@@ -127,6 +127,12 @@ public class AliTransformer {
             .key(uploadRequest.getKey())
             .body(body);
 
+    if (uploadRequest.isCreateIfAbsent()) {
+      // OSS enforces this atomically for non-versioned buckets. The service ignores the option
+      // when bucket versioning is enabled or suspended.
+      builder.forbidOverwrite(true);
+    }
+
     // Copy the application-supplied metadata and stamp the SDK's correlation
     // id onto the stored object so it persists in OSS alongside the user's
     // metadata. Skipped when the request carries no operation context, or
