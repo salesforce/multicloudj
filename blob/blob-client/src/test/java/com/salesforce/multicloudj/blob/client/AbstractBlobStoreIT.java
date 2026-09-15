@@ -38,6 +38,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
@@ -496,6 +497,59 @@ public abstract class AbstractBlobStoreIT {
         "conformance-tests/upload/happyPath",
         "This is test data".getBytes(),
         false);
+  }
+
+  @Test
+  public void testUpload_createIfAbsent() {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String key = "conformance-tests/upload/createIfAbsent/ByteArray";
+    byte[] originalContent =
+        "original create-if-absent content for ByteArray".getBytes(StandardCharsets.UTF_8);
+    byte[] replacementContent =
+        "replacement create-if-absent content for ByteArray".getBytes(StandardCharsets.UTF_8);
+    Map<String, String> originalMetadata = Map.of("writer", "original-ByteArray");
+    Map<String, String> replacementMetadata = Map.of("writer", "replacement-ByteArray");
+
+    UploadRequest originalRequest =
+        new UploadRequest.Builder()
+            .withKey(key)
+            .withContentLength(originalContent.length)
+            .withMetadata(originalMetadata)
+            .withCreateIfAbsent(true)
+            .build();
+
+    try {
+      UploadResponse originalResponse = bucketClient.upload(originalRequest, originalContent);
+      Assertions.assertNotNull(originalResponse, "no upload response returned");
+
+      UploadRequest replacementRequest =
+          new UploadRequest.Builder()
+              .withKey(key)
+              .withContentLength(replacementContent.length)
+              .withMetadata(replacementMetadata)
+              .withCreateIfAbsent(true)
+              .build();
+      Assertions.assertThrows(
+          ResourceAlreadyExistsException.class,
+          () -> bucketClient.upload(replacementRequest, replacementContent),
+          "a second create-if-absent upload must lose the race");
+
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      bucketClient.download(new DownloadRequest.Builder().withKey(key).build(), outputStream);
+      Assertions.assertArrayEquals(
+          originalContent,
+          outputStream.toByteArray(),
+          "the failed upload must not replace the original bytes");
+
+      BlobMetadata storedMetadata = bucketClient.getMetadata(key, null);
+      assertUserMetadataEquals(
+          originalMetadata,
+          storedMetadata.getMetadata(),
+          "the failed upload must not replace the original metadata");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
   }
 
   /**
@@ -4089,6 +4143,56 @@ public abstract class AbstractBlobStoreIT {
       // Now delete all blobs that were created
       safeDeleteBlobs(bucketClient, key);
       safeDeleteBlobs(bucketClient, key + "-fake");
+    }
+  }
+
+  /**
+   * Conformance test for the reserved lifecycle-expiration tag. Verifies the documented reserved
+   * key ({@code expiration-days} with a day-count value) is accepted and
+   * round-trips through {@code setTags}, and that removing it via {@code setTags} clears it. The
+   * out-of-band bucket lifecycle rule that performs the deletion is not exercised here; this locks
+   * in that every provider persists the reserved tag like any other tag rather than rejecting or
+   * stripping it.
+   */
+  @Test
+  public void testTagging_lifecycleExpiration() throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // Documented reserved lifecycle-expiration tag key. The conformance suite references the
+    // published contract string directly so it stays provider-agnostic.
+    final String reservedKey = "expiration-days";
+    String key = "conformance-tests/blob-for-lifecycle-expiration";
+    try {
+      byte[] utf8BlobBytes = "lifecycle expiration test data".getBytes(StandardCharsets.UTF_8);
+
+      // Upload a plain object first; the reserved tag is applied afterward via setTags.
+      try (InputStream inputStream = new ByteArrayInputStream(utf8BlobBytes)) {
+        UploadRequest request =
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(utf8BlobBytes.length)
+                .build();
+        bucketClient.upload(request, inputStream);
+      }
+
+      // Positive: setting the reserved tag with a day-count value round-trips like any other tag.
+      Map<String, String> tags = Map.of(reservedKey, "30");
+      bucketClient.setTags(key, tags);
+      Map<String, String> tagResults = bucketClient.getTags(key);
+      Assertions.assertEquals(
+          tags,
+          tagResults,
+          "testTagging_lifecycleExpiration: reserved tag did not round-trip on setTags");
+
+      // Removing the reserved tag via setTags clears it.
+      bucketClient.setTags(key, Map.of("unrelated", "value"));
+      tagResults = bucketClient.getTags(key);
+      Assertions.assertFalse(
+          tagResults.containsKey(reservedKey),
+          "testTagging_lifecycleExpiration: reserved tag was not cleared by setTags");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
     }
   }
 

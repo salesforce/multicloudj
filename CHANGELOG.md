@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.4.6](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.5...multicloudj-v0.4.6) (2026-09-11)
+
+
+### Blob Store
+
+* add atomic create-if-absent uploads ([#610](https://github.com/salesforce/multicloudj/issues/610)) ([5ef3d35](https://github.com/salesforce/multicloudj/commit/5ef3d3512a9da105f1e4e0ae48c6b83a40a837b3))
+
+
+### STS
+
+* add STS verifier for AWS, GCP, and Alibaba ([#613](https://github.com/salesforce/multicloudj/issues/613)) ([04158bb](https://github.com/salesforce/multicloudj/commit/04158bb5be64399cf0453f04e521f68b673e56aa))
+* cover AWS/Ali STS host regex accept and spoof-reject cases ([#622](https://github.com/salesforce/multicloudj/issues/622)) ([f5722c4](https://github.com/salesforce/multicloudj/commit/f5722c454a7a84dab4e55858eec6d71be8c8fb93))
+* pin STS verifier replay to trusted https endpoints ([#620](https://github.com/salesforce/multicloudj/issues/620)) ([06b33ab](https://github.com/salesforce/multicloudj/commit/06b33abae05e22b16ec76c606c04e50aa97d563d))
+
+
+### PubSub
+
+* add pubsub-ali module foundation for Alibaba SMQ ([#609](https://github.com/salesforce/multicloudj/issues/609)) ([46a628a](https://github.com/salesforce/multicloudj/commit/46a628af12e348fd670921bb0c8e4a6b6fcdc4ae))
+* implement pubsub-ali SMQ queue publish/subscribe ([#615](https://github.com/salesforce/multicloudj/issues/615)) ([1dde1e2](https://github.com/salesforce/multicloudj/commit/1dde1e2fea9dd7e9394a522621826d732631608e))
+
 ## [0.4.5](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.4...multicloudj-v0.4.5) (2026-09-02)
 
 

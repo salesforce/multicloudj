@@ -49,6 +49,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -346,6 +347,12 @@ public class AwsBlobStoreTest {
 
     assertInstanceOf(
         UnknownException.class, aws.mapException(new IOException("Channel is closed")));
+    assertInstanceOf(
+        FailedPreconditionException.class,
+        aws.mapException(buildS3Exception(412, "PreconditionFailed")));
+    assertInstanceOf(
+        ResourceConflictException.class,
+        aws.mapException(buildS3Exception(409, "ConditionalRequestConflict")));
   }
 
   private UploadRequest buildTestUploadRequest() {
@@ -365,6 +372,15 @@ public class AwsBlobStoreTest {
     doReturn("etag").when(mockResponse).eTag();
     doReturn(1024L).when(mockResponse).size();
     return mockResponse;
+  }
+
+  private S3Exception buildS3Exception(int statusCode, String errorCode) {
+    return (S3Exception)
+        S3Exception.builder()
+            .statusCode(statusCode)
+            .message(errorCode)
+            .awsErrorDetails(AwsErrorDetails.builder().errorCode(errorCode).build())
+            .build();
   }
 
   @Test
@@ -408,6 +424,23 @@ public class AwsBlobStoreTest {
         .when(mockS3Client)
         .putObject((PutObjectRequest) any(), (RequestBody) any());
     verifyUploadTestResults(aws.doUpload(buildTestUploadRequest(), new byte[1024]));
+  }
+
+  @Test
+  void testDoUploadCreateIfAbsentCollisionPropagatesNativeException() {
+    S3Exception collision = buildS3Exception(412, "PreconditionFailed");
+    doThrow(collision)
+        .when(mockS3Client)
+        .putObject(any(PutObjectRequest.class), any(RequestBody.class));
+    UploadRequest request =
+        buildTestUploadRequest().toBuilder().withCreateIfAbsent(true).build();
+
+    S3Exception thrown =
+        assertThrows(
+            S3Exception.class,
+            () -> aws.doUpload(request, new byte[1024]));
+
+    assertEquals(collision, thrown);
   }
 
   @Test
