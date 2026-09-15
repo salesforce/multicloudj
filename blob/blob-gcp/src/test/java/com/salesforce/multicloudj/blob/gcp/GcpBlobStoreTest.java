@@ -1452,8 +1452,6 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobId(TEST_KEY, null)).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
     when(mockBlob.getMetadata()).thenReturn(new HashMap<>());
-    // No pre-existing custom time to clear
-    when(mockBlob.getCustomTimeOffsetDateTime()).thenReturn(null);
 
     Blob.Builder mockBuilder = mock(Blob.Builder.class);
     Blob updatedBlob = mock(Blob.class);
@@ -1469,12 +1467,10 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testDoSetTags_RemovingExpirationTagClearsCustomTime() {
+  void testDoSetTags_RemovingExpirationTagDoesNotClearCustomTime() {
     when(mockTransformer.toBlobId(TEST_KEY, null)).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
     when(mockBlob.getMetadata()).thenReturn(new HashMap<>());
-    // Object currently carries a custom time from a prior expiration tagging
-    when(mockBlob.getCustomTimeOffsetDateTime()).thenReturn(OffsetDateTime.now(ZoneOffset.UTC));
 
     Blob.Builder mockBuilder = mock(Blob.Builder.class);
     Blob updatedBlob = mock(Blob.class);
@@ -1485,8 +1481,33 @@ class GcpBlobStoreTest {
     // New tag set no longer contains the reserved tag
     gcpBlobStore.doSetTags(TEST_KEY, Map.of("owner", "alice"));
 
-    // The custom time marker is cleared so the object stops matching the expiration rule
-    verify(mockBuilder).setCustomTimeOffsetDateTime(isNull());
+    // The custom time can only be moved to a later point in time, never unset, so removing the
+    // reserved tag leaves an already-scheduled expiration in place
+    verify(mockBuilder, never()).setCustomTimeOffsetDateTime(any());
+    verify(mockStorage).update(updatedBlob);
+  }
+
+  @Test
+  void testDoSetTags_ExpirationTagOnlyMovesCustomTimeLater() {
+    when(mockTransformer.toBlobId(TEST_KEY, null)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+    when(mockBlob.getMetadata()).thenReturn(new HashMap<>());
+    OffsetDateTime creationTime = OffsetDateTime.now(ZoneOffset.UTC).minusDays(5);
+    when(mockBlob.getCreateTimeOffsetDateTime()).thenReturn(creationTime);
+    // Object already expires 30 days after creation; re-tagging with a smaller value would pull
+    // the expiration earlier, which the custom time cannot represent
+    when(mockBlob.getCustomTimeOffsetDateTime()).thenReturn(creationTime.plusDays(30));
+
+    Blob.Builder mockBuilder = mock(Blob.Builder.class);
+    Blob updatedBlob = mock(Blob.class);
+    when(mockBlob.toBuilder()).thenReturn(mockBuilder);
+    when(mockBuilder.setMetadata(anyMap())).thenReturn(mockBuilder);
+    when(mockBuilder.build()).thenReturn(updatedBlob);
+
+    gcpBlobStore.doSetTags(TEST_KEY, Map.of(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "10"));
+
+    // A shorter day count would move the custom time earlier, so it is left untouched
+    verify(mockBuilder, never()).setCustomTimeOffsetDateTime(any());
     verify(mockStorage).update(updatedBlob);
   }
 

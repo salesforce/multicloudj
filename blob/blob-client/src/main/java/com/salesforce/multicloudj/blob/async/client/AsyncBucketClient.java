@@ -403,6 +403,10 @@ public class AsyncBucketClient implements AutoCloseable {
    * SDK only classifies the object; the actual deletion is performed by a bucket lifecycle
    * rule that must be configured separately. See the documentation site for how to
    * configure that rule.
+   *
+   * <p>Once an object has been marked, the expiration can only be moved to a later time.
+   * Lowering the value or removing the tag does not retract an expiration that was already
+   * scheduled; only extending it to a later date takes effect.
    */
   public CompletableFuture<Void> setTags(String key, Map<String, String> tags) {
     return multiCloudJLogger.traceAsyncOperation(

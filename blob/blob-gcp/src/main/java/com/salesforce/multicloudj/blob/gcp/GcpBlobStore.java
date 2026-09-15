@@ -945,11 +945,14 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     Blob.Builder builder = blob.toBuilder().setMetadata(metadata);
 
-    // setTags replaces the full tag set, so reconcile the lifecycle-expiration marker: stamp the
-    // custom time when the reserved tag now carries a positive day count, and clear it otherwise so
-    // the object stops matching the daysSinceCustomTime bucket rule. The tag value is the number of
-    // days the object should live measured from its creation time, so the object expires the same
-    // number of days after creation regardless of when the tag was set.
+    // setTags replaces the full tag set, so reconcile the lifecycle-expiration marker when the
+    // reserved tag now carries a positive day count. The tag value is the number of days the object
+    // should live measured from its creation time, so the custom time anchors to creation and the
+    // daysSinceCustomTime bucket rule expires the object that many days after it was created.
+    // The Cloud Storage custom time can only be moved to a later point in time once set: it cannot
+    // be unset or brought earlier without rewriting the object. We therefore only stamp when this
+    // extends the eligibility date, and we never attempt to clear it. Consequently removing the
+    // reserved tag does not retract an expiration that was already scheduled.
     Integer expirationDays =
         tags != null
             ? GcpTransformer.parseExpirationDays(
@@ -959,9 +962,11 @@ public class GcpBlobStore extends AbstractBlobStore {
       OffsetDateTime creationTime = blob.getCreateTimeOffsetDateTime();
       OffsetDateTime anchor =
           creationTime != null ? creationTime : OffsetDateTime.now(ZoneOffset.UTC);
-      builder.setCustomTimeOffsetDateTime(anchor.plusDays(expirationDays));
-    } else if (blob.getCustomTimeOffsetDateTime() != null) {
-      builder.setCustomTimeOffsetDateTime(null);
+      OffsetDateTime expiry = anchor.plusDays(expirationDays);
+      OffsetDateTime existing = blob.getCustomTimeOffsetDateTime();
+      if (existing == null || expiry.isAfter(existing)) {
+        builder.setCustomTimeOffsetDateTime(expiry);
+      }
     }
 
     storage.update(builder.build());
