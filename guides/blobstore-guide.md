@@ -91,6 +91,7 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 - **Parallel Downloads**: Uses `AllowDivideAndConquerDownload(true)` for parallel range-based downloads (configurable via `isAllowDivideAndConquer`)
 - **Part Buffer Size**: Indirect support via `setPerWorkerBufferSize` in Transfer Manager
 - **Max Concurrency**: Configured via `setMaxWorkers()` on the Transfer Manager
+- **Max Connections**: On GCS, the connection limit also caps how many transfers can run in parallel, since all traffic goes to one host
 - **Threshold Bytes**: 4*`setPerWorkerBufferSize`, defaults to 64MiB
 
 #### Alibaba OSS
@@ -164,6 +165,7 @@ BucketClient bucketClient = BucketClient.builder("aws")
 | `withThresholdBytes` | File size above which multipart upload kicks in | Provider default (typically 150MB) |
 | `withPartBufferSize` | Size of each part in a multipart upload | Provider default |
 | `withMaxConcurrency` | Maximum number of concurrent transfer threads | Provider default |
+| `withMaxConnections` | Maximum number of connections the client keeps open in its pool | Provider default |
 | `withTargetThroughputInGbps` | Network throughput hint for the transfer | AWS CRT client only |
 | `withMaxNativeMemoryLimitInBytes` | Caps native memory usage | AWS CRT client only |
 
