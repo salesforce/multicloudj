@@ -188,6 +188,31 @@ public class AliSubscriptionTest {
   }
 
   @Test
+  void doReceiveBatchWithoutBase64FlagReturnsBodyAsRawWireBytes() throws Exception {
+    // Contract: the subscription base64-decodes a received body only when the reserved base64 flag
+    // user property is present. A message that arrives without that flag is handed back as its raw
+    // SMQ wire bytes, unchanged, for the caller to decode; the decode path (getMessageBodyAsBytes)
+    // is not taken. Here the raw wire body is the base64 text "aGk=" and no flag is set, so the
+    // returned body is that literal "aGk=" text, never the "hi" it would decode to.
+    CloudQueue queue = mock(CloudQueue.class);
+    com.aliyun.mns.model.Message raw = mock(com.aliyun.mns.model.Message.class);
+    when(raw.getMessageBodyAsRawBytes()).thenReturn("aGk=".getBytes(UTF_8));
+    when(raw.getMessageBodyAsBytes()).thenReturn("hi".getBytes(UTF_8));
+    when(raw.getReceiptHandle()).thenReturn("rh-1");
+    when(raw.getMessageId()).thenReturn("mid-1");
+    // No user properties, so no reserved base64 flag: the decode path must not be taken.
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+
+    AliSubscription sub = subscription(queue);
+    Message received = sub.doReceiveBatch(10).get(0);
+
+    // The unflagged body is returned as its raw wire bytes ("aGk="), not base64-decoded to "hi".
+    assertArrayEquals("aGk=".getBytes(UTF_8), received.getBody());
+    assertEquals("aGk=", new String(received.getBody(), UTF_8));
+    assertNotEquals("hi", new String(received.getBody(), UTF_8));
+  }
+
+  @Test
   void publishReceiveRoundTripsUtf8BodyAndMetadata() throws Exception {
     CloudQueue queue = mock(CloudQueue.class);
     Message original =
