@@ -1,0 +1,50 @@
+{
+  "id" : "efbf630e-4eec-41b2-89b4-608b4cdd9c7f",
+  "name" : "GcpBlobStoreIT_testListBlobVersions_deleteMarkerTimeline-POST-10",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/list-object-versions/delete-marker-timeline-blob"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"metadata\":{},\"name\":\"conformance-tests/list-object-versions/delete-marker-timeline-blob\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AJjja9Y7q8hw9hSSJqIY-7MPdCbShvUtepdHme9NfzqERmW_EqvqDqZQ6qYHpxGhCrpSpbDLeb_PO2xBauES9QxrPooGyJS6SdQMPmzcbqEceiY",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Mon, 07 Sep 2026 06:53:57 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/list-object-versions/delete-marker-timeline-blob&uploadType=resumable&upload_id=AJjja9Y7q8hw9hSSJqIY-7MPdCbShvUtepdHme9NfzqERmW_EqvqDqZQ6qYHpxGhCrpSpbDLeb_PO2xBauES9QxrPooGyJS6SdQMPmzcbqEceiY",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "efbf630e-4eec-41b2-89b4-608b4cdd9c7f",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-upload-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o",
+  "requiredScenarioState" : "scenario-2-upload-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-2",
+  "insertionIndex" : 1522
+}

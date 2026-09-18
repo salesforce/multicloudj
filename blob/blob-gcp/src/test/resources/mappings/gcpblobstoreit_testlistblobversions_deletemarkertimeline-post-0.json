@@ -1,0 +1,31 @@
+{
+  "id" : "b94793b1-213e-4026-8f65-692187f9622e",
+  "name" : "GcpBlobStoreIT_testListBlobVersions_deleteMarkerTimeline-POST-0",
+  "request" : {
+    "url" : "/batch/storage/v1",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "matches" : "(?s)\\Q\\E--__END_OF_PART__[a-f0-9-]+__\\Q\r\nContent-Length: 662\r\nContent-Type: application/http\r\ncontent-id: 1\r\ncontent-transfer-encoding: binary\r\n\r\nDELETE https://storage.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Flist-object-versions%2Fdelete-marker-timeline-blob?generation=1788764036083713 HTTP/1.1\r\nAuthorization: Bearer REDACTED_OAUTH_TOKEN\r\nx-goog-api-client: gl-java/21.0.8 gdcl/2.7.2 mac-os-x/26.6.2\r\nx-goog-user-project: substrate-sdk-gcp-poc1\r\nx-goog-gcs-idempotency-token: d34f0e54-e457-4587-b7f7-05e4ae4d300d\r\n\r\n\r\n\\E--__END_OF_PART__[a-f0-9-]+__\\Q\r\nContent-Length: 662\r\nContent-Type: application/http\r\ncontent-id: 2\r\ncontent-transfer-encoding: binary\r\n\r\nDELETE https://storage.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Flist-object-versions%2Fdelete-marker-timeline-blob?generation=1788764037934591 HTTP/1.1\r\nAuthorization: Bearer REDACTED_OAUTH_TOKEN\r\nx-goog-api-client: gl-java/21.0.8 gdcl/2.7.2 mac-os-x/26.6.2\r\nx-goog-user-project: substrate-sdk-gcp-poc1\r\nx-goog-gcs-idempotency-token: 06bd95ca-1832-4bf1-b4df-d2db035f0ff7\r\n\r\n\r\n\\E--__END_OF_PART__[a-f0-9-]+__\\Q--\r\n\\E"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "LS1iYXRjaF9DZS1fUkxlWU9NUnhYVnJqWVVqdWxQbzR3V05rMjBSQg0KQ29udGVudC1UeXBlOiBhcHBsaWNhdGlvbi9odHRwDQpDb250ZW50LUlEOiByZXNwb25zZS0xDQoNCkhUVFAvMS4xIDIwNCBObyBDb250ZW50DQpDb250ZW50LVR5cGU6IGFwcGxpY2F0aW9uL2pzb24NCkRhdGU6IE1vbiwgMDcgU2VwIDIwMjYgMDY6NTQ6MDEgR01UDQpDYWNoZS1Db250cm9sOiBuby1jYWNoZSwgbm8tc3RvcmUsIG1heC1hZ2U9MCwgbXVzdC1yZXZhbGlkYXRlDQpFeHBpcmVzOiBNb24sIDAxIEphbiAxOTkwIDAwOjAwOjAwIEdNVA0KQ29udGVudC1MZW5ndGg6IDANCg0KDQotLWJhdGNoX0NlLV9STGVZT01SeFhWcmpZVWp1bFBvNHdXTmsyMFJCDQpDb250ZW50LVR5cGU6IGFwcGxpY2F0aW9uL2h0dHANCkNvbnRlbnQtSUQ6IHJlc3BvbnNlLTINCg0KSFRUUC8xLjEgMjA0IE5vIENvbnRlbnQNCkNvbnRlbnQtVHlwZTogYXBwbGljYXRpb24vanNvbg0KRGF0ZTogTW9uLCAwNyBTZXAgMjAyNiAwNjo1NDowMSBHTVQNCkNhY2hlLUNvbnRyb2w6IG5vLWNhY2hlLCBuby1zdG9yZSwgbWF4LWFnZT0wLCBtdXN0LXJldmFsaWRhdGUNCkV4cGlyZXM6IE1vbiwgMDEgSmFuIDE5OTAgMDA6MDA6MDAgR01UDQpDb250ZW50LUxlbmd0aDogMA0KDQoNCi0tYmF0Y2hfQ2UtX1JMZVlPTVJ4WFZyallVanVsUG80d1dOazIwUkItLQ0K",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Cache-Control" : "private, max-age=0",
+      "Server" : "Upload Server",
+      "X-Content-Type-Options" : "nosniff",
+      "X-GUploader-UploadID" : "AJjja9ba6sqM-T1zdbyBFoC0M3V9VM3dDO2OQwIib39GJVVFonXic-rChGk4bA6JJuIuFKlolrFHLg",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 07 Sep 2026 06:54:01 GMT",
+      "X-XSS-Protection" : "1; mode=block",
+      "Date" : "Mon, 07 Sep 2026 06:54:01 GMT",
+      "Content-Type" : "multipart/mixed; boundary=batch_Ce-_RLeYOMRxXVrjYUjulPo4wWNk20RB"
+    }
+  },
+  "uuid" : "b94793b1-213e-4026-8f65-692187f9622e",
+  "persistent" : true,
+  "insertionIndex" : 1512
+}

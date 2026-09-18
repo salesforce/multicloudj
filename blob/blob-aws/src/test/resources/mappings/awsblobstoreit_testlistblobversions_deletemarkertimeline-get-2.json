@@ -1,0 +1,42 @@
+{
+  "id" : "3f99eda7-a300-43c6-972f-2b8abe19261e",
+  "name" : "AwsBlobStoreIT_testListBlobVersions_deleteMarkerTimeline-GET-2",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "versions" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/list-object-versions/delete-marker-timeline-blob"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListVersionsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud-versioned</Name><Prefix>conformance-tests/list-object-versions/delete-marker-timeline-blob</Prefix><KeyMarker></KeyMarker><VersionIdMarker></VersionIdMarker><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated><Version><Key>conformance-tests/list-object-versions/delete-marker-timeline-blob</Key><VersionId>NKl0hGFYidTDeYLiAlUktOSkswaD1PTd</VersionId><IsLatest>true</IsLatest><LastModified>2026-09-07T06:53:18.000Z</LastModified><ETag>&quot;f125b22cf257c2ec750c7a597e11c924&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>9</Size><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass></Version><DeleteMarker><Key>conformance-tests/list-object-versions/delete-marker-timeline-blob</Key><VersionId>DZWMgtk1nbN.G5cFLyHdyvFe7Ns14ven</VersionId><IsLatest>false</IsLatest><LastModified>2026-09-07T06:53:17.000Z</LastModified><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner></DeleteMarker><Version><Key>conformance-tests/list-object-versions/delete-marker-timeline-blob</Key><VersionId>7MDb1A4x9HNUZ1UOemybAQiHj98aGex0</VersionId><IsLatest>false</IsLatest><LastModified>2026-09-07T06:53:16.000Z</LastModified><ETag>&quot;fbd17ddef276ea15252e4b9b91758267&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>9</Size><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass></Version></ListVersionsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "YH91D3JEZTQYKKSD",
+      "x-amz-id-2" : "WkPhUpVxrqB20ZrgpQQu9VwlIHD/JPBzVTYWa4i9mQmfIL2AUAU4tZH6AYxrBjaLql6Dkod6MEo=",
+      "Date" : "Mon, 07 Sep 2026 06:53:22 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "3f99eda7-a300-43c6-972f-2b8abe19261e",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-versioned",
+  "requiredScenarioState" : "scenario-1-chameleon-jcloud-versioned-2",
+  "newScenarioState" : "scenario-1-chameleon-jcloud-versioned-3",
+  "insertionIndex" : 783
+}
