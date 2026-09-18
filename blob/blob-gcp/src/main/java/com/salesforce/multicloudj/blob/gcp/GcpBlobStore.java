@@ -125,6 +125,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -509,8 +510,10 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> doList(
       ListBlobsRequest request) {
+    boolean includeCommonPrefixes =
+        request.isIncludeCommonPrefixes() && StringUtils.isNotEmpty(request.getDelimiter());
     List<Storage.BlobListOption> listOptions = new ArrayList<>();
-    listOptions.add(Storage.BlobListOption.includeFolders(false));
+    listOptions.add(Storage.BlobListOption.includeFolders(includeCommonPrefixes));
     if (request.getPrefix() != null) {
       listOptions.add(Storage.BlobListOption.prefix(request.getPrefix()));
     }
@@ -525,7 +528,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       // i.e., Subsequent page responses are only fetched when the iterator is advanced.
       private final Iterator<Blob> blobIterator = Iterators.filter(
           blobs.iterator(),
-          blob -> !blob.isDirectory()
+          blob -> includeCommonPrefixes || !blob.isDirectory()
       );
 
       @Override
@@ -543,6 +546,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                 blob.getUpdateTimeOffsetDateTime() != null
                     ? blob.getUpdateTimeOffsetDateTime().toInstant()
                     : null)
+            .withCommonPrefix(blob.isDirectory())
             .build();
       }
     };
