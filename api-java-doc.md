@@ -2,6 +2,7 @@
 layout: default
 title: Api Documentation
 nav_order: 5
+has_children: true
 ---
 
 Java doc link for MultiCloudJ
