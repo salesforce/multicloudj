@@ -9,11 +9,13 @@ public class BlobInfo {
   private String key;
   private long objectSize;
   private Instant lastModified;
+  private boolean commonPrefix;
 
   private BlobInfo(Builder builder) {
     this.key = builder.key;
     this.objectSize = builder.objectSize;
     this.lastModified = builder.lastModified;
+    this.commonPrefix = builder.commonPrefix;
   }
 
   @Override
@@ -27,13 +29,14 @@ public class BlobInfo {
 
     BlobInfo blobInfo = (BlobInfo) obj;
     return objectSize == blobInfo.objectSize
+        && commonPrefix == blobInfo.commonPrefix
         && Objects.equals(key, blobInfo.key)
         && Objects.equals(lastModified, blobInfo.lastModified);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(key, objectSize, lastModified);
+    return Objects.hash(key, objectSize, lastModified, commonPrefix);
   }
 
   public String getKey() {
@@ -48,6 +51,11 @@ public class BlobInfo {
     return lastModified;
   }
 
+  /** Returns whether this entry represents a common prefix instead of an object. */
+  public boolean isCommonPrefix() {
+    return commonPrefix;
+  }
+
   public static Builder builder() {
     return new Builder();
   }
@@ -56,6 +64,7 @@ public class BlobInfo {
     private String key;
     private long objectSize;
     private Instant lastModified;
+    private boolean commonPrefix;
 
     public Builder withKey(String key) {
       this.key = key;
@@ -69,6 +78,11 @@ public class BlobInfo {
 
     public Builder withLastModified(Instant lastModified) {
       this.lastModified = lastModified;
+      return this;
+    }
+
+    public Builder withCommonPrefix(boolean commonPrefix) {
+      this.commonPrefix = commonPrefix;
       return this;
     }
 

@@ -688,6 +688,35 @@ public class AliBlobStoreTest {
     }
   }
 
+  @Test
+  void testDoList_IncludesMarkedCommonPrefixesWhenRequested() {
+    ListBlobsRequest request =
+        ListBlobsRequest.builder()
+            .withPrefix("base/")
+            .withDelimiter("/")
+            .withIncludeCommonPrefixes(true)
+            .build();
+    ObjectSummary object = ObjectSummary.newBuilder().key("base/root.txt").size(4L).build();
+    ListObjectsV2Result mockResult = mock(ListObjectsV2Result.class);
+    when(mockOssClient.listObjectsV2(
+            any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(mockResult);
+    when(mockResult.contents()).thenReturn(List.of(object));
+    when(mockResult.commonPrefixes())
+        .thenReturn(List.of(CommonPrefix.newBuilder().prefix("base/directory/").build()));
+    when(mockResult.nextContinuationToken()).thenReturn(null);
+
+    Iterator<BlobInfo> iterator = ali.doList(request);
+    List<BlobInfo> entries = new ArrayList<>();
+    iterator.forEachRemaining(entries::add);
+
+    assertEquals(2, entries.size());
+    assertEquals("base/directory/", entries.get(0).getKey());
+    assertTrue(entries.get(0).isCommonPrefix());
+    assertEquals("base/root.txt", entries.get(1).getKey());
+    assertFalse(entries.get(1).isCommonPrefix());
+  }
+
   // Base instant for deterministic lastModified values in the object-summary fixtures;
   // each summary i gets BASE_LAST_MODIFIED + i seconds so tests can assert exact timestamps.
   private static final java.time.Instant BASE_LAST_MODIFIED =
