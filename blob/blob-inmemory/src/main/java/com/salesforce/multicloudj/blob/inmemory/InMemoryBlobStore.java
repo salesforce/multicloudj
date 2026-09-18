@@ -621,11 +621,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       String keyAfterPrefix = key.substring(prefix.length());
       int delimiterIndex =
           StringUtils.isNotEmpty(delimiter) ? keyAfterPrefix.indexOf(delimiter) : -1;
-      boolean isDirectBlob =
-          delimiterIndex < 0
-              || (includeCommonPrefixes
-                  && delimiterIndex + delimiter.length() == keyAfterPrefix.length());
-      if (isDirectBlob) {
+      if (delimiterIndex < 0) {
         StoredBlob blob = entry.getValue();
         entries.add(new BlobInfo.Builder()
             .withKey(key)
@@ -633,8 +629,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
             .withLastModified(blob.getLastModified())
             .build());
       }
-      if (delimiterIndex >= 0
-          && delimiterIndex + delimiter.length() < keyAfterPrefix.length()) {
+      if (delimiterIndex >= 0) {
         commonPrefixes.add(
             prefix + keyAfterPrefix.substring(0, delimiterIndex + delimiter.length()));
       }

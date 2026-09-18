@@ -513,7 +513,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     boolean includeCommonPrefixes =
         request.isIncludeCommonPrefixes() && StringUtils.isNotEmpty(request.getDelimiter());
     List<Storage.BlobListOption> listOptions = new ArrayList<>();
-    listOptions.add(Storage.BlobListOption.includeFolders(includeCommonPrefixes));
+    listOptions.add(Storage.BlobListOption.includeFolders(false));
     if (request.getPrefix() != null) {
       listOptions.add(Storage.BlobListOption.prefix(request.getPrefix()));
     }

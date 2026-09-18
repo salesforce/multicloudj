@@ -1097,6 +1097,43 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoList_IncludesCommonPrefixesWithoutRequestingFolders() {
+    ListBlobsRequest request =
+        ListBlobsRequest.builder()
+            .withPrefix("test-prefix")
+            .withDelimiter("-")
+            .withIncludeCommonPrefixes(true)
+            .build();
+
+    Blob commonPrefix = mock(Blob.class);
+    when(commonPrefix.isDirectory()).thenReturn(true);
+    when(commonPrefix.getName()).thenReturn("test-prefix-directory-");
+    Page mockPage = mock(Page.class);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+    when(mockPage.iterateAll()).thenReturn(List.of(commonPrefix));
+
+    Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> iterator =
+        gcpBlobStore.doList(request);
+
+    assertTrue(iterator.hasNext());
+    com.salesforce.multicloudj.blob.driver.BlobInfo result = iterator.next();
+    assertEquals("test-prefix-directory-", result.getKey());
+    assertTrue(result.isCommonPrefix());
+    assertFalse(iterator.hasNext());
+
+    ArgumentCaptor<Storage.BlobListOption[]> optionsCaptor =
+        ArgumentCaptor.forClass(Storage.BlobListOption[].class);
+    verify(mockStorage).list(eq(TEST_BUCKET), optionsCaptor.capture());
+    assertTrue(
+        Arrays.asList(optionsCaptor.getValue())
+            .contains(Storage.BlobListOption.includeFolders(false)));
+    assertFalse(
+        Arrays.asList(optionsCaptor.getValue())
+            .contains(Storage.BlobListOption.includeFolders(true)));
+  }
+
+  @Test
   void testDoList_DirectoryBlobsAtBoundariesFiltered() {
     // Given
     ListBlobsRequest request = ListBlobsRequest.builder().withPrefix("test-prefix/").build();
