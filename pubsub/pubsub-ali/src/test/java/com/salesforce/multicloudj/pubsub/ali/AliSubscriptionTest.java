@@ -6,9 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -25,6 +28,10 @@ import com.aliyun.mns.common.ServiceException;
 import com.aliyun.mns.common.ServiceHandlingRequiredException;
 import com.aliyun.mns.model.ErrorMessageResult;
 import com.aliyun.mns.model.Message.MessageBodyType;
+import com.aliyun.mns.model.MessagePropertyValue;
+import com.aliyun.mns.model.PropertyType;
+import com.aliyun.mns.model.serialize.queue.MessageDeserializer;
+import com.aliyun.mns.model.serialize.queue.MessageSerializer;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
@@ -35,6 +42,8 @@ import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.AckInfo;
 import com.salesforce.multicloudj.pubsub.driver.Message;
+import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -85,7 +94,8 @@ public class AliSubscriptionTest {
   void doReceiveBatchDecodesBodyAckIdAndLoggableId() throws Exception {
     CloudQueue queue = mock(CloudQueue.class);
     com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
-    raw.setMessageBody("hello".getBytes(UTF_8), MessageBodyType.BASE64);
+    // No base64 flag, so the body is read as raw (the AUTO wire form for a valid UTF-8 body).
+    raw.setMessageBody("hello".getBytes(UTF_8), MessageBodyType.RAW_STRING);
     raw.setReceiptHandle("rh-1");
     raw.setMessageId("mid-1");
     when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
@@ -97,6 +107,170 @@ public class AliSubscriptionTest {
     assertArrayEquals("hello".getBytes(UTF_8), received.get(0).getBody());
     assertEquals("rh-1", received.get(0).getAckID().toString());
     assertEquals("mid-1", received.get(0).getLoggableID());
+  }
+
+  @Test
+  void doReceiveBatchDecodesUserPropertiesIntoMetadata() throws Exception {
+    CloudQueue queue = mock(CloudQueue.class);
+    com.aliyun.mns.model.Message source = new com.aliyun.mns.model.Message();
+    source.setMessageBody("hi".getBytes(UTF_8), MessageBodyType.RAW_STRING);
+    Map<String, MessagePropertyValue> props = new HashMap<>();
+    // The key rides the wire hex-escaped; the value is a STRING.
+    props.put(
+        AliBaseTopic.encodeMetadataKey("trace.id"),
+        new MessagePropertyValue(PropertyType.STRING, "abc"));
+    // An empty value must serialize to <Value/> and survive a real deserialize present-and-empty.
+    props.put("plain", new MessagePropertyValue(PropertyType.STRING, ""));
+    source.setUserProperties(props);
+
+    // Round-trip the message through the SMQ SDK's real XML serialize -> deserialize so the empty
+    // value is exercised as the actual <Value/> wire form rather than an in-memory property object;
+    // the deserializer supplies no receipt handle or id (the send-format serializer omits them), so
+    // set them afterwards for the receive path.
+    com.aliyun.mns.model.Message raw = serializeThenDeserialize(source);
+    raw.setReceiptHandle("rh-1");
+    raw.setMessageId("mid-1");
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+
+    AliSubscription sub = subscription(queue);
+    List<Message> received = sub.doReceiveBatch(10);
+
+    assertEquals(1, received.size());
+    Map<String, String> metadata = received.get(0).getMetadata();
+    assertEquals(2, metadata.size());
+    assertEquals("abc", metadata.get("trace.id"));
+    // The empty metadata value comes back present-and-empty after the real wire round-trip.
+    assertEquals("", metadata.get("plain"));
+  }
+
+  @Test
+  void doReceiveBatchWithoutUserPropertiesHasNullMetadata() throws Exception {
+    CloudQueue queue = mock(CloudQueue.class);
+    com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
+    raw.setMessageBody("hi".getBytes(UTF_8), MessageBodyType.BASE64);
+    raw.setReceiptHandle("rh-1");
+    raw.setMessageId("mid-1");
+    // No user properties set: the received message carries no metadata (left null, not empty).
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+
+    AliSubscription sub = subscription(queue);
+    List<Message> received = sub.doReceiveBatch(10);
+
+    assertNull(received.get(0).getMetadata());
+  }
+
+  @Test
+  void doReceiveBatchBase64DecodesFlaggedBodyAndStripsFlag() throws Exception {
+    CloudQueue queue = mock(CloudQueue.class);
+    com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
+    byte[] nonUtf8 = {(byte) 0xFF, 0x00, (byte) 0xAB};
+    raw.setMessageBody(nonUtf8, MessageBodyType.BASE64);
+    raw.setReceiptHandle("rh-1");
+    raw.setMessageId("mid-1");
+    Map<String, MessagePropertyValue> props = new HashMap<>();
+    props.put(AliBaseTopic.RESERVED_BASE64_FLAG_KEY, new MessagePropertyValue(true));
+    props.put(
+        AliBaseTopic.encodeMetadataKey("trace.id"),
+        new MessagePropertyValue(PropertyType.STRING, "abc"));
+    raw.setUserProperties(props);
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+
+    AliSubscription sub = subscription(queue);
+    Message received = sub.doReceiveBatch(10).get(0);
+
+    // The flagged body is base64-decoded back to the exact non-UTF-8 bytes...
+    assertArrayEquals(nonUtf8, received.getBody());
+    // ...the user metadata is decoded, and the reserved flag is stripped, not surfaced as metadata.
+    Map<String, String> metadata = received.getMetadata();
+    assertEquals(1, metadata.size());
+    assertEquals("abc", metadata.get("trace.id"));
+    assertFalse(metadata.containsKey(AliBaseTopic.RESERVED_BASE64_FLAG_KEY));
+  }
+
+  @Test
+  void doReceiveBatchWithoutBase64FlagReturnsBodyAsRawWireBytes() throws Exception {
+    // Contract: the subscription base64-decodes a received body only when the reserved base64 flag
+    // user property is present. A message that arrives without that flag is handed back as its raw
+    // SMQ wire bytes, unchanged, for the caller to decode; the decode path (getMessageBodyAsBytes)
+    // is not taken. Here the raw wire body is the base64 text "aGk=" and no flag is set, so the
+    // returned body is that literal "aGk=" text, never the "hi" it would decode to.
+    CloudQueue queue = mock(CloudQueue.class);
+    com.aliyun.mns.model.Message raw = mock(com.aliyun.mns.model.Message.class);
+    when(raw.getMessageBodyAsRawBytes()).thenReturn("aGk=".getBytes(UTF_8));
+    when(raw.getMessageBodyAsBytes()).thenReturn("hi".getBytes(UTF_8));
+    when(raw.getReceiptHandle()).thenReturn("rh-1");
+    when(raw.getMessageId()).thenReturn("mid-1");
+    // No user properties, so no reserved base64 flag: the decode path must not be taken.
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+
+    AliSubscription sub = subscription(queue);
+    Message received = sub.doReceiveBatch(10).get(0);
+
+    // The unflagged body is returned as its raw wire bytes ("aGk="), not base64-decoded to "hi".
+    assertArrayEquals("aGk=".getBytes(UTF_8), received.getBody());
+    assertEquals("aGk=", new String(received.getBody(), UTF_8));
+    assertNotEquals("hi", new String(received.getBody(), UTF_8));
+  }
+
+  @Test
+  void publishReceiveRoundTripsUtf8BodyAndMetadata() throws Exception {
+    CloudQueue queue = mock(CloudQueue.class);
+    Message original =
+        Message.builder()
+            .withBody("payload".getBytes(UTF_8))
+            .withMetadata("trace.id", "req-42")
+            .withMetadata("empty", "")
+            .build();
+
+    com.aliyun.mns.model.Message wire =
+        publisherMessage(original, AliBaseTopic.Base64EncodingStrategy.AUTO);
+    Message received = receiveWire(queue, wire);
+
+    // A valid UTF-8 body rides raw and its metadata round-trips exactly.
+    assertArrayEquals("payload".getBytes(UTF_8), received.getBody());
+    assertEquals(original.getMetadata(), received.getMetadata());
+  }
+
+  @Test
+  void publishReceiveRoundTripsNonUtf8BodyAndMetadata() throws Exception {
+    CloudQueue queue = mock(CloudQueue.class);
+    byte[] nonUtf8 = {(byte) 0xFF, (byte) 0xFE, 0x10, (byte) 0x80};
+    Message original = Message.builder().withBody(nonUtf8).withMetadata("k.1", "v").build();
+
+    com.aliyun.mns.model.Message wire =
+        publisherMessage(original, AliBaseTopic.Base64EncodingStrategy.AUTO);
+    Message received = receiveWire(queue, wire);
+
+    // A non-UTF-8 body is base64-encoded on publish and losslessly recovered on receive.
+    assertArrayEquals(nonUtf8, received.getBody());
+    assertEquals(original.getMetadata(), received.getMetadata());
+  }
+
+  /** Builds the SMQ wire message as an AliSmqQueue publisher would, with the given strategy. */
+  private static com.aliyun.mns.model.Message publisherMessage(
+      Message message, AliBaseTopic.Base64EncodingStrategy strategy) throws Exception {
+    MNSClient client = mock(MNSClient.class);
+    when(client.getQueueRef("pub")).thenReturn(mock(CloudQueue.class));
+    AliSmqQueue.Builder builder = new AliSmqQueue.Builder();
+    builder.withSmqClient(client);
+    builder.withTopicName("pub");
+    builder.withBodyEncodingStrategy(strategy);
+    try (AliSmqQueue publisher = builder.build()) {
+      com.aliyun.mns.model.Message wire = publisher.toSmqMessage(message);
+      wire.setReceiptHandle("rh");
+      wire.setMessageId("mid");
+      return wire;
+    }
+  }
+
+  /** Feeds one wire message through the subscriber's receive path and returns the decoded one. */
+  private Message receiveWire(CloudQueue queue, com.aliyun.mns.model.Message wire)
+      throws Exception {
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(wire));
+    AliSubscription sub = subscription(queue);
+    List<Message> received = sub.doReceiveBatch(10);
+    assertEquals(1, received.size());
+    return received.get(0);
   }
 
   @Test
@@ -505,5 +679,110 @@ public class AliSubscriptionTest {
     builder.withSmqClient(client);
     builder.withSubscriptionName("test-queue");
     return builder.build();
+  }
+
+  /**
+   * Round-trips an SMQ message through the SDK's real XML serialize then deserialize, exactly the
+   * transform an SMQ receive applies over the wire, so a value serialized to XML text is exercised
+   * through a genuine parse rather than an in-memory property object.
+   */
+  private static com.aliyun.mns.model.Message serializeThenDeserialize(
+      com.aliyun.mns.model.Message message) throws Exception {
+    try (InputStream serialized = new MessageSerializer().serialize(message, "UTF-8")) {
+      return new MessageDeserializer().deserialize(serialized);
+    }
+  }
+
+  @Test
+  void xmlSafeMetadataValuesRoundTripAsStringThroughTheXmlWire() throws Exception {
+    // XML-safe metadata values ride as native STRING user properties and survive a genuine
+    // serialize -> deserialize round trip losslessly: plain ASCII, spaces, the XML special
+    // characters, and multibyte UTF-8. The empty value is included as a regression guard that an
+    // empty value still round-trips present-and-empty.
+    assertMetadataValueRoundTrips("plain-ASCII-value");
+    assertMetadataValueRoundTrips("value with spaces");
+    assertMetadataValueRoundTrips("a & b < c > d");
+    assertMetadataValueRoundTrips("世界");
+    assertMetadataValueRoundTrips("");
+  }
+
+  @Test
+  void xmlUnsafeMetadataValuesRoundTripAsBinaryThroughTheXmlWire() throws Exception {
+    // Values raw XML text cannot carry -- an XML-illegal C0 control byte, the XML-1.0-illegal code
+    // point U+FFFF -- ride as native BINARY user properties (base64 on the wire) and survive a
+    // genuine serialize -> deserialize round trip losslessly. The SDK's BINARY path base64s the
+    // value under the JVM default charset and reads it back as UTF-8, so the round trip is lossless
+    // only on a UTF-8-default JVM (the supported, guarded configuration); assert it only there.
+    assumeTrue(
+        Charset.defaultCharset().equals(UTF_8),
+        "BINARY metadata round trip is asserted only on a UTF-8-default JVM");
+    assertMetadataValueRoundTrips("before\u0000after");
+    assertMetadataValueRoundTrips("before\uFFFFafter");
+  }
+
+  @Test
+  void userMetadataKeyEqualToReservedFlagRoundTripsAndFlagIsStillStripped() throws Exception {
+    // A user metadata key equal to the reserved base64 flag name must not collide with the flag on
+    // the wire: encodeMetadataKey force-escapes it so it rides as a distinct wire key, surviving as
+    // user metadata, while the reserved flag is still stripped from the decoded metadata.
+    CloudQueue queue = mock(CloudQueue.class);
+    byte[] nonUtf8 = {(byte) 0xFF, 0x00};
+    Message original =
+        Message.builder()
+            .withBody(nonUtf8) // non-UTF-8 body -> base64 -> reserved flag set
+            .withMetadata(AliBaseTopic.RESERVED_BASE64_FLAG_KEY, "user-value")
+            .build();
+
+    com.aliyun.mns.model.Message wire =
+        publisherMessage(original, AliBaseTopic.Base64EncodingStrategy.AUTO);
+    // The user's key is force-escaped to a distinct wire name, so the reserved flag and the user
+    // attribute are two separate properties on the wire.
+    String userWireKey = AliBaseTopic.encodeMetadataKey(AliBaseTopic.RESERVED_BASE64_FLAG_KEY);
+    assertNotEquals(AliBaseTopic.RESERVED_BASE64_FLAG_KEY, userWireKey);
+    assertTrue(wire.getUserProperties().containsKey(AliBaseTopic.RESERVED_BASE64_FLAG_KEY));
+    assertTrue(wire.getUserProperties().containsKey(userWireKey));
+    assertEquals(2, wire.getUserProperties().size());
+
+    Message received = receiveWire(queue, wire);
+    // The flag is honored (body base64-decoded)...
+    assertArrayEquals(nonUtf8, received.getBody());
+    // ...the user's base64encoded key round-trips as the sole metadata entry, and the flag is not
+    // surfaced as metadata.
+    assertEquals(1, received.getMetadata().size());
+    assertEquals("user-value", received.getMetadata().get(AliBaseTopic.RESERVED_BASE64_FLAG_KEY));
+  }
+
+  /**
+   * Publishes a one-entry-metadata message as a default-strategy publisher would, runs it through
+   * the SDK's real XML serialize -> deserialize, receives it, and asserts the metadata value comes
+   * back exactly. A value the SDK could not carry as raw XML text (a C0 control, U+FFFF) rides as
+   * a native BINARY property, so a clean round trip proves the native STRING/BINARY encode/decode
+   * pair.
+   */
+  private void assertMetadataValueRoundTrips(String value) throws Exception {
+    Message original =
+        Message.builder().withBody("body".getBytes(UTF_8)).withMetadata("meta", value).build();
+
+    com.aliyun.mns.model.Message wire;
+    MNSClient publisherClient = mock(MNSClient.class);
+    when(publisherClient.getQueueRef("pub")).thenReturn(mock(CloudQueue.class));
+    AliSmqQueue.Builder publisherBuilder = new AliSmqQueue.Builder();
+    publisherBuilder.withSmqClient(publisherClient);
+    publisherBuilder.withTopicName("pub");
+    try (AliSmqQueue publisher = publisherBuilder.build()) {
+      wire = serializeThenDeserialize(publisher.toSmqMessage(original));
+    }
+    wire.setReceiptHandle("rh");
+    wire.setMessageId("mid");
+
+    CloudQueue queue = mock(CloudQueue.class);
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(wire));
+    AliSubscription sub = subscription(queue);
+    Message received = sub.doReceiveBatch(10).get(0);
+
+    assertEquals(
+        value,
+        received.getMetadata().get("meta"),
+        "metadata value must round-trip losslessly through the XML wire: [" + value + "]");
   }
 }
