@@ -169,6 +169,34 @@ public class AliBaseTopicTest {
   }
 
   @Test
+  void estimatedRequestSizeCoversBase64BodyWithMetadata() throws Exception {
+    // Combined coverage: an ALWAYS message base64-encodes its body AND sets the reserved base64
+    // flag as an extra user property, on top of the message's own metadata. The ALWAYS size
+    // tests are body-only and the metadata size tests use raw bodies; this covers the
+    // flag-plus-metadata path together and confirms the estimate stays an upper bound on the
+    // real serialized size (a hex-escaped key and an XML-special value keep the form non-trivial).
+    try (AliSmqQueue topic = alwaysBase64Topic()) {
+      List<Message> batch =
+          List.of(
+              Message.builder()
+                  .withBody("base64-body-with-metadata".getBytes(UTF_8))
+                  .withMetadata("trace.id", "a&b<c>d\"e")
+                  .withMetadata("with space", "spaced-value")
+                  .withMetadata("plainKey", "value")
+                  .build());
+      // The reserved base64 flag and the user metadata ride together on the wire.
+      com.aliyun.mns.model.Message wire = topic.toSmqMessage(batch.get(0));
+      assertTrue(
+          wire.getUserProperties().containsKey(AliBaseTopic.RESERVED_BASE64_FLAG_KEY),
+          "ALWAYS must set the reserved base64 flag alongside the user metadata");
+      assertTrue(
+          wire.getUserProperties().containsKey(AliBaseTopic.encodeMetadataKey("with space")),
+          "user metadata must be present on the wire together with the base64 flag");
+      assertEstimateIsUpperBound(topic, batch);
+    }
+  }
+
+  @Test
   void metadataAttributesCountTowardTheBatchByteLimit() throws Exception {
     try (AliSmqQueue topic = new AliSmqQueue()) {
       // Two messages with tiny bodies but large metadata (ten max-length-valued attributes each,
