@@ -42,6 +42,13 @@
             <artifactId>aliyun-sdk-mns</artifactId>
             <version>1.4.0</version>
         </dependency>
+        <!-- Used for Utf8.isWellFormed in AliBaseTopic. Version is managed by the root pom's
+             dependencyManagement (guava.version); it already resolves transitively at that same
+             version, so this only makes the compile dependency explicit. -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.google.auto.service</groupId>
             <artifactId>auto-service</artifactId>

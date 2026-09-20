@@ -589,6 +589,20 @@ public class AliBaseTopicTest {
     }
   }
 
+  @Test
+  void autoBase64EncodesInvalidUtf8Body() throws Exception {
+    // Downstream of isValidUtf8: under AUTO, a body that is not valid UTF-8 cannot ride as raw XML
+    // text, so toSmqMessage base64-encodes it and sets the reserved flag so the receiver decodes
+    // it. Exercises the isValidUtf8==false branch: 0xC3 is a 2-byte UTF-8 lead byte not followed by
+    // a valid continuation byte (0x28 '('), so the sequence is malformed.
+    try (AliSmqQueue topic = new AliSmqQueue()) {
+      byte[] invalidUtf8 = {(byte) 0xC3, (byte) 0x28};
+      assertTrue(
+          bodyRidesAsBase64(topic, invalidUtf8),
+          "an invalid-UTF-8 body must be base64-encoded and flagged under AUTO");
+    }
+  }
+
   /** True if AUTO placed {@code body} on the wire base64-encoded (the reserved flag is set). */
   private static boolean bodyRidesAsBase64(AliSmqQueue topic, byte[] body) {
     com.aliyun.mns.model.Message wire =

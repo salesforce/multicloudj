@@ -4,16 +4,13 @@ import com.aliyun.mns.client.MNSClient;
 import com.aliyun.mns.model.Message.MessageBodyType;
 import com.aliyun.mns.model.MessagePropertyValue;
 import com.aliyun.mns.model.PropertyType;
+import com.google.common.base.Utf8;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import java.io.ByteArrayOutputStream;
-import java.nio.ByteBuffer;
-import java.nio.charset.CharacterCodingException;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -294,19 +291,13 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
     }
   }
 
-  /** True if {@code body} is a valid UTF-8 byte sequence. */
+  /**
+   * True if {@code body} is a valid UTF-8 byte sequence. Delegates to Guava's
+   * {@link Utf8#isWellFormed(byte[])} well-formedness check rather than driving a
+   * {@link java.nio.charset.CharsetDecoder} through exception-based control flow.
+   */
   private static boolean isValidUtf8(byte[] body) {
-    CharsetDecoder decoder =
-        StandardCharsets.UTF_8
-            .newDecoder()
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT);
-    try {
-      decoder.decode(ByteBuffer.wrap(body));
-      return true;
-    } catch (CharacterCodingException e) {
-      return false;
-    }
+    return Utf8.isWellFormed(body);
   }
 
   /**
