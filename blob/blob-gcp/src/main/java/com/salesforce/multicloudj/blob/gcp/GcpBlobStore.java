@@ -13,6 +13,7 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.GrpcStorageOptions;
 import com.google.cloud.storage.HttpMethod;
 import com.google.cloud.storage.HttpStorageOptions;
 import com.google.cloud.storage.MultipartUploadClient;
@@ -1687,11 +1688,46 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     /** Helper function for generating the Storage client */
     private static Storage buildStorage(Builder builder) {
+      return buildStorageOptions(builder).getService();
+    }
+
+    /**
+     * Builds the {@link StorageOptions} for the main storage client, selecting the gRPC or
+     * HTTP/JSON transport based on {@link BlobStoreBuilder#getGrpcEnabled()}. Package-private so
+     * unit tests can assert transport selection without resolving credentials or opening a client.
+     */
+    static StorageOptions buildStorageOptions(Builder builder) {
+      if (Boolean.TRUE.equals(builder.getGrpcEnabled())) {
+        return buildGrpcStorageOptions(builder);
+      }
+      return buildHttpStorageOptions(builder);
+    }
+
+    /** Builds HTTP/JSON transport StorageOptions for the main storage client. */
+    private static StorageOptions buildHttpStorageOptions(Builder builder) {
       StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder();
       if (shouldConfigureHttpClient(builder)) {
         storageOptionsBuilder.setTransportOptions(buildTransportOptions(builder));
       }
+      applyCommonStorageOptions(builder, storageOptionsBuilder);
+      return storageOptionsBuilder.build();
+    }
 
+    /**
+     * Builds gRPC transport StorageOptions for the main storage client. The Apache-HTTP connection
+     * knobs (proxy endpoint, max connections, socket timeout, idle-connection timeout) configure
+     * the HTTP/JSON transport only and do not apply to the gRPC channel, so they are intentionally
+     * not wired here; see {@link BlobStoreBuilder#withGrpcEnabled(Boolean)}.
+     */
+    private static StorageOptions buildGrpcStorageOptions(Builder builder) {
+      GrpcStorageOptions.Builder storageOptionsBuilder = StorageOptions.grpc();
+      applyCommonStorageOptions(builder, storageOptionsBuilder);
+      return storageOptionsBuilder.build();
+    }
+
+    /** Applies endpoint, credentials, and retry settings shared by both transports. */
+    private static void applyCommonStorageOptions(
+        Builder builder, StorageOptions.Builder storageOptionsBuilder) {
       String endpoint = normalizeEndpoint(builder.getEndpoint());
       if (endpoint != null) {
         storageOptionsBuilder.setHost(endpoint);
@@ -1708,11 +1744,14 @@ public class GcpBlobStore extends AbstractBlobStore {
         storageOptionsBuilder.setRetrySettings(
             transformer.toGcpRetrySettings(builder.getRetryConfig()));
       }
-
-      return storageOptionsBuilder.build().getService();
     }
 
-    /** Helper function for generating the MultipartUpload client */
+    /**
+     * Helper function for generating the MultipartUpload client. This client always uses the
+     * HTTP/JSON transport because {@link MultipartUploadSettings} is constructed from {@link
+     * HttpStorageOptions} in this SDK version; the multipart XML API has no gRPC transport, so the
+     * {@link BlobStoreBuilder#withGrpcEnabled(Boolean)} toggle does not affect it.
+     */
     private static MultipartUploadClient buildMultipartUploadClient(Builder builder) {
       HttpStorageOptions.Builder storageOptionsBuilder = HttpStorageOptions.http();
       if (shouldConfigureHttpClient(builder)) {

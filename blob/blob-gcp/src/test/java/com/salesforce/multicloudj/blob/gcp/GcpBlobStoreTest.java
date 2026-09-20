@@ -34,10 +34,13 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.CopyWriter;
+import com.google.cloud.storage.GrpcStorageOptions;
+import com.google.cloud.storage.HttpStorageOptions;
 import com.google.cloud.storage.MultipartUploadClient;
 import com.google.cloud.storage.RequestBody;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.cloud.storage.StorageOptions;
 import com.google.cloud.storage.multipartupload.model.AbortMultipartUploadRequest;
 import com.google.cloud.storage.multipartupload.model.CompleteMultipartUploadRequest;
 import com.google.cloud.storage.multipartupload.model.CompleteMultipartUploadResponse;
@@ -286,6 +289,58 @@ class GcpBlobStoreTest {
                 .withPartBufferSize((long) Integer.MAX_VALUE + 1L);
 
     assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  void testBuildStorageOptions_defaultsToHttpTransport() {
+    // Existing callers do not set grpcEnabled, so the storage client must keep the HTTP/JSON
+    // transport (HttpStorageOptions) and see no behavior change.
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder) new GcpBlobStore.Builder().withBucket(TEST_BUCKET);
+
+    StorageOptions options = GcpBlobStore.Builder.buildStorageOptions(builder);
+
+    assertInstanceOf(HttpStorageOptions.class, options);
+  }
+
+  @Test
+  void testBuildStorageOptions_grpcEnabledSelectsGrpcTransport() {
+    // With grpcEnabled=true the main storage client must be built on the gRPC transport.
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withBucket(TEST_BUCKET).withGrpcEnabled(true);
+
+    StorageOptions options = GcpBlobStore.Builder.buildStorageOptions(builder);
+
+    assertInstanceOf(GrpcStorageOptions.class, options);
+  }
+
+  @Test
+  void testBuildStorageOptions_grpcDisabledUsesHttpTransport() {
+    // Explicitly disabling gRPC must keep the HTTP/JSON transport.
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withBucket(TEST_BUCKET).withGrpcEnabled(false);
+
+    StorageOptions options = GcpBlobStore.Builder.buildStorageOptions(builder);
+
+    assertInstanceOf(HttpStorageOptions.class, options);
+  }
+
+  @Test
+  void testGrpcEnabledPropagatesToSyncBuilderFromAsyncBuilder() {
+    // The async builder delegates storage-client construction to the sync GcpBlobStore.Builder via
+    // copyFrom. Verify the gRPC toggle propagates through that reflection-based copy so async
+    // callers get the same transport selection.
+    GcpAsyncBlobStore.Builder asyncBuilder =
+        (GcpAsyncBlobStore.Builder) GcpAsyncBlobStore.builder().withBucket(TEST_BUCKET);
+    asyncBuilder.withGrpcEnabled(true);
+
+    GcpBlobStore.Builder syncBuilder = new GcpBlobStore.Builder().copyFrom(asyncBuilder);
+
+    assertEquals(Boolean.TRUE, syncBuilder.getGrpcEnabled());
+    assertInstanceOf(
+        GrpcStorageOptions.class, GcpBlobStore.Builder.buildStorageOptions(syncBuilder));
   }
 
   @Test

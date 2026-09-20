@@ -41,6 +41,7 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   private Boolean useEnvironmentVariableProxyValues;
   private String quotaProjectId;
   private TracingPolicy tracingPolicy;
+  private Boolean grpcEnabled;
 
   public BlobStoreBuilder<T> providerId(String providerId) {
     this.providerId = providerId;
@@ -372,6 +373,29 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
    */
   public BlobStoreBuilder<T> withTracingPolicy(TracingPolicy tracingPolicy) {
     this.tracingPolicy = tracingPolicy;
+    return this;
+  }
+
+  /**
+   * Method to enable gRPC transport for the storage client.
+   *
+   * <p>Provider support: GCP only. When enabled, the GCP main storage client (single-object
+   * upload/download, list, copy, delete, tags, retention) and the directory transfer manager use
+   * gRPC instead of the default HTTP/JSON transport. Other providers ignore this setting.
+   *
+   * <p>When left unset (the default), the HTTP/JSON transport is used, so existing callers see no
+   * behavior change.
+   *
+   * <p>Transport-specific note for GCP: HTTP-only connection knobs
+   * ({@link #withProxyEndpoint(URI)}, {@link #withMaxConnections(Integer)},
+   * {@link #withSocketTimeout(Duration)}, {@link #withIdleConnectionTimeout(Duration)}) do not
+   * apply to the gRPC storage client and are ignored for it when gRPC is enabled.
+   *
+   * @param grpcEnabled whether to use gRPC transport for the storage client
+   * @return An instance of self
+   */
+  public BlobStoreBuilder<T> withGrpcEnabled(Boolean grpcEnabled) {
+    this.grpcEnabled = grpcEnabled;
     return this;
   }
 }
