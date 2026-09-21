@@ -3,6 +3,7 @@
     ".": {
       "release-type": "maven",
       "package-name": "multicloudj",
+      "release-as": "0.4.7",
       "changelog-sections": [
         {"type": "feat", "section": "Features", "hidden": false},
         {"type": "fix", "section": "Bug Fixes", "hidden": false},
