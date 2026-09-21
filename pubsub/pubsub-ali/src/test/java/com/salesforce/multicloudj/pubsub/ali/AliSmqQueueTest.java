@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.pubsub.ali;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -19,15 +20,17 @@ import com.aliyun.mns.client.MNSClient;
 import com.aliyun.mns.common.BatchSendException;
 import com.aliyun.mns.common.ServiceException;
 import com.aliyun.mns.model.ErrorMessageResult;
+import com.aliyun.mns.model.MessagePropertyValue;
+import com.aliyun.mns.model.PropertyType;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -45,10 +48,16 @@ public class AliSmqQueueTest {
   }
 
   private AliSmqQueue topic(MNSClient client, CloudQueue queue) {
+    return topic(client, queue, AliBaseTopic.Base64EncodingStrategy.AUTO);
+  }
+
+  private AliSmqQueue topic(
+      MNSClient client, CloudQueue queue, AliBaseTopic.Base64EncodingStrategy strategy) {
     when(client.getQueueRef("test-queue")).thenReturn(queue);
     AliSmqQueue.Builder builder = new AliSmqQueue.Builder();
     builder.withSmqClient(client);
     builder.withTopicName("test-queue");
+    builder.withBodyEncodingStrategy(strategy);
     AliSmqQueue topic = builder.build();
     closeables.add(topic);
     return topic;
@@ -62,31 +71,287 @@ public class AliSmqQueueTest {
   }
 
   @Test
-  void sendBodyOnlyMessagePutsBase64BodyToQueue() {
+  void sendBodyOnlyMessageRoundTripsBody() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
     AliSmqQueue topic = topic(client, queue);
 
     topic.send(Message.builder().withBody("hello".getBytes(UTF_8)).build());
 
+    com.aliyun.mns.model.Message sent = captureSingleSent(queue);
+    // The body round-trips through the wire form the subscriber decodes (raw under AUTO here).
+    assertArrayEquals("hello".getBytes(UTF_8), decodeSentBody(sent));
+  }
+
+  @Test
+  void sendMessageWithMetadataPublishesUserProperties() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliSmqQueue topic = topic(client, queue);
+
+    topic.send(Message.builder().withBody("hello".getBytes(UTF_8)).withMetadata("k", "v").build());
+
+    com.aliyun.mns.model.Message sent = captureSingleSent(queue);
+    // The body is unchanged and the metadata rides along as a STRING user property.
+    assertArrayEquals("hello".getBytes(UTF_8), decodeSentBody(sent));
+    Map<String, MessagePropertyValue> props = sent.getUserProperties();
+    assertEquals(1, props.size());
+    MessagePropertyValue value = props.get("k");
+    assertEquals(PropertyType.STRING, value.getDataType());
+    assertEquals("v", value.getStringValueByType());
+  }
+
+  @Test
+  void sendMessageEncodesNonConformingMetadataKeysToSmqCharset() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliSmqQueue topic = topic(client, queue);
+
+    // The space is outside the SMQ attribute-name charset, so it is hex-escaped; the interior dot
+    // and the underscore ride raw. The escaped key stays within the SMQ-safe charset and
+    // round-trips.
+    String rawKey = "trace.id key_1";
+    topic.send(Message.builder().withBody("b".getBytes(UTF_8)).withMetadata(rawKey, "42").build());
+
+    com.aliyun.mns.model.Message sent = captureSingleSent(queue);
+    Map<String, MessagePropertyValue> props = sent.getUserProperties();
+    String encodedKey = props.keySet().iterator().next();
+    assertEquals(AliBaseTopic.encodeMetadataKey(rawKey), encodedKey);
+    assertTrue(
+        encodedKey.matches("[A-Za-z0-9._-]+"), "encoded key must be SMQ-attribute-name safe");
+    assertEquals(rawKey, AliBaseTopic.decodeMetadataKey(encodedKey));
+    assertEquals("42", props.get(encodedKey).getStringValueByType());
+  }
+
+  @Test
+  void sendMessageCoalescesNullMetadataValueToEmptyString() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliSmqQueue topic = topic(client, queue);
+
+    // The SMQ MessagePropertyValue(STRING, value) constructor rejects a null value, so a null
+    // metadata value must be coalesced to "" rather than throwing.
+    topic.send(Message.builder().withBody("b".getBytes(UTF_8)).withMetadata("k", null).build());
+
+    com.aliyun.mns.model.Message sent = captureSingleSent(queue);
+    MessagePropertyValue value = sent.getUserProperties().get("k");
+    assertEquals(PropertyType.STRING, value.getDataType());
+    assertEquals("", value.getStringValueByType());
+  }
+
+  @Test
+  void sendMessageCarriesEmptyMetadataValueAsEmptyString() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliSmqQueue topic = topic(client, queue);
+
+    topic.send(Message.builder().withBody("b".getBytes(UTF_8)).withMetadata("k", "").build());
+
+    com.aliyun.mns.model.Message sent = captureSingleSent(queue);
+    MessagePropertyValue value = sent.getUserProperties().get("k");
+    assertEquals(PropertyType.STRING, value.getDataType());
+    assertEquals("", value.getStringValueByType());
+  }
+
+  @Test
+  void sendMessageWithTooManyMetadataAttributesFailsFast() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliSmqQueue topic = topic(client, queue);
+
+    Message.Builder builder = Message.builder().withBody("b".getBytes(UTF_8));
+    for (int i = 0; i <= AliBaseTopic.MAX_USER_PROPERTIES; i++) {
+      builder.withMetadata("k" + i, "v");
+    }
+    Message message = builder.build();
+
+    assertThrows(InvalidArgumentException.class, () -> topic.send(message));
+    verify(queue, never()).batchPutMessage(any());
+  }
+
+  @Test
+  void sendMessageWithTooLongMetadataValueFailsFast() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliSmqQueue topic = topic(client, queue);
+
+    String tooLong = "x".repeat(AliBaseTopic.MAX_PROPERTY_VALUE_LENGTH + 1);
+    Message message =
+        Message.builder().withBody("b".getBytes(UTF_8)).withMetadata("k", tooLong).build();
+
+    assertThrows(InvalidArgumentException.class, () -> topic.send(message));
+    verify(queue, never()).batchPutMessage(any());
+  }
+
+  @Test
+  void base64FlagCountsTowardMetadataLimitSoMaxAttributesFailFast() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    // ALWAYS base64-encodes the body, so the reserved base64 flag rides as an extra user property
+    // and counts toward SMQ's 50-property cap. MAX_USER_PROPERTIES metadata attributes plus the
+    // flag would be 51 on the wire, so the message must fail fast before any publish rather than be
+    // silently rejected by the service.
+    AliSmqQueue topic = topic(client, queue, AliBaseTopic.Base64EncodingStrategy.ALWAYS);
+
+    Message.Builder builder = Message.builder().withBody("b".getBytes(UTF_8));
+    for (int i = 0; i < AliBaseTopic.MAX_USER_PROPERTIES; i++) {
+      builder.withMetadata("k" + i, "v");
+    }
+    Message message = builder.build();
+
+    assertThrows(InvalidArgumentException.class, () -> topic.send(message));
+    verify(queue, never()).batchPutMessage(any());
+  }
+
+  @Test
+  void base64FlagBringsOneBelowLimitToExactlyTheCap() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    // One below the cap plus the reserved base64 flag is exactly MAX_USER_PROPERTIES user
+    // properties, the SMQ maximum, so the message publishes: the flag brings the wire total to the
+    // cap, not over it.
+    AliSmqQueue topic = topic(client, queue, AliBaseTopic.Base64EncodingStrategy.ALWAYS);
+
+    Message.Builder builder = Message.builder().withBody("b".getBytes(UTF_8));
+    for (int i = 0; i < AliBaseTopic.MAX_USER_PROPERTIES - 1; i++) {
+      builder.withMetadata("k" + i, "v");
+    }
+
+    topic.send(builder.build());
+
+    com.aliyun.mns.model.Message sent = captureSingleSent(queue);
+    // The 49 metadata attributes plus the reserved base64 flag total exactly MAX_USER_PROPERTIES.
+    assertTrue(hasBase64Flag(sent));
+    assertEquals(AliBaseTopic.MAX_USER_PROPERTIES, sent.getUserProperties().size());
+  }
+
+  /** Captures the single SMQ message sent through the queue's one batchPutMessage call. */
+  private static com.aliyun.mns.model.Message captureSingleSent(CloudQueue queue) {
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<com.aliyun.mns.model.Message>> captor = ArgumentCaptor.forClass(List.class);
     verify(queue).batchPutMessage(captor.capture());
     List<com.aliyun.mns.model.Message> sent = captor.getValue();
     assertEquals(1, sent.size());
-    assertArrayEquals("hello".getBytes(UTF_8), sent.get(0).getMessageBodyAsBytes());
+    return sent.get(0);
+  }
+
+  /** True if the captured SMQ message carries the reserved base64 flag set to true. */
+  private static boolean hasBase64Flag(com.aliyun.mns.model.Message sent) {
+    Map<String, MessagePropertyValue> props = sent.getUserProperties();
+    if (props == null) {
+      return false;
+    }
+    MessagePropertyValue flag = props.get(AliBaseTopic.RESERVED_BASE64_FLAG_KEY);
+    return flag != null && "true".equalsIgnoreCase(flag.getStringValueByType());
+  }
+
+  /** Reads a captured message body as the subscriber does: base64-decoded iff flagged. */
+  private static byte[] decodeSentBody(com.aliyun.mns.model.Message sent) {
+    return hasBase64Flag(sent)
+        ? sent.getMessageBodyAsBytes()
+        : sent.getMessageBodyAsRawBytes();
   }
 
   @Test
-  void sendMessageWithMetadataThrowsUnsupportedAndDoesNotPublish() {
+  void autoStrategyKeepsValidUtf8BodyRawWithoutFlag() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
-    AliSmqQueue topic = topic(client, queue);
+    AliSmqQueue topic = topic(client, queue); // AUTO is the default
 
-    Message message =
-        Message.builder().withBody("x".getBytes(UTF_8)).withMetadata("k", "v").build();
-    assertThrows(UnSupportedOperationException.class, () -> topic.send(message));
-    verify(queue, never()).batchPutMessage(any());
+    topic.send(Message.builder().withBody("hello".getBytes(UTF_8)).build());
+
+    com.aliyun.mns.model.Message sent = captureSingleSent(queue);
+    // A valid UTF-8 body rides raw (no base64), so no reserved flag is set...
+    assertFalse(hasBase64Flag(sent));
+    assertArrayEquals("hello".getBytes(UTF_8), sent.getMessageBodyAsRawBytes());
+    // ...and the flag-aware decode still yields the original bytes.
+    assertArrayEquals("hello".getBytes(UTF_8), decodeSentBody(sent));
+  }
+
+  @Test
+  void autoStrategyBase64EncodesNonUtf8BodyWithFlag() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliSmqQueue topic = topic(client, queue); // AUTO is the default
+
+    byte[] nonUtf8 = {(byte) 0xFF, (byte) 0xFE, (byte) 0x80, 0x01};
+    topic.send(Message.builder().withBody(nonUtf8).build());
+
+    com.aliyun.mns.model.Message sent = captureSingleSent(queue);
+    // A non-UTF-8 body cannot ride as XML text, so AUTO base64-encodes it and sets the flag...
+    assertTrue(hasBase64Flag(sent));
+    assertArrayEquals(nonUtf8, sent.getMessageBodyAsBytes());
+    // ...and the flag-aware decode recovers the exact bytes.
+    assertArrayEquals(nonUtf8, decodeSentBody(sent));
+  }
+
+  @Test
+  void autoStrategyBase64EncodesValidUtf8ButXmlIllegalBodyWithFlag() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliSmqQueue topic = topic(client, queue); // AUTO is the default
+
+    // A body that is valid UTF-8 but carries an XML-illegal control byte (NUL, then a vertical tab)
+    // cannot ride losslessly as XML text, so AUTO must base64-encode it and set the flag rather
+    // than send it raw and fail at the service with MalformedXML.
+    byte[] xmlIllegal = {(byte) 0x00, 'a', (byte) 0x0B, 'b'};
+    topic.send(Message.builder().withBody(xmlIllegal).build());
+
+    com.aliyun.mns.model.Message sent = captureSingleSent(queue);
+    assertTrue(hasBase64Flag(sent));
+    assertArrayEquals(xmlIllegal, sent.getMessageBodyAsBytes());
+    assertArrayEquals(xmlIllegal, decodeSentBody(sent));
+  }
+
+  @Test
+  void autoStrategyBase64EncodesValidUtf8ButXmlIllegalNoncharacterBodyWithFlag() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliSmqQueue topic = topic(client, queue); // AUTO is the default
+
+    // A body that is valid UTF-8 but contains the XML-1.0-illegal noncharacter U+FFFF cannot ride
+    // losslessly as XML text (the service rejects it with MalformedXML), so AUTO must base64-encode
+    // it and set the flag rather than send it raw.
+    byte[] noncharacter = {'o', 'k', (byte) 0xEF, (byte) 0xBF, (byte) 0xBF, 't', 'h', 'e', 'n'};
+    topic.send(Message.builder().withBody(noncharacter).build());
+
+    com.aliyun.mns.model.Message sent = captureSingleSent(queue);
+    assertTrue(hasBase64Flag(sent));
+    assertArrayEquals(noncharacter, sent.getMessageBodyAsBytes());
+    assertArrayEquals(noncharacter, decodeSentBody(sent));
+  }
+
+  @Test
+  void autoStrategyKeepsXmlSafeUtf8BodyWithSpecialsAndMultibyteRaw() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliSmqQueue topic = topic(client, queue); // AUTO is the default
+
+    // XML-safe UTF-8 that includes the XML special characters '<', '>', '&' (the SDK escapes these
+    // in text content, so they survive raw) plus multibyte code points and the allowed whitespace
+    // controls (tab, LF, CR). This rides raw with no flag, matching live SMQ behavior.
+    byte[] xmlSafe = "a<b>c&d\t\n\ré-Ω-😀".getBytes(UTF_8);
+    topic.send(Message.builder().withBody(xmlSafe).build());
+
+    com.aliyun.mns.model.Message sent = captureSingleSent(queue);
+    assertFalse(hasBase64Flag(sent));
+    assertArrayEquals(xmlSafe, sent.getMessageBodyAsRawBytes());
+    assertArrayEquals(xmlSafe, decodeSentBody(sent));
+  }
+
+  @Test
+  void alwaysStrategyBase64EncodesUtf8BodyWithFlag() {
+    MNSClient client = mock(MNSClient.class);
+    CloudQueue queue = mock(CloudQueue.class);
+    AliSmqQueue topic = topic(client, queue, AliBaseTopic.Base64EncodingStrategy.ALWAYS);
+
+    topic.send(Message.builder().withBody("hello".getBytes(UTF_8)).build());
+
+    com.aliyun.mns.model.Message sent = captureSingleSent(queue);
+    // ALWAYS base64-encodes even a valid UTF-8 body and sets the flag.
+    assertTrue(hasBase64Flag(sent));
+    assertArrayEquals("hello".getBytes(UTF_8), sent.getMessageBodyAsBytes());
+    assertArrayEquals("hello".getBytes(UTF_8), decodeSentBody(sent));
   }
 
   @Test
@@ -191,7 +456,9 @@ public class AliSmqQueueTest {
   void oversizedLogicalBatchIsSplitIntoServiceValidSubBatches() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
-    AliSmqQueue topic = topic(client, queue);
+    // Pin ALWAYS-base64 so the per-message wire size is the base64-expanded size this test reasons
+    // about, independent of the body's UTF-8 validity.
+    AliSmqQueue topic = topic(client, queue, AliBaseTopic.Base64EncodingStrategy.ALWAYS);
 
     // Three 20 KB bodies each encode to ~26 KB on the wire, so the 64 KB per-request cap admits at
     // most two per sub-batch: the batch must split into more than one batchPutMessage call.
@@ -222,19 +489,22 @@ public class AliSmqQueueTest {
   void localConversionErrorInLaterSubBatchDoesNotPublishEarlierSubBatch() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
-    AliSmqQueue topic = topic(client, queue);
+    // Pin ALWAYS-base64 so the 20 KB bodies expand enough to force the split this test relies on.
+    AliSmqQueue topic = topic(client, queue, AliBaseTopic.Base64EncodingStrategy.ALWAYS);
 
     // Three 20 KB bodies each encode to ~26 KB, so the 64 KB per-request cap splits the batch into
-    // [first, second] and [third]. The third message carries metadata, which toSmqMessage rejects
-    // locally. Because the whole batch is converted before any batchPutMessage call, that local
-    // rejection must fail fast without publishing the earlier, already-split sub-batch.
+    // [first, second] and [third]. The third message carries a metadata value over the SMQ
+    // per-value limit, which toSmqMessage rejects locally. Because the whole batch is converted
+    // before any batchPutMessage call, that local rejection must fail fast without publishing the
+    // earlier, already-split sub-batch.
+    String tooLong = "x".repeat(AliBaseTopic.MAX_PROPERTY_VALUE_LENGTH + 1);
     List<Message> batch =
         List.of(
             Message.builder().withBody(bytesOf(20_000)).build(),
             Message.builder().withBody(bytesOf(20_000)).build(),
-            Message.builder().withBody(bytesOf(20_000)).withMetadata("k", "v").build());
+            Message.builder().withBody(bytesOf(20_000)).withMetadata("k", tooLong).build());
 
-    assertThrows(UnSupportedOperationException.class, () -> topic.doSendBatch(batch));
+    assertThrows(InvalidArgumentException.class, () -> topic.doSendBatch(batch));
     verify(queue, never()).batchPutMessage(any());
   }
 
@@ -242,7 +512,8 @@ public class AliSmqQueueTest {
   void singleMessageOverLimitFailsFastWithoutPublishing() {
     MNSClient client = mock(MNSClient.class);
     CloudQueue queue = mock(CloudQueue.class);
-    AliSmqQueue topic = topic(client, queue);
+    // Pin ALWAYS-base64 so the 50 KB body expands past the 64 KB per-request cap on its own.
+    AliSmqQueue topic = topic(client, queue, AliBaseTopic.Base64EncodingStrategy.ALWAYS);
 
     // A 50 KB body encodes to ~66 KB on the wire, exceeding the 64 KB per-request cap on its own,
     // so it can never be sent in any batch.
