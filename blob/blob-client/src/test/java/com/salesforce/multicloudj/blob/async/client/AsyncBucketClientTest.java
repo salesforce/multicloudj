@@ -1466,6 +1466,29 @@ public class AsyncBucketClientTest {
   }
 
   @Test
+  void testAsyncBucketClientBuilderWithGrpcEnabled() {
+    AsyncBlobStoreProvider.Builder mockBuilder2 = mock(AsyncBlobStoreProvider.Builder.class);
+    when(mockBuilder2.withBucket(any())).thenReturn(mockBuilder2);
+    when(mockBuilder2.withRegion(any())).thenReturn(mockBuilder2);
+    when(mockBuilder2.withGrpcEnabled(any())).thenReturn(mockBuilder2);
+    when(mockBuilder2.build()).thenReturn(mockBlobStore);
+
+    providerSupplier
+        .when(() -> ProviderSupplier.findAsyncBuilder("test-grpc"))
+        .thenReturn(mockBuilder2);
+
+    AsyncBucketClient testClient =
+        AsyncBucketClient.builder("test-grpc")
+            .withBucket("test-bucket")
+            .withRegion("us-east-1")
+            .withGrpcEnabled(true)
+            .build();
+
+    verify(mockBuilder2, times(1)).withGrpcEnabled(true);
+    assertInstanceOf(AsyncBucketClient.class, testClient);
+  }
+
+  @Test
   void testAsyncBucketClientBuilderWithProxyEndpointAndOverrideFlags() {
     AsyncBlobStoreProvider.Builder mockBuilder2 = mock(AsyncBlobStoreProvider.Builder.class);
     when(mockBuilder2.withBucket(any())).thenReturn(mockBuilder2);
