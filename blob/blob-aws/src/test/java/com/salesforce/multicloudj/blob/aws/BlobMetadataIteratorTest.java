@@ -446,6 +446,39 @@ public class BlobMetadataIteratorTest {
     assertEquals(t, all.get(1).getArchivedAt());
   }
 
+  @Test
+  void testSiblingKeyDeleteMarkerFilteredWhenIncluded() {
+    String key = "obj-1";
+    Instant t1 = Instant.parse("2024-01-01T00:00:00Z");
+    Instant t2 = Instant.parse("2024-01-02T00:00:00Z");
+
+    // Opt-in listing whose page carries a delete marker for a sibling key that merely shares the
+    // prefix. The exact-key filter must drop it so only the matching version is emitted.
+    ObjectVersion matching = version(key, "v1", 100L, t1);
+    DeleteMarkerEntry siblingMarker = marker("obj-1-extra", "dm-extra", t2);
+
+    ListObjectVersionsResponse response =
+        ListObjectVersionsResponse.builder()
+            .versions(matching)
+            .deleteMarkers(siblingMarker)
+            .build();
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(response).iterator());
+    when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    Iterator<BlobMetadata> iterator =
+        new BlobMetadataIterator(mockS3Client, TEST_BUCKET, key, true);
+    List<BlobMetadata> all = new ArrayList<>();
+    iterator.forEachRemaining(all::add);
+
+    assertEquals(1, all.size());
+    assertEquals("v1", all.get(0).getVersionId());
+    assertFalse(all.get(0).isArchived());
+    assertNull(all.get(0).getArchivedAt());
+  }
+
   private static ObjectVersion version(String key, String versionId, long size) {
     return version(key, versionId, size, Instant.now());
   }

@@ -324,6 +324,30 @@ public class BlobMetadataIteratorTest {
     assertEquals(3, fetched[0]);
   }
 
+  @Test
+  void testNullDeleteMarkersCollectionFlagOn() {
+    String key = "obj-1";
+    // Opt-in mode, but OSS returns a page whose deleteMarkers() collection is null. The null guard
+    // must skip marker merging and still emit the content version without deriving archivedAt.
+    ObjectVersion v1 = version(key, "v1", 100L, Instant.ofEpochSecond(1));
+
+    ListObjectVersionsResult page = mock(ListObjectVersionsResult.class);
+    when(page.versions()).thenReturn(List.of(v1));
+    // OSS can return a null deleteMarkers() collection; the guard must tolerate it. (A default
+    // Mockito mock would hand back an empty list, so stub null explicitly to exercise the guard.)
+    when(page.deleteMarkers()).thenReturn(null);
+
+    stubPages(page);
+
+    List<BlobMetadata> all = new ArrayList<>();
+    new BlobMetadataIterator(mockOssClient, TEST_BUCKET, key, true).forEachRemaining(all::add);
+
+    assertEquals(1, all.size());
+    assertEquals("v1", all.get(0).getVersionId());
+    assertFalse(all.get(0).isArchived());
+    assertNull(all.get(0).getArchivedAt());
+  }
+
   private void stubPages(ListObjectVersionsResult... pages) {
     ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
     when(iterable.iterator()).thenReturn(List.of(pages).iterator());

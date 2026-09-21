@@ -674,9 +674,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       Instant archivedAt =
           includeArchived && i > 0 ? entries.get(i - 1).createdTime : null;
       if (entry.deleteMarker) {
-        if (!includeArchived) {
-          continue;
-        }
+        // Delete-marker entries only enter the timeline when the caller opted into the
+        // delete-history view, so reaching here already implies includeArchived is set.
         result.add(
             BlobMetadata.builder()
                 .key(key)
