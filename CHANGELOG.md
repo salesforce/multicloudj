@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.6...multicloudj-v1.0.0) (2026-09-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* add pubsub-ali SMQ message metadata and configurable body base64 encoding ([#627](https://github.com/salesforce/multicloudj/issues/627))
+
+### PubSub
+
+* add pubsub-ali SMQ message metadata and configurable body base64 encoding ([#627](https://github.com/salesforce/multicloudj/issues/627)) ([0c150d6](https://github.com/salesforce/multicloudj/commit/0c150d63e5a9ab0d3150343fddae195b8d7d26c2))
+
 ## [0.4.6](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.5...multicloudj-v0.4.6) (2026-09-11)
 
 
