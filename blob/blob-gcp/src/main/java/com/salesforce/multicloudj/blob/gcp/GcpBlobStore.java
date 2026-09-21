@@ -610,14 +610,16 @@ public class GcpBlobStore extends AbstractBlobStore {
    * defensive guard.
    *
    * <p>GCS represents a deletion of the live object by archiving the current generation and setting
-   * its time-deleted; there is no separate delete-marker object. Each returned generation therefore
-   * carries its creation time and, when it is no longer current, the time it stopped being current
-   * as {@code archivedAt}. The {@code includeArchived} request flag has no extra entries to surface
-   * here because GCS does not produce standalone delete markers.
+   * its time-deleted; there is no separate delete-marker object, so the {@code includeArchived}
+   * request flag surfaces no extra entries here. The flag does, however, gate the cloud-neutral
+   * {@code archivedAt} supersession instant: only when it is set does a no-longer-current
+   * generation report the time it stopped being current. The default listing streams generations
+   * without {@code archivedAt}, preserving the backward-compatible listing contract.
    */
   @Override
   protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
     String key = request.getKey();
+    boolean includeArchived = request.isIncludeArchived();
     List<Storage.BlobListOption> listOptions = new ArrayList<>();
     listOptions.add(Storage.BlobListOption.startOffset(key));
     listOptions.add(Storage.BlobListOption.endOffset(key + "\u0000"));
@@ -639,9 +641,11 @@ public class GcpBlobStore extends AbstractBlobStore {
         Blob blob = blobIterator.next();
         OffsetDateTime versionTimestamp = blob.getCreateTimeOffsetDateTime();
         Instant createdTime = versionTimestamp != null ? versionTimestamp.toInstant() : null;
-        // A generation that is no longer current reports the instant it was superseded/deleted.
+        // A generation that is no longer current reports the instant it was superseded/deleted, but
+        // only the opt-in delete-history view derives archivedAt; the default listing omits it.
         OffsetDateTime deletedTimestamp = blob.getDeleteTimeOffsetDateTime();
-        Instant archivedAt = deletedTimestamp != null ? deletedTimestamp.toInstant() : null;
+        Instant archivedAt =
+            (includeArchived && deletedTimestamp != null) ? deletedTimestamp.toInstant() : null;
         return BlobMetadata.builder()
             .key(blob.getName())
             .versionId(blob.getGeneration() != null ? blob.getGeneration().toString() : null)

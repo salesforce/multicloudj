@@ -168,7 +168,7 @@ public class BlobMetadataIteratorTest {
   }
 
   @Test
-  void testDeleteMarkersFilteredButStillDriveArchivedAt() {
+  void testDeleteMarkersHiddenAndNoArchivedAtWhenFlagOff() {
     String key = "obj-1";
     Instant t1 = Instant.parse("2024-01-01T00:00:00Z");
     Instant t2 = Instant.parse("2024-01-02T00:00:00Z");
@@ -191,8 +191,8 @@ public class BlobMetadataIteratorTest {
     List<BlobMetadata> all = new ArrayList<>();
     iterator.forEachRemaining(all::add);
 
-    // Only content versions are emitted, but the older version's archivedAt must still
-    // reflect that a delete marker (not the newer version) superseded it.
+    // Default listing streams only content versions and derives no archivedAt: the delete marker
+    // is neither surfaced nor used to compute a supersession instant.
     assertEquals(2, all.size());
     assertEquals("v2", all.get(0).getVersionId());
     assertFalse(all.get(0).isArchived());
@@ -200,7 +200,7 @@ public class BlobMetadataIteratorTest {
 
     assertEquals("v1", all.get(1).getVersionId());
     assertFalse(all.get(1).isArchived());
-    assertEquals(t2, all.get(1).getArchivedAt());
+    assertNull(all.get(1).getArchivedAt());
   }
 
   @Test

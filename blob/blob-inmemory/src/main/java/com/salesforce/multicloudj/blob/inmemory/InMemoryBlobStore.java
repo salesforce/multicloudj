@@ -621,15 +621,16 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   /**
-   * Lists every version of an exact key on a single timeline. Content versions and, when requested,
-   * delete markers are ordered newest-first. Delete markers are always considered when computing
-   * each entry's supersession time so that a content version's {@code archivedAt} reflects the
-   * moment it stopped being current even when the superseding entry is a delete marker; markers are
-   * emitted only when {@code includeArchived} is set.
+   * Lists every version of an exact key on a single newest-first timeline. By default only content
+   * versions are returned and no {@code archivedAt} supersession instant is derived, matching the
+   * backward-compatible contract. When {@code includeArchived} is set the timeline also includes
+   * delete markers and each entry reports the cloud-neutral {@code archivedAt} it stopped being
+   * current, which may be the creation time of a superseding delete marker.
    */
   @Override
   protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
     validateBucketExists();
+    boolean includeArchived = request.isIncludeArchived();
     String key = request.getKey();
     String baseKey = getStorageKey(key);
     String versionPrefix = baseKey + ":";
@@ -650,10 +651,15 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       entries.add(new TimelineEntry(blob.getLastModified(), false, blob.getVersionId(), blob));
     }
 
-    List<DeleteMarker> markers = DELETE_MARKERS.get(baseKey);
-    if (markers != null) {
-      for (DeleteMarker marker : markers) {
-        entries.add(new TimelineEntry(marker.getCreatedTime(), true, marker.getVersionId(), null));
+    // Delete markers only participate in the opt-in delete-history view; the default listing
+    // streams content versions and never derives archivedAt from a marker.
+    if (includeArchived) {
+      List<DeleteMarker> markers = DELETE_MARKERS.get(baseKey);
+      if (markers != null) {
+        for (DeleteMarker marker : markers) {
+          entries.add(
+              new TimelineEntry(marker.getCreatedTime(), true, marker.getVersionId(), null));
+        }
       }
     }
 
@@ -663,9 +669,12 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     List<BlobMetadata> result = new ArrayList<>(entries.size());
     for (int i = 0; i < entries.size(); i++) {
       TimelineEntry entry = entries.get(i);
-      Instant archivedAt = (i == 0) ? null : entries.get(i - 1).createdTime;
+      // archivedAt only exists to serve the opt-in delete-history view; the default listing streams
+      // content versions without deriving a supersession instant.
+      Instant archivedAt =
+          includeArchived && i > 0 ? entries.get(i - 1).createdTime : null;
       if (entry.deleteMarker) {
-        if (!request.isIncludeArchived()) {
+        if (!includeArchived) {
           continue;
         }
         result.add(
@@ -680,6 +689,9 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       } else {
         StoredBlob blob = entry.blob;
         String versionedKey = versionPrefix + blob.getVersionId();
+        // Checksum is intentionally omitted here: it is not part of the version-listing contract,
+        // and computing it is O(size) per version, which turns listing into O(versions x size).
+        // Callers that need a checksum fetch it via getMetadata/download for a specific version.
         result.add(
             BlobMetadata.builder()
                 .key(key)
@@ -691,7 +703,6 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .createdTime(blob.getLastModified())
                 .contentType(blob.getContentType())
                 .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
-                .checksum(toDriverChecksum(blob.getData()))
                 .archivedAt(archivedAt)
                 .build());
       }

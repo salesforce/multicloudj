@@ -17,19 +17,32 @@ import software.amazon.awssdk.services.s3.model.ObjectVersion;
  * Iterator that retrieves {@link BlobMetadata} versions for an exact key.
  *
  * <p>Iteration is lazy and streaming: S3 pages are pulled on demand and only one bounded page is
- * buffered at a time. S3 returns content versions and delete markers in two separate per-page
- * collections, each documented as newest-first, and pages themselves arrive newest-first. Because
- * every page holds the next slice of a single global newest-first sequence for the key, the two
- * per-page collections can be merged within each page (a two-pointer merge) and the pages consumed
- * in order to reproduce the true newest-first timeline without ever sorting the complete remote
- * result or reaching across a page boundary.
+ * buffered at a time. By default ({@code includeDeleteMarkers == false}) only content versions are
+ * emitted, in the newest-first order S3 returns them, and no {@code archivedAt} supersession
+ * instant is derived. This is the backward-compatible listing: delete markers are neither surfaced
+ * nor merged, so no marker collection is read or iterated.
  *
- * <p>Both collections always participate in the ordering so supersession times stay correct: a
- * content version stops being current when the next entry is created, and that superseding entry
- * may be a delete marker. Each emitted entry's {@code archivedAt} is the creation time of the entry
- * immediately newer than it; the newest entry is still current and therefore has none. Delete
- * markers are only emitted when {@code includeDeleteMarkers} is set, but a hidden marker still
- * advances the supersession pointer so the version below it reports the correct {@code archivedAt}.
+ * <p>When {@code includeDeleteMarkers} is set the iterator reconstructs the full delete-history
+ * timeline. S3 returns content versions and delete markers in two separate per-page collections,
+ * each documented as newest-first, and pages themselves arrive newest-first. Because every page
+ * holds the next slice of a single global newest-first sequence for the key, the two per-page
+ * collections can be merged within each page (a two-pointer merge) and the pages consumed in order
+ * to reproduce the true newest-first timeline without ever sorting the complete remote result or
+ * reaching across a page boundary.
+ *
+ * <p><b>Load-bearing invariant:</b> in the opt-in mode correctness depends entirely on the S3
+ * {@code ListObjectVersions} API returning both {@code versions()} and {@code deleteMarkers()}
+ * newest-first within every page, a documented property of that API. This merge never re-sorts or
+ * otherwise repairs out-of-order input, so if that documented ordering ever changes this class must
+ * be revisited. The unit tests exercise the merge by feeding newest-first pages and asserting the
+ * merged newest-first result; they validate this iterator's merge logic, not the S3 ordering
+ * guarantee itself (a recorded or mocked response cannot observe a live change in S3's behavior).
+ *
+ * <p>In the opt-in mode both collections participate in the ordering so supersession times stay
+ * correct: a content version stops being current when the next entry is created, and that
+ * superseding entry may be a delete marker. Each emitted entry's {@code archivedAt} is the creation
+ * time of the entry immediately newer than it; the newest entry is still current and therefore has
+ * none.
  *
  * <p>When a content version and a delete marker carry the same {@code lastModified} (a same-instant
  * PUT then DELETE), timestamps alone cannot order them. S3 flags exactly one entry as the latest
@@ -97,14 +110,17 @@ public class BlobMetadataIterator implements Iterator<BlobMetadata> {
   }
 
   /**
-   * Advances the merged timeline until the next emittable entry is buffered or the stream ends.
-   * Every entry consumed advances the supersession pointer, including hidden delete markers, so a
-   * content version's {@code archivedAt} still reflects a superseding marker that is not emitted.
+   * Advances the timeline until the next emittable entry is buffered or the stream ends. When
+   * delete markers are requested every consumed entry advances the supersession pointer so a
+   * content version's {@code archivedAt} reflects the entry immediately newer than it; when they
+   * are not requested no marker is loaded and no {@code archivedAt} is derived.
    */
   private void advance() {
     Entry entry;
     while ((entry = nextTimelineEntry()) != null) {
-      Instant archivedAt = previousLastModified;
+      // archivedAt only exists to serve the opt-in delete-history view; the default listing streams
+      // content versions without deriving a supersession instant.
+      Instant archivedAt = includeDeleteMarkers ? previousLastModified : null;
       previousLastModified = entry.lastModified;
       if (entry.deleteMarker) {
         if (!includeDeleteMarkers) {
@@ -170,10 +186,13 @@ public class BlobMetadataIterator implements Iterator<BlobMetadata> {
         versions.add(version);
       }
     }
+    // Delete markers are only read in the opt-in mode; the default listing never merges them.
     List<DeleteMarkerEntry> markers = new ArrayList<>();
-    for (DeleteMarkerEntry markerEntry : page.deleteMarkers()) {
-      if (key.equals(markerEntry.key())) {
-        markers.add(markerEntry);
+    if (includeDeleteMarkers) {
+      for (DeleteMarkerEntry markerEntry : page.deleteMarkers()) {
+        if (key.equals(markerEntry.key())) {
+          markers.add(markerEntry);
+        }
       }
     }
     // S3 returns each collection newest-first, which the per-page two-pointer merge relies on.
