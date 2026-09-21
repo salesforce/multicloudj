@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 
@@ -74,7 +75,7 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
   // this marker; the two hex digits and the closing "__" complete it.
   private static final String KEY_ESCAPE_PREFIX = "__0x";
   private static final String KEY_ESCAPE_SUFFIX = "__";
-  private static final char[] HEX_DIGITS = "0123456789ABCDEF".toCharArray();
+  private static final HexFormat HEX = HexFormat.of().withUpperCase();
 
   // Reserved user property recording that the body was base64-encoded, so the receiver knows to
   // base64-decode it. A user metadata key that would otherwise encode to this same wire name is
@@ -597,8 +598,7 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
       if ((i == 0 && forceEscapeFirstByte) || !isRawKeyByte(bytes, i)) {
         encoded
             .append(KEY_ESCAPE_PREFIX)
-            .append(HEX_DIGITS[(b >> 4) & 0xF])
-            .append(HEX_DIGITS[b & 0xF])
+            .append(HEX.toHexDigits((byte) b))
             .append(KEY_ESCAPE_SUFFIX);
       } else {
         encoded.append((char) b);
@@ -622,9 +622,7 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
     int n = encoded.length();
     while (i < n) {
       if (isEscapeTokenAt(encoded, i, n)) {
-        int high = hexValue(encoded.charAt(i + 4));
-        int low = hexValue(encoded.charAt(i + 5));
-        out.write((high << 4) | low);
+        out.write(HEX.fromHexDigits(encoded, i + 4, i + 6));
         i += 8;
       } else {
         appendCharAsUtf8(out, encoded.charAt(i));
@@ -680,24 +678,10 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
         && s.charAt(i + 1) == '_'
         && s.charAt(i + 2) == '0'
         && s.charAt(i + 3) == 'x'
-        && isHexDigit(s.charAt(i + 4))
-        && isHexDigit(s.charAt(i + 5))
+        && HexFormat.isHexDigit(s.charAt(i + 4))
+        && HexFormat.isHexDigit(s.charAt(i + 5))
         && s.charAt(i + 6) == '_'
         && s.charAt(i + 7) == '_';
-  }
-
-  private static boolean isHexDigit(char c) {
-    return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
-  }
-
-  private static int hexValue(char c) {
-    if (c >= '0' && c <= '9') {
-      return c - '0';
-    }
-    if (c >= 'A' && c <= 'F') {
-      return c - 'A' + 10;
-    }
-    return c - 'a' + 10;
   }
 
   /** Appends a literal (non-token) character to {@code out} as its UTF-8 bytes. */
