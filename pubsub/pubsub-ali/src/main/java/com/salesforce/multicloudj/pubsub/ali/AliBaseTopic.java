@@ -551,13 +551,14 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
    *     {@link #MAX_USER_PROPERTY_KEY_LENGTH} characters
    */
   static String encodeMetadataKey(String key) {
-    // An empty key encodes to an empty wire name, which SMQ serializes as <Name/> — the service
-    // rejects it with an opaque error and the SDK silently drops it on receive, breaking the
-    // round-trip guarantee. Reject it fail-fast here so both the emit path (toUserProperties) and
-    // the sizing path (metadataWireSize) are guarded consistently. A whitespace-only key such as
-    // " " hex-escapes to a valid, non-empty name (e.g. __0x20__) and is left to pass through.
-    if (key == null || key.isEmpty()) {
-      throw new InvalidArgumentException("message metadata key cannot be null or empty");
+    // A blank key (null, empty, or whitespace-only) is rejected fail-fast to match the
+    // cloud-agnostic MessageUtils.validateMetadata contract (key.trim().isEmpty()), so the emit
+    // path (toUserProperties) and the sizing path (metadataWireSize) reject exactly the keys the
+    // public send path already does. (An empty key would otherwise encode to an empty wire name,
+    // which SMQ serializes as <Name/> — the service rejects it with an opaque error and the SDK
+    // silently drops it on receive, breaking the round-trip guarantee.)
+    if (key == null || key.trim().isEmpty()) {
+      throw new InvalidArgumentException("message metadata key cannot be null or blank");
     }
     byte[] bytes = key.getBytes(StandardCharsets.UTF_8);
     String encoded = encodeKeyBytes(bytes, false);

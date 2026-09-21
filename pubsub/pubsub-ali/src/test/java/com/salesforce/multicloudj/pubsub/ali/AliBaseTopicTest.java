@@ -289,8 +289,6 @@ public class AliBaseTopicTest {
       "colon:semi;comma,",
       "unicode-café-Ω",
       "__0x41__",
-      " ",
-      "\t",
       "a..b",
       ".leading",
       "trailing."
@@ -356,12 +354,13 @@ public class AliBaseTopicTest {
 
   @Test
   void encodeMetadataKeyRejectsEncodedKeyOverLengthLimit() {
-    // Each space hex-escapes to 8 characters, so 33 spaces encode to 264 characters, over the SMQ
+    // Each '!' hex-escapes to 8 characters, so 33 of them encode to 264 characters, over the SMQ
     // 256-character attribute-name limit; the message must fail fast rather than be rejected by the
-    // service. A conforming 256-character key stays within the limit.
+    // service. ('!' is a non-blank non-conforming byte, so this trips the length limit, not the
+    // blank-key guard.) A conforming 256-character key stays within the limit.
     assertThrows(
         InvalidArgumentException.class,
-        () -> AliBaseTopic.encodeMetadataKey(" ".repeat(33)));
+        () -> AliBaseTopic.encodeMetadataKey("!".repeat(33)));
     assertEquals(256, AliBaseTopic.encodeMetadataKey("a".repeat(256)).length());
   }
 
@@ -491,13 +490,12 @@ public class AliBaseTopicTest {
   }
 
   @Test
-  void encodeMetadataKeyKeepsWhitespaceKeysSoTheyAreNotOverRejected() {
-    // A whitespace-only key is not empty on the wire: it hex-escapes to a valid, non-empty SMQ
-    // attribute name and round-trips, so it must pass through rather than be over-rejected.
-    assertEquals("__0x20__", AliBaseTopic.encodeMetadataKey(" "));
-    assertEquals(" ", AliBaseTopic.decodeMetadataKey(AliBaseTopic.encodeMetadataKey(" ")));
-    assertEquals("__0x09__", AliBaseTopic.encodeMetadataKey("\t"));
-    assertEquals("\t", AliBaseTopic.decodeMetadataKey(AliBaseTopic.encodeMetadataKey("\t")));
+  void encodeMetadataKeyRejectsBlankKeys() {
+    // A whitespace-only key is blank and is rejected fail-fast to match the cloud-agnostic
+    // MessageUtils.validateMetadata contract (key.trim().isEmpty()), which the public send path
+    // already enforces on every publish.
+    assertThrows(InvalidArgumentException.class, () -> AliBaseTopic.encodeMetadataKey(" "));
+    assertThrows(InvalidArgumentException.class, () -> AliBaseTopic.encodeMetadataKey("\t"));
   }
 
   @Test
