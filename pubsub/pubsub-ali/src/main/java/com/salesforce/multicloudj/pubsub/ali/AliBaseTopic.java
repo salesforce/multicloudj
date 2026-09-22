@@ -282,7 +282,7 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
    * the body is not XML-safe UTF-8 — that is, when it is not valid UTF-8 or contains an XML-illegal
    * control byte, neither of which can be carried losslessly as raw XML text.
    */
-  private boolean shouldBase64EncodeBody(byte[] body) {
+  protected boolean shouldBase64EncodeBody(byte[] body) {
     switch (bodyEncodingStrategy) {
       case ALWAYS:
         return true;
@@ -404,17 +404,39 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
     smqMessage.setMessageBody(
         body, base64 ? MessageBodyType.BASE64 : MessageBodyType.RAW_STRING);
     Map<String, MessagePropertyValue> userProperties =
-        toUserProperties(message.getMetadata(), base64);
+        buildUserProperties(message.getMetadata(), base64);
+    if (userProperties != null) {
+      smqMessage.setUserProperties(userProperties);
+    }
+    return smqMessage;
+  }
+
+  /**
+   * Assembles the native SMQ user-property map an outbound message carries: the
+   * {@link #toUserProperties metadata properties} (with the per-message limits enforced fail-fast)
+   * plus, when the body is base64-encoded, the reserved {@link #RESERVED_BASE64_FLAG_KEY} flag so
+   * the receiver knows to base64-decode the body.
+   *
+   * <p>Returns {@code null} when there is nothing to carry — no metadata and no base64 flag — so
+   * the caller can skip setting an empty user-property map on the SMQ message. When the body is
+   * base64-encoded the flag reserves one of SMQ's {@link #MAX_USER_PROPERTIES} attribute slots, so
+   * {@code toUserProperties} enforces the effective one-lower metadata cap before this adds it.
+   *
+   * @param metadata the message metadata to map onto user properties, or {@code null}
+   * @param base64 whether the body is base64-encoded, which adds the reserved flag property
+   * @throws InvalidArgumentException if the metadata exceeds the SMQ per-message limits (see
+   *     {@link #toUserProperties})
+   */
+  protected Map<String, MessagePropertyValue> buildUserProperties(
+      Map<String, String> metadata, boolean base64) {
+    Map<String, MessagePropertyValue> userProperties = toUserProperties(metadata, base64);
     if (base64) {
       if (userProperties == null) {
         userProperties = new HashMap<>();
       }
       userProperties.put(RESERVED_BASE64_FLAG_KEY, new MessagePropertyValue(true));
     }
-    if (userProperties != null) {
-      smqMessage.setUserProperties(userProperties);
-    }
-    return smqMessage;
+    return userProperties;
   }
 
   /**
