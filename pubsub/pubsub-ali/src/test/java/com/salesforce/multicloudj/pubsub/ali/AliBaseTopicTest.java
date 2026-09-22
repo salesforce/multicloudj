@@ -40,7 +40,7 @@ public class AliBaseTopicTest {
     assertEquals(expected, wireSize);
     assertTrue(wireSize > 0, "wire size must not overflow to a negative value");
     assertTrue(
-        wireSize > AliBaseTopic.MAX_BATCH_BYTE_SIZE,
+        wireSize > AliBaseTopic.MAX_REQUEST_BYTE_SIZE,
         "a near-2 GB body must measure well above the per-request limit");
   }
 
@@ -77,7 +77,7 @@ public class AliBaseTopicTest {
           subBatches.size() > 1, "the over-limit batch must split into multiple sub-batches");
       for (List<Message> subBatch : subBatches) {
         assertTrue(
-            serializedLength(topic, subBatch) <= AliBaseTopic.MAX_BATCH_BYTE_SIZE,
+            serializedLength(topic, subBatch) <= AliBaseTopic.MAX_REQUEST_BYTE_SIZE,
             "each serialized sub-batch must stay within the 64 KB per-request limit");
       }
     }
@@ -207,7 +207,7 @@ public class AliBaseTopicTest {
       // A single such message stays under the per-request cap (it is not rejected outright)...
       assertTrue(
           AliBaseTopic.FIXED_REQUEST_OVERHEAD_BYTES + topic.measureWireSize(heavy1)
-              <= AliBaseTopic.MAX_BATCH_BYTE_SIZE);
+              <= AliBaseTopic.MAX_REQUEST_BYTE_SIZE);
       // ...but the two together do not, so splitBySize separates them.
       assertEquals(2, topic.splitBySize(List.of(heavy1, heavy2)).size());
       // The split is driven by the metadata, not the body: the same bodies with no metadata pack
@@ -238,7 +238,7 @@ public class AliBaseTopicTest {
 
       long requestSize = AliBaseTopic.FIXED_REQUEST_OVERHEAD_BYTES + topic.measureWireSize(message);
       assertTrue(
-          requestSize < AliBaseTopic.MAX_BATCH_BYTE_SIZE,
+          requestSize < AliBaseTopic.MAX_REQUEST_BYTE_SIZE,
           "four max-length plain-text metadata values must estimate well under the 64 KB cap, not "
               + "over it; measured "
               + requestSize);

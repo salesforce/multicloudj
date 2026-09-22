@@ -37,18 +37,20 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
   protected static final int MIN_BATCH_SIZE = 1;
   protected static final int MAX_BATCH_SIZE = 16;
 
-  // Alibaba SMQ BatchSendMessage documents a maximum total payload of 64 KB (65,536 bytes) per
-  // batch request. The byte guard (see splitBySize) keeps a conservative upper bound on the actual
-  // SDK-serialized request under this documented limit. The SDK serializes a batch as one XML
-  // document, so its serialized size is a fixed per-request framing (the XML prolog and the
-  // <Messages> root element), independent of message count, plus for each message its serialized
-  // body, its user-property (metadata) block, and a small per-message XML envelope
+  // The documented SMQ per-request size limit is 64 KB (65,536 bytes). It applies BOTH as the
+  // per-message body cap (MaximumMessageSize, range 1024-65536, default 65536; bounds a single
+  // PublishMessage) AND as the BatchSendMessage combined per-batch total (<=16 messages, <=64 KB).
+  // The byte guard (see splitBySize and ensureWithinRequestSizeLimit) keeps a conservative upper
+  // bound on the actual SDK-serialized request under this documented limit. The SDK serializes a
+  // batch as one XML document, so its serialized size is a fixed per-request framing (the XML
+  // prolog and the <Messages> root element), independent of message count, plus for each message
+  // its serialized body, its user-property (metadata) block, and a small per-message XML envelope
   // (<Message><MessageBody>...). A base64-encoded body of N raw bytes occupies 4*ceil(N/3) wire
   // bytes; a raw body occupies its XML-escaped byte length (see measureWireSize).
   // FIXED_REQUEST_OVERHEAD_BYTES covers the per-request framing and MESSAGE_ENVELOPE_OVERHEAD_BYTES
   // covers the per-message framing; both reserve conservative headroom so the estimated size is
   // always at least the true serialized size and stays under the documented 64 KB limit.
-  protected static final int MAX_BATCH_BYTE_SIZE = 64 * 1024;
+  protected static final int MAX_REQUEST_BYTE_SIZE = 64 * 1024;
   // Measured fixed per-request framing (XML prolog + <Messages> root) is ~114 bytes; rounded up to
   // 256 for buffer.
   protected static final int FIXED_REQUEST_OVERHEAD_BYTES = 256;
@@ -333,10 +335,31 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
   }
 
   /**
+   * Fails fast with {@link InvalidArgumentException} if this single message, together with the
+   * fixed per-request overhead, exceeds {@link #MAX_REQUEST_BYTE_SIZE} — such a message could never
+   * be sent in any batch. Returns the message's measured wire size so callers can reuse it without
+   * re-measuring.
+   */
+  protected long ensureWithinRequestSizeLimit(Message message) {
+    long wireSize = measureWireSize(message);
+    if (FIXED_REQUEST_OVERHEAD_BYTES + wireSize > MAX_REQUEST_BYTE_SIZE) {
+      throw new InvalidArgumentException(
+          "message exceeds the Alibaba SMQ per-request size limit of "
+              + MAX_REQUEST_BYTE_SIZE
+              + " bytes (fixed request overhead plus serialized body, metadata, and envelope);"
+              + " measured "
+              + (FIXED_REQUEST_OVERHEAD_BYTES + wireSize)
+              + " bytes");
+    }
+    return wireSize;
+  }
+
+  /**
    * Packs an already count-capped ({@code <= MAX_BATCH_SIZE}) list into sub-batches whose estimated
    * request size ({@link #FIXED_REQUEST_OVERHEAD_BYTES} plus the cumulative
-   * {@link #measureWireSize wire size} of the messages) stays within {@link #MAX_BATCH_BYTE_SIZE},
-   * the 64 KB (65,536 bytes) total payload per batch that SMQ BatchSendMessage documents.
+   * {@link #measureWireSize wire size} of the messages) stays within
+   * {@link #MAX_REQUEST_BYTE_SIZE}, the 64 KB (65,536 bytes) total payload per batch that SMQ
+   * BatchSendMessage documents.
    *
    * <p>Fails fast with {@link InvalidArgumentException} if any single message, together with the
    * fixed per-request overhead, exceeds the limit on its own, since such a message can never be
@@ -347,20 +370,11 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
     List<List<Message>> batches = new ArrayList<>();
     List<Message> current = new ArrayList<>();
     // The accumulator carries the fixed per-request framing up front so each sub-batch's estimated
-    // request size (fixed overhead + per-message wire sizes) is bounded by MAX_BATCH_BYTE_SIZE.
+    // request size (fixed overhead + per-message wire sizes) is bounded by MAX_REQUEST_BYTE_SIZE.
     long currentSize = FIXED_REQUEST_OVERHEAD_BYTES;
     for (Message message : messages) {
-      long wireSize = measureWireSize(message);
-      if (FIXED_REQUEST_OVERHEAD_BYTES + wireSize > MAX_BATCH_BYTE_SIZE) {
-        throw new InvalidArgumentException(
-            "message exceeds the Alibaba SMQ per-request size limit of "
-                + MAX_BATCH_BYTE_SIZE
-                + " bytes (fixed request overhead plus serialized body, metadata, and envelope);"
-                + " measured "
-                + (FIXED_REQUEST_OVERHEAD_BYTES + wireSize)
-                + " bytes");
-      }
-      if (!current.isEmpty() && currentSize + wireSize > MAX_BATCH_BYTE_SIZE) {
+      long wireSize = ensureWithinRequestSizeLimit(message);
+      if (!current.isEmpty() && currentSize + wireSize > MAX_REQUEST_BYTE_SIZE) {
         batches.add(current);
         current = new ArrayList<>();
         currentSize = FIXED_REQUEST_OVERHEAD_BYTES;

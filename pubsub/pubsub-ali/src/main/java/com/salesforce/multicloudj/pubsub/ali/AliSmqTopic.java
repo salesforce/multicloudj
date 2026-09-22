@@ -92,31 +92,11 @@ public class AliSmqTopic extends AliBaseTopic<AliSmqTopic> {
     // publishMessage call, and no earlier message is published on a local error.
     List<TopicMessage> topicMessages = new ArrayList<>(messages.size());
     for (Message message : messages) {
-      checkWithinSizeLimit(message);
+      ensureWithinRequestSizeLimit(message);
       topicMessages.add(toTopicMessage(message));
     }
     for (TopicMessage topicMessage : topicMessages) {
       topic.publishMessage(topicMessage);
-    }
-  }
-
-  /**
-   * Fails fast with {@link InvalidArgumentException} if a single message, together with the fixed
-   * per-request overhead, exceeds the SMQ per-request size limit — such a message can never be
-   * published. Reuses the shared {@link #measureWireSize} sizing so the topic path enforces the
-   * same 64 KB limit as the queue path, and is applied to every message before any is published so
-   * an oversized message in a batch causes no partial publish.
-   */
-  private void checkWithinSizeLimit(Message message) {
-    long wireSize = measureWireSize(message);
-    if (FIXED_REQUEST_OVERHEAD_BYTES + wireSize > MAX_BATCH_BYTE_SIZE) {
-      throw new InvalidArgumentException(
-          "message exceeds the Alibaba SMQ per-request size limit of "
-              + MAX_BATCH_BYTE_SIZE
-              + " bytes (fixed request overhead plus serialized body, metadata, and envelope);"
-              + " measured "
-              + (FIXED_REQUEST_OVERHEAD_BYTES + wireSize)
-              + " bytes");
     }
   }
 
