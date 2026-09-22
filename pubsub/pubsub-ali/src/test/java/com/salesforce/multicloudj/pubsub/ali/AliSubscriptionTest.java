@@ -46,6 +46,7 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -210,6 +211,129 @@ public class AliSubscriptionTest {
     assertArrayEquals("aGk=".getBytes(UTF_8), received.getBody());
     assertEquals("aGk=", new String(received.getBody(), UTF_8));
     assertNotEquals("hi", new String(received.getBody(), UTF_8));
+  }
+
+  @Test
+  void doReceiveBatchUnwrapsTopicEnvelopePlainBody() throws Exception {
+    // Dual-mode receive: when the wire body is a JSON-format topic-delivery envelope, the effective
+    // body is the envelope's "Message" field. Here the publisher sent a plaintext body, so it rode
+    // in the envelope as plaintext with no base64 flag, and is returned as those exact bytes. The
+    // metadata rides as native user properties even for topic delivery.
+    CloudQueue queue = mock(CloudQueue.class);
+    com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
+    raw.setMessageBodyAsRawString(topicEnvelope("hello topic"));
+    raw.setReceiptHandle("rh-1");
+    raw.setMessageId("mid-1");
+    Map<String, MessagePropertyValue> props = new HashMap<>();
+    props.put(
+        AliBaseTopic.encodeMetadataKey("trace.id"),
+        new MessagePropertyValue(PropertyType.STRING, "abc"));
+    raw.setUserProperties(props);
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+
+    AliSubscription sub = subscription(queue);
+    Message received = sub.doReceiveBatch(10).get(0);
+
+    assertArrayEquals("hello topic".getBytes(UTF_8), received.getBody());
+    assertEquals(1, received.getMetadata().size());
+    assertEquals("abc", received.getMetadata().get("trace.id"));
+  }
+
+  @Test
+  void doReceiveBatchUnwrapsTopicEnvelopeBase64BodyAndStripsFlag() throws Exception {
+    // Topic delivery of a base64-encoded body: the envelope's "Message" field holds the base64
+    // text, and the native base64 flag (delivered as a native user property, not inside the
+    // envelope) drives the decode back to the exact payload bytes. The reserved flag is stripped
+    // from the decoded metadata.
+    CloudQueue queue = mock(CloudQueue.class);
+    byte[] payload = {(byte) 0xFF, 0x00, (byte) 0xAB};
+    String base64 = Base64.getEncoder().encodeToString(payload);
+    com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
+    raw.setMessageBodyAsRawString(topicEnvelope(base64));
+    raw.setReceiptHandle("rh-1");
+    raw.setMessageId("mid-1");
+    Map<String, MessagePropertyValue> props = new HashMap<>();
+    props.put(AliBaseTopic.RESERVED_BASE64_FLAG_KEY, new MessagePropertyValue(true));
+    props.put(
+        AliBaseTopic.encodeMetadataKey("trace.id"),
+        new MessagePropertyValue(PropertyType.STRING, "abc"));
+    raw.setUserProperties(props);
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+
+    AliSubscription sub = subscription(queue);
+    Message received = sub.doReceiveBatch(10).get(0);
+
+    assertArrayEquals(payload, received.getBody());
+    assertEquals(1, received.getMetadata().size());
+    assertEquals("abc", received.getMetadata().get("trace.id"));
+    assertFalse(received.getMetadata().containsKey(AliBaseTopic.RESERVED_BASE64_FLAG_KEY));
+  }
+
+  @Test
+  void doReceiveBatchDecodesLongCommonsCodecEncodedTopicBase64Body() throws Exception {
+    // Cross-library compatibility guard. A base64 topic body is encoded with commons-codec (the
+    // SDK's Base64TopicMessage.setMessageBody(byte[]) calls Base64.encodeBase64) but decoded by the
+    // subscription with java.util.Base64. Beyond 57 raw bytes the base64 text exceeds 76 characters
+    // -- the width at which some encoders insert line breaks -- so a long body proves the real
+    // commons-codec-encode -> java-decode round trip stays byte-for-byte correct at that length.
+    // encodeBase64String is the exact single-arg (non-chunked) call the SDK's encoder makes.
+    CloudQueue queue = mock(CloudQueue.class);
+    byte[] payload = new byte[200];
+    for (int i = 0; i < payload.length; i++) {
+      payload[i] = (byte) i;
+    }
+    String base64 = org.apache.commons.codec.binary.Base64.encodeBase64String(payload);
+    com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
+    raw.setMessageBodyAsRawString(topicEnvelope(base64));
+    raw.setReceiptHandle("rh-1");
+    raw.setMessageId("mid-1");
+    Map<String, MessagePropertyValue> props = new HashMap<>();
+    props.put(AliBaseTopic.RESERVED_BASE64_FLAG_KEY, new MessagePropertyValue(true));
+    raw.setUserProperties(props);
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+
+    AliSubscription sub = subscription(queue);
+    Message received = sub.doReceiveBatch(10).get(0);
+
+    assertArrayEquals(payload, received.getBody());
+  }
+
+  @Test
+  void doReceiveBatchTreatsDirectJsonObjectBodyAsDirect() throws Exception {
+    // A direct message whose raw body happens to be a JSON object but lacks the distinctive
+    // envelope fields is NOT mistaken for a topic delivery: it is returned as its raw wire bytes
+    // unchanged, exactly as any other direct body.
+    CloudQueue queue = mock(CloudQueue.class);
+    String directJson = "{\"user\":\"data\",\"id\":42}";
+    com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
+    raw.setMessageBodyAsRawString(directJson);
+    raw.setReceiptHandle("rh-1");
+    raw.setMessageId("mid-1");
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+
+    AliSubscription sub = subscription(queue);
+    Message received = sub.doReceiveBatch(10).get(0);
+
+    assertArrayEquals(directJson.getBytes(UTF_8), received.getBody());
+    assertEquals(directJson, new String(received.getBody(), UTF_8));
+  }
+
+  /**
+   * Builds a JSON-format SMQ topic-delivery envelope carrying the distinctive envelope fields, with
+   * {@code inner} as the string value of {@code "Message"}. {@code inner} must not contain a
+   * JSON-special character (the test bodies here — plaintext and base64 — do not).
+   */
+  private static String topicEnvelope(String inner) {
+    return "{"
+        + "\"TopicOwner\":\"1234567890123456\","
+        + "\"Message\":\"" + inner + "\","
+        + "\"Subscriber\":\"1234567890123456\","
+        + "\"PublishTime\":1700000000000,"
+        + "\"SubscriptionName\":\"my-subscription\","
+        + "\"MessageMD5\":\"0CC175B9C0F1B6A831C399E269772661\","
+        + "\"TopicName\":\"my-topic\","
+        + "\"MessageId\":\"5F1BF2E7B0A1E2C3D4E5F6A7\""
+        + "}";
   }
 
   @Test
