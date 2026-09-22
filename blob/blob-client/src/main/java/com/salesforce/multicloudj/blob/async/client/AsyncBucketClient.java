@@ -763,6 +763,17 @@ public class AsyncBucketClient implements AutoCloseable {
       return this;
     }
 
+    /**
+     * Method to request gRPC transport for the storage client. Providers whose underlying SDK
+     * supports gRPC will use it instead of the default HTTP/JSON transport; providers without gRPC
+     * support ignore this setting.
+     */
+    @Override
+    public Builder withGrpcEnabled(Boolean grpcEnabled) {
+      super.withGrpcEnabled(grpcEnabled);
+      return this;
+    }
+
     public Builder withUseTransferListener(Boolean useTransferListener) {
       ((AsyncBlobStoreProvider.Builder) storeBuilder).withUseTransferListener(useTransferListener);
       return this;
