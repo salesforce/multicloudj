@@ -30,13 +30,10 @@ import java.util.NoSuchElementException;
  * page (a two-pointer merge) and the pages consumed in order to reproduce the true newest-first
  * timeline without ever sorting the complete remote result or reaching across a page boundary.
  *
- * <p><b>Load-bearing invariant:</b> in the opt-in mode correctness depends entirely on the OSS
+ * <p><b>Load-bearing invariant:</b> correctness in the opt-in mode depends on the OSS
  * {@code ListObjectVersions} API returning both {@code versions()} and {@code deleteMarkers()}
- * newest-first within every page, a documented property of that API. This merge never re-sorts or
- * otherwise repairs out-of-order input, so if that documented ordering ever changes this class must
- * be revisited. The unit tests exercise the merge by feeding newest-first pages and asserting the
- * merged newest-first result; they validate this iterator's merge logic, not the OSS ordering
- * guarantee itself (a recorded or mocked response cannot observe a live change in OSS's behavior).
+ * newest-first within every page; this merge never re-sorts, so if that documented ordering ever
+ * changes this class must be revisited.
  *
  * <p>In the opt-in mode both collections participate in the ordering so supersession times stay
  * correct: a content version stops being current when the next entry is created, and that
