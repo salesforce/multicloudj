@@ -1450,8 +1450,10 @@ public class GcpBlobStore extends AbstractBlobStore {
               ? currentRetention.getRetainUntilTime().toInstant()
               : null;
       if (currentRetainUntil != null && retainUntilDate.isBefore(currentRetainUntil)) {
-        // Shortening retention requires bypass header
-        storage.update(updatedBlobInfo, Storage.BlobTargetOption.overrideUnlockedRetention(true));
+        // Shortening retention requires bypass header. overrideUnlockedRetention is an
+        // HTTP/JSON-only option with no gRPC equivalent, so this update runs on the HTTP client.
+        httpStorage.update(
+            updatedBlobInfo, Storage.BlobTargetOption.overrideUnlockedRetention(true));
       } else {
         // Increasing retention doesn't need bypass header
         storage.update(updatedBlobInfo);
@@ -1500,7 +1502,10 @@ public class GcpBlobStore extends AbstractBlobStore {
     // Storage.update(BlobInfo) is a field-level patch: only the retention field we set is written.
     boolean bypass = Boolean.TRUE.equals(config.getBypassGovernanceRetention());
     if (bypass) {
-      storage.update(updatedBlobInfo, Storage.BlobTargetOption.overrideUnlockedRetention(true));
+      // overrideUnlockedRetention is an HTTP/JSON-only option with no gRPC equivalent, so this
+      // update runs on the HTTP client.
+      httpStorage.update(
+          updatedBlobInfo, Storage.BlobTargetOption.overrideUnlockedRetention(true));
     } else {
       storage.update(updatedBlobInfo);
     }

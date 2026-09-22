@@ -460,6 +460,67 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testUpdateObjectRetentionBypassUsesHttpClientWhenGrpcEnabled() {
+    // overrideUnlockedRetention is an HTTP/JSON-only option (the gRPC transport throws for it), so
+    // a governance-retention bypass update must run on the HTTP client, never on the gRPC client.
+    GcpBlobStore hybridStore = newHybridStore();
+
+    String key = "test-key";
+    java.time.OffsetDateTime currentRetainUntil =
+        java.time.OffsetDateTime.now().plusSeconds(7200);
+    java.time.Instant newRetainUntil = currentRetainUntil.toInstant().minusSeconds(3600);
+    Blob mockBlob =
+        mockBlobWithRetention(
+            com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED, currentRetainUntil);
+    when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(newRetainUntil)
+            .bypassGovernanceRetention(Boolean.TRUE)
+            .build();
+
+    hybridStore.updateObjectRetention(key, null, cfg);
+
+    ArgumentCaptor<Storage.BlobTargetOption> captor =
+        ArgumentCaptor.forClass(Storage.BlobTargetOption.class);
+    verify(mockHttpStorage).update(any(com.google.cloud.storage.BlobInfo.class), captor.capture());
+    assertEquals(Storage.BlobTargetOption.overrideUnlockedRetention(true), captor.getValue());
+    verify(mockStorage, never())
+        .update(any(com.google.cloud.storage.BlobInfo.class), any(Storage.BlobTargetOption.class));
+  }
+
+  @Test
+  void testUpdateObjectRetentionNoBypassStaysOnGrpcClientWhenGrpcEnabled() {
+    // A plain retention update carries no HTTP-only option and works over gRPC, so it must stay on
+    // the main (gRPC) client rather than being forced onto the HTTP client.
+    GcpBlobStore hybridStore = newHybridStore();
+
+    String key = "test-key";
+    java.time.OffsetDateTime currentRetainUntil =
+        java.time.OffsetDateTime.now().plusSeconds(3600);
+    java.time.Instant newRetainUntil = currentRetainUntil.toInstant().plusSeconds(3600);
+    Blob mockBlob =
+        mockBlobWithRetention(
+            com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED, currentRetainUntil);
+    when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(newRetainUntil)
+            .build();
+
+    hybridStore.updateObjectRetention(key, null, cfg);
+
+    verify(mockStorage).update(any(com.google.cloud.storage.BlobInfo.class));
+    verify(mockHttpStorage, never()).update(any(com.google.cloud.storage.BlobInfo.class));
+  }
+
+  @Test
   void testDoUpload_WithInputStream() throws IOException {
     // Given
     UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
