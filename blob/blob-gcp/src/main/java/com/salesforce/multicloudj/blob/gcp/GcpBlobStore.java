@@ -141,6 +141,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   private static final Logger logger = LoggerFactory.getLogger(GcpBlobStore.class);
 
   private final Storage storage;
+  private final Storage httpStorage;
   private final MultipartUploadClient multipartUploadClient;
   private final TransferManager transferManager;
   private final GcpTransformer transformer;
@@ -156,8 +157,24 @@ public class GcpBlobStore extends AbstractBlobStore {
       Storage storage,
       MultipartUploadClient mpuClient,
       TransferManager transferManager) {
+    this(builder, storage, storage, mpuClient, transferManager);
+  }
+
+  /**
+   * @param storage the main storage client (HTTP/JSON or gRPC depending on the transport opt-in)
+   * @param httpStorage an HTTP/JSON storage client backing operations the gRPC transport does not
+   *     implement (signed URLs and batch/collection delete). When the gRPC transport is not
+   *     selected this is the same instance as {@code storage}.
+   */
+  public GcpBlobStore(
+      Builder builder,
+      Storage storage,
+      Storage httpStorage,
+      MultipartUploadClient mpuClient,
+      TransferManager transferManager) {
     super(builder);
     this.storage = storage;
+    this.httpStorage = httpStorage;
     this.multipartUploadClient = mpuClient;
     this.transferManager = transferManager;
     this.transformer = builder.transformerSupplier.get(bucket);
@@ -483,7 +500,8 @@ public class GcpBlobStore extends AbstractBlobStore {
         objects.stream()
             .map(obj -> transformer.toBlobId(bucket, obj.getKey(), obj.getVersionId()))
             .collect(Collectors.toList());
-    storage.delete(blobIds);
+    // Batch delete is a JSON-API feature with no gRPC equivalent, so it runs on the HTTP client.
+    httpStorage.delete(blobIds);
   }
 
   @Override
@@ -1050,7 +1068,8 @@ public class GcpBlobStore extends AbstractBlobStore {
       options.add(Storage.SignUrlOption.withQueryParams(queryParams));
     }
 
-    URL url = storage.signUrl(
+    // Signed URLs are an HTTP/JSON feature with no gRPC equivalent, so they run on the HTTP client.
+    URL url = httpStorage.signUrl(
         blobInfo,
         request.getDuration().toMillis(),
         TimeUnit.MILLISECONDS,
@@ -1327,7 +1346,8 @@ public class GcpBlobStore extends AbstractBlobStore {
                 .map(blobInfo -> BlobId.of(getBucket(), blobInfo.getKey()))
                 .collect(Collectors.toList());
 
-        storage.delete(blobIds);
+        // Batch delete is a JSON-API feature with no gRPC equivalent; run it on the HTTP client.
+        httpStorage.delete(blobIds);
       }
 
     } catch (Exception e) {
@@ -1571,6 +1591,12 @@ public class GcpBlobStore extends AbstractBlobStore {
       if (storage != null) {
         storage.close();
       }
+      // When the gRPC transport is selected, httpStorage is a distinct client backing the
+      // operations gRPC does not implement; close it too. Otherwise it is the same instance as
+      // storage (already closed above).
+      if (httpStorage != null && httpStorage != storage) {
+        httpStorage.close();
+      }
     } catch (Exception e) {
       throw new SubstrateSdkException("Failed to close GCP storage clients", e);
     }
@@ -1701,6 +1727,15 @@ public class GcpBlobStore extends AbstractBlobStore {
         return buildGrpcStorageOptions(builder);
       }
       return buildHttpStorageOptions(builder);
+    }
+
+    /**
+     * Builds a dedicated HTTP/JSON {@link Storage} client. Used to back operations the gRPC
+     * transport does not implement (signed URLs and batch/collection delete) when the gRPC
+     * transport is selected for the main client.
+     */
+    private static Storage buildHttpStorage(Builder builder) {
+      return buildHttpStorageOptions(builder).getService();
     }
 
     /** Builds HTTP/JSON transport StorageOptions for the main storage client. */
@@ -1881,13 +1916,18 @@ public class GcpBlobStore extends AbstractBlobStore {
       if (storage == null) {
         storage = buildStorage(this);
       }
+      // Operations the gRPC transport does not implement (signed URLs, batch/collection delete)
+      // run on an HTTP/JSON client. When gRPC is not enabled the main client already uses
+      // HTTP/JSON, so reuse it instead of opening a second client.
+      Storage httpStorage =
+          Boolean.TRUE.equals(getGrpcEnabled()) ? buildHttpStorage(this) : storage;
       if (mpuClient == null) {
         mpuClient = buildMultipartUploadClient(this);
       }
       if (transferManager == null) {
         transferManager = buildTransferManager(this, storage);
       }
-      return new GcpBlobStore(this, storage, mpuClient, transferManager);
+      return new GcpBlobStore(this, storage, httpStorage, mpuClient, transferManager);
     }
   }
 }

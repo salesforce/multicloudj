@@ -159,6 +159,9 @@ class GcpBlobStoreTest {
   private Storage mockStorage;
 
   @Mock
+  private Storage mockHttpStorage;
+
+  @Mock
   private MultipartUploadClient mpuClient;
 
   @Mock
@@ -341,6 +344,119 @@ class GcpBlobStoreTest {
     assertEquals(Boolean.TRUE, syncBuilder.getGrpcEnabled());
     assertInstanceOf(
         GrpcStorageOptions.class, GcpBlobStore.Builder.buildStorageOptions(syncBuilder));
+  }
+
+  /**
+   * Builds a store whose main client is the gRPC transport (mockStorage) and whose HTTP/JSON
+   * fallback client is a distinct instance (mockHttpStorage), mirroring the production wiring when
+   * gRPC is enabled. Operations the gRPC transport does not implement must route to the HTTP
+   * client.
+   */
+  private GcpBlobStore newHybridStore() {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder()
+                .withStorage(mockStorage)
+                .withTransformerSupplier(mockTransformerSupplier)
+                .withBucket(TEST_BUCKET);
+    return new GcpBlobStore(builder, mockStorage, mockHttpStorage, mpuClient, mockTransferManager);
+  }
+
+  @Test
+  void testDoDelete_WithCollectionUsesHttpClientWhenGrpcEnabled() {
+    // Batch/collection delete is a JSON-API feature with no gRPC equivalent (the gRPC transport
+    // throws for it), so it must run on the HTTP client, never on the gRPC client.
+    GcpBlobStore hybridStore = newHybridStore();
+
+    BlobIdentifier blobId1 = new BlobIdentifier("key1", "version1");
+    BlobIdentifier blobId2 = new BlobIdentifier("key2", "version2");
+    Collection<BlobIdentifier> objects = Arrays.asList(blobId1, blobId2);
+
+    BlobId mockBlobId1 = mock(BlobId.class);
+    BlobId mockBlobId2 = mock(BlobId.class);
+    when(mockTransformer.toBlobId(TEST_BUCKET, "key1", "version1")).thenReturn(mockBlobId1);
+    when(mockTransformer.toBlobId(TEST_BUCKET, "key2", "version2")).thenReturn(mockBlobId2);
+
+    hybridStore.doDelete(objects);
+
+    verify(mockHttpStorage).delete(Arrays.asList(mockBlobId1, mockBlobId2));
+    verify(mockStorage, never()).delete(anyList());
+  }
+
+  @Test
+  void testDoPresignUsesHttpClientWhenGrpcEnabled() throws Exception {
+    // Signed URLs are an HTTP/JSON feature with no gRPC equivalent (the gRPC transport throws for
+    // signUrl), so they must be generated on the HTTP client, never on the gRPC client.
+    GcpBlobStore hybridStore = newHybridStore();
+
+    Duration duration = Duration.ofHours(1);
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.DOWNLOAD)
+            .key(TEST_KEY)
+            .duration(duration)
+            .build();
+
+    URL expectedUrl = new URL("https://signed-url.example.com");
+    when(mockTransformer.toPresignBlobInfo(request)).thenReturn(mockBlobInfo);
+    when(mockHttpStorage.signUrl(
+            eq(mockBlobInfo),
+            any(Long.class),
+            eq(TimeUnit.MILLISECONDS),
+            any(Storage.SignUrlOption[].class)))
+        .thenReturn(expectedUrl);
+
+    PresignedUrlResponse response = hybridStore.doPresign(request);
+
+    assertEquals(expectedUrl, response.getUrl());
+    verify(mockHttpStorage)
+        .signUrl(
+            eq(mockBlobInfo),
+            eq(duration.toMillis()),
+            eq(TimeUnit.MILLISECONDS),
+            any(Storage.SignUrlOption[].class));
+    verify(mockStorage, never())
+        .signUrl(any(BlobInfo.class), anyLong(), any(TimeUnit.class), any());
+  }
+
+  @Test
+  void testDoDeleteDirectoryUsesHttpClientForBatchDeleteWhenGrpcEnabled() {
+    // Listing works over gRPC and stays on the main client, but the batch delete has no gRPC
+    // equivalent and must run on the HTTP client.
+    GcpBlobStore hybridStore = newHybridStore();
+
+    String prefix = "some/prefix/";
+    Blob blob1 = mock(Blob.class);
+    Blob blob2 = mock(Blob.class);
+    when(blob1.getName()).thenReturn("some/prefix/key1");
+    when(blob2.getName()).thenReturn("some/prefix/key2");
+    when(blob1.getSize()).thenReturn(1L);
+    when(blob2.getSize()).thenReturn(2L);
+
+    @SuppressWarnings("unchecked")
+    Page<Blob> page = mock(Page.class);
+    when(page.getValues()).thenReturn(Arrays.asList(blob1, blob2));
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
+
+    List<com.salesforce.multicloudj.blob.driver.BlobInfo> blobInfos =
+        List.of(
+            com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
+                .withKey("some/prefix/key1")
+                .withObjectSize(1L)
+                .build(),
+            com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
+                .withKey("some/prefix/key2")
+                .withObjectSize(2L)
+                .build());
+    when(mockTransformer.partitionList(any(), eq(1000))).thenReturn(List.of(blobInfos));
+
+    hybridStore.doDeleteDirectory(prefix);
+
+    // Listing runs on the gRPC (main) client.
+    verify(mockStorage).list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class));
+    // Batch delete runs on the HTTP client, never on the gRPC client.
+    verify(mockHttpStorage).delete(anyList());
+    verify(mockStorage, never()).delete(anyList());
   }
 
   @Test
