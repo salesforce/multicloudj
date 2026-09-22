@@ -1228,6 +1228,19 @@ public class BucketClient implements AutoCloseable {
     }
 
     /**
+     * Method to request gRPC transport for the storage client. Providers whose underlying SDK
+     * supports gRPC will use it instead of the default HTTP/JSON transport; providers without gRPC
+     * support ignore this setting.
+     *
+     * @param grpcEnabled whether to request gRPC transport for the storage client
+     * @return An instance of self
+     */
+    public BlobBuilder withGrpcEnabled(Boolean grpcEnabled) {
+      this.blobStoreBuilder.withGrpcEnabled(grpcEnabled);
+      return this;
+    }
+
+    /**
      * Builds and returns an instance of BucketClient.
      *
      * @return An instance of BucketClient.
