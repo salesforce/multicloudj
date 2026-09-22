@@ -78,32 +78,29 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 | **Target Throughput (Gbps)** | ❌ Not supported                      | ✅ CRT client only | ❌ Not supported | Network throughput hint |
 | **Max Native Memory Limit** | ❌ Not supported                      | ✅ CRT client only | ❌ Not supported | Caps native memory for CRT client |
 
-### Provider-Specific Notes
+### Provider-Specific Exceptions
 
-#### AWS S3
-- **Parallel Uploads**: Enabled via `multipartEnabled(true)` on the S3 async client
-- **Parallel Downloads**: Uses CRT-based S3 client when enabled for high-throughput range-based downloads
-- **Part Buffer Size**: Maps to `minimumPartSizeInBytes` in `MultipartConfiguration`
-- **Threshold Bytes**: Maps to `thresholdInBytes` — default 150MB, configurable
-- **Max Concurrency**: Configured via `ExecutorService` or CRT client `maxConcurrency`
-- **Target Throughput / Max Native Memory**: Available only with the CRT-based client, activated when parallel downloads are enabled
-- **Lifecycle Expiration Tag**: The reserved `expiration-days` tag is stored as an object tag; a per-value S3 lifecycle rule keyed on that tag performs the deletion ([details](#aws-s3-1))
+The Blob APIs are designed to provide the same behavior across providers. The entries below are
+the exceptions where a provider lacks a native equivalent or where an option applies only to
+specific provider SDKs. APIs not listed here should be treated as provider-neutral.
 
-#### GCP GCS
-- **Parallel Uploads**: Automatic when file size exceeds SDK threshold; uses `ParallelCompositeUpload` (default threshold: 150MB, configurable via `isAllowParallelCompositeUpload`)
-- **Parallel Downloads**: Uses `AllowDivideAndConquerDownload(true)` for parallel range-based downloads (configurable via `isAllowDivideAndConquer`)
-- **Part Buffer Size**: Indirect support via `setPerWorkerBufferSize` in Transfer Manager
-- **Max Concurrency**: Configured via `setMaxWorkers()` on the Transfer Manager
-- **Max Connections**: Sets `maxConnTotal`/`maxConnPerRoute` on the Apache HTTP client; with a single host, this also caps concurrent transfers
-- **Threshold Bytes**: 4*`setPerWorkerBufferSize`, defaults to 64MiB
-- **Lifecycle Expiration Tag**: GCS lifecycle rules cannot match on tags, so the SDK stamps the object's custom time (`customTime = creation time + days`); a single `daysSinceCustomTime` bucket rule covers every day-count value ([details](#gcp-gcs-1))
-
-#### Alibaba OSS
-- **Parallel Uploads**: Via `InitiateMultipartUpload` and `UploadPart` APIs
-- **Parallel Downloads**: Uses the OSS SDK transfer-manager `Downloader` (concurrent range GETs) on the async client; activated per-request via `DownloadRequest.withParallelDownload(true)`, and applies to whole-object downloads (no explicit byte range)
-- **Max Concurrency**: Manual thread pool configuration via a thread pool
-- **Part Buffer Size**: Direct part size available in API but not as a builder config
-- **Lifecycle Expiration Tag**: The reserved `expiration-days` tag is stored as an object tag; a per-value OSS lifecycle rule keyed on that tag performs the deletion ([details](#alibaba-oss-1))
+| API or option | Scope | Exception |
+|---|---|---|
+| `getTags`, `setTags`, and tags on upload requests | GCP workaround | GCS has no object-tag API, so MultiCloudJ stores tags as custom metadata prefixed with `gcp-tag-` and removes the prefix when tags are read. |
+| `setTags` with the reserved `expiration-days` tag | GCP workaround | GCS lifecycle rules cannot filter by tag, so MultiCloudJ sets object custom time and the lifecycle rule uses `daysSinceCustomTime`. AWS and Alibaba use native tag filters. See [Lifecycle Expiration via Tagging](#lifecycle-expiration-via-tagging). |
+| Core `AsyncBucketClient` operations | GCP workaround | GCP executes the synchronous Blob implementation on the configured executor; directory transfers continue to use the GCS Transfer Manager. |
+| `withGrpcEnabled` | GCP only | Selects the GCS gRPC transport. Operations without a gRPC equivalent, including signed URLs and collection delete, use an HTTP/JSON fallback client. |
+| `withQuotaProjectId` | GCP only | Sets the GCP billing and quota project. AWS and Alibaba ignore this option. |
+| `withRegion` | AWS and Alibaba only | AWS and Alibaba use the configured region; GCS is global and does not consume this option. |
+| `withUseSystemPropertyProxyValues`, `withUseEnvironmentVariableProxyValues` | AWS only | Controls the AWS SDK's automatic proxy discovery. GCP and Alibaba do not consume these flags. |
+| `AsyncBucketClient.Builder`: `withThresholdBytes`, `withTargetThroughputInGbps`, `withMaxNativeMemoryLimitInBytes`, `withInitialReadBufferSizeInBytes`, `withMaxConcurrency`, `withTransferDirectoryMaxConcurrency` | AWS only | These configure S3 multipart, CRT, or S3 Transfer Manager behavior and are ignored by the other providers. |
+| `AsyncBucketClient.Builder`: `withPartBufferSize`, `withTransferManagerThreadPoolSize`, `withParallelUploadsEnabled`, `withParallelDownloadsEnabled` | AWS and GCP | Alibaba does not consume these builder options; its multipart APIs are explicit and parallel download is selected per request. |
+| `transferStatusLoggingEnabled` on directory requests | AWS and Alibaba | AWS and Alibaba attach per-file logging listeners. GCP currently ignores this request flag. |
+| `RetryConfig.totalTimeout` | AWS and GCP | Alibaba OSS v2 has no overall-deadline equivalent, so `totalTimeout` is not applied; `attemptTimeout` maps to the OSS read/write timeout. |
+| `ChecksumMethod` on upload and multipart requests | Provider-native | GCP accepts CRC32C or MD5; Alibaba multipart upload uses CRC64; AWS maps CRC32C, SHA256, and MD5 where supported. Unsupported explicit algorithms fail fast. |
+| `presign` or `generatePresignedUrl` with SHA256 upload integrity | GCP limitation | GCS V4 signing cannot enforce this value, so the operation rejects SHA256 and callers must use CRC32C or MD5. |
+| `withUseKmsManagedKey` on upload requests | AWS and Alibaba only | AWS and Alibaba explicitly request provider-managed KMS encryption. GCP treats the flag as a no-op and uses the bucket's configured encryption default. |
+| `updateObjectRetention` from GOVERNANCE to COMPLIANCE | Alibaba limitation | OSS retention mode is immutable after it is set, so Alibaba rejects this upgrade; AWS and GCP allow it when governance bypass is enabled. |
 
 ---
 
