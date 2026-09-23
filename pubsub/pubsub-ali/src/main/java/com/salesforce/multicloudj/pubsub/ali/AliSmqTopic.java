@@ -1,7 +1,6 @@
 package com.salesforce.multicloudj.pubsub.ali;
 
 import com.aliyun.mns.client.CloudTopic;
-import com.aliyun.mns.client.MNSClient;
 import com.aliyun.mns.model.Base64TopicMessage;
 import com.aliyun.mns.model.MessagePropertyValue;
 import com.aliyun.mns.model.RawTopicMessage;
@@ -26,7 +25,6 @@ public class AliSmqTopic extends AliBaseTopic<AliSmqTopic> {
 
   public static final String PROVIDER_ID = "alismqtopic";
 
-  private final MNSClient smqClient;
   private final CloudTopic topic;
 
   public AliSmqTopic() {
@@ -35,7 +33,6 @@ public class AliSmqTopic extends AliBaseTopic<AliSmqTopic> {
 
   AliSmqTopic(Builder builder) {
     super(builder);
-    this.smqClient = builder.smqClient;
     this.topic = builder.topic;
   }
 
@@ -112,28 +109,6 @@ public class AliSmqTopic extends AliBaseTopic<AliSmqTopic> {
     }
     for (TopicMessage topicMessage : topicMessages) {
       topic.publishMessage(topicMessage);
-    }
-  }
-
-  @Override
-  public void close() throws Exception {
-    try {
-      super.close();
-    } catch (Throwable primary) {
-      // Keep the shutdown failure (flushing pending batches) as the primary exception, but still
-      // close the SMQ client so its HTTP resources are not leaked; a client-close failure is
-      // attached as suppressed rather than replacing the primary.
-      if (smqClient != null) {
-        try {
-          smqClient.close();
-        } catch (Throwable clientCloseError) {
-          primary.addSuppressed(clientCloseError);
-        }
-      }
-      throw primary;
-    }
-    if (smqClient != null) {
-      smqClient.close();
     }
   }
 

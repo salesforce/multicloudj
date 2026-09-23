@@ -128,9 +128,37 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
 
   private final Base64EncodingStrategy bodyEncodingStrategy;
 
+  /** The SMQ client whose HTTP resources this publisher owns; closed by {@link #close()}. */
+  private final MNSClient smqClient;
+
   protected AliBaseTopic(Builder<?, T> builder) {
     super(builder);
     this.bodyEncodingStrategy = builder.bodyEncodingStrategy;
+    this.smqClient = builder.smqClient;
+  }
+
+  /**
+   * Closes this publisher: runs the base shutdown (flushing pending batches), then closes the SMQ
+   * client so its HTTP resources are not leaked. A client-close failure is attached as suppressed
+   * to a shutdown failure rather than replacing it.
+   */
+  @Override
+  public void close() throws Exception {
+    try {
+      super.close();
+    } catch (Throwable primary) {
+      if (smqClient != null) {
+        try {
+          smqClient.close();
+        } catch (Throwable clientCloseError) {
+          primary.addSuppressed(clientCloseError);
+        }
+      }
+      throw primary;
+    }
+    if (smqClient != null) {
+      smqClient.close();
+    }
   }
 
   /**
