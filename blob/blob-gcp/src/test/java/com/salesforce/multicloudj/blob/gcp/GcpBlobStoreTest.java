@@ -1173,7 +1173,8 @@ class GcpBlobStoreTest {
   @Test
   void testDoListBlobVersions_mapsCreatedAndArchivedAt() {
     // Given: two generations of the same key. The newer one is still current (no delete time);
-    // the older one was superseded and carries a delete time that maps to archivedAt.
+    // the older one was superseded and carries a delete time that maps to archivedAt when the
+    // opt-in delete-history view is requested.
     Instant currentCreated = Instant.parse("2024-01-03T00:00:00Z");
     Instant olderCreated = Instant.parse("2024-01-01T00:00:00Z");
     Instant olderDeleted = Instant.parse("2024-01-03T00:00:00Z");
@@ -1202,10 +1203,10 @@ class GcpBlobStoreTest {
         .thenReturn(mockPage);
     when(mockPage.iterateAll()).thenReturn(Arrays.asList(currentGen, olderGen));
 
-    // When
+    // When: opt-in delete-history view is requested.
     var iterator =
         gcpBlobStore.doListBlobVersions(
-            ListBlobVersionsRequest.builder().withKey(TEST_KEY).build());
+            ListBlobVersionsRequest.builder().withKey(TEST_KEY).withIncludeArchived(true).build());
 
     // Then
     assertTrue(iterator.hasNext());
@@ -1222,6 +1223,40 @@ class GcpBlobStoreTest {
     assertEquals(olderDeleted, older.getArchivedAt());
     assertFalse(older.isArchived());
 
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  void testDoListBlobVersions_defaultOmitsArchivedAt() {
+    // A superseded generation carries a delete time, but the default listing (flag off) must not
+    // derive archivedAt from it, matching the backward-compatible contract.
+    Instant olderCreated = Instant.parse("2024-01-01T00:00:00Z");
+    Instant olderDeleted = Instant.parse("2024-01-03T00:00:00Z");
+
+    Blob olderGen = mock(Blob.class);
+    when(olderGen.getName()).thenReturn(TEST_KEY);
+    when(olderGen.getGeneration()).thenReturn(1L);
+    when(olderGen.getEtag()).thenReturn("etag-1");
+    when(olderGen.getSize()).thenReturn(100L);
+    when(olderGen.getCreateTimeOffsetDateTime())
+        .thenReturn(olderCreated.atOffset(java.time.ZoneOffset.UTC));
+    when(olderGen.getDeleteTimeOffsetDateTime())
+        .thenReturn(olderDeleted.atOffset(java.time.ZoneOffset.UTC));
+
+    Page mockPage = mock(Page.class);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+    when(mockPage.iterateAll()).thenReturn(Arrays.asList(olderGen));
+
+    var iterator =
+        gcpBlobStore.doListBlobVersions(
+            ListBlobVersionsRequest.builder().withKey(TEST_KEY).build());
+
+    assertTrue(iterator.hasNext());
+    BlobMetadata older = iterator.next();
+    assertEquals("1", older.getVersionId());
+    assertEquals(olderCreated, older.getCreatedTime());
+    assertNull(older.getArchivedAt());
     assertFalse(iterator.hasNext());
   }
 
