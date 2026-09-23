@@ -37,6 +37,8 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -157,7 +159,10 @@ public class GcpTopicTest {
     when(mockClient.publishCallable()).thenReturn(mockCallable);
     when(mockCallable.futureCall(org.mockito.ArgumentMatchers.any(PublishRequest.class)))
         .thenReturn(mockFuture);
-    doReturn(publishResponse).when(mockFuture).get();
+    doReturn(publishResponse).when(mockFuture)
+        .get(
+            org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.any(TimeUnit.class));
 
     GcpTopic tempTopicForBuilder = new GcpTopic();
     GcpTopic.Builder builder =
@@ -192,7 +197,10 @@ public class GcpTopicTest {
     when(mockClient.publishCallable()).thenReturn(mockCallable);
     when(mockCallable.futureCall(org.mockito.ArgumentMatchers.any(PublishRequest.class)))
         .thenReturn(mockFuture);
-    doReturn(publishResponse).when(mockFuture).get();
+    doReturn(publishResponse).when(mockFuture)
+        .get(
+            org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.any(TimeUnit.class));
 
     GcpTopic tempTopic = new GcpTopic();
     GcpTopic.Builder builder =
@@ -278,7 +286,10 @@ public class GcpTopicTest {
     when(mockClient.publishCallable()).thenReturn(mockCallable);
     when(mockCallable.futureCall(org.mockito.ArgumentMatchers.any(PublishRequest.class)))
         .thenReturn(mockFuture);
-    doThrow(new InterruptedException("interrupted")).when(mockFuture).get();
+    doThrow(new InterruptedException("interrupted")).when(mockFuture)
+        .get(
+            org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.any(TimeUnit.class));
 
     GcpTopic topicWithMockClient =
         new GcpTopic(
@@ -300,6 +311,43 @@ public class GcpTopicTest {
   }
 
   @Test
+  void testDoSendBatchThrowsOnTimeout() throws Exception {
+    // A batch that Pub/Sub accepts but never flushes shows up as a publish future that
+    // never completes. The bounded get() must surface it as a fail-fast exception instead
+    // of blocking the caller (and, in the benchmark, the JMH @Setup) forever.
+    TopicAdminClient mockClient = mock(TopicAdminClient.class);
+    @SuppressWarnings("unchecked")
+    UnaryCallable<PublishRequest, PublishResponse> mockCallable = mock(UnaryCallable.class);
+    @SuppressWarnings("unchecked")
+    ApiFuture<PublishResponse> mockFuture = mock(ApiFuture.class);
+
+    when(mockClient.publishCallable()).thenReturn(mockCallable);
+    when(mockCallable.futureCall(org.mockito.ArgumentMatchers.any(PublishRequest.class)))
+        .thenReturn(mockFuture);
+    doThrow(new TimeoutException("no response"))
+        .when(mockFuture)
+        .get(
+            org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.any(TimeUnit.class));
+
+    GcpTopic topicWithMockClient =
+        new GcpTopic(
+            (GcpTopic.Builder) new GcpTopic().builder().withTopicName(VALID_TOPIC_NAME),
+            mockClient);
+    List<Message> messages = new ArrayList<>();
+    messages.add(Message.builder().withBody("test".getBytes()).build());
+
+    try {
+      SubstrateSdkException exception =
+          assertThrows(
+              SubstrateSdkException.class, () -> topicWithMockClient.doSendBatch(messages));
+      assertTrue(exception.getMessage().contains("timed out"));
+    } finally {
+      topicWithMockClient.close();
+    }
+  }
+
+  @Test
   void testDoSendBatchThrowsOnExecutionExceptionWithRuntimeCause() throws Exception {
     TopicAdminClient mockClient = mock(TopicAdminClient.class);
     @SuppressWarnings("unchecked")
@@ -313,7 +361,10 @@ public class GcpTopicTest {
     when(mockClient.publishCallable()).thenReturn(mockCallable);
     when(mockCallable.futureCall(org.mockito.ArgumentMatchers.any(PublishRequest.class)))
         .thenReturn(mockFuture);
-    doThrow(executionException).when(mockFuture).get();
+    doThrow(executionException).when(mockFuture)
+        .get(
+            org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.any(TimeUnit.class));
 
     GcpTopic topicWithMockClient =
         new GcpTopic(
@@ -345,7 +396,10 @@ public class GcpTopicTest {
     when(mockClient.publishCallable()).thenReturn(mockCallable);
     when(mockCallable.futureCall(org.mockito.ArgumentMatchers.any(PublishRequest.class)))
         .thenReturn(mockFuture);
-    doThrow(executionException).when(mockFuture).get();
+    doThrow(executionException).when(mockFuture)
+        .get(
+            org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.any(TimeUnit.class));
 
     GcpTopic topicWithMockClient =
         new GcpTopic(
@@ -377,7 +431,10 @@ public class GcpTopicTest {
     when(mockClient.publishCallable()).thenReturn(mockCallable);
     when(mockCallable.futureCall(org.mockito.ArgumentMatchers.any(PublishRequest.class)))
         .thenReturn(mockFuture);
-    doThrow(executionException).when(mockFuture).get();
+    doThrow(executionException).when(mockFuture)
+        .get(
+            org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.any(TimeUnit.class));
 
     GcpTopic topicWithMockClient =
         new GcpTopic(

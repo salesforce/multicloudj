@@ -31,11 +31,17 @@ import java.net.Proxy;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("rawtypes")
 @AutoService(AbstractTopic.class)
 public class GcpTopic extends AbstractTopic<GcpTopic> {
+
+  // Bounds the wait on a single publish RPC so a batch that is accepted but never flushed
+  // fails fast instead of blocking the caller forever.
+  private static final long PUBLISH_TIMEOUT_SECONDS = 30;
 
   private volatile TopicAdminClient topicAdminClient;
 
@@ -94,10 +100,20 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
         PublishRequest.newBuilder().setTopic(this.topicName).addAllMessages(pubsubMessages).build();
 
     try {
-      PublishResponse resp = topicAdminClient.publishCallable().futureCall(req).get();
+      PublishResponse resp =
+          topicAdminClient
+              .publishCallable()
+              .futureCall(req)
+              .get(PUBLISH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new SubstrateSdkException("Interrupted while waiting for messages to publish.", e);
+    } catch (TimeoutException e) {
+      throw new SubstrateSdkException(
+          "Publish timed out after "
+              + PUBLISH_TIMEOUT_SECONDS
+              + "s waiting for Pub/Sub to accept the batch.",
+          e);
     } catch (ExecutionException e) {
       Throwable cause = (e.getCause() != null) ? e.getCause() : e;
       if (cause instanceof RuntimeException) {
