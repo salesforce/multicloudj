@@ -159,8 +159,13 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
       }
       body = topicBody(inner, base64);
     } else {
-      // Direct message (no marker): no envelope parsing at all.
-      body = base64 ? smqMessage.getMessageBodyAsBytes() : smqMessage.getMessageBodyAsRawBytes();
+      // Direct message (no marker): no envelope parsing at all. A base64-flagged body is strictly
+      // decoded (like the topic path) so invalid base64 fails closed rather than silently returning
+      // the SDK accessor's lenient best-effort bytes.
+      body =
+          base64
+              ? decodeBase64OrMap(smqMessage.getMessageBodyAsRawString())
+              : smqMessage.getMessageBodyAsRawBytes();
     }
     Message.Builder builder =
         Message.builder()
@@ -176,17 +181,23 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
 
   /**
    * Extracts the effective body bytes from a topic-envelope inner {@code "Message"} value:
-   * base64-decoded when the native base64 flag is present-and-true (the publisher base64-encoded
-   * the body), else the inner value's UTF-8 bytes. A malformed base64 inner value is mapped to a
-   * {@link SubstrateSdkException} via {@link #mapException} rather than leaking the raw {@link
-   * IllegalArgumentException} the Base64 decoder throws.
+   * base64-decoded (see {@link #decodeBase64OrMap}) when the native base64 flag is present-and-true
+   * (the publisher base64-encoded the body), else the inner value's UTF-8 bytes.
    */
   private byte[] topicBody(String inner, boolean base64) {
-    if (!base64) {
-      return inner.getBytes(StandardCharsets.UTF_8);
-    }
+    return base64 ? decodeBase64OrMap(inner) : inner.getBytes(StandardCharsets.UTF_8);
+  }
+
+  /**
+   * Strictly base64-decodes {@code base64Text}, mapping the {@link IllegalArgumentException} the
+   * JDK decoder throws on malformed input to a {@link SubstrateSdkException} via
+   * {@link #mapException}. Both receive paths decode through this so a body flagged base64 that is
+   * not valid base64 fails closed consistently, rather than one path throwing while the other
+   * silently returns a lenient decoder's best-effort bytes.
+   */
+  private byte[] decodeBase64OrMap(String base64Text) {
     try {
-      return Base64.getDecoder().decode(inner);
+      return Base64.getDecoder().decode(base64Text);
     } catch (IllegalArgumentException e) {
       throw mapException(e);
     }

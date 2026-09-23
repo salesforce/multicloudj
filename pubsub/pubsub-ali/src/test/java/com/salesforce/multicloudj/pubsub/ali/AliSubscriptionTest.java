@@ -410,6 +410,44 @@ public class AliSubscriptionTest {
     assertEquals(1, metadata.size());
   }
 
+  @Test
+  void doReceiveBatchFailsClosedOnDirectBase64FlaggedInvalidBody() throws Exception {
+    // A direct (unmarked) message flagged base64 whose body is not valid base64 fails closed with a
+    // mapped exception — consistent with the topic path, not the SDK accessor's lenient decode.
+    CloudQueue queue = mock(CloudQueue.class);
+    com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
+    raw.setMessageBodyAsRawString("!!!!not base64!!!!");
+    raw.setReceiptHandle("rh-1");
+    raw.setMessageId("mid-1");
+    Map<String, MessagePropertyValue> props = new HashMap<>();
+    props.put(AliBaseTopic.RESERVED_BASE64_FLAG_KEY, new MessagePropertyValue(true));
+    raw.setUserProperties(props);
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+
+    AliSubscription sub = subscription(queue);
+    assertThrows(InvalidArgumentException.class, () -> sub.doReceiveBatch(10));
+  }
+
+  @Test
+  void doReceiveBatchDirectBase64FlaggedValidBodyDecodes() throws Exception {
+    // A direct (unmarked) message flagged base64 with valid base64 decodes to the exact bytes
+    // through the same strict decoder as the topic path.
+    CloudQueue queue = mock(CloudQueue.class);
+    com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
+    raw.setMessageBodyAsRawString("aGVsbG8="); // base64 of "hello"
+    raw.setReceiptHandle("rh-1");
+    raw.setMessageId("mid-1");
+    Map<String, MessagePropertyValue> props = new HashMap<>();
+    props.put(AliBaseTopic.RESERVED_BASE64_FLAG_KEY, new MessagePropertyValue(true));
+    raw.setUserProperties(props);
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+
+    AliSubscription sub = subscription(queue);
+    Message received = sub.doReceiveBatch(10).get(0);
+
+    assertArrayEquals("hello".getBytes(UTF_8), received.getBody());
+  }
+
   /**
    * Builds a JSON-format SMQ topic-delivery envelope carrying the distinctive envelope fields, with
    * {@code inner} as the string value of {@code "Message"}. {@code inner} must not contain a
