@@ -153,13 +153,82 @@ public class AliSmqTopicTest {
 
     TopicMessage published = captureSinglePublished(cloudTopic);
     Map<String, MessagePropertyValue> props = published.getUserProperties();
-    assertEquals(1, props.size());
-    String encodedKey = props.keySet().iterator().next();
-    assertEquals(AliBaseTopic.encodeMetadataKey(rawKey), encodedKey);
+    // The one metadata attribute plus the always-present topic-originated marker.
+    assertEquals(2, props.size());
+    assertTrue(hasTopicMarker(published));
+    String encodedKey = AliBaseTopic.encodeMetadataKey(rawKey);
     assertEquals(rawKey, AliBaseTopic.decodeMetadataKey(encodedKey));
     MessagePropertyValue value = props.get(encodedKey);
     assertEquals(PropertyType.STRING, value.getDataType());
     assertEquals("42", value.getStringValueByType());
+  }
+
+  @Test
+  void everyTopicMessageCarriesTheTopicOriginatedMarker() {
+    MNSClient client = mock(MNSClient.class);
+    CloudTopic cloudTopic = mock(CloudTopic.class);
+    AliSmqTopic topic = topic(client, cloudTopic);
+
+    // No metadata and an XML-safe body (not base64), so buildUserProperties returns null; the
+    // marker still rides, in a freshly-allocated marker-only map.
+    topic.send(Message.builder().withBody("hello".getBytes(UTF_8)).build());
+
+    TopicMessage published = captureSinglePublished(cloudTopic);
+    assertTrue(hasTopicMarker(published));
+    assertFalse(hasBase64Flag(published));
+    assertEquals(1, published.getUserProperties().size());
+  }
+
+  @Test
+  void base64TopicMessageCarriesBothReservedProperties() {
+    MNSClient client = mock(MNSClient.class);
+    CloudTopic cloudTopic = mock(CloudTopic.class);
+    AliSmqTopic topic = topic(client, cloudTopic, AliBaseTopic.Base64EncodingStrategy.ALWAYS);
+
+    topic.send(Message.builder().withBody("hello".getBytes(UTF_8)).build());
+
+    TopicMessage published = captureSinglePublished(cloudTopic);
+    // Both reserved flags ride: the base64 body flag and the topic-originated marker.
+    assertTrue(hasBase64Flag(published));
+    assertTrue(hasTopicMarker(published));
+    assertEquals(2, published.getUserProperties().size());
+  }
+
+  @Test
+  void topicMetadataCapReservesForTheMarker() {
+    MNSClient client = mock(MNSClient.class);
+    CloudTopic cloudTopic = mock(CloudTopic.class);
+    AliSmqTopic topic = topic(client, cloudTopic);
+
+    // Topic path (non-base64): the marker reserves one slot, so the effective metadata cap is
+    // MAX_USER_PROPERTIES - 1 (49). 49 attributes + the marker == the SMQ cap and publishes.
+    topic.send(messageWithMetadata(AliBaseTopic.MAX_USER_PROPERTIES - 1));
+    TopicMessage published = captureSinglePublished(cloudTopic);
+    assertEquals(AliBaseTopic.MAX_USER_PROPERTIES, published.getUserProperties().size());
+    assertTrue(hasTopicMarker(published));
+
+    // 50 attributes + the marker would be 51 on the wire, so it must fail fast before any publish.
+    Message overCap = messageWithMetadata(AliBaseTopic.MAX_USER_PROPERTIES);
+    assertThrows(InvalidArgumentException.class, () -> topic.send(overCap));
+  }
+
+  @Test
+  void base64TopicMetadataCapReservesForMarkerAndBase64Flag() {
+    MNSClient client = mock(MNSClient.class);
+    CloudTopic cloudTopic = mock(CloudTopic.class);
+    AliSmqTopic topic = topic(client, cloudTopic, AliBaseTopic.Base64EncodingStrategy.ALWAYS);
+
+    // Topic path + base64: the marker AND the base64 flag each reserve a slot, so the effective
+    // metadata cap is MAX_USER_PROPERTIES - 2 (48). 48 attributes + both flags == the cap.
+    topic.send(messageWithMetadata(AliBaseTopic.MAX_USER_PROPERTIES - 2));
+    TopicMessage published = captureSinglePublished(cloudTopic);
+    assertEquals(AliBaseTopic.MAX_USER_PROPERTIES, published.getUserProperties().size());
+    assertTrue(hasBase64Flag(published));
+    assertTrue(hasTopicMarker(published));
+
+    // 49 attributes + both flags would be 51 on the wire, so it must fail fast before any publish.
+    Message overCap = messageWithMetadata(AliBaseTopic.MAX_USER_PROPERTIES - 1);
+    assertThrows(InvalidArgumentException.class, () -> topic.send(overCap));
   }
 
   @Test
@@ -305,6 +374,25 @@ public class AliSmqTopicTest {
     }
     MessagePropertyValue flag = props.get(AliBaseTopic.RESERVED_BASE64_FLAG_KEY);
     return flag != null && "true".equalsIgnoreCase(flag.getStringValueByType());
+  }
+
+  /** True if the published message carries the reserved topic-originated marker set to true. */
+  private static boolean hasTopicMarker(TopicMessage published) {
+    Map<String, MessagePropertyValue> props = published.getUserProperties();
+    if (props == null) {
+      return false;
+    }
+    MessagePropertyValue marker = props.get(AliBaseTopic.RESERVED_TOPIC_ORIGINATED_KEY);
+    return marker != null && "true".equalsIgnoreCase(marker.getStringValueByType());
+  }
+
+  /** A message with {@code attributeCount} distinct metadata attributes. */
+  private static Message messageWithMetadata(int attributeCount) {
+    Message.Builder builder = Message.builder().withBody("b".getBytes(UTF_8));
+    for (int i = 0; i < attributeCount; i++) {
+      builder.withMetadata("k" + i, "v");
+    }
+    return builder.build();
   }
 
   /**

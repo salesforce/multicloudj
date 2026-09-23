@@ -11,6 +11,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.aliyun.mns.client.CloudQueue;
+import com.aliyun.mns.client.CloudTopic;
 import com.aliyun.mns.client.MNSClient;
 import com.aliyun.mns.model.MessagePropertyValue;
 import com.aliyun.mns.model.PropertyType;
@@ -627,6 +628,55 @@ public class AliBaseTopicTest {
     builder.withTopicName("size-test");
     builder.withBodyEncodingStrategy(AliBaseTopic.Base64EncodingStrategy.ALWAYS);
     return builder.build();
+  }
+
+  /** An AUTO-strategy topic publisher (stamps the topic-originated marker on every message). */
+  private static AliSmqTopic topicPublisher() {
+    MNSClient client = mock(MNSClient.class);
+    when(client.getTopicRef("size-test")).thenReturn(mock(CloudTopic.class));
+    AliSmqTopic.Builder builder = new AliSmqTopic.Builder();
+    builder.withSmqClient(client);
+    builder.withTopicName("size-test");
+    return builder.build();
+  }
+
+  @Test
+  void encodeMetadataKeyForceEscapesKeysCollidingWithReservedFlagNames() throws Exception {
+    // A user key whose wire form would equal a reserved flag name (the base64 flag or the
+    // topic-originated marker) is force-escaped so it can never masquerade as (or be stripped as)
+    // that flag, yet it still round-trips through decode.
+    for (String reserved :
+        new String[] {
+          AliBaseTopic.RESERVED_BASE64_FLAG_KEY, AliBaseTopic.RESERVED_TOPIC_ORIGINATED_KEY
+        }) {
+      String encoded = AliBaseTopic.encodeMetadataKey(reserved);
+      assertNotEquals(reserved, encoded, "a reserved-name key must be force-escaped on the wire");
+      assertEquals(reserved, AliBaseTopic.decodeMetadataKey(encoded));
+    }
+  }
+
+  @Test
+  void topicPathMeasureWireSizeCountsMarkerAndWrapperOnce() throws Exception {
+    long markerProperty =
+        AliBaseTopic.propertyWireSize(AliBaseTopic.RESERVED_TOPIC_ORIGINATED_KEY, "true");
+    try (AliSmqQueue queue = new AliSmqQueue();
+        AliSmqTopic topic = topicPublisher()) {
+      // With metadata, both paths already count the <UserProperties> wrapper, so the topic path
+      // exceeds the queue path by EXACTLY the marker property — the marker is counted once, with no
+      // second wrapper.
+      Message withMetadata =
+          Message.builder().withBody("hi".getBytes(UTF_8)).withMetadata("k", "v").build();
+      assertEquals(
+          markerProperty,
+          topic.measureWireSize(withMetadata) - queue.measureWireSize(withMetadata));
+      // Marker-only (no metadata, not base64): the queue path counts no user properties at all, so
+      // the topic path's delta is the marker property PLUS the one-time wrapper — strictly greater
+      // than the marker alone, proving the wrapper is counted (once) for a marker-only message.
+      Message noMetadata = Message.builder().withBody("hi".getBytes(UTF_8)).build();
+      assertTrue(
+          topic.measureWireSize(noMetadata) - queue.measureWireSize(noMetadata) > markerProperty,
+          "a marker-only topic message must also count the <UserProperties> wrapper once");
+    }
   }
 
   private static void assertEstimateIsUpperBound(AliSmqQueue topic, List<Message> messages)

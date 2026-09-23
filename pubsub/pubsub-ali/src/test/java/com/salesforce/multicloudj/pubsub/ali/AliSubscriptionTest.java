@@ -215,16 +215,17 @@ public class AliSubscriptionTest {
 
   @Test
   void doReceiveBatchUnwrapsTopicEnvelopePlainBody() throws Exception {
-    // Dual-mode receive: when the wire body is a JSON-format topic-delivery envelope, the effective
-    // body is the envelope's "Message" field. Here the publisher sent a plaintext body, so it rode
-    // in the envelope as plaintext with no base64 flag, and is returned as those exact bytes. The
-    // metadata rides as native user properties even for topic delivery.
+    // Marker-driven receive: the reserved topic-originated marker (not the body shape) says this is
+    // a topic delivery, so the effective body is the envelope's "Message" field. Here the publisher
+    // sent a plaintext body, so it rode in the envelope as plaintext with no base64 flag, and is
+    // returned as those exact bytes. The metadata (and the marker) ride as native user properties.
     CloudQueue queue = mock(CloudQueue.class);
     com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
     raw.setMessageBodyAsRawString(topicEnvelope("hello topic"));
     raw.setReceiptHandle("rh-1");
     raw.setMessageId("mid-1");
     Map<String, MessagePropertyValue> props = new HashMap<>();
+    props.put(AliBaseTopic.RESERVED_TOPIC_ORIGINATED_KEY, new MessagePropertyValue(true));
     props.put(
         AliBaseTopic.encodeMetadataKey("trace.id"),
         new MessagePropertyValue(PropertyType.STRING, "abc"));
@@ -237,6 +238,7 @@ public class AliSubscriptionTest {
     assertArrayEquals("hello topic".getBytes(UTF_8), received.getBody());
     assertEquals(1, received.getMetadata().size());
     assertEquals("abc", received.getMetadata().get("trace.id"));
+    assertFalse(received.getMetadata().containsKey(AliBaseTopic.RESERVED_TOPIC_ORIGINATED_KEY));
   }
 
   @Test
@@ -254,6 +256,7 @@ public class AliSubscriptionTest {
     raw.setMessageId("mid-1");
     Map<String, MessagePropertyValue> props = new HashMap<>();
     props.put(AliBaseTopic.RESERVED_BASE64_FLAG_KEY, new MessagePropertyValue(true));
+    props.put(AliBaseTopic.RESERVED_TOPIC_ORIGINATED_KEY, new MessagePropertyValue(true));
     props.put(
         AliBaseTopic.encodeMetadataKey("trace.id"),
         new MessagePropertyValue(PropertyType.STRING, "abc"));
@@ -267,6 +270,7 @@ public class AliSubscriptionTest {
     assertEquals(1, received.getMetadata().size());
     assertEquals("abc", received.getMetadata().get("trace.id"));
     assertFalse(received.getMetadata().containsKey(AliBaseTopic.RESERVED_BASE64_FLAG_KEY));
+    assertFalse(received.getMetadata().containsKey(AliBaseTopic.RESERVED_TOPIC_ORIGINATED_KEY));
   }
 
   @Test
@@ -289,6 +293,7 @@ public class AliSubscriptionTest {
     raw.setMessageId("mid-1");
     Map<String, MessagePropertyValue> props = new HashMap<>();
     props.put(AliBaseTopic.RESERVED_BASE64_FLAG_KEY, new MessagePropertyValue(true));
+    props.put(AliBaseTopic.RESERVED_TOPIC_ORIGINATED_KEY, new MessagePropertyValue(true));
     raw.setUserProperties(props);
     when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
 
@@ -300,9 +305,9 @@ public class AliSubscriptionTest {
 
   @Test
   void doReceiveBatchTreatsDirectJsonObjectBodyAsDirect() throws Exception {
-    // A direct message whose raw body happens to be a JSON object but lacks the distinctive
-    // envelope fields is NOT mistaken for a topic delivery: it is returned as its raw wire bytes
-    // unchanged, exactly as any other direct body.
+    // An unmarked message whose raw body happens to be a JSON object is NOT mistaken for a topic
+    // delivery: with no topic-originated marker it is treated as direct and returned as its raw
+    // wire bytes unchanged, exactly as any other direct body.
     CloudQueue queue = mock(CloudQueue.class);
     String directJson = "{\"user\":\"data\",\"id\":42}";
     com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
@@ -316,6 +321,93 @@ public class AliSubscriptionTest {
 
     assertArrayEquals(directJson.getBytes(UTF_8), received.getBody());
     assertEquals(directJson, new String(received.getBody(), UTF_8));
+  }
+
+  @Test
+  void doReceiveBatchLeavesUnmarkedEnvelopeShapedBodyAsDirect() throws Exception {
+    // Fail-open guard (finding #1): a body that LOOKS exactly like a topic envelope but carries NO
+    // topic-originated marker is a direct message and must NOT be unwrapped — it is returned as its
+    // raw wire bytes unchanged. Detection is by the authoritative marker, never by body shape.
+    CloudQueue queue = mock(CloudQueue.class);
+    String envelopeShaped = topicEnvelope("inner-should-not-be-extracted");
+    com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
+    raw.setMessageBodyAsRawString(envelopeShaped);
+    raw.setReceiptHandle("rh-1");
+    raw.setMessageId("mid-1");
+    // No user properties at all -> no marker -> direct path.
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+
+    AliSubscription sub = subscription(queue);
+    Message received = sub.doReceiveBatch(10).get(0);
+
+    assertArrayEquals(envelopeShaped.getBytes(UTF_8), received.getBody());
+  }
+
+  @Test
+  void doReceiveBatchFailsClosedOnMarkedButMalformedBody() throws Exception {
+    // Fail-closed: a message carrying the topic-originated marker whose body is NOT a valid
+    // envelope (here, not even JSON) is corruption or a reserved-namespace spoof — surface a mapped
+    // exception rather than silently returning the raw body.
+    CloudQueue queue = mock(CloudQueue.class);
+    com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
+    raw.setMessageBodyAsRawString("this is not a json envelope");
+    raw.setReceiptHandle("rh-1");
+    raw.setMessageId("mid-1");
+    Map<String, MessagePropertyValue> props = new HashMap<>();
+    props.put(AliBaseTopic.RESERVED_TOPIC_ORIGINATED_KEY, new MessagePropertyValue(true));
+    raw.setUserProperties(props);
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+
+    AliSubscription sub = subscription(queue);
+    assertThrows(InvalidArgumentException.class, () -> sub.doReceiveBatch(10));
+  }
+
+  @Test
+  void doReceiveBatchTreatsMarkerValueFalseAsDirect() throws Exception {
+    // The marker activates only when its value is "true"; topicoriginated=false is inactive, so an
+    // envelope-shaped body is treated as direct and returned raw (never unwrapped).
+    CloudQueue queue = mock(CloudQueue.class);
+    String envelopeShaped = topicEnvelope("inner-should-not-be-extracted");
+    com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
+    raw.setMessageBodyAsRawString(envelopeShaped);
+    raw.setReceiptHandle("rh-1");
+    raw.setMessageId("mid-1");
+    Map<String, MessagePropertyValue> props = new HashMap<>();
+    props.put(AliBaseTopic.RESERVED_TOPIC_ORIGINATED_KEY, new MessagePropertyValue(false));
+    raw.setUserProperties(props);
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+
+    AliSubscription sub = subscription(queue);
+    Message received = sub.doReceiveBatch(10).get(0);
+
+    assertArrayEquals(envelopeShaped.getBytes(UTF_8), received.getBody());
+  }
+
+  @Test
+  void userKeyCollidingWithMarkerRoundTripsWhileRealMarkerStripped() throws Exception {
+    // A user metadata key literally "topicoriginated" is force-escaped on encode so its wire name
+    // differs from the reserved marker; on receive it un-escapes back to the user key while the
+    // real marker is stripped, so exactly the user attribute (not the marker) surfaces.
+    CloudQueue queue = mock(CloudQueue.class);
+    com.aliyun.mns.model.Message raw = new com.aliyun.mns.model.Message();
+    raw.setMessageBodyAsRawString(topicEnvelope("hello"));
+    raw.setReceiptHandle("rh-1");
+    raw.setMessageId("mid-1");
+    Map<String, MessagePropertyValue> props = new HashMap<>();
+    props.put(AliBaseTopic.RESERVED_TOPIC_ORIGINATED_KEY, new MessagePropertyValue(true));
+    props.put(
+        AliBaseTopic.encodeMetadataKey("topicoriginated"),
+        new MessagePropertyValue(PropertyType.STRING, "user-value"));
+    raw.setUserProperties(props);
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+
+    AliSubscription sub = subscription(queue);
+    Message received = sub.doReceiveBatch(10).get(0);
+
+    assertArrayEquals("hello".getBytes(UTF_8), received.getBody());
+    Map<String, String> metadata = received.getMetadata();
+    assertEquals("user-value", metadata.get("topicoriginated"));
+    assertEquals(1, metadata.size());
   }
 
   /**

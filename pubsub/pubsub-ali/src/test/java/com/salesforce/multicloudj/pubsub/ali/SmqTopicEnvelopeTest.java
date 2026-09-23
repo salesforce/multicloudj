@@ -25,30 +25,6 @@ public class SmqTopicEnvelopeTest {
         + "}";
   }
 
-  /**
-   * A probe-shaped envelope where the required field {@code overrideField} carries the raw JSON
-   * token {@code overrideToken} (e.g. {@code "null"}, {@code "123"}, {@code "[\"x\"]"}) instead of
-   * a string, so a non-Message required field's type can be exercised. Every other required field
-   * stays a string.
-   */
-  private static String envelopeWith(String overrideField, String overrideToken) {
-    return "{"
-        + "\"TopicOwner\":" + tokenFor("TopicOwner", overrideField, overrideToken) + ","
-        + "\"Message\":" + tokenFor("Message", overrideField, overrideToken) + ","
-        + "\"Subscriber\":\"1234567890123456\","
-        + "\"PublishTime\":1700000000000,"
-        + "\"SubscriptionName\":" + tokenFor("SubscriptionName", overrideField, overrideToken) + ","
-        + "\"MessageMD5\":\"0CC175B9C0F1B6A831C399E269772661\","
-        + "\"TopicName\":" + tokenFor("TopicName", overrideField, overrideToken) + ","
-        + "\"MessageId\":" + tokenFor("MessageId", overrideField, overrideToken)
-        + "}";
-  }
-
-  /** The override token for {@code field} when it matches {@code overrideField}, else a string. */
-  private static String tokenFor(String field, String overrideField, String overrideToken) {
-    return field.equals(overrideField) ? overrideToken : "\"str-" + field + "\"";
-  }
-
   @Test
   void extractsPlaintextMessageFromProbeShapedEnvelope() {
     assertEquals(
@@ -79,38 +55,25 @@ public class SmqTopicEnvelopeTest {
 
   @Test
   void numericOrBooleanMessageIsNotAnEnvelope() {
-    // A numeric or boolean Message must not be coerced to a string body; an object with all five
-    // required fields but a non-string Message is not an envelope.
+    // A numeric or boolean Message must not be coerced to a string body; a non-string "Message"
+    // is not extractable, so the parser returns null.
     assertNull(SmqTopicEnvelope.extractBodyIfEnvelope(envelope("42")));
     assertNull(SmqTopicEnvelope.extractBodyIfEnvelope(envelope("true")));
   }
 
   @Test
-  void nonMessageRequiredFieldOfWrongTypeIsNotAnEnvelope() {
-    // Every distinctive field must be a JSON string, not just Message. A required field other than
-    // Message that is JSON-null, a number, an array, or an object disqualifies the object as an
-    // envelope, even though Message itself is a valid string.
-    assertNull(SmqTopicEnvelope.extractBodyIfEnvelope(envelopeWith("TopicName", "null")));
-    assertNull(SmqTopicEnvelope.extractBodyIfEnvelope(envelopeWith("MessageId", "123")));
-    assertNull(SmqTopicEnvelope.extractBodyIfEnvelope(envelopeWith("SubscriptionName", "[\"x\"]")));
-    assertNull(SmqTopicEnvelope.extractBodyIfEnvelope(envelopeWith("TopicOwner", "{\"a\":1}")));
-  }
-
-  @Test
-  void missingNonMessageRequiredFieldIsNotAnEnvelope() {
-    // Control for the wrong-type case: an object missing a required field other than Message (here
-    // TopicName) is not an envelope, matching the missing-TopicOwner case above.
-    String missingTopicName =
-        "{"
-            + "\"TopicOwner\":\"1234567890123456\","
-            + "\"Message\":\"hi\","
-            + "\"Subscriber\":\"1234567890123456\","
-            + "\"PublishTime\":1700000000000,"
-            + "\"SubscriptionName\":\"my-subscription\","
-            + "\"MessageMD5\":\"ABC\","
-            + "\"MessageId\":\"MID-1\""
-            + "}";
-    assertNull(SmqTopicEnvelope.extractBodyIfEnvelope(missingTopicName));
+  void extractsMessageRegardlessOfOtherEnvelopeFields() {
+    // Pure extractor: the reserved topic-originated marker (not the body shape) decides that a
+    // message is a topic delivery, so extraction needs only a JSON object with a string "Message".
+    // Other envelope fields being absent, or present with a non-string type, no longer matters —
+    // the old 5-field shape-sniff detection is gone.
+    assertEquals("hi", SmqTopicEnvelope.extractBodyIfEnvelope("{\"Message\":\"hi\"}"));
+    assertEquals(
+        "hi", SmqTopicEnvelope.extractBodyIfEnvelope("{\"Message\":\"hi\",\"TopicName\":\"t\"}"));
+    assertEquals(
+        "hi",
+        SmqTopicEnvelope.extractBodyIfEnvelope(
+            "{\"Message\":\"hi\",\"TopicName\":123,\"TopicOwner\":null}"));
   }
 
   @Test
@@ -119,20 +82,10 @@ public class SmqTopicEnvelopeTest {
   }
 
   @Test
-  void jsonObjectMissingOneRequiredFieldIsNotAnEnvelope() {
-    // Drop TopicOwner alone: the strong all-fields requirement disqualifies the object, so a body
-    // that merely resembles an envelope is not misread as one.
-    String missingOwner =
-        "{"
-            + "\"Message\":\"hi\","
-            + "\"Subscriber\":\"1234567890123456\","
-            + "\"PublishTime\":1700000000000,"
-            + "\"SubscriptionName\":\"my-subscription\","
-            + "\"MessageMD5\":\"ABC\","
-            + "\"TopicName\":\"my-topic\","
-            + "\"MessageId\":\"MID-1\""
-            + "}";
-    assertNull(SmqTopicEnvelope.extractBodyIfEnvelope(missingOwner));
+  void objectWithoutStringMessageFieldIsNotAnEnvelope() {
+    // No "Message" field at all -> not extractable -> null (caller fails closed).
+    assertNull(
+        SmqTopicEnvelope.extractBodyIfEnvelope("{\"TopicName\":\"t\",\"MessageId\":\"m\"}"));
   }
 
   @Test
@@ -157,8 +110,8 @@ public class SmqTopicEnvelopeTest {
 
   @Test
   void nonStringMessageValueIsNotTreatedAsAnEnvelope() {
-    // All required fields present but Message is a nested JSON object rather than a string: not a
-    // valid envelope body, so it is treated as direct (returned null) rather than throwing.
+    // "Message" is a nested JSON object rather than a string: not extractable, so the parser
+    // returns null (never throwing) and the caller fails closed.
     assertNull(SmqTopicEnvelope.extractBodyIfEnvelope(envelope("{\"nested\":true}")));
   }
 

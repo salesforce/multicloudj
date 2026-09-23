@@ -11,6 +11,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -51,7 +52,9 @@ public class AliSmqTopic extends AliBaseTopic<AliSmqTopic> {
    * property is set so the receiver knows to decode it) while an XML-safe body rides as a
    * {@link RawTopicMessage}. Message metadata is mapped onto SMQ user properties by the shared
    * codec (see {@code buildUserProperties}), with the per-message limits enforced fail-fast here so
-   * an over-limit message is rejected before publish.
+   * an over-limit message is rejected before publish. The reserved
+   * {@link #RESERVED_TOPIC_ORIGINATED_KEY} marker is always stamped so the subscription can tell a
+   * topic delivery from a direct message authoritatively.
    */
   protected TopicMessage toTopicMessage(Message message) {
     byte[] body = message.getBody() == null ? new byte[0] : message.getBody();
@@ -60,10 +63,22 @@ public class AliSmqTopic extends AliBaseTopic<AliSmqTopic> {
     topicMessage.setMessageBody(body);
     Map<String, MessagePropertyValue> userProperties =
         buildUserProperties(message.getMetadata(), base64);
-    if (userProperties != null) {
-      topicMessage.setUserProperties(userProperties);
+    if (userProperties == null) {
+      // No metadata and no base64 flag, so buildUserProperties returned null; allocate a map to
+      // hold just the marker.
+      userProperties = new HashMap<>();
     }
+    // Stamp the reserved topic-originated marker so the subscription can authoritatively identify a
+    // topic delivery without sniffing the body shape. This is the only place the marker is set;
+    // buildUserProperties already reserved its slot (see stampsTopicOriginatedMarker).
+    userProperties.put(RESERVED_TOPIC_ORIGINATED_KEY, new MessagePropertyValue(true));
+    topicMessage.setUserProperties(userProperties);
     return topicMessage;
+  }
+
+  @Override
+  protected boolean stampsTopicOriginatedMarker() {
+    return true;
   }
 
   /**

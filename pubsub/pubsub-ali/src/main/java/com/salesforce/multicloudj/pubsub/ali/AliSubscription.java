@@ -117,44 +117,51 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
   }
 
   /**
-   * Converts an SMQ SDK message into a multicloudj {@link Message}, transparently handling both a
-   * message delivered directly to the queue and one delivered to the queue as a JSON-format topic
-   * subscription endpoint.
+   * Converts an SMQ SDK message into a multicloudj {@link Message}, handling both a message
+   * delivered directly to the queue and one fanned out from a topic (a JSON-format delivery whose
+   * wire body is the topic envelope).
    *
-   * <p>The wire body is sniffed by shape (see {@link SmqTopicEnvelope}): when it is a topic
-   * envelope, the effective body is the envelope's {@code "Message"} field, base64-decoded when the
-   * native base64 flag is present-and-true (the publisher base64-encoded it) and read as its UTF-8
-   * bytes otherwise. When it is not an envelope (a direct message, the unchanged prior behavior)
-   * the body is base64-decoded when the reserved {@link AliBaseTopic#RESERVED_BASE64_FLAG_KEY} user
-   * property is present and read as its raw wire bytes otherwise; a body from a non-SDK producer
-   * carries no flag and is therefore returned as its raw wire bytes unchanged, for the caller to
-   * decode.
+   * <p>The two are distinguished authoritatively by the reserved
+   * {@link AliBaseTopic#RESERVED_TOPIC_ORIGINATED_KEY} marker the topic publisher stamps — NOT by
+   * sniffing the body shape. When the marker is present the effective body is the envelope's
+   * {@code "Message"} field (see {@link SmqTopicEnvelope}); a marked body that is not a valid
+   * envelope is corruption or a reserved-namespace spoof and fails closed (a mapped exception)
+   * rather than being returned raw. When the marker is absent the message is treated as direct and
+   * its body is read with NO envelope parsing at all — so a topic delivery from a producer that
+   * does not stamp the marker (a non-MultiCloudJ or foreign publisher) is returned with its JSON
+   * envelope intact rather than unwrapped.
    *
-   * <p>Detection is a body-shape sniff requiring the full set of distinctive envelope fields, each
-   * a JSON string (see {@link SmqTopicEnvelope}). As an accepted, documented limitation, a direct
-   * message whose own body is a JSON object carrying exactly those fields would be unwrapped as if
-   * topic-delivered; a stronger, unambiguous wire signal was intentionally deferred. A queue bound
-   * as a topic-subscription endpoint should therefore be dedicated to topic deliveries and not also
-   * receive direct queue publications.
-   *
-   * <p>The flag-only body decode applies to the topic path too: a topic-delivered body that a
-   * non-SDK producer base64-encoded without the reserved flag is returned as-is, so the caller owns
-   * that encoding.
+   * <p>On both paths the body is base64-decoded when the reserved
+   * {@link AliBaseTopic#RESERVED_BASE64_FLAG_KEY} user property is present and true (the publisher
+   * base64-encoded it), and read as its raw bytes otherwise; a direct body from a non-SDK producer
+   * carries no flag and is returned as its raw wire bytes unchanged, for the caller to decode.
    *
    * <p>Metadata is handled identically on both paths: it always rides as native SMQ user properties
    * (a topic delivery envelopes only the body, not the properties). Each property key is un-escaped
    * via {@link AliBaseTopic#decodeMetadataKey} and its value read with {@code
-   * getStringValueByType}; the reserved base64 flag is stripped so it never surfaces as metadata.
+   * getStringValueByType}; the reserved base64 flag and topic-originated marker are stripped so
+   * neither surfaces as metadata.
    */
   private Message toMessage(com.aliyun.mns.model.Message smqMessage) {
     Map<String, MessagePropertyValue> userProperties = smqMessage.getUserProperties();
     boolean base64 = isBase64Flagged(userProperties);
-    String innerOrNull =
-        SmqTopicEnvelope.extractBodyIfEnvelope(smqMessage.getMessageBodyAsRawString());
-    byte[] body =
-        innerOrNull != null
-            ? topicBody(innerOrNull, base64)
-            : (base64 ? smqMessage.getMessageBodyAsBytes() : smqMessage.getMessageBodyAsRawBytes());
+    byte[] body;
+    if (isTopicOriginatedFlagged(userProperties)) {
+      // Topic delivery (authoritative marker): the wire body is a JSON envelope; extract its inner
+      // "Message". A marked body that is not a valid envelope is corruption / a reserved-namespace
+      // spoof — fail closed rather than guess at a raw body.
+      String inner =
+          SmqTopicEnvelope.extractBodyIfEnvelope(smqMessage.getMessageBodyAsRawString());
+      if (inner == null) {
+        throw new InvalidArgumentException(
+            "message carries the reserved topic-originated marker but its body is not a valid"
+                + " topic-delivery envelope");
+      }
+      body = topicBody(inner, base64);
+    } else {
+      // Direct message (no marker): no envelope parsing at all.
+      body = base64 ? smqMessage.getMessageBodyAsBytes() : smqMessage.getMessageBodyAsRawBytes();
+    }
     Message.Builder builder =
         Message.builder()
             .withBody(body == null ? new byte[0] : body)
@@ -194,13 +201,23 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
     return flag != null && "true".equalsIgnoreCase(flag.getStringValueByType());
   }
 
+  /** True if the reserved topic-originated marker property is present and set to {@code true}. */
+  private static boolean isTopicOriginatedFlagged(
+      Map<String, MessagePropertyValue> userProperties) {
+    if (userProperties == null) {
+      return false;
+    }
+    MessagePropertyValue marker = userProperties.get(AliBaseTopic.RESERVED_TOPIC_ORIGINATED_KEY);
+    return marker != null && "true".equalsIgnoreCase(marker.getStringValueByType());
+  }
+
   /**
    * Decodes SMQ user properties back into message metadata: un-escapes each key via
    * {@link AliBaseTopic#decodeMetadataKey} and reads each value natively via {@code
    * getStringValueByType} (which returns a STRING property's text and a BINARY property's
    * UTF-8-decoded bytes uniformly, the reverse of the publisher's native encoding and coalescing a
-   * null value to the empty string), skipping the reserved base64 flag. Returns an empty map when
-   * the message carries no user metadata.
+   * null value to the empty string), skipping the reserved base64 flag and topic-originated marker.
+   * Returns an empty map when the message carries no user metadata.
    */
   private static Map<String, String> decodeMetadata(
       Map<String, MessagePropertyValue> userProperties) {
@@ -209,7 +226,8 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
       return metadata;
     }
     for (Map.Entry<String, MessagePropertyValue> entry : userProperties.entrySet()) {
-      if (AliBaseTopic.RESERVED_BASE64_FLAG_KEY.equals(entry.getKey())) {
+      if (AliBaseTopic.RESERVED_BASE64_FLAG_KEY.equals(entry.getKey())
+          || AliBaseTopic.RESERVED_TOPIC_ORIGINATED_KEY.equals(entry.getKey())) {
         continue;
       }
       MessagePropertyValue value = entry.getValue();
