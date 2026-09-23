@@ -46,6 +46,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.BenchmarkParams;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.results.format.ResultFormatType;
 import org.openjdk.jmh.runner.Runner;
@@ -66,8 +67,16 @@ import org.slf4j.LoggerFactory;
  * to avoid conflating write cost into read measurements.
  *
  * <p>{@link #cleanupBenchmarkData()} runs at both {@code @Setup} and {@code @TearDown} on
- * purpose, to clear residue from interrupted prior runs. Blob content uses a fixed seed
- * ({@code new Random(42)}) for reproducibility, which may flatter dedup/compression vs. real data.
+ * purpose, to clear residue from interrupted prior runs; it batch-deletes via
+ * {@code delete(Collection)} rather than one round trip per object. Blob content uses a fixed
+ * seed ({@code new Random(42)}) for reproducibility, which may flatter dedup/compression vs.
+ * real data.
+ *
+ * <p>JMH forks the whole trial per method, so each fork runs exactly one {@code @Benchmark}.
+ * {@code @Setup} stages only the pre-seeded corpus the active method actually reads (see
+ * {@link #stageCorpusFor(String)}); write-path methods stage nothing. Read-path methods still
+ * see the identical corpus they measured before, so per-op results are unchanged — only setup
+ * wall-clock drops.
  */
 @BenchmarkMode({Mode.Throughput, Mode.SampleTime})
 @OutputTimeUnit(TimeUnit.SECONDS)
@@ -155,7 +164,7 @@ public abstract class AbstractBlobBenchmarkTest {
   private Harness harness;
 
   @Setup(Level.Trial)
-  public void setupBenchmark() {
+  public void setupBenchmark(BenchmarkParams params) {
     logger.info("Creating {} sync blob store", getProviderId());
     try {
       harness = createHarness();
@@ -165,10 +174,18 @@ public abstract class AbstractBlobBenchmarkTest {
       bucketClient = new BucketClient(blobStore);
 
       cleanupBenchmarkData();
-      setupTestData();
+      initBlobPayloads();
+      stageCorpusFor(benchmarkMethod(params));
     } catch (Exception e) {
       throw new RuntimeException("Failed to setup benchmark", e);
     }
+  }
+
+  /** Extracts the short {@code @Benchmark} method name from the fully-qualified JMH id. */
+  private static String benchmarkMethod(BenchmarkParams params) {
+    String fqn = params.getBenchmark();
+    int lastDot = fqn.lastIndexOf('.');
+    return lastDot >= 0 ? fqn.substring(lastDot + 1) : fqn;
   }
 
   @TearDown(Level.Trial)
@@ -183,7 +200,8 @@ public abstract class AbstractBlobBenchmarkTest {
     }
   }
 
-  private void setupTestData() {
+  /** Allocates the in-memory payloads every method needs and resets the per-trial key lists. */
+  private void initBlobPayloads() {
     Random rnd = new Random(42);
     smallBlob = new byte[SMALL_BLOB];
     rnd.nextBytes(smallBlob);
@@ -193,27 +211,63 @@ public abstract class AbstractBlobBenchmarkTest {
     rnd.nextBytes(largeBlob);
 
     smallKeys = new ArrayList<>(SMALL_COUNT);
+    mediumKeys = new ArrayList<>(MEDIUM_COUNT);
+    largeKeys = new ArrayList<>(LARGE_COUNT);
+  }
+
+  /**
+   * Stages only the pre-seeded objects the active benchmark reads. Read-path methods get the
+   * same corpus size as before (so results are unchanged); {@code benchmarkCopy} needs only its
+   * single source object; write-path methods stage nothing.
+   */
+  private void stageCorpusFor(String method) {
+    switch (method) {
+      case "benchmarkDownloadSmall":
+      case "benchmarkGetMetadata":
+      case "benchmarkList":
+      case "benchmarkListPage":
+        stageSmallCorpus();
+        break;
+      case "benchmarkDownloadMedium":
+        stageMediumCorpus();
+        break;
+      case "benchmarkDownloadLarge":
+        stageLargeCorpus();
+        break;
+      case "benchmarkCopy":
+        copySourceKey = SMALL_BLOBS_PREFIX + "blob_0.dat";
+        uploadBlob(copySourceKey, smallBlob);
+        smallKeys.add(copySourceKey);
+        break;
+      default:
+        // Write-path benchmarks stage nothing.
+        break;
+    }
+  }
+
+  private void stageSmallCorpus() {
     for (int i = 0; i < SMALL_COUNT; i++) {
       String key = SMALL_BLOBS_PREFIX + "blob_" + i + ".dat";
       uploadBlob(key, smallBlob);
       smallKeys.add(key);
     }
+    copySourceKey = smallKeys.get(0);
+  }
 
-    mediumKeys = new ArrayList<>(MEDIUM_COUNT);
+  private void stageMediumCorpus() {
     for (int i = 0; i < MEDIUM_COUNT; i++) {
       String key = MEDIUM_BLOBS_PREFIX + "blob_" + i + ".dat";
       uploadBlob(key, mediumBlob);
       mediumKeys.add(key);
     }
+  }
 
-    largeKeys = new ArrayList<>(LARGE_COUNT);
+  private void stageLargeCorpus() {
     for (int i = 0; i < LARGE_COUNT; i++) {
       String key = LARGE_BLOBS_PREFIX + "blob_" + i + ".dat";
       uploadBlob(key, largeBlob);
       largeKeys.add(key);
     }
-
-    copySourceKey = smallKeys.get(0);
   }
 
   private void uploadBlob(String key, byte[] data) {
@@ -235,25 +289,39 @@ public abstract class AbstractBlobBenchmarkTest {
         UPLOAD_LARGE_PREFIX, WRITE_READ_DELETE_PREFIX, MULTIPART_PREFIX,
         COPY_DEST_PREFIX, BULK_DELETE_PREFIX
     };
+    List<BlobIdentifier> toDelete = new ArrayList<>();
     for (String prefix : prefixes) {
       try {
         ListBlobsRequest listRequest = ListBlobsRequest.builder().withPrefix(prefix).build();
         Iterator<BlobInfo> iter = bucketClient.list(listRequest);
         while (iter.hasNext()) {
-          bucketClient.delete(iter.next().getKey(), null);
+          toDelete.add(new BlobIdentifier(iter.next().getKey(), null));
         }
       } catch (Exception e) {
-        logger.warn("Failed to cleanup prefix {}", prefix, e);
+        logger.warn("Failed to list prefix {} for cleanup", prefix, e);
       }
     }
     for (String key : copyDestKeys) {
-      try {
-        bucketClient.delete(key, null);
-      } catch (Exception e) {
-        // best-effort
-      }
+      toDelete.add(new BlobIdentifier(key, null));
     }
     copyDestKeys.clear();
+    deleteInBatches(toDelete);
+  }
+
+  /**
+   * Deletes via the bulk {@code delete(Collection)} API in chunks — one round trip per chunk
+   * instead of one per object. Chunked at 1000 to stay within provider bulk-delete limits.
+   */
+  private void deleteInBatches(List<BlobIdentifier> ids) {
+    final int chunkSize = 1000;
+    for (int start = 0; start < ids.size(); start += chunkSize) {
+      List<BlobIdentifier> batch = ids.subList(start, Math.min(start + chunkSize, ids.size()));
+      try {
+        bucketClient.delete(batch);
+      } catch (Exception e) {
+        logger.warn("Batch delete of {} objects failed", batch.size(), e);
+      }
+    }
   }
 
   @Benchmark
