@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.7](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.6...multicloudj-v0.4.7) (2026-09-23)
+
+
+### Document Store
+
+* resolve AWS DynamoDB credentials via the default chain in benchmark harness ([#642](https://github.com/salesforce/multicloudj/issues/642)) ([75ecbf3](https://github.com/salesforce/multicloudj/commit/75ecbf3d606bcb780cd4ad1ca238f0805c52ab48))
+
+
+### PubSub
+
+* add pubsub-ali SMQ message metadata and configurable body base64 encoding ([#627](https://github.com/salesforce/multicloudj/issues/627)) ([845da0a](https://github.com/salesforce/multicloudj/commit/845da0aca3926c72a05c730b38327149f5ae4739))
+
 ## [0.4.6](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.5...multicloudj-v0.4.6) (2026-09-11)
 
 
