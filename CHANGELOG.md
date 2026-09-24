@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.8](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.7...multicloudj-v0.4.8) (2026-09-24)
+
+
+### PubSub
+
+* add pubsub-ali SMQ topic publisher and topic-delivery envelope unwrap ([#641](https://github.com/salesforce/multicloudj/issues/641)) ([8e3b73f](https://github.com/salesforce/multicloudj/commit/8e3b73fd5e085aa59dc1f7299b99a5be30048038))
+
 ## [0.4.7](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.6...multicloudj-v0.4.7) (2026-09-23)
 
 
