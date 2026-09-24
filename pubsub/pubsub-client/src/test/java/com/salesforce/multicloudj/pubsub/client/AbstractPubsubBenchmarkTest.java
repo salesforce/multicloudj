@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -35,6 +36,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.BenchmarkParams;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.results.format.ResultFormatType;
 import org.openjdk.jmh.runner.Runner;
@@ -65,6 +67,25 @@ public abstract class AbstractPubsubBenchmarkTest {
   // Pre-population constants — kept small to avoid long setup (each SNS publish ~3-5s round-trip)
   protected static final int PREPOPULATE_RECEIVE = 50;
   protected static final int MESSAGE_AVAILABILITY_DELAY_MS = 1000;
+
+  // Receive-dependent benchmarks block in receive() until a message arrives. If topic->subscription
+  // delivery is broken, that wait is unbounded and each method burns JMH's full per-iteration
+  // timeout — hours across the suite. Before those methods run we prove one canary round-trips
+  // within this deadline, and fail the trial fast otherwise.
+  protected static final long RECEIVE_LIVENESS_TIMEOUT_MS = 30_000;
+
+  // Every @Benchmark that calls subscriptionClient.receive() must be listed here — in this class or
+  // any provider subclass (benchmarkNackAndRedelivery is defined in all three). Anything omitted
+  // would block the full JMH per-iteration timeout on a broken delivery path instead of failing
+  // fast. If you add a receive-based benchmark, add its name here.
+  private static final Set<String> RECEIVE_DEPENDENT_METHODS =
+      Set.of(
+          "benchmarkSingleMessageReceive",
+          "benchmarkSingleThreadReceive",
+          "benchmarkPublishConsumeAck",
+          "benchmarkBatchAck",
+          "benchmarkNackAndRedelivery",
+          "pipeline");
 
   protected TopicClient topicClient;
   protected SubscriptionClient subscriptionClient;
@@ -101,11 +122,20 @@ public abstract class AbstractPubsubBenchmarkTest {
   }
 
   @Setup(Level.Trial)
-  public void setupBenchmark() {
+  public void setupBenchmark(BenchmarkParams params) {
     try {
       logger.info(">>> Setup: Creating harness...");
       harness = createHarness();
-      drainExecutor = Executors.newSingleThreadExecutor();
+      // Daemon thread: a failed @Setup (e.g. the delivery-liveness guard aborting) skips @TearDown,
+      // so a non-daemon drain thread would keep the JMH fork alive until its timeout. Daemon lets
+      // the fork exit as soon as setup throws — the guard fails fast at the process level, too.
+      drainExecutor =
+          Executors.newSingleThreadExecutor(
+              r -> {
+                Thread t = new Thread(r, "pubsub-benchmark-drain");
+                t.setDaemon(true);
+                return t;
+              });
 
       logger.info(">>> Setup: Creating topic...");
       AbstractTopic<?> topic = harness.createTopic();
@@ -126,10 +156,27 @@ public abstract class AbstractPubsubBenchmarkTest {
         logger.warn(">>> Setup: seed phase failed ({}), continuing anyway", e.getMessage());
       }
 
+      // Receive-dependent methods block forever if delivery is broken — verify liveness first so
+      // the trial fails in seconds instead of burning JMH's full per-iteration timeout.
+      String method = benchmarkMethod(params);
+      if (RECEIVE_DEPENDENT_METHODS.contains(method)) {
+        logger.info(">>> Setup: verifying delivery liveness for {}...", method);
+        verifyDeliveryLive(RECEIVE_LIVENESS_TIMEOUT_MS);
+      }
+
       logger.info(">>> Setup: Complete!");
 
     } catch (Exception e) {
       logger.error(">>> Setup FAILED: {}", e.getMessage(), e);
+      // JMH skips @TearDown when @Setup throws, so release what we already created here. The
+      // provider clients hold non-daemon gax/gRPC transport threads; leaking them keeps the fork
+      // alive until JMH's timeout and defeats the guard's fail-fast intent.
+      closeQuietly(topicClient);
+      closeQuietly(subscriptionClient);
+      closeQuietly(harness);
+      if (drainExecutor != null) {
+        drainExecutor.shutdownNow();
+      }
       throw new RuntimeException("Failed to setup benchmark", e);
     }
   }
@@ -188,6 +235,46 @@ public abstract class AbstractPubsubBenchmarkTest {
       }
     }
     logger.info(">>> Drained {} messages", drained);
+  }
+
+  /** Extracts the simple benchmark method (or {@code @Group}) name from the JMH FQN. */
+  private static String benchmarkMethod(BenchmarkParams params) {
+    String fqn = params.getBenchmark();
+    int lastDot = fqn.lastIndexOf('.');
+    return lastDot >= 0 ? fqn.substring(lastDot + 1) : fqn;
+  }
+
+  /**
+   * Proves the topic->subscription delivery path is live: publishes one canary and confirms it is
+   * receivable within {@code timeoutMs}. Reuses the {@link #drainWithTimeout} Future idiom so a
+   * broken delivery path (e.g. misconfigured SNS->SQS grants) surfaces as a fast, actionable setup
+   * failure instead of an unbounded block in {@code receive()}.
+   */
+  protected void verifyDeliveryLive(long timeoutMs) {
+    try {
+      topicClient.send(createMessage(SMALL_MESSAGE));
+    } catch (Exception e) {
+      throw new IllegalStateException("Delivery liveness check: canary publish failed", e);
+    }
+    Future<Message> future = drainExecutor.submit(() -> subscriptionClient.receive());
+    try {
+      Message msg = future.get(timeoutMs, TimeUnit.MILLISECONDS);
+      subscriptionClient.sendAck(msg.getAckID());
+    } catch (TimeoutException e) {
+      future.cancel(true);
+      throw new IllegalStateException(
+          "Delivery liveness check FAILED: published a canary but received no message within "
+              + timeoutMs
+              + " ms. The topic->subscription delivery path is not live (check subscription "
+              + "binding / SNS->SQS grants / SourceArn). Aborting to avoid a multi-hour hang in "
+              + "receive-based benchmarks.");
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      future.cancel(true);
+      throw new IllegalStateException("Delivery liveness check interrupted", e);
+    } catch (ExecutionException e) {
+      throw new IllegalStateException("Delivery liveness check: receive failed", e.getCause());
+    }
   }
 
   /** Single message publish benchmark — 4 concurrent publishers */
