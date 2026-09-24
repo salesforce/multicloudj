@@ -1,7 +1,6 @@
 package com.salesforce.multicloudj.pubsub.ali;
 
 import com.aliyun.mns.client.CloudQueue;
-import com.aliyun.mns.client.MNSClient;
 import com.aliyun.mns.common.BatchSendException;
 import com.aliyun.mns.model.ErrorMessageResult;
 import com.google.auto.service.AutoService;
@@ -23,7 +22,6 @@ public class AliSmqQueue extends AliBaseTopic<AliSmqQueue> {
 
   public static final String PROVIDER_ID = "alismqqueue";
 
-  private final MNSClient smqClient;
   private final CloudQueue queue;
 
   public AliSmqQueue() {
@@ -32,7 +30,6 @@ public class AliSmqQueue extends AliBaseTopic<AliSmqQueue> {
 
   AliSmqQueue(Builder builder) {
     super(builder);
-    this.smqClient = builder.smqClient;
     this.queue = builder.queue;
   }
 
@@ -112,28 +109,6 @@ public class AliSmqQueue extends AliBaseTopic<AliSmqQueue> {
       }
     }
     return mapException(e);
-  }
-
-  @Override
-  public void close() throws Exception {
-    try {
-      super.close();
-    } catch (Throwable primary) {
-      // Keep the shutdown failure (flushing pending batches) as the primary exception, but still
-      // close the SMQ client so its HTTP resources are not leaked; a client-close failure is
-      // attached as suppressed rather than replacing the primary.
-      if (smqClient != null) {
-        try {
-          smqClient.close();
-        } catch (Throwable clientCloseError) {
-          primary.addSuppressed(clientCloseError);
-        }
-      }
-      throw primary;
-    }
-    if (smqClient != null) {
-      smqClient.close();
-    }
   }
 
   @Override
