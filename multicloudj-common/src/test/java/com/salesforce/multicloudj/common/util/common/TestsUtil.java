@@ -315,7 +315,10 @@ public class TestsUtil {
                 // conflict on the recording machine.
                 .httpDisabled(true)
                 .containerThreads(100)
-                .asynchronousResponseEnabled(true)
+                // Replay serves stubs synchronously; async dispatch under CI load can leave the
+                // SMQ client's in-flight batchPopMessage future never completing (receive() hangs
+                // to the JUnit @Timeout). Keep async only for -Drecord (MNS long-poll forwarding).
+                .asynchronousResponseEnabled(isRecordingEnabled)
                 .keystorePath(keystorePath)
                 .keystorePassword("password")
                 .withRootDirectory(rootDir)
