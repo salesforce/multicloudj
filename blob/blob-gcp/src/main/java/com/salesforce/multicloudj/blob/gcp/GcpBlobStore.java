@@ -540,35 +540,8 @@ public class GcpBlobStore extends AbstractBlobStore {
       listOptions.add(Storage.BlobListOption.delimiter(request.getDelimiter()));
     }
     Storage.BlobListOption[] listOptionsArray = listOptions.toArray(new Storage.BlobListOption[0]);
-    Iterable<Blob> blobs = storage.list(getBucket(), listOptionsArray).iterateAll();
-
-    return new Iterator<>() {
-      // `Iterators.filter()` retains the lazy fetching behavior of iterateAll().
-      // i.e., Subsequent page responses are only fetched when the iterator is advanced.
-      private final Iterator<Blob> blobIterator = Iterators.filter(
-          blobs.iterator(),
-          blob -> includeCommonPrefixes || !blob.isDirectory()
-      );
-
-      @Override
-      public boolean hasNext() {
-        return blobIterator.hasNext();
-      }
-
-      @Override
-      public com.salesforce.multicloudj.blob.driver.BlobInfo next() {
-        Blob blob = blobIterator.next();
-        return com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-            .withKey(blob.getName())
-            .withObjectSize(blob.getSize())
-            .withLastModified(
-                blob.getUpdateTimeOffsetDateTime() != null
-                    ? blob.getUpdateTimeOffsetDateTime().toInstant()
-                    : null)
-            .withCommonPrefix(blob.isDirectory())
-            .build();
-      }
-    };
+    Page<Blob> firstPage = storage.list(getBucket(), listOptionsArray);
+    return new BlobInfoIterator(firstPage, includeCommonPrefixes);
   }
 
   /**

@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.aws;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -117,5 +118,38 @@ public class BlobInfoIteratorTest {
     assertTrue(entries.get(0).isCommonPrefix());
     assertEquals("root.txt", entries.get(1).getKey());
     assertTrue(!entries.get(1).isCommonPrefix());
+  }
+
+  @Test
+  void testBlobInfoIteratorSkipsEmptyIntermediatePage() {
+    ListObjectsV2Response firstPage =
+        ListObjectsV2Response.builder()
+            .contents(S3Object.builder().key("first.txt").size(1L).build())
+            .nextContinuationToken("page-2")
+            .build();
+    ListObjectsV2Response emptyIntermediatePage =
+        ListObjectsV2Response.builder()
+            .commonPrefixes(CommonPrefix.builder().prefix("folder/").build())
+            .nextContinuationToken("page-3")
+            .build();
+    ListObjectsV2Response lastPage =
+        ListObjectsV2Response.builder()
+            .contents(S3Object.builder().key("last.txt").size(1L).build())
+            .build();
+    when(mockS3Client.listObjectsV2(any(ListObjectsV2Request.class)))
+        .thenReturn(firstPage, emptyIntermediatePage, lastPage);
+
+    BlobInfoIterator iterator =
+        new BlobInfoIterator(
+            mockS3Client,
+            TEST_BUCKET,
+            ListBlobsRequest.builder().withDelimiter("/").build());
+    List<BlobInfo> entries = new ArrayList<>();
+    iterator.forEachRemaining(entries::add);
+
+    assertEquals(
+        List.of("first.txt", "last.txt"),
+        entries.stream().map(BlobInfo::getKey).toList());
+    assertFalse(iterator.hasNext());
   }
 }

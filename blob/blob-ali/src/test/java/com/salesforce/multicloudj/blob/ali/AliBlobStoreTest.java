@@ -717,6 +717,34 @@ public class AliBlobStoreTest {
     assertFalse(entries.get(1).isCommonPrefix());
   }
 
+  @Test
+  void testDoList_SkipsEmptyIntermediatePage() {
+    ObjectSummary firstObject = ObjectSummary.newBuilder().key("first.txt").size(1L).build();
+    ObjectSummary lastObject = ObjectSummary.newBuilder().key("last.txt").size(1L).build();
+    ListObjectsV2Result firstPage = mock(ListObjectsV2Result.class);
+    ListObjectsV2Result emptyIntermediatePage = mock(ListObjectsV2Result.class);
+    ListObjectsV2Result lastPage = mock(ListObjectsV2Result.class);
+    when(firstPage.contents()).thenReturn(List.of(firstObject));
+    when(firstPage.nextContinuationToken()).thenReturn("page-2");
+    when(emptyIntermediatePage.contents()).thenReturn(List.of());
+    when(emptyIntermediatePage.nextContinuationToken()).thenReturn("page-3");
+    when(lastPage.contents()).thenReturn(List.of(lastObject));
+    when(lastPage.nextContinuationToken()).thenReturn(null);
+    when(mockOssClient.listObjectsV2(
+            any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(firstPage, emptyIntermediatePage, lastPage);
+
+    Iterator<BlobInfo> iterator =
+        ali.doList(ListBlobsRequest.builder().withDelimiter("/").build());
+    List<BlobInfo> entries = new ArrayList<>();
+    iterator.forEachRemaining(entries::add);
+
+    assertEquals(
+        List.of("first.txt", "last.txt"),
+        entries.stream().map(BlobInfo::getKey).toList());
+    assertFalse(iterator.hasNext());
+  }
+
   // Base instant for deterministic lastModified values in the object-summary fixtures;
   // each summary i gets BASE_LAST_MODIFIED + i seconds so tests can assert exact timestamps.
   private static final java.time.Instant BASE_LAST_MODIFIED =
