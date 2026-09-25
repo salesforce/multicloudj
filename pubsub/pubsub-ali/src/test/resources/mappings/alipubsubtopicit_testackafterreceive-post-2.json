@@ -1,0 +1,29 @@
+{
+  "id" : "c2f548c6-959b-47ea-ba8f-ac15599fd9b2",
+  "name" : "AliPubsubTopicIT_testAckAfterReceive-POST-2",
+  "request" : {
+    "url" : "/topics/test-smq-conf-t-testAckAfterReceive/messages",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><Message xmlns=\"http://mns.aliyuncs.com/doc/v1\"><MessageBody>it-ack-test</MessageBody><UserProperties><PropertyValue><Name>topicoriginated</Name><Value>true</Value><Type>BOOLEAN</Type></PropertyValue><PropertyValue><Name>case</Name><Value>ack</Value><Type>STRING</Type></PropertyValue></UserProperties></Message>"
+    } ]
+  },
+  "response" : {
+    "status" : 201,
+    "body" : "<?xml version=\"1.0\" ?>\n<Message xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <MessageId>D024B7DD33FD7FCF7F827DA3D57AEBEE</MessageId>\n  <MessageBodyMD5>49293C275B7D3EA121BA1DCE7D207F3B</MessageBodyMD5>\n</Message>",
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "18",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6AB5CEF13736370F007BEE67",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Fri, 25 Sep 2026 01:31:29 GMT",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "c2f548c6-959b-47ea-ba8f-ac15599fd9b2",
+  "persistent" : true,
+  "insertionIndex" : 121
+}

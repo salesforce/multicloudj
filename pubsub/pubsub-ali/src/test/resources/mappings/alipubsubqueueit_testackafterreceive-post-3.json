@@ -1,0 +1,29 @@
+{
+  "id" : "fc3a3c48-82d8-4114-a506-66b3bc286b07",
+  "name" : "AliPubsubQueueIT_testAckAfterReceive-POST-3",
+  "request" : {
+    "url" : "/queues/test-smq-conf-q-testAckAfterReceive/messages",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><Messages xmlns=\"http://mns.aliyuncs.com/doc/v1\"><Message><MessageBody>it-ack-test</MessageBody><UserProperties><PropertyValue><Name>case</Name><Value>ack</Value><Type>STRING</Type></PropertyValue></UserProperties></Message></Messages>"
+    } ]
+  },
+  "response" : {
+    "status" : 201,
+    "body" : "<?xml version=\"1.0\" ?>\n<Messages xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Message>\n    <MessageId>96B203D933FD7FCF7FB27DA130E356C1</MessageId>\n    <MessageBodyMD5>4C1CE97E3D0479FFF0AB6B02B7F6F86E</MessageBodyMD5>\n  </Message>\n</Messages>",
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "66",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6AB5CE433832450F006205E7",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Fri, 25 Sep 2026 01:28:35 GMT",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "fc3a3c48-82d8-4114-a506-66b3bc286b07",
+  "persistent" : true,
+  "insertionIndex" : 50
+}

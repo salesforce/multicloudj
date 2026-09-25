@@ -1,0 +1,45 @@
+{
+  "id" : "0c1fe2aa-c1de-4415-a23e-386f1fe26774",
+  "name" : "AliPubsubTopicIT_testBatchAck-GET-3",
+  "request" : {
+    "urlPath" : "/queues/test-smq-conf-tq-testBatchAck/messages",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "numOfMessages" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "waitseconds" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" ?>\n<Messages xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Message>\n    <MessageId>FDCB61C833FD7FCD7FB77DA2D215FA5A</MessageId>\n    <MessageBodyMD5>D3482436765EE1B82AC12E0E8C8F0745</MessageBodyMD5>\n    <MessageBody>{\"TopicOwner\":\"account-id\",\"Message\":\"batch-ack-3\",\"Subscriber\":\"account-id\",\"PublishTime\":\"1790299822611\",\"SubscriptionName\":\"test-smq-conf-ts-testBatchAck\",\"MessageMD5\":\"DE6813B8ABE0653D84DC81D96AE44181\",\"TopicName\":\"test-smq-conf-t-testBatchAck\",\"MessageId\":\"972F184233FD7FCF7FB27DA2D20473F6\"}</MessageBody>\n    <ReceiptHandle>FDCB61C833FD7FCD7FB77DA2D215FA5A-MiAxNzkwMjk5ODI2MzUxIDMwMDAwIDIgMCBzaG1xbmluZTRzbXEtMTEgMCAyfGhFUGd5</ReceiptHandle>\n    <EnqueueTime>1790299822627</EnqueueTime>\n    <FirstDequeueTime>1790299826351</FirstDequeueTime>\n    <NextVisibleTime>1790299856351</NextVisibleTime>\n    <DequeueCount>1</DequeueCount>\n    <Priority>8</Priority>\n    <UserProperties>\n      <PropertyValue>\n        <Name>batch</Name>\n        <Value>ack</Value>\n        <Type>STRING</Type>\n      </PropertyValue>\n      <PropertyValue>\n        <Name>topicoriginated</Name>\n        <Value>true</Value>\n        <Type>BOOLEAN</Type>\n      </PropertyValue>\n    </UserProperties>\n  </Message>\n</Messages>",
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "683",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6AB5CEB13739350F009A8C61",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Fri, 25 Sep 2026 01:30:26 GMT",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "0c1fe2aa-c1de-4415-a23e-386f1fe26774",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-queues-test-smq-conf-tq-testBatchAck-messages",
+  "requiredScenarioState" : "scenario-1-queues-test-smq-conf-tq-testBatchAck-messages-3",
+  "insertionIndex" : 54
+}
