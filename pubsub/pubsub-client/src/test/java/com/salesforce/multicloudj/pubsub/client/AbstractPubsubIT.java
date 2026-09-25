@@ -70,6 +70,30 @@ public abstract class AbstractPubsubIT {
     int getPort();
 
     List<String> getWiremockExtensions();
+
+    /**
+     * How WireMock should intercept this provider's SDK traffic for recording. Defaults to
+     * {@link WireMockRecordingMode#FORWARD_PROXY}; a provider whose SDK cannot trust a dynamically
+     * generated per-host MITM cert returns {@link WireMockRecordingMode#ENDPOINT_OVERRIDE} and also
+     * supplies {@link #getServerKeystorePath()}.
+     */
+    default WireMockRecordingMode getWireMockRecordingMode() {
+      return WireMockRecordingMode.FORWARD_PROXY;
+    }
+
+    /**
+     * The static server keystore WireMock serves in {@link WireMockRecordingMode#ENDPOINT_OVERRIDE}
+     * mode (a keystore path WireMock can load). Ignored in the forward-proxy mode.
+     */
+    default String getServerKeystorePath() {
+      return null;
+    }
+  }
+
+  /** How a harness wants WireMock to intercept and record its provider SDK's traffic. */
+  public enum WireMockRecordingMode {
+    FORWARD_PROXY,
+    ENDPOINT_OVERRIDE
   }
 
   protected abstract Harness createHarness();
@@ -82,7 +106,13 @@ public abstract class AbstractPubsubIT {
     harness = createHarness();
     String rootDir = "src/test/resources";
     List<String> extensions = harness.getWiremockExtensions();
-    TestsUtil.startWireMockServer(rootDir, harness.getPort(), extensions.toArray(new String[0]));
+    String[] extensionArray = extensions.toArray(new String[0]);
+    if (harness.getWireMockRecordingMode() == WireMockRecordingMode.ENDPOINT_OVERRIDE) {
+      TestsUtil.startWireMockServerWithEndpointOverride(
+          rootDir, harness.getPort(), harness.getServerKeystorePath(), extensionArray);
+    } else {
+      TestsUtil.startWireMockServer(rootDir, harness.getPort(), extensionArray);
+    }
   }
 
   /** Shuts down the WireMock server after all tests. */
