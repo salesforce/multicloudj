@@ -2224,6 +2224,49 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
+  public void testList_WithDelimiter_IncludesMarkedCommonPrefixesWhenRequested()
+      throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String base = "conformance-tests/list-common-prefixes/";
+    String[] keys = {base + "directory/blob.txt", base + "root.txt"};
+    byte[] content = "test".getBytes(StandardCharsets.UTF_8);
+
+    try {
+      for (String key : keys) {
+        try (InputStream inputStream = new ByteArrayInputStream(content)) {
+          bucketClient.upload(
+              new UploadRequest.Builder().withKey(key).withContentLength(content.length).build(),
+              inputStream);
+        }
+      }
+
+      Iterator<BlobInfo> entries =
+          bucketClient.list(
+              ListBlobsRequest.builder()
+                  .withPrefix(base)
+                  .withDelimiter("/")
+                  .withIncludeCommonPrefixes(true)
+                  .build());
+      Set<String> commonPrefixes = new HashSet<>();
+      Set<String> blobKeys = new HashSet<>();
+      entries.forEachRemaining(
+          entry -> {
+            if (entry.isCommonPrefix()) {
+              commonPrefixes.add(entry.getKey());
+            } else {
+              blobKeys.add(entry.getKey());
+            }
+          });
+
+      Assertions.assertEquals(Set.of(base + "directory/"), commonPrefixes);
+      Assertions.assertEquals(Set.of(base + "root.txt"), blobKeys);
+    } finally {
+      safeDeleteBlobs(bucketClient, keys);
+    }
+  }
+
+  @Test
   public void testListPage() throws IOException {
 
     // Create the BucketClient

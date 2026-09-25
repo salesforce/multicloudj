@@ -126,6 +126,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -528,6 +529,8 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> doList(
       ListBlobsRequest request) {
+    boolean includeCommonPrefixes =
+        request.isIncludeCommonPrefixes() && StringUtils.isNotEmpty(request.getDelimiter());
     List<Storage.BlobListOption> listOptions = new ArrayList<>();
     listOptions.add(Storage.BlobListOption.includeFolders(false));
     if (request.getPrefix() != null) {
@@ -537,34 +540,8 @@ public class GcpBlobStore extends AbstractBlobStore {
       listOptions.add(Storage.BlobListOption.delimiter(request.getDelimiter()));
     }
     Storage.BlobListOption[] listOptionsArray = listOptions.toArray(new Storage.BlobListOption[0]);
-    Iterable<Blob> blobs = storage.list(getBucket(), listOptionsArray).iterateAll();
-
-    return new Iterator<>() {
-      // `Iterators.filter()` retains the lazy fetching behavior of iterateAll().
-      // i.e., Subsequent page responses are only fetched when the iterator is advanced.
-      private final Iterator<Blob> blobIterator = Iterators.filter(
-          blobs.iterator(),
-          blob -> !blob.isDirectory()
-      );
-
-      @Override
-      public boolean hasNext() {
-        return blobIterator.hasNext();
-      }
-
-      @Override
-      public com.salesforce.multicloudj.blob.driver.BlobInfo next() {
-        Blob blob = blobIterator.next();
-        return com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-            .withKey(blob.getName())
-            .withObjectSize(blob.getSize())
-            .withLastModified(
-                blob.getUpdateTimeOffsetDateTime() != null
-                    ? blob.getUpdateTimeOffsetDateTime().toInstant()
-                    : null)
-            .build();
-      }
-    };
+    Page<Blob> firstPage = storage.list(getBucket(), listOptionsArray);
+    return new BlobInfoIterator(firstPage, includeCommonPrefixes);
   }
 
   /**

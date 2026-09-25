@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.aws;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -10,9 +11,12 @@ import static org.mockito.Mockito.when;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.S3Object;
@@ -90,5 +94,62 @@ public class BlobInfoIteratorTest {
     assertEquals("prefix/test-key", blobInfo.getKey());
     assertEquals(1024L, blobInfo.getObjectSize());
     assertEquals(timestamp, blobInfo.getLastModified());
+  }
+
+  @Test
+  void testBlobInfoIteratorIncludesMarkedCommonPrefixesWhenRequested() {
+    S3Object object = S3Object.builder().key("root.txt").size(1L).build();
+    ListObjectsV2Response response =
+        ListObjectsV2Response.builder()
+            .contents(object)
+            .commonPrefixes(CommonPrefix.builder().prefix("folder/").build())
+            .build();
+    when(mockS3Client.listObjectsV2(any(ListObjectsV2Request.class))).thenReturn(response);
+
+    BlobInfoIterator iterator = new BlobInfoIterator(
+        mockS3Client,
+        TEST_BUCKET,
+        ListBlobsRequest.builder().withDelimiter("/").withIncludeCommonPrefixes(true).build());
+    List<BlobInfo> entries = new ArrayList<>();
+    iterator.forEachRemaining(entries::add);
+
+    assertEquals(2, entries.size());
+    assertEquals("folder/", entries.get(0).getKey());
+    assertTrue(entries.get(0).isCommonPrefix());
+    assertEquals("root.txt", entries.get(1).getKey());
+    assertTrue(!entries.get(1).isCommonPrefix());
+  }
+
+  @Test
+  void testBlobInfoIteratorSkipsEmptyIntermediatePage() {
+    ListObjectsV2Response firstPage =
+        ListObjectsV2Response.builder()
+            .contents(S3Object.builder().key("first.txt").size(1L).build())
+            .nextContinuationToken("page-2")
+            .build();
+    ListObjectsV2Response emptyIntermediatePage =
+        ListObjectsV2Response.builder()
+            .commonPrefixes(CommonPrefix.builder().prefix("folder/").build())
+            .nextContinuationToken("page-3")
+            .build();
+    ListObjectsV2Response lastPage =
+        ListObjectsV2Response.builder()
+            .contents(S3Object.builder().key("last.txt").size(1L).build())
+            .build();
+    when(mockS3Client.listObjectsV2(any(ListObjectsV2Request.class)))
+        .thenReturn(firstPage, emptyIntermediatePage, lastPage);
+
+    BlobInfoIterator iterator =
+        new BlobInfoIterator(
+            mockS3Client,
+            TEST_BUCKET,
+            ListBlobsRequest.builder().withDelimiter("/").build());
+    List<BlobInfo> entries = new ArrayList<>();
+    iterator.forEachRemaining(entries::add);
+
+    assertEquals(
+        List.of("first.txt", "last.txt"),
+        entries.stream().map(BlobInfo::getKey).toList());
+    assertFalse(iterator.hasNext());
   }
 }

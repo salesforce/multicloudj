@@ -68,6 +68,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -721,45 +722,50 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     validateBucketExists();
     String prefix = request.getPrefix() != null ? request.getPrefix() : "";
     String delimiter = request.getDelimiter();
+    TreeMap<String, StoredBlob> matchingBlobs = new TreeMap<>();
+    for (Map.Entry<String, String> entry : LATEST_VERSIONS.entrySet()) {
+      if (!entry.getKey().startsWith(bucket + ":")) {
+        continue;
+      }
+      String key = entry.getKey().substring((bucket + ":").length());
+      if (!key.startsWith(prefix)) {
+        continue;
+      }
+      StoredBlob blob = STORAGE.get(entry.getKey() + ":" + entry.getValue());
+      if (blob != null) {
+        matchingBlobs.put(key, blob);
+      }
+    }
 
-    // List only latest versions
-    List<BlobInfo> blobs =
-        LATEST_VERSIONS.entrySet().stream()
-            .filter(entry -> entry.getKey().startsWith(bucket + ":"))
-            .filter(
-                entry -> {
-                  String key = entry.getKey().substring((bucket + ":").length());
-                  if (!key.startsWith(prefix)) {
-                    return false;
-                  }
-                  // If delimiter is specified, filter out keys containing the delimiter after the
-                  // prefix
-                  if (delimiter != null && !delimiter.isEmpty()) {
-                    String keyAfterPrefix = key.substring(prefix.length());
-                    return !keyAfterPrefix.contains(delimiter);
-                  }
-                  return true;
-                })
-            .map(
-                entry -> {
-                  String key = entry.getKey().substring((bucket + ":").length());
-                  String versionId = entry.getValue();
-                  String versionedKey = entry.getKey() + ":" + versionId;
-                  StoredBlob blob = STORAGE.get(versionedKey);
-                  if (blob == null) {
-                    return null;
-                  }
-                  return new BlobInfo.Builder()
-                      .withKey(key)
-                      .withObjectSize((long) blob.getData().length)
-                      .withLastModified(blob.getLastModified())
-                      .build();
-                })
-            .filter(blobInfo -> blobInfo != null)
-            .sorted(Comparator.comparing(BlobInfo::getKey))
-            .collect(Collectors.toList());
-
-    return blobs.iterator();
+    List<BlobInfo> entries = new ArrayList<>();
+    Set<String> commonPrefixes = new TreeSet<>();
+    boolean includeCommonPrefixes =
+        request.isIncludeCommonPrefixes() && StringUtils.isNotEmpty(delimiter);
+    for (Map.Entry<String, StoredBlob> entry : matchingBlobs.entrySet()) {
+      String key = entry.getKey();
+      String keyAfterPrefix = key.substring(prefix.length());
+      int delimiterIndex =
+          StringUtils.isNotEmpty(delimiter) ? keyAfterPrefix.indexOf(delimiter) : -1;
+      if (delimiterIndex < 0) {
+        StoredBlob blob = entry.getValue();
+        entries.add(new BlobInfo.Builder()
+            .withKey(key)
+            .withObjectSize((long) blob.getData().length)
+            .withLastModified(blob.getLastModified())
+            .build());
+      }
+      if (delimiterIndex >= 0) {
+        commonPrefixes.add(
+            prefix + keyAfterPrefix.substring(0, delimiterIndex + delimiter.length()));
+      }
+    }
+    if (includeCommonPrefixes) {
+      commonPrefixes.forEach(
+          commonPrefix -> entries.add(new BlobInfo.Builder()
+              .withKey(commonPrefix).withCommonPrefix(true).build()));
+    }
+    entries.sort(Comparator.comparing(BlobInfo::getKey).thenComparing(BlobInfo::isCommonPrefix));
+    return entries.iterator();
   }
 
   @Override
