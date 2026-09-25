@@ -126,10 +126,10 @@ public class AwsEncoderTest {
   @Test
   void testEncodeStructWithMapBeforeObjectDoesNotCrossContaminate() {
     HeadlinedBook book = new HeadlinedBook();
-    book.tableOfContents = new LinkedHashMap<>();
-    book.tableOfContents.put("Chapter 1", 5);
-    book.tableOfContents.put("Chapter 2", 10);
-    book.author = new Author("Zoe", "Ford", 22);
+    book.chapters = new LinkedHashMap<>();
+    book.chapters.put("Chapter 1", 5);
+    book.chapters.put("Chapter 2", 10);
+    book.writer = new Author("Zoe", "Ford", 22);
 
     AwsEncoder encoder = new AwsEncoder();
     Codec.encodeObject(book, new FieldCache(), encoder);
@@ -137,13 +137,13 @@ public class AwsEncoderTest {
 
     Assertions.assertEquals(
         Set.of("Chapter 1", "Chapter 2"),
-        item.get("tableOfContents").m().keySet(),
-        "tableOfContents sub-map should contain only chapter entries");
+        item.get("chapters").m().keySet(),
+        "chapters sub-map should contain only chapter entries");
 
     Assertions.assertEquals(
         Set.of("firstName", "lastName", "age"),
-        item.get("author").m().keySet(),
-        "author sub-map must not contain chapter entries");
+        item.get("writer").m().keySet(),
+        "writer sub-map must not contain chapter entries");
   }
 
   static class Author {
@@ -165,8 +165,10 @@ public class AwsEncoderTest {
     Map<String, Integer> tableOfContents;
   }
 
+  // Field names chosen so alphabetical sort (see FieldCache) yields the Map
+  // field first, then the object field — the reverse of Book above.
   static class HeadlinedBook {
-    Map<String, Integer> tableOfContents;
-    Author author;
+    Map<String, Integer> chapters;
+    Author writer;
   }
 }
