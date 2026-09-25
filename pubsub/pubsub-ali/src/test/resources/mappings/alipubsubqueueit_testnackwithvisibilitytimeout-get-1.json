@@ -1,0 +1,43 @@
+{
+  "id" : "d14341a9-f43d-457f-82b6-32a7e7f48c1e",
+  "name" : "AliPubsubQueueIT_testNackWithVisibilityTimeout-GET-1",
+  "request" : {
+    "urlPath" : "/queues/test-smq-conf-q-testNackWithVisibilityTimeout/messages",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "numOfMessages" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "waitseconds" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" ?>\n<Messages xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Message>\n    <MessageId>17938B3733FD7FBA7F9F7DA0AEDAABDE</MessageId>\n    <MessageBodyMD5>CE76BF95FAAF2C439BC6CBE4352520BD</MessageBodyMD5>\n    <MessageBody>it-nack-visibility-timeout</MessageBody>\n    <ReceiptHandle>17938B3733FD7FBA7F9F7DA0AEDAABDE-NiAxNzkwMjk5NjgzOTkyIDMwMDAwIDQgMCBzaG1xbmluZTRzbXEtMTEgMCA2fDFyM2NzVA==</ReceiptHandle>\n    <EnqueueTime>1790299682537</EnqueueTime>\n    <FirstDequeueTime>1790299683992</FirstDequeueTime>\n    <NextVisibleTime>1790299713992</NextVisibleTime>\n    <DequeueCount>1</DequeueCount>\n    <Priority>8</Priority>\n    <UserProperties>\n      <PropertyValue>\n        <Name>case</Name>\n        <Value>nack-visibility-timeout</Value>\n        <Type>STRING</Type>\n      </PropertyValue>\n    </UserProperties>\n  </Message>\n</Messages>",
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "714",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6AB5CE233034410F00443D5A",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Fri, 25 Sep 2026 01:28:03 GMT",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "d14341a9-f43d-457f-82b6-32a7e7f48c1e",
+  "persistent" : true,
+  "insertionIndex" : 16
+}

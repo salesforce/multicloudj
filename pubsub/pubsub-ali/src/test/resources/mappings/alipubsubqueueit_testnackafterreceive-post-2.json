@@ -1,0 +1,29 @@
+{
+  "id" : "2e4e08a9-cdca-42e4-be23-59d57bac2495",
+  "name" : "AliPubsubQueueIT_testNackAfterReceive-POST-2",
+  "request" : {
+    "url" : "/queues/test-smq-conf-q-testNackAfterReceive/messages",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><Messages xmlns=\"http://mns.aliyuncs.com/doc/v1\"><Message><MessageBody>it-nack-test</MessageBody><UserProperties><PropertyValue><Name>case</Name><Value>nack</Value><Type>STRING</Type></PropertyValue></UserProperties></Message></Messages>"
+    } ]
+  },
+  "response" : {
+    "status" : 201,
+    "body" : "<?xml version=\"1.0\" ?>\n<Messages xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Message>\n    <MessageId>ACD0B43933FD7FCF7FB27DA110CE42A9</MessageId>\n    <MessageBodyMD5>33D8878FEAF1056A67BEA773AC5D5001</MessageBodyMD5>\n  </Message>\n</Messages>",
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "19",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6AB5CE3B3832450F00619E9E",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Fri, 25 Sep 2026 01:28:27 GMT",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "2e4e08a9-cdca-42e4-be23-59d57bac2495",
+  "persistent" : true,
+  "insertionIndex" : 41
+}

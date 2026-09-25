@@ -1,0 +1,46 @@
+{
+  "id" : "7b41c60b-f68f-42ab-9fa4-35320a5e26b8",
+  "name" : "AliPubsubQueueIT_testBatchAck-GET-4",
+  "request" : {
+    "urlPath" : "/queues/test-smq-conf-q-testBatchAck/messages",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "numOfMessages" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "waitseconds" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" ?>\n<Messages xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Message>\n    <MessageId>F0E90FC633FD7FCF7F827DA08101E40A</MessageId>\n    <MessageBodyMD5>CA25F143243A94D0D527CA6CC699C297</MessageBodyMD5>\n    <MessageBody>batch-ack-2</MessageBody>\n    <ReceiptHandle>F0E90FC633FD7FCF7F827DA08101E40A-OCAxNzkwMjk5NjczOTg3IDMwMDAwIDAgMCBzaG1xbmluZTRzbXEtMDggMCA4fE1HVjBJ</ReceiptHandle>\n    <EnqueueTime>1790299670800</EnqueueTime>\n    <FirstDequeueTime>1790299673987</FirstDequeueTime>\n    <NextVisibleTime>1790299703987</NextVisibleTime>\n    <DequeueCount>1</DequeueCount>\n    <Priority>8</Priority>\n    <UserProperties>\n      <PropertyValue>\n        <Name>batch</Name>\n        <Value>ack</Value>\n        <Type>STRING</Type>\n      </PropertyValue>\n    </UserProperties>\n  </Message>\n</Messages>",
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "182",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6AB5CE193832450F005FECB7",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Fri, 25 Sep 2026 01:27:53 GMT",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "7b41c60b-f68f-42ab-9fa4-35320a5e26b8",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-queues-test-smq-conf-q-testBatchAck-messages",
+  "requiredScenarioState" : "scenario-1-queues-test-smq-conf-q-testBatchAck-messages-2",
+  "newScenarioState" : "scenario-1-queues-test-smq-conf-q-testBatchAck-messages-3",
+  "insertionIndex" : 5
+}
