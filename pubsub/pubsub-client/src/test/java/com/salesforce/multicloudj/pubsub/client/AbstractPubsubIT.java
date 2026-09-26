@@ -254,6 +254,7 @@ public abstract class AbstractPubsubIT {
   }
 
   @Test
+  @Timeout(30) // Integration test that calls receive() - fail fast if recordings are missing
   public void testBatchAck() throws Exception {
     try (AbstractTopic topic = harness.createTopicDriver();
         AbstractSubscription subscription = harness.createSubscriptionDriver()) {
