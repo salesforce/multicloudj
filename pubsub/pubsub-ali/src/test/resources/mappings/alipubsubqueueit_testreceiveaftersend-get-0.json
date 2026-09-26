@@ -1,0 +1,43 @@
+{
+  "id" : "4017022d-d513-408a-b77b-df7499e7d1dd",
+  "name" : "AliPubsubQueueIT_testReceiveAfterSend-GET-0",
+  "request" : {
+    "urlPath" : "/queues/test-smq-conf-q-testReceiveAfterSend/messages",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "numOfMessages" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "waitseconds" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" ?>\n<Messages xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Message>\n    <MessageId>846459B833FD7FC10F447DA0DC860E76</MessageId>\n    <MessageBodyMD5>012A51B58439623DFB6E6D5436218B8E</MessageBodyMD5>\n    <MessageBody>it-receive-test</MessageBody>\n    <ReceiptHandle>846459B833FD7FC10F447DA0DC860E76-MSAxNzkwMjk5Njk1NTU3IDMwMDAwIDIgMCBzaG1xbmluZTRzbXEtMDcgMCAxfGo5Nndj</ReceiptHandle>\n    <EnqueueTime>1790299694229</EnqueueTime>\n    <FirstDequeueTime>1790299695557</FirstDequeueTime>\n    <NextVisibleTime>1790299725557</NextVisibleTime>\n    <DequeueCount>1</DequeueCount>\n    <Priority>8</Priority>\n    <UserProperties>\n      <PropertyValue>\n        <Name>case</Name>\n        <Value>receive</Value>\n        <Type>STRING</Type>\n      </PropertyValue>\n    </UserProperties>\n  </Message>\n</Messages>",
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "547",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6AB5CE2F3731300F0059387B",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Fri, 25 Sep 2026 01:28:15 GMT",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "4017022d-d513-408a-b77b-df7499e7d1dd",
+  "persistent" : true,
+  "insertionIndex" : 26
+}

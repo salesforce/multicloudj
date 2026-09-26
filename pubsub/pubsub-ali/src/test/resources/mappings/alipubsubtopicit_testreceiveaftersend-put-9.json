@@ -1,0 +1,32 @@
+{
+  "id" : "8f869719-9afc-4ea7-ab06-9cbbf9a0dbcb",
+  "name" : "AliPubsubTopicIT_testReceiveAfterSend-PUT-9",
+  "request" : {
+    "url" : "/topics/test-smq-conf-t-testReceiveAfterSend",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><Topic xmlns=\"http://mns.aliyuncs.com/doc/v1\"><LoggingEnabled>false</LoggingEnabled></Topic>"
+    } ]
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "1",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6AB5CEC74643320F00611DE8",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Fri, 25 Sep 2026 01:30:47 GMT",
+      "Location" : "http://account-id.mns.cn-shanghai.aliyuncs.com/topics/test-smq-conf-t-testReceiveAfterSend",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "8f869719-9afc-4ea7-ab06-9cbbf9a0dbcb",
+  "persistent" : true,
+  "scenarioName" : "scenario-4-topics-test-smq-conf-t-testReceiveAfterSend",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-4-topics-test-smq-conf-t-testReceiveAfterSend-2",
+  "insertionIndex" : 96
+}

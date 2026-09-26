@@ -1,0 +1,46 @@
+{
+  "id" : "f76d4e52-c133-4f92-8574-ed1fff6bb841",
+  "name" : "AliPubsubQueueIT_testNackAfterReceive-GET-5",
+  "request" : {
+    "urlPath" : "/queues/test-smq-conf-q-testNackAfterReceive/messages",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "numOfMessages" : {
+        "hasExactly" : [ {
+          "equalTo" : "16"
+        } ]
+      },
+      "waitseconds" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" ?>\n<Error xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Code>MessageNotExist</Code>\n  <Message>Message not exist.</Message>\n  <RequestId>6AB5CE373646380F00268195</RequestId>\n  <HostId>http://account-id.mns.cn-shanghai.aliyuncs.com</HostId>\n</Error>",
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "874",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6AB5CE373646380F00268195",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Fri, 25 Sep 2026 01:28:24 GMT",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "f76d4e52-c133-4f92-8574-ed1fff6bb841",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-queues-test-smq-conf-q-testNackAfterReceive-messages",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-queues-test-smq-conf-q-testNackAfterReceive-messages-2",
+  "insertionIndex" : 44
+}

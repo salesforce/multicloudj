@@ -1,0 +1,29 @@
+{
+  "id" : "49c1db94-ad57-4e07-a3c0-85673db2e043",
+  "name" : "AliPubsubQueueIT_testNackWithVisibilityTimeout-POST-2",
+  "request" : {
+    "url" : "/queues/test-smq-conf-q-testNackWithVisibilityTimeout/messages",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><Messages xmlns=\"http://mns.aliyuncs.com/doc/v1\"><Message><MessageBody>it-nack-visibility-timeout</MessageBody><UserProperties><PropertyValue><Name>case</Name><Value>nack-visibility-timeout</Value><Type>STRING</Type></PropertyValue></UserProperties></Message></Messages>"
+    } ]
+  },
+  "response" : {
+    "status" : 201,
+    "body" : "<?xml version=\"1.0\" ?>\n<Messages xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Message>\n    <MessageId>17938B3733FD7FBA7F9F7DA0AEDAABDE</MessageId>\n    <MessageBodyMD5>CE76BF95FAAF2C439BC6CBE4352520BD</MessageBodyMD5>\n  </Message>\n</Messages>",
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "47",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6AB5CE223943350F00194C72",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Fri, 25 Sep 2026 01:28:02 GMT",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "49c1db94-ad57-4e07-a3c0-85673db2e043",
+  "persistent" : true,
+  "insertionIndex" : 17
+}

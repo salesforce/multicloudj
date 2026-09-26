@@ -114,10 +114,10 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
   protected final CredentialsOverrider credentialsOverrider;
 
   /** Synchronization lock for thread-safe access to subscription state and queue operations. */
-  private final ReentrantLock lock = new ReentrantLock();
+  private final ReentrantLock lock;
 
   /** Condition variable signaled when new batches of messages arrive in the queue. */
-  private final Condition batchArrived = lock.newCondition();
+  private final Condition batchArrived;
 
   /** In-memory queue holding messages that have been fetched but not yet delivered to callers. */
   private final Queue<Message> queue = new ArrayDeque<>();
@@ -154,12 +154,29 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
       String subscriptionName,
       String region,
       CredentialsOverrider credentialsOverrider) {
+    this(providerId, subscriptionName, region, credentialsOverrider, new ReentrantLock());
+  }
+
+  /**
+   * Package-private constructor accepting the {@link ReentrantLock} that guards the receive queue
+   * and prefetch state; production callers use the four-argument constructor (a plain {@code new
+   * ReentrantLock()}). Tests may inject an instrumented lock to force specific interleavings.
+   */
+  AbstractSubscription(
+      String providerId,
+      String subscriptionName,
+      String region,
+      CredentialsOverrider credentialsOverrider,
+      ReentrantLock lock) {
     this.providerId = providerId;
     this.subscriptionName = subscriptionName;
     this.region = region;
     this.endpoint = null;
     this.proxyEndpoint = null;
     this.nackVisibilityTimeout = Duration.ZERO;
+
+    this.lock = lock;
+    this.batchArrived = lock.newCondition();
 
     this.receiveBatcherOptions = createReceiveBatcherOptions();
     this.credentialsOverrider = credentialsOverrider;
@@ -185,6 +202,9 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     this.proxyEndpoint = builder.proxyEndpoint;
     this.nackVisibilityTimeout =
         builder.nackVisibilityTimeout == null ? Duration.ZERO : builder.nackVisibilityTimeout;
+
+    this.lock = new ReentrantLock();
+    this.batchArrived = this.lock.newCondition();
 
     this.receiveBatcherOptions = createReceiveBatcherOptions();
     this.credentialsOverrider = builder.credentialsOverrider;
@@ -658,6 +678,9 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
       List<Message> msgs = getNextBatch(batchSize);
       lock.lock();
       try {
+        // Clear the flag under the same lock that publishes batchArrived, before signalling, so a
+        // woken receive() re-reads it consistently and never re-parks on a stale prefetchInFlight.
+        prefetchInFlight.set(false);
         queue.addAll(msgs);
         batchArrived.signalAll();
       } finally {
@@ -666,6 +689,9 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     } catch (Throwable t) {
       lock.lock();
       try {
+        // Clear the flag under the same lock that publishes batchArrived, before signalling, so a
+        // woken receive() re-reads it consistently and never re-parks on a stale prefetchInFlight.
+        prefetchInFlight.set(false);
         // Set permanentError if the error is not retryable
         if (!isRetryable(t)) {
           permanentError.compareAndSet(null, t);
@@ -674,8 +700,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
       } finally {
         lock.unlock();
       }
-    } finally {
-      prefetchInFlight.set(false);
     }
   }
 

@@ -257,6 +257,81 @@ public class TestsUtil {
     boolean isRecordingEnabled = System.getProperty("record") != null;
     logger.info("Recording enabled: {}", isRecordingEnabled);
 
+    List<Extension> extensions = buildExtensions(extensionInstances);
+
+    wireMockServer =
+        new WireMockServer(
+            WireMockConfiguration.options()
+                .httpsPort(port)
+                .port(port + 1) // http port
+                .containerThreads(100)
+                .asynchronousResponseEnabled(true)
+                .keystorePath("wiremock-keystore.jks")
+                .keystorePassword("password")
+                .withRootDirectory(rootDir)
+                .gzipDisabled(true)
+                .useChunkedTransferEncoding(Options.ChunkedEncodingPolicy.NEVER)
+                .filenameTemplate("{{name}}.json")
+                .extensions(extensions.toArray(new Extension[0]))
+                .enableBrowserProxying(true)
+                .preserveHostHeader(true));
+    wireMockServer.start();
+  }
+
+  /**
+   * Starts WireMock in endpoint-override recording mode: the client points its endpoint straight at
+   * WireMock's https listener (no forward proxy), so WireMock serves the supplied static server
+   * keystore's cert and records unmatched requests by proxying to the record target. For providers
+   * whose SDK cannot trust a dynamically generated per-host MITM cert; the default
+   * {@link #startWireMockServer} forward-proxy path is unchanged for everyone else.
+   *
+   * <p>Differs from {@link #startWireMockServer}: binds only the https listener ({@code port}),
+   * serves {@code keystorePath} as the server cert, and does NOT enable browser proxying or
+   * preserve the Host header (so WireMock rewrites Host to the upstream target when recording).
+   *
+   * <p>In record mode, WireMock forwards unmatched requests to the live upstream via its
+   * reverse-proxy client, which trusts ALL upstream TLS certificates (there is no
+   * JVM-truststore validation). The (removed) {@code trustAllProxyTargets} option only affected
+   * WireMock's forward/browser-proxy client, which this endpoint-override server does not use,
+   * so its presence or absence had no effect on upstream TLS here. This upstream forwarding
+   * happens only during {@code -Drecord} against the live endpoint; browser proxying is disabled
+   * on this path, so in replay nothing is forwarded upstream and unmatched requests fail closed
+   * (404).
+   */
+  public static void startWireMockServerWithEndpointOverride(
+      String rootDir, int port, String keystorePath, String... extensionInstances) {
+    boolean isRecordingEnabled = System.getProperty("record") != null;
+    logger.info("Recording enabled (endpoint-override): {}", isRecordingEnabled);
+
+    List<Extension> extensions = buildExtensions(extensionInstances);
+
+    wireMockServer =
+        new WireMockServer(
+            WireMockConfiguration.options()
+                .httpsPort(port)
+                // Endpoint-override uses only the https listener (the client hits
+                // https://localhost:<httpsPort>, and record-by-target proxies OUTBOUND to the
+                // target), so the default http listener is unneeded and disabled to avoid a port
+                // conflict on the recording machine.
+                .httpDisabled(true)
+                .containerThreads(100)
+                .asynchronousResponseEnabled(true)
+                .keystorePath(keystorePath)
+                .keystorePassword("password")
+                .withRootDirectory(rootDir)
+                .gzipDisabled(true)
+                .useChunkedTransferEncoding(Options.ChunkedEncodingPolicy.NEVER)
+                .filenameTemplate("{{name}}.json")
+                .extensions(extensions.toArray(new Extension[0])));
+    wireMockServer.start();
+  }
+
+  /**
+   * Builds the WireMock extension list — the default transformers plus any additional extensions
+   * named by fully-qualified class name — and registers each loaded {@link StubMappingTransformer}
+   * so it participates in recording. Shared by both server-start variants.
+   */
+  private static List<Extension> buildExtensions(String... extensionInstances) {
     // Create extensions list with default transformers
     List<Extension> extensions = new ArrayList<>();
     extensions.add(new StubNamingTransformer());
@@ -279,24 +354,7 @@ public class TestsUtil {
         logger.warn("Failed to load WireMock extension: {}", extensionClass, e);
       }
     }
-
-    wireMockServer =
-        new WireMockServer(
-            WireMockConfiguration.options()
-                .httpsPort(port)
-                .port(port + 1) // http port
-                .containerThreads(100)
-                .asynchronousResponseEnabled(true)
-                .keystorePath("wiremock-keystore.jks")
-                .keystorePassword("password")
-                .withRootDirectory(rootDir)
-                .gzipDisabled(true)
-                .useChunkedTransferEncoding(Options.ChunkedEncodingPolicy.NEVER)
-                .filenameTemplate("{{name}}.json")
-                .extensions(extensions.toArray(new Extension[0]))
-                .enableBrowserProxying(true)
-                .preserveHostHeader(true));
-    wireMockServer.start();
+    return extensions;
   }
 
   public static void stopWireMockServer() {
