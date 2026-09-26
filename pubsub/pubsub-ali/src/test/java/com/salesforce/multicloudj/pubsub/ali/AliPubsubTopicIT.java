@@ -4,7 +4,6 @@ import com.aliyun.mns.client.CloudQueue;
 import com.aliyun.mns.client.MNSClient;
 import com.aliyun.mns.common.ServiceException;
 import com.aliyun.mns.common.ServiceHandlingRequiredException;
-import com.aliyun.mns.common.http.ClientConfiguration;
 import com.aliyun.mns.model.Message;
 import com.aliyun.mns.model.QueueMeta;
 import com.aliyun.mns.model.SubscriptionMeta;
@@ -91,10 +90,6 @@ public class AliPubsubTopicIT extends AbstractPubsubIT {
   private static final String QUEUE_ALREADY_EXISTS = "QueueAlreadyExist";
   private static final String TOPIC_ALREADY_EXISTS = "TopicAlreadyExist";
   private static final String SUBSCRIPTION_ALREADY_EXISTS = "SubscriptionAlreadyExist";
-
-  // Cap the SMQ client's connect+socket timeouts (ms) so a replay transport stall fails fast as a
-  // typed SDK timeout within the test @Timeout, not an opaque 30s hang.
-  private static final int SMQ_CLIENT_TIMEOUT_MILLIS = 5000;
 
   // Drain-loop tuning for the record-mode pre-test purge: SMQ batchPopMessage caps at 16 messages
   // per call; a 1s long-poll matches the subscription wait; the round cap bounds each pop sweep so
@@ -430,18 +425,8 @@ public class AliPubsubTopicIT extends AbstractPubsubIT {
       if (nackVisibilityTimeout != null) {
         builder.withNackVisibilityTimeout(nackVisibilityTimeout);
       }
-      // Bound the SMQ client's connect+socket timeouts so a replay transport stall surfaces as a
-      // fast typed SDK timeout within the test @Timeout instead of an opaque 30s hang. Endpoint-
-      // override uses no proxy, so proxyEndpoint is null. Injecting before build() makes build()
-      // adopt it instead of self-building one with the SDK-default (30s/40s) timeouts.
-      ClientConfiguration clientConfiguration = SmqClientFactory.buildClientConfiguration(null);
-      clientConfiguration.setConnectionTimeout(SMQ_CLIENT_TIMEOUT_MILLIS);
-      clientConfiguration.setSocketTimeout(SMQ_CLIENT_TIMEOUT_MILLIS);
-      builder.withSmqClient(
-          SmqClientFactory.buildSmqClient(
-              wiremockEndpoint(), sessionOverriderFromEnv(), null, clientConfiguration));
-      // Populate the builder (validates, adopts the injected client, resolves the queue ref)
-      // before the anonymous subclass reuses it.
+      // Populate the builder (validates, self-builds its client, resolves the queue ref) before the
+      // anonymous subclass reuses it.
       builder.build();
       AbstractSubscription driver =
           new AliSubscription(builder) {

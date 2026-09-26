@@ -44,42 +44,13 @@ public final class SmqClientFactory {
   }
 
   /**
-   * Builds an {@link MNSClient} using a caller-supplied {@link ClientConfiguration} instead of the
-   * one derived from {@code proxyEndpoint}. Intended for tests that need to bound the SMQ client's
-   * transport timeouts; the three-argument overload delegates here with the default configuration.
-   */
-  public static MNSClient buildSmqClient(
-      URI endpoint,
-      CredentialsOverrider credentialsOverrider,
-      URI proxyEndpoint,
-      ClientConfiguration clientConfiguration) {
-    return buildCloudAccount(endpoint, credentialsOverrider, proxyEndpoint, clientConfiguration)
-        .getMNSClient();
-  }
-
-  /**
    * Builds the {@link CloudAccount} used by {@link #buildSmqClient}; package-private so unit tests
-   * can assert the endpoint and credential wiring directly. Delegates to the
-   * {@link ClientConfiguration}-taking overload (which validates the endpoint) with the
-   * configuration derived from {@code proxyEndpoint}.
+   * can assert the endpoint and credential wiring directly.
    */
   static CloudAccount buildCloudAccount(
       URI endpoint, CredentialsOverrider credentialsOverrider, URI proxyEndpoint) {
-    return buildCloudAccount(
-        endpoint, credentialsOverrider, proxyEndpoint, buildClientConfiguration(proxyEndpoint));
-  }
-
-  /**
-   * Builds a {@link CloudAccount} from a caller-supplied {@link ClientConfiguration}, used as-is.
-   * Package-private companion to the {@link ClientConfiguration}-taking {@link #buildSmqClient}
-   * overload; unit tests can assert the endpoint and credential wiring directly.
-   */
-  static CloudAccount buildCloudAccount(
-      URI endpoint,
-      CredentialsOverrider credentialsOverrider,
-      URI proxyEndpoint,
-      ClientConfiguration clientConfiguration) {
     validateEndpoint(endpoint);
+    ClientConfiguration clientConfiguration = buildClientConfiguration(proxyEndpoint);
     AlibabaCloudCredentialsProvider credentialsProvider =
         SmqCredentialsProvider.getCredentialsProvider(credentialsOverrider);
     if (credentialsProvider == null) {
