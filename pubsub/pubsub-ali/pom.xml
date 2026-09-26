@@ -87,16 +87,6 @@
             <artifactId>mockito-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- TEMPORARY DIAGNOSTIC (revert once the CI hang is captured): test-scoped SLF4J binding
-             so this module's fork stops logging "No SLF4J providers were found" and the harness /
-             TestsUtil / WireMock logs print to the console. slf4j-simple writes to stdout, needs no
-             XML config, is test-scoped + module-local. Version tracks the root-managed slf4j-api. -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>${slf4j.version}</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>

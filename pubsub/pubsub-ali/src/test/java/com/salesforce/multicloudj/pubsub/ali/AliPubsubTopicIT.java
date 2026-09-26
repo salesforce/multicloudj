@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
@@ -149,12 +148,6 @@ public class AliPubsubTopicIT extends AbstractPubsubIT {
     } catch (GeneralSecurityException | IOException e) {
       throw new ExceptionInInitializerError(e);
     }
-    // TEMPORARY DIAGNOSTIC (revert once the CI hang is captured): start the console thread-dump
-    // watchdog at class-load, before AbstractPubsubIT's @BeforeAll starts WireMock, so a hang in
-    // WireMock startup or the first provisioning call is still captured. The per-test @BeforeEach
-    // below re-arms it with the running method name.
-    DiagnosticWatchdog.start();
-    DiagnosticWatchdog.arm("class-init / @BeforeAll (WireMock start)", 180_000);
   }
 
   @AfterAll
@@ -199,16 +192,6 @@ public class AliPubsubTopicIT extends AbstractPubsubIT {
           QUEUE_PREFIX + "-" + testMethodName,
           SUBSCRIPTION_PREFIX + "-" + testMethodName);
     }
-    // TEMPORARY DIAGNOSTIC: (re)arm the watchdog for this test so a hang dumps every thread's
-    // stack (naming the stuck method) to stdout ~2 min in, well before GitHub's 30-min step kill.
-    DiagnosticWatchdog.arm("test " + testMethodName, 120_000);
-  }
-
-  @AfterEach
-  public void rearmWatchdogForTeardown() {
-    // TEMPORARY DIAGNOSTIC: keep a rolling budget across teardown + next-test setup so a hang
-    // outside a test body (provisioning-client close, WireMock scenario reset) is also captured.
-    DiagnosticWatchdog.arm("post-test teardown / next-test setup", 120_000);
   }
 
   public static class HarnessImpl implements Harness {
