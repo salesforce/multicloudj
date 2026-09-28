@@ -1,0 +1,32 @@
+{
+  "id" : "d2e88312-0a53-45ee-aad8-214d37a1dffa",
+  "name" : "AliPubsubQueueIT_testNackWithVisibilityTimeout-PUT-8",
+  "request" : {
+    "url" : "/queues/test-smq-conf-q-testNackWithVisibilityTimeout",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><Queue xmlns=\"http://mns.aliyuncs.com/doc/v1\"><LoggingEnabled>false</LoggingEnabled></Queue>"
+    } ]
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "4",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6ABAB8E53646380F009FDB4B",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Mon, 28 Sep 2026 18:58:45 GMT",
+      "Location" : "http://account-id.mns.cn-shanghai.aliyuncs.com/queues/test-smq-conf-q-testNackWithVisibilityTimeout",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "d2e88312-0a53-45ee-aad8-214d37a1dffa",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-queues-test-smq-conf-q-testNackWithVisibilityTimeout",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-3-queues-test-smq-conf-q-testNackWithVisibilityTimeout-2",
+  "insertionIndex" : 25
+}

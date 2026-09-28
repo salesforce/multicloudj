@@ -1,43 +1,26 @@
 {
-  "id" : "6ef0119e-9bd4-44da-93aa-b2b426d6e025",
+  "id" : "383f5b8f-b210-42fd-a0bb-37ff3fa2ddc2",
   "name" : "AliPubsubQueueIT_testAckNullThrows-GET-0",
   "request" : {
-    "urlPath" : "/queues/test-smq-conf-q-testAckNullThrows/messages",
-    "method" : "GET",
-    "headers" : {
-      "X-Query-Param-Count" : {
-        "equalTo" : "2"
-      }
-    },
-    "queryParameters" : {
-      "numOfMessages" : {
-        "hasExactly" : [ {
-          "equalTo" : "16"
-        } ]
-      },
-      "waitseconds" : {
-        "hasExactly" : [ {
-          "equalTo" : "1"
-        } ]
-      }
-    }
+    "url" : "/queues/test-smq-conf-q-testAckNullThrows",
+    "method" : "GET"
   },
   "response" : {
-    "status" : 404,
-    "body" : "<?xml version=\"1.0\" ?>\n<Error xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Code>MessageNotExist</Code>\n  <Message>Message not exist.</Message>\n  <RequestId>6AB5CE264643320F0057D908</RequestId>\n  <HostId>http://account-id.mns.cn-shanghai.aliyuncs.com</HostId>\n</Error>",
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" ?>\n<Queue xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <QueueName>test-smq-conf-q-testAckNullThrows</QueueName>\n  <DelaySeconds>0</DelaySeconds>\n  <MaximumMessageSize>65536</MaximumMessageSize>\n  <MessageRetentionPeriod>345600</MessageRetentionPeriod>\n  <VisibilityTimeout>30</VisibilityTimeout>\n  <CreateTime>1790184284</CreateTime>\n  <LastModifyTime>1790184284</LastModifyTime>\n  <PollingWaitSeconds>0</PollingWaitSeconds>\n  <ActiveMessages>0</ActiveMessages>\n  <InactiveMessages>0</InactiveMessages>\n  <DelayMessages>0</DelayMessages>\n  <LoggingEnabled>False</LoggingEnabled>\n  <MessageType>0</MessageType>\n  <EnableSSE>False</EnableSSE>\n</Queue>",
     "headers" : {
       "x-mns-response-format" : "xml",
-      "x-mns-netty-total-time" : "858",
+      "x-mns-netty-total-time" : "18",
       "x-mns-account-type" : "",
       "x-mns-version" : "2015-06-06",
       "Server" : "AliyunMQS",
-      "x-mns-request-id" : "6AB5CE264643320F0057D908",
+      "x-mns-request-id" : "6ABAB8F24343300F00A85E63",
       "x-mns-threadpool-wait-time" : "0",
-      "Date" : "Fri, 25 Sep 2026 01:28:07 GMT",
+      "Date" : "Mon, 28 Sep 2026 18:58:58 GMT",
       "Content-Type" : "text/xml;charset=utf-8"
     }
   },
-  "uuid" : "6ef0119e-9bd4-44da-93aa-b2b426d6e025",
+  "uuid" : "383f5b8f-b210-42fd-a0bb-37ff3fa2ddc2",
   "persistent" : true,
-  "insertionIndex" : 23
+  "insertionIndex" : 27
 }

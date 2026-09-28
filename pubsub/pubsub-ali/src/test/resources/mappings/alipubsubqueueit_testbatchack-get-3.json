@@ -1,5 +1,5 @@
 {
-  "id" : "29865fb6-7d50-49bd-a2cf-a2f8e994154e",
+  "id" : "41378ca0-28da-4d00-a2fc-88c9ca299a6b",
   "name" : "AliPubsubQueueIT_testBatchAck-GET-3",
   "request" : {
     "urlPath" : "/queues/test-smq-conf-q-testBatchAck/messages",
@@ -24,20 +24,20 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "<?xml version=\"1.0\" ?>\n<Messages xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Message>\n    <MessageId>F0E90FC633FD7FB37FB07DA07D549F17</MessageId>\n    <MessageBodyMD5>5D90821EDE7CF5AB0C65EFB16DF5766C</MessageBodyMD5>\n    <MessageBody>batch-ack-1</MessageBody>\n    <ReceiptHandle>F0E90FC633FD7FB37FB07DA07D549F17-NCAxNzkwMjk5Njc0ODAyIDMwMDAwIDQgMCBzaG1xbmluZTRzbXEtMTAgMCA0fE1HVjBJ</ReceiptHandle>\n    <EnqueueTime>1790299669856</EnqueueTime>\n    <FirstDequeueTime>1790299674802</FirstDequeueTime>\n    <NextVisibleTime>1790299704802</NextVisibleTime>\n    <DequeueCount>1</DequeueCount>\n    <Priority>8</Priority>\n    <UserProperties>\n      <PropertyValue>\n        <Name>batch</Name>\n        <Value>ack</Value>\n        <Type>STRING</Type>\n      </PropertyValue>\n    </UserProperties>\n  </Message>\n</Messages>",
+    "body" : "<?xml version=\"1.0\" ?>\n<Messages xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Message>\n    <MessageId>F0E90FC633FD7FCD7F9890D59D33C862</MessageId>\n    <MessageBodyMD5>02E87F1921D8A892C90C76253DD51D3E</MessageBodyMD5>\n    <MessageBody>batch-ack-3</MessageBody>\n    <ReceiptHandle>F0E90FC633FD7FCD7F9890D59D33C862-OSAxNzkwNjIxOTIyMTE2IDMwMDAwIDYgMCBzaG1xbmluZTRzbXEtMTAgMCA5fE1HVjBJ</ReceiptHandle>\n    <EnqueueTime>1790621918530</EnqueueTime>\n    <FirstDequeueTime>1790621922116</FirstDequeueTime>\n    <NextVisibleTime>1790621952116</NextVisibleTime>\n    <DequeueCount>1</DequeueCount>\n    <Priority>8</Priority>\n    <UserProperties>\n      <PropertyValue>\n        <Name>batch</Name>\n        <Value>ack</Value>\n        <Type>STRING</Type>\n      </PropertyValue>\n    </UserProperties>\n  </Message>\n</Messages>",
     "headers" : {
       "x-mns-response-format" : "xml",
-      "x-mns-netty-total-time" : "25",
+      "x-mns-netty-total-time" : "31",
       "x-mns-account-type" : "",
       "x-mns-version" : "2015-06-06",
       "Server" : "AliyunMQS",
-      "x-mns-request-id" : "6AB5CE1A4131450F00073F0B",
+      "x-mns-request-id" : "6ABAB8E23234370F00F8B690",
       "x-mns-threadpool-wait-time" : "0",
-      "Date" : "Fri, 25 Sep 2026 01:27:54 GMT",
+      "Date" : "Mon, 28 Sep 2026 18:58:42 GMT",
       "Content-Type" : "text/xml;charset=utf-8"
     }
   },
-  "uuid" : "29865fb6-7d50-49bd-a2cf-a2f8e994154e",
+  "uuid" : "41378ca0-28da-4d00-a2fc-88c9ca299a6b",
   "persistent" : true,
   "scenarioName" : "scenario-1-queues-test-smq-conf-q-testBatchAck-messages",
   "requiredScenarioState" : "scenario-1-queues-test-smq-conf-q-testBatchAck-messages-3",

@@ -1,32 +1,32 @@
 {
-  "id" : "736749c7-2f67-4521-9d1d-26425ac582f4",
+  "id" : "510702d2-b0e2-45eb-8f19-1441a24765f1",
   "name" : "AliPubsubTopicIT_testReceiveAfterSend-PUT-10",
   "request" : {
-    "url" : "/queues/test-smq-conf-tq-testReceiveAfterSend",
+    "url" : "/topics/test-smq-conf-t-testReceiveAfterSend/subscriptions/test-smq-conf-ts-testReceiveAfterSend",
     "method" : "PUT",
     "bodyPatterns" : [ {
-      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><Queue xmlns=\"http://mns.aliyuncs.com/doc/v1\"><LoggingEnabled>false</LoggingEnabled></Queue>"
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><Subscription xmlns=\"http://mns.aliyuncs.com/doc/v1\"><Endpoint>acs:mns:cn-shanghai:account-id:queues/test-smq-conf-tq-testReceiveAfterSend</Endpoint><NotifyContentFormat>JSON</NotifyContentFormat></Subscription>"
     } ]
   },
   "response" : {
     "status" : 204,
     "headers" : {
       "x-mns-response-format" : "xml",
-      "x-mns-netty-total-time" : "0",
+      "x-mns-netty-total-time" : "17",
       "x-mns-account-type" : "",
       "x-mns-version" : "2015-06-06",
       "Server" : "AliyunMQS",
-      "x-mns-request-id" : "6AB5CEC64131450F00102DBD",
+      "x-mns-request-id" : "6ABABA183646380F00ACF118",
       "x-mns-threadpool-wait-time" : "0",
-      "Date" : "Fri, 25 Sep 2026 01:30:46 GMT",
-      "Location" : "http://account-id.mns.cn-shanghai.aliyuncs.com/queues/test-smq-conf-tq-testReceiveAfterSend",
+      "Date" : "Mon, 28 Sep 2026 19:03:52 GMT",
+      "Location" : "account-id.mns.cn-shanghai.aliyuncs.com/topics/test-smq-conf-t-testReceiveAfterSend/subscriptions/test-smq-conf-ts-testReceiveAfterSend",
       "Content-Type" : "text/xml;charset=utf-8"
     }
   },
-  "uuid" : "736749c7-2f67-4521-9d1d-26425ac582f4",
+  "uuid" : "510702d2-b0e2-45eb-8f19-1441a24765f1",
   "persistent" : true,
-  "scenarioName" : "scenario-5-queues-test-smq-conf-tq-testReceiveAfterSend",
+  "scenarioName" : "scenario-4-topics-test-smq-conf-t-testReceiveAfterSend-subscriptions-test-smq-conf-ts-testReceiveAfterSend",
   "requiredScenarioState" : "Started",
-  "newScenarioState" : "scenario-5-queues-test-smq-conf-tq-testReceiveAfterSend-2",
-  "insertionIndex" : 97
+  "newScenarioState" : "scenario-4-topics-test-smq-conf-t-testReceiveAfterSend-subscriptions-test-smq-conf-ts-testReceiveAfterSend-2",
+  "insertionIndex" : 113
 }

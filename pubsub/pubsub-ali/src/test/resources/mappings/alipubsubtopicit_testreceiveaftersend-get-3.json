@@ -1,45 +1,28 @@
 {
-  "id" : "e4797be5-c2e5-446a-8fc8-c4bd31ffd02a",
+  "id" : "b87a6400-3a96-40cb-a039-6b18aa606a05",
   "name" : "AliPubsubTopicIT_testReceiveAfterSend-GET-3",
   "request" : {
-    "urlPath" : "/queues/test-smq-conf-tq-testReceiveAfterSend/messages",
-    "method" : "GET",
-    "headers" : {
-      "X-Query-Param-Count" : {
-        "equalTo" : "2"
-      }
-    },
-    "queryParameters" : {
-      "numOfMessages" : {
-        "hasExactly" : [ {
-          "equalTo" : "16"
-        } ]
-      },
-      "waitseconds" : {
-        "hasExactly" : [ {
-          "equalTo" : "1"
-        } ]
-      }
-    }
+    "url" : "/queues/test-smq-conf-tq-testReceiveAfterSend",
+    "method" : "GET"
   },
   "response" : {
-    "status" : 404,
-    "body" : "<?xml version=\"1.0\" ?>\n<Error xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Code>MessageNotExist</Code>\n  <Message>Message not exist.</Message>\n  <RequestId>6AB5CECD3931380F004735D0</RequestId>\n  <HostId>http://account-id.mns.cn-shanghai.aliyuncs.com</HostId>\n</Error>",
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" ?>\n<Queue xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <QueueName>test-smq-conf-tq-testReceiveAfterSend</QueueName>\n  <DelaySeconds>0</DelaySeconds>\n  <MaximumMessageSize>65536</MaximumMessageSize>\n  <MessageRetentionPeriod>345600</MessageRetentionPeriod>\n  <VisibilityTimeout>30</VisibilityTimeout>\n  <CreateTime>1790184709</CreateTime>\n  <LastModifyTime>1790184709</LastModifyTime>\n  <PollingWaitSeconds>0</PollingWaitSeconds>\n  <ActiveMessages>0</ActiveMessages>\n  <InactiveMessages>0</InactiveMessages>\n  <DelayMessages>0</DelayMessages>\n  <LoggingEnabled>False</LoggingEnabled>\n  <MessageType>0</MessageType>\n  <EnableSSE>False</EnableSSE>\n</Queue>",
     "headers" : {
       "x-mns-response-format" : "xml",
-      "x-mns-netty-total-time" : "918",
+      "x-mns-netty-total-time" : "18",
       "x-mns-account-type" : "",
       "x-mns-version" : "2015-06-06",
       "Server" : "AliyunMQS",
-      "x-mns-request-id" : "6AB5CECD3931380F004735D0",
+      "x-mns-request-id" : "6ABABA203736370F0001B6D8",
       "x-mns-threadpool-wait-time" : "0",
-      "Date" : "Fri, 25 Sep 2026 01:30:54 GMT",
+      "Date" : "Mon, 28 Sep 2026 19:04:00 GMT",
       "Content-Type" : "text/xml;charset=utf-8"
     }
   },
-  "uuid" : "e4797be5-c2e5-446a-8fc8-c4bd31ffd02a",
+  "uuid" : "b87a6400-3a96-40cb-a039-6b18aa606a05",
   "persistent" : true,
-  "scenarioName" : "scenario-2-queues-test-smq-conf-tq-testReceiveAfterSend-messages",
-  "requiredScenarioState" : "scenario-2-queues-test-smq-conf-tq-testReceiveAfterSend-messages-2",
-  "insertionIndex" : 90
+  "scenarioName" : "scenario-2-queues-test-smq-conf-tq-testReceiveAfterSend",
+  "requiredScenarioState" : "scenario-2-queues-test-smq-conf-tq-testReceiveAfterSend-2",
+  "insertionIndex" : 106
 }

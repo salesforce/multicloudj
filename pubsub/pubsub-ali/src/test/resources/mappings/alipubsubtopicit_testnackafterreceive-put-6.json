@@ -1,31 +1,31 @@
 {
-  "id" : "497cee8b-24f0-484f-9764-5a8ff918688a",
+  "id" : "b2d3c832-b682-47b5-ac01-6d738c3c4a67",
   "name" : "AliPubsubTopicIT_testNackAfterReceive-PUT-6",
   "request" : {
-    "url" : "/queues/test-smq-conf-tq-testNackAfterReceive",
+    "url" : "/topics/test-smq-conf-t-testNackAfterReceive",
     "method" : "PUT",
     "bodyPatterns" : [ {
-      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><Queue xmlns=\"http://mns.aliyuncs.com/doc/v1\"><LoggingEnabled>false</LoggingEnabled></Queue>"
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><Topic xmlns=\"http://mns.aliyuncs.com/doc/v1\"><LoggingEnabled>false</LoggingEnabled></Topic>"
     } ]
   },
   "response" : {
     "status" : 204,
     "headers" : {
       "x-mns-response-format" : "xml",
-      "x-mns-netty-total-time" : "1",
+      "x-mns-netty-total-time" : "2",
       "x-mns-account-type" : "",
       "x-mns-version" : "2015-06-06",
       "Server" : "AliyunMQS",
-      "x-mns-request-id" : "6AB5CEE03739350F009D1B89",
+      "x-mns-request-id" : "6ABABA334343300F00B5EBAF",
       "x-mns-threadpool-wait-time" : "0",
-      "Date" : "Fri, 25 Sep 2026 01:31:12 GMT",
-      "Location" : "http://account-id.mns.cn-shanghai.aliyuncs.com/queues/test-smq-conf-tq-testNackAfterReceive",
+      "Date" : "Mon, 28 Sep 2026 19:04:19 GMT",
+      "Location" : "http://account-id.mns.cn-shanghai.aliyuncs.com/topics/test-smq-conf-t-testNackAfterReceive",
       "Content-Type" : "text/xml;charset=utf-8"
     }
   },
-  "uuid" : "497cee8b-24f0-484f-9764-5a8ff918688a",
+  "uuid" : "b2d3c832-b682-47b5-ac01-6d738c3c4a67",
   "persistent" : true,
-  "scenarioName" : "scenario-4-queues-test-smq-conf-tq-testNackAfterReceive",
-  "requiredScenarioState" : "scenario-4-queues-test-smq-conf-tq-testNackAfterReceive-2",
-  "insertionIndex" : 113
+  "scenarioName" : "scenario-4-topics-test-smq-conf-t-testNackAfterReceive",
+  "requiredScenarioState" : "scenario-4-topics-test-smq-conf-t-testNackAfterReceive-2",
+  "insertionIndex" : 132
 }
