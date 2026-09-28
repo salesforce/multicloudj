@@ -1,7 +1,5 @@
 package com.salesforce.multicloudj.blob.client;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
@@ -22,10 +20,8 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
@@ -122,8 +118,8 @@ public abstract class AbstractBlobBenchmarkTest {
   private static final int MEDIUM_COUNT = 20;
   private static final int LARGE_COUNT = 5;
 
-  // @Benchmark method names as constants so stageCorpusFor() and the coverage guard test
-  // (stageCorpusForCoversEveryBenchmark) share one source of truth.
+  // @Benchmark method names as constants so the stageCorpusFor() switch and the
+  // read/write classification below share one source of truth.
   private static final String BENCHMARK_UPLOAD_SMALL = "benchmarkUploadSmall";
   private static final String BENCHMARK_UPLOAD_MEDIUM = "benchmarkUploadMedium";
   private static final String BENCHMARK_UPLOAD_LARGE = "benchmarkUploadLarge";
@@ -138,13 +134,16 @@ public abstract class AbstractBlobBenchmarkTest {
   private static final String BENCHMARK_LIST_PAGE = "benchmarkListPage";
   private static final String BENCHMARK_COPY = "benchmarkCopy";
 
+  // Package-private so BlobBenchmarkStagingTest can assert every @Benchmark is classified and
+  // stages accordingly.
+
   /** Benchmarks that read pre-seeded objects — {@code @Setup} stages their corpus. */
-  private static final Set<String> READ_PATH_BENCHMARKS = Set.of(
+  static final Set<String> READ_PATH_BENCHMARKS = Set.of(
       BENCHMARK_DOWNLOAD_SMALL, BENCHMARK_GET_METADATA, BENCHMARK_LIST, BENCHMARK_LIST_PAGE,
       BENCHMARK_DOWNLOAD_MEDIUM, BENCHMARK_DOWNLOAD_LARGE, BENCHMARK_COPY);
 
   /** Benchmarks that create their own objects — {@code @Setup} stages nothing for them. */
-  private static final Set<String> WRITE_PATH_BENCHMARKS = Set.of(
+  static final Set<String> WRITE_PATH_BENCHMARKS = Set.of(
       BENCHMARK_UPLOAD_SMALL, BENCHMARK_UPLOAD_MEDIUM, BENCHMARK_UPLOAD_LARGE,
       BENCHMARK_WRITE_READ_DELETE, BENCHMARK_MULTIPART_UPLOAD, BENCHMARK_BULK_DELETE);
 
@@ -235,7 +234,7 @@ public abstract class AbstractBlobBenchmarkTest {
   }
 
   /** Allocates the in-memory payloads every method needs and resets the per-trial key lists. */
-  private void initBlobPayloads() {
+  void initBlobPayloads() {
     Random rnd = new Random(42);
     smallBlob = new byte[SMALL_BLOB];
     rnd.nextBytes(smallBlob);
@@ -254,7 +253,7 @@ public abstract class AbstractBlobBenchmarkTest {
    * same corpus size as before (so results are unchanged); {@code benchmarkCopy} needs only its
    * single source object; write-path methods stage nothing.
    */
-  private void stageCorpusFor(String method) {
+  void stageCorpusFor(String method) {
     switch (method) {
       case BENCHMARK_DOWNLOAD_SMALL:
       case BENCHMARK_GET_METADATA:
@@ -594,28 +593,6 @@ public abstract class AbstractBlobBenchmarkTest {
 
   private static String pickRandom(List<String> keys) {
     return keys.get(ThreadLocalRandom.current().nextInt(keys.size()));
-  }
-
-  /**
-   * Guards {@link #stageCorpusFor(String)}: every {@code @Benchmark} must be classified as
-   * read-path (its corpus is staged) or write-path (stages nothing). Fails if a benchmark is added
-   * or renamed without updating the classification — which would otherwise let a read-path method
-   * fall through to the default and silently measure against an empty corpus.
-   */
-  @Test
-  public void stageCorpusForCoversEveryBenchmark() {
-    Set<String> actual = new HashSet<>();
-    for (Method method : getClass().getMethods()) {
-      if (method.isAnnotationPresent(Benchmark.class)) {
-        actual.add(method.getName());
-      }
-    }
-    Set<String> classified = new HashSet<>();
-    classified.addAll(READ_PATH_BENCHMARKS);
-    classified.addAll(WRITE_PATH_BENCHMARKS);
-    assertEquals(classified, actual,
-        "Every @Benchmark must be listed in READ_PATH_BENCHMARKS or WRITE_PATH_BENCHMARKS and "
-            + "match stageCorpusFor(); update these when adding or renaming a benchmark.");
   }
 
   @Test
