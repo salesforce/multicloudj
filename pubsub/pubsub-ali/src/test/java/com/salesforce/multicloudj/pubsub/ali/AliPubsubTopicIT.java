@@ -8,6 +8,7 @@ import com.aliyun.mns.model.Message;
 import com.aliyun.mns.model.QueueMeta;
 import com.aliyun.mns.model.SubscriptionMeta;
 import com.aliyun.mns.model.TopicMeta;
+import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.AbstractPubsubIT;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
@@ -15,15 +16,7 @@ import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.security.GeneralSecurityException;
-import java.security.KeyStore;
-import java.security.cert.Certificate;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,19 +29,19 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Alibaba SMQ (MNS) topic conformance harness: runs the shared {@link AbstractPubsubIT} suite over
- * an SMQ topic and its fan-out subscription queue via the endpoint-override recipe. A publisher
+ * an SMQ topic and its fan-out subscription queue via the shared forward-proxy recipe. A publisher
  * sends to an SMQ topic, the topic fans out to a JSON-format queue subscription, and the consumer
  * reads from that queue — so the messages arrive as the topic-delivery JSON envelope and
  * {@link AliSubscription}'s dual-mode sniff/unwrap runs against the received bytes. Because an SMQ
  * topic and its fan-out subscription queue share one MNS endpoint, the IT publishes to the topic
- * and receives the fan-out-delivered (envelope-unwrapped) message through a single
- * endpoint-override WireMock server. It does not verify the received payload end to end — the
- * shared conformance suite currently asserts only that the received body and ack id are non-null.
+ * and receives the fan-out-delivered (envelope-unwrapped) message through a single WireMock
+ * forward proxy. It does not verify the received payload end to end — the shared conformance suite
+ * currently asserts only that the received body and ack id are non-null.
  *
- * <p>Modeled closely on {@link AliPubsubQueueIT} (same endpoint-override recipe, static-init
- * trust+scrub, per-driver clients, provisioning client, record-gating, scrubber, SAN keystore,
- * receive-batch-size-1). It differs only in provisioning a topic + fan-out queue + JSON
- * subscription per test and publishing through {@link AliSmqTopic}.
+ * <p>Modeled closely on {@link AliPubsubQueueIT} (same forward-proxy recipe, static-init scrub,
+ * per-driver clients, provisioning client, record-gating, scrubber, receive-batch-size-1). It
+ * differs only in provisioning a topic + fan-out queue + JSON subscription per test and publishing
+ * through {@link AliSmqTopic}.
  *
  * <p>Runs in replay by default (no credentials) against the committed WireMock mappings; pass
  * {@code -Drecord} with session credentials on the dedicated Ali machine to regenerate them:
@@ -62,22 +55,11 @@ public class AliPubsubTopicIT extends AbstractPubsubIT {
   private static final String REGION = "cn-shanghai";
   private static final String ACCOUNT_ID = envOr("SMQ_ACCOUNT_ID", "account-id");
   private static final String ENDPOINT =
-      "https://" + ACCOUNT_ID + ".mns." + REGION + ".aliyuncs.com";
+      "http://" + ACCOUNT_ID + ".mns." + REGION + ".aliyuncs.com";
   // Per-test resource prefixes: topic, fan-out queue, and the topic→queue subscription binding.
   private static final String TOPIC_PREFIX = "test-smq-conf-t";
   private static final String QUEUE_PREFIX = "test-smq-conf-tq";
   private static final String SUBSCRIPTION_PREFIX = "test-smq-conf-ts";
-
-  private static final String KEYSTORE_PASSWORD = "password";
-  // JVM system properties this harness overrides to trust WireMock's localhost cert, captured and
-  // restored (see @AfterAll) so the process-global mutation does not leak to other test classes.
-  private static final String TRUST_STORE_PROPERTY = "javax.net.ssl.trustStore";
-  private static final String TRUST_STORE_PASSWORD_PROPERTY = "javax.net.ssl.trustStorePassword";
-  // Classpath resource name WireMock loads to serve its https listener cert (and that the static
-  // initializer reads to build the JVM truststore anchor).
-  private static final String SERVER_KEYSTORE_RESOURCE = "/pubsub-smq-localhost-keystore.jks";
-  private static final String SERVER_KEYSTORE_WIREMOCK_PATH = "pubsub-smq-localhost-keystore.jks";
-  private static final String LOCALHOST_ALIAS = "localhost";
 
   // Allowlist of benign RESPONSE headers kept in recorded stubs; every other response header (any
   // that could echo a credential or session token) is dropped. These MNS-specific names live here,
@@ -104,11 +86,8 @@ public class AliPubsubTopicIT extends AbstractPubsubIT {
   private static final int DRAIN_EMPTY_CHECK_MAX_ATTEMPTS = 3;
   private static final long DRAIN_EMPTY_CHECK_SLEEP_MILLIS = 500L;
 
-  // Original JVM truststore and scrubber system-property values captured before this harness
-  // overrides them, restored in @AfterAll so the process-global mutation does not leak to other
-  // test classes.
-  private static String originalTrustStore;
-  private static String originalTrustStorePassword;
+  // Original scrubber system-property values captured before this harness overrides them, restored
+  // in @AfterAll so the process-global mutation does not leak to other test classes.
   private static String originalAllowHeaders;
   private static String originalRedactValues;
 
@@ -122,34 +101,24 @@ public class AliPubsubTopicIT extends AbstractPubsubIT {
           "SMQ_ACCOUNT_ID must be set to the real account id when recording (-Drecord); "
               + "otherwise the account-id redaction is a no-op that could commit the real id.");
     }
-    originalTrustStore = System.getProperty(TRUST_STORE_PROPERTY);
-    originalTrustStorePassword = System.getProperty(TRUST_STORE_PASSWORD_PROPERTY);
     originalAllowHeaders =
         System.getProperty(SensitiveHeaderScrubbingTransformer.ALLOW_HEADERS_PROPERTY);
     originalRedactValues =
         System.getProperty(SensitiveHeaderScrubbingTransformer.REDACT_VALUES_PROPERTY);
-    // Set the JVM trust anchor (WireMock's localhost cert), the response-header allowlist, and the
-    // account-id redaction BEFORE AbstractPubsubIT's @BeforeAll starts WireMock. A subclass
-    // @BeforeAll runs after the superclass's, so this must happen at class-load.
-    try {
-      System.setProperty(TRUST_STORE_PROPERTY, buildLocalhostTrustStore());
-      System.setProperty(TRUST_STORE_PASSWORD_PROPERTY, KEYSTORE_PASSWORD);
-      System.setProperty(
-          SensitiveHeaderScrubbingTransformer.ALLOW_HEADERS_PROPERTY, ALLOWED_RESPONSE_HEADERS);
-      // Redact the real account id out of recorded responses (Location header, TopicURL/QueueURL,
-      // TopicOwner/Subscriber) so committed mappings match the placeholder endpoint replay builds.
-      System.setProperty(
-          SensitiveHeaderScrubbingTransformer.REDACT_VALUES_PROPERTY, ACCOUNT_ID + "=account-id");
-    } catch (GeneralSecurityException | IOException e) {
-      throw new ExceptionInInitializerError(e);
-    }
+    // Set the response-header allowlist and the account-id redaction BEFORE AbstractPubsubIT's
+    // @BeforeAll starts WireMock. A subclass @BeforeAll runs after the superclass's, so this must
+    // happen at class-load.
+    System.setProperty(
+        SensitiveHeaderScrubbingTransformer.ALLOW_HEADERS_PROPERTY, ALLOWED_RESPONSE_HEADERS);
+    // Redact the real account id out of recorded responses (Location header, TopicURL/QueueURL,
+    // TopicOwner/Subscriber) so committed mappings match the placeholder endpoint replay builds.
+    System.setProperty(
+        SensitiveHeaderScrubbingTransformer.REDACT_VALUES_PROPERTY, ACCOUNT_ID + "=account-id");
   }
 
   @AfterAll
   public void restoreSystemProperties() {
     // Undo the process-global system-property overrides so they do not leak to other test classes.
-    restoreProperty(TRUST_STORE_PROPERTY, originalTrustStore);
-    restoreProperty(TRUST_STORE_PASSWORD_PROPERTY, originalTrustStorePassword);
     restoreProperty(
         SensitiveHeaderScrubbingTransformer.ALLOW_HEADERS_PROPERTY, originalAllowHeaders);
     restoreProperty(
@@ -203,14 +172,17 @@ public class AliPubsubTopicIT extends AbstractPubsubIT {
       this.subscriptionName = subscriptionName;
     }
 
-    // The WireMock https listener that the client and provisioning both target.
-    // Use 127.0.0.1 (not "localhost"): the MNS SDK's CloudTopic ctor eagerly parses the client
-    // endpoint host as host.split(".")[2] for the region, so a dot-less "localhost" throws AIOOBE.
-    // "127.0.0.1" has 4 dot-labels so the parse succeeds; the derived account/region are unused,
-    // and 127.0.0.1 is the same loopback listener whose cert SAN includes it, so TLS/hostname
-    // verification still passes.
-    private URI wiremockEndpoint() {
-      return URI.create("https://127.0.0.1:" + port);
+    // The real account-scoped MNS endpoint the client and provisioning both target (over plain
+    // HTTP); WireMock intercepts each request via the forward proxy below.
+    private URI accountEndpoint() {
+      return URI.create(ENDPOINT);
+    }
+
+    // WireMock's HTTP listener (base port + 1), used as the forward proxy — the same transport the
+    // shared TestsUtil.startWireMockServer path sets up. In replay the placeholder account host
+    // never resolves, so a stub miss fails loud instead of reaching live MNS.
+    private URI proxyEndpoint() {
+      return URI.create("http://" + TestsUtil.WIREMOCK_HOST + ":" + (port + 1));
     }
 
     // A single harness-lifetime client used ONLY to provision infra (createQueue/createTopic/
@@ -220,7 +192,8 @@ public class AliPubsubTopicIT extends AbstractPubsubIT {
     private MNSClient provisioningClient() {
       if (provisioningClient == null) {
         provisioningClient =
-            SmqClientFactory.buildSmqClient(wiremockEndpoint(), sessionOverriderFromEnv(), null);
+            SmqClientFactory.buildSmqClient(
+                accountEndpoint(), sessionOverriderFromEnv(), proxyEndpoint());
       }
       return provisioningClient;
     }
@@ -268,10 +241,9 @@ public class AliPubsubTopicIT extends AbstractPubsubIT {
     }
 
     // The fan-out queue's MNS resource endpoint for the subscription binding:
-    // acs:mns:<region>:<accountId>:queues/<queueName>. account id and region are derived from the
-    // record-target host (<accountId>.mns.<region>.aliyuncs.com), so they come from the runtime env
-    // endpoint, not hardcoded source. (CloudTopic.generateQueueEndpoint is NOT used: it derives
-    // from the client endpoint, which is 127.0.0.1 here.)
+    // acs:mns:<region>:<accountId>:queues/<queueName>. Account id and region are derived from the
+    // configured endpoint host (<accountId>.mns.<region>.aliyuncs.com), so they come from the
+    // runtime env endpoint, not hardcoded source.
     private String queueResourceEndpoint() {
       String host = URI.create(ENDPOINT).getHost();
       String[] labels = host == null ? new String[0] : host.split("\\.");
@@ -394,7 +366,8 @@ public class AliPubsubTopicIT extends AbstractPubsubIT {
       // Own client per driver (self-built from endpoint+creds, not injected) so topic.close() only
       // shuts down this test's client, never the shared provisioning client.
       AliSmqTopic.Builder builder = new AliSmqTopic.Builder();
-      builder.withEndpoint(wiremockEndpoint());
+      builder.withEndpoint(accountEndpoint());
+      builder.withProxyEndpoint(proxyEndpoint());
       builder.withCredentialsOverrider(sessionOverriderFromEnv());
       builder.withTopicName(topicName);
       return builder.build();
@@ -418,7 +391,8 @@ public class AliPubsubTopicIT extends AbstractPubsubIT {
       // Own client per driver (self-built from endpoint+creds, not injected) so a per-test
       // subscription.close() shuts down only this test's client, never the provisioning client.
       AliSubscription.Builder builder = new AliSubscription.Builder();
-      builder.withEndpoint(wiremockEndpoint());
+      builder.withEndpoint(accountEndpoint());
+      builder.withProxyEndpoint(proxyEndpoint());
       builder.withCredentialsOverrider(sessionOverriderFromEnv());
       builder.withSubscriptionName(queueName);
       builder.withWaitTimeSeconds(1);
@@ -475,16 +449,6 @@ public class AliPubsubTopicIT extends AbstractPubsubIT {
     }
 
     @Override
-    public WireMockRecordingMode getWireMockRecordingMode() {
-      return WireMockRecordingMode.ENDPOINT_OVERRIDE;
-    }
-
-    @Override
-    public String getServerKeystorePath() {
-      return SERVER_KEYSTORE_WIREMOCK_PATH;
-    }
-
-    @Override
     public void close() throws Exception {
       // Per-test drivers (and the client each owns) are closed by AbstractPubsubIT's
       // try-with-resources; only the shared provisioning client is closed here. Topics/queues/
@@ -508,35 +472,6 @@ public class AliPubsubTopicIT extends AbstractPubsubIT {
     return new CredentialsOverrider.Builder(CredentialsType.SESSION)
         .withSessionCredentials(credentials)
         .build();
-  }
-
-  /**
-   * Derives a JVM truststore anchoring exactly WireMock's static localhost cert: reads the
-   * committed server keystore, extracts the {@code localhost} certificate, installs it as a
-   * trusted-certificate entry in a fresh JKS temp file, and returns that file's absolute path.
-   */
-  private static String buildLocalhostTrustStore() throws GeneralSecurityException, IOException {
-    char[] password = KEYSTORE_PASSWORD.toCharArray();
-    KeyStore serverStore = KeyStore.getInstance("JKS");
-    try (InputStream in = AliPubsubTopicIT.class.getResourceAsStream(SERVER_KEYSTORE_RESOURCE)) {
-      if (in == null) {
-        throw new IOException(SERVER_KEYSTORE_RESOURCE + " not found on the test classpath");
-      }
-      serverStore.load(in, password);
-    }
-    Certificate cert = serverStore.getCertificate(LOCALHOST_ALIAS);
-    if (cert == null) {
-      throw new IOException("certificate alias '" + LOCALHOST_ALIAS + "' not found");
-    }
-    KeyStore trustStore = KeyStore.getInstance("JKS");
-    trustStore.load(null, password);
-    trustStore.setCertificateEntry(LOCALHOST_ALIAS, cert);
-    Path temp = Files.createTempFile("pubsub-smq-localhost-truststore", ".jks");
-    temp.toFile().deleteOnExit();
-    try (OutputStream out = Files.newOutputStream(temp)) {
-      trustStore.store(out, password);
-    }
-    return temp.toAbsolutePath().toString();
   }
 
   private static String envOr(String name, String fallback) {
