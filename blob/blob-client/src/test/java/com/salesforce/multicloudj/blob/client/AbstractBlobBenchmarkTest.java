@@ -1,5 +1,7 @@
 package com.salesforce.multicloudj.blob.client;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
@@ -20,11 +22,14 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -108,11 +113,40 @@ public abstract class AbstractBlobBenchmarkTest {
   protected static final String COPY_DEST_PREFIX = "bench-copy-dest/";
   protected static final String BULK_DELETE_PREFIX = "bench-bulk-delete/";
 
+  private static final String BLOB_KEY_INFIX = "blob_";
+  private static final String BLOB_KEY_SUFFIX = ".dat";
+
   private static final int BULK_DELETE_BATCH = 25;
 
   private static final int SMALL_COUNT = 100;
   private static final int MEDIUM_COUNT = 20;
   private static final int LARGE_COUNT = 5;
+
+  // @Benchmark method names as constants so stageCorpusFor() and the coverage guard test
+  // (stageCorpusForCoversEveryBenchmark) share one source of truth.
+  private static final String BENCHMARK_UPLOAD_SMALL = "benchmarkUploadSmall";
+  private static final String BENCHMARK_UPLOAD_MEDIUM = "benchmarkUploadMedium";
+  private static final String BENCHMARK_UPLOAD_LARGE = "benchmarkUploadLarge";
+  private static final String BENCHMARK_WRITE_READ_DELETE = "benchmarkWriteReadDelete";
+  private static final String BENCHMARK_MULTIPART_UPLOAD = "benchmarkMultipartUpload";
+  private static final String BENCHMARK_BULK_DELETE = "benchmarkBulkDelete";
+  private static final String BENCHMARK_DOWNLOAD_SMALL = "benchmarkDownloadSmall";
+  private static final String BENCHMARK_DOWNLOAD_MEDIUM = "benchmarkDownloadMedium";
+  private static final String BENCHMARK_DOWNLOAD_LARGE = "benchmarkDownloadLarge";
+  private static final String BENCHMARK_GET_METADATA = "benchmarkGetMetadata";
+  private static final String BENCHMARK_LIST = "benchmarkList";
+  private static final String BENCHMARK_LIST_PAGE = "benchmarkListPage";
+  private static final String BENCHMARK_COPY = "benchmarkCopy";
+
+  /** Benchmarks that read pre-seeded objects — {@code @Setup} stages their corpus. */
+  private static final Set<String> READ_PATH_BENCHMARKS = Set.of(
+      BENCHMARK_DOWNLOAD_SMALL, BENCHMARK_GET_METADATA, BENCHMARK_LIST, BENCHMARK_LIST_PAGE,
+      BENCHMARK_DOWNLOAD_MEDIUM, BENCHMARK_DOWNLOAD_LARGE, BENCHMARK_COPY);
+
+  /** Benchmarks that create their own objects — {@code @Setup} stages nothing for them. */
+  private static final Set<String> WRITE_PATH_BENCHMARKS = Set.of(
+      BENCHMARK_UPLOAD_SMALL, BENCHMARK_UPLOAD_MEDIUM, BENCHMARK_UPLOAD_LARGE,
+      BENCHMARK_WRITE_READ_DELETE, BENCHMARK_MULTIPART_UPLOAD, BENCHMARK_BULK_DELETE);
 
   protected String bucketName;
   protected BucketClient bucketClient;
@@ -222,20 +256,20 @@ public abstract class AbstractBlobBenchmarkTest {
    */
   private void stageCorpusFor(String method) {
     switch (method) {
-      case "benchmarkDownloadSmall":
-      case "benchmarkGetMetadata":
-      case "benchmarkList":
-      case "benchmarkListPage":
+      case BENCHMARK_DOWNLOAD_SMALL:
+      case BENCHMARK_GET_METADATA:
+      case BENCHMARK_LIST:
+      case BENCHMARK_LIST_PAGE:
         stageSmallCorpus();
         break;
-      case "benchmarkDownloadMedium":
+      case BENCHMARK_DOWNLOAD_MEDIUM:
         stageMediumCorpus();
         break;
-      case "benchmarkDownloadLarge":
+      case BENCHMARK_DOWNLOAD_LARGE:
         stageLargeCorpus();
         break;
-      case "benchmarkCopy":
-        copySourceKey = SMALL_BLOBS_PREFIX + "blob_0.dat";
+      case BENCHMARK_COPY:
+        copySourceKey = blobKey(SMALL_BLOBS_PREFIX, 0);
         uploadBlob(copySourceKey, smallBlob);
         smallKeys.add(copySourceKey);
         break;
@@ -245,9 +279,14 @@ public abstract class AbstractBlobBenchmarkTest {
     }
   }
 
+  /** Builds a pre-seeded corpus object key: {@code <prefix>blob_<index>.dat}. */
+  private static String blobKey(String prefix, int index) {
+    return prefix + BLOB_KEY_INFIX + index + BLOB_KEY_SUFFIX;
+  }
+
   private void stageSmallCorpus() {
     for (int i = 0; i < SMALL_COUNT; i++) {
-      String key = SMALL_BLOBS_PREFIX + "blob_" + i + ".dat";
+      String key = blobKey(SMALL_BLOBS_PREFIX, i);
       uploadBlob(key, smallBlob);
       smallKeys.add(key);
     }
@@ -256,7 +295,7 @@ public abstract class AbstractBlobBenchmarkTest {
 
   private void stageMediumCorpus() {
     for (int i = 0; i < MEDIUM_COUNT; i++) {
-      String key = MEDIUM_BLOBS_PREFIX + "blob_" + i + ".dat";
+      String key = blobKey(MEDIUM_BLOBS_PREFIX, i);
       uploadBlob(key, mediumBlob);
       mediumKeys.add(key);
     }
@@ -264,7 +303,7 @@ public abstract class AbstractBlobBenchmarkTest {
 
   private void stageLargeCorpus() {
     for (int i = 0; i < LARGE_COUNT; i++) {
-      String key = LARGE_BLOBS_PREFIX + "blob_" + i + ".dat";
+      String key = blobKey(LARGE_BLOBS_PREFIX, i);
       uploadBlob(key, largeBlob);
       largeKeys.add(key);
     }
@@ -327,7 +366,7 @@ public abstract class AbstractBlobBenchmarkTest {
   @Benchmark
   @Threads(4)
   public void benchmarkUploadSmall(Blackhole bh) {
-    String key = UPLOAD_SMALL_PREFIX + nextUploadSmallId.incrementAndGet() + ".dat";
+    String key = UPLOAD_SMALL_PREFIX + nextUploadSmallId.incrementAndGet() + BLOB_KEY_SUFFIX;
     try (InputStream is = new ByteArrayInputStream(smallBlob)) {
       UploadRequest request =
           new UploadRequest.Builder().withKey(key).withContentLength(smallBlob.length).build();
@@ -341,7 +380,7 @@ public abstract class AbstractBlobBenchmarkTest {
   @Benchmark
   @Threads(2)
   public void benchmarkUploadMedium(Blackhole bh) {
-    String key = UPLOAD_MEDIUM_PREFIX + nextUploadMediumId.incrementAndGet() + ".dat";
+    String key = UPLOAD_MEDIUM_PREFIX + nextUploadMediumId.incrementAndGet() + BLOB_KEY_SUFFIX;
     try (InputStream is = new ByteArrayInputStream(mediumBlob)) {
       UploadRequest request =
           new UploadRequest.Builder().withKey(key).withContentLength(mediumBlob.length).build();
@@ -356,7 +395,7 @@ public abstract class AbstractBlobBenchmarkTest {
   @Threads(1)
   @Measurement(iterations = 5, time = 30, timeUnit = TimeUnit.SECONDS)
   public void benchmarkUploadLarge(Blackhole bh) {
-    String key = UPLOAD_LARGE_PREFIX + nextUploadLargeId.incrementAndGet() + ".dat";
+    String key = UPLOAD_LARGE_PREFIX + nextUploadLargeId.incrementAndGet() + BLOB_KEY_SUFFIX;
     try (InputStream is = new ByteArrayInputStream(largeBlob)) {
       UploadRequest request =
           new UploadRequest.Builder().withKey(key).withContentLength(largeBlob.length).build();
@@ -410,7 +449,8 @@ public abstract class AbstractBlobBenchmarkTest {
   @Benchmark
   @Threads(4)
   public void benchmarkWriteReadDelete(Blackhole bh) {
-    String key = WRITE_READ_DELETE_PREFIX + nextWriteReadDeleteId.incrementAndGet() + ".dat";
+    String key =
+        WRITE_READ_DELETE_PREFIX + nextWriteReadDeleteId.incrementAndGet() + BLOB_KEY_SUFFIX;
 
     try {
       try (InputStream is = new ByteArrayInputStream(smallBlob)) {
@@ -435,7 +475,7 @@ public abstract class AbstractBlobBenchmarkTest {
   @Benchmark
   @Threads(2)
   public void benchmarkMultipartUpload(Blackhole bh) {
-    String key = MULTIPART_PREFIX + nextMultipartUploadId.incrementAndGet() + ".dat";
+    String key = MULTIPART_PREFIX + nextMultipartUploadId.incrementAndGet() + BLOB_KEY_SUFFIX;
 
     try {
       MultipartUploadRequest request = new MultipartUploadRequest.Builder().withKey(key).build();
@@ -509,7 +549,7 @@ public abstract class AbstractBlobBenchmarkTest {
   @Benchmark
   @Threads(4)
   public void benchmarkCopy(Blackhole bh) {
-    String destKey = COPY_DEST_PREFIX + nextCopyId.incrementAndGet() + ".dat";
+    String destKey = COPY_DEST_PREFIX + nextCopyId.incrementAndGet() + BLOB_KEY_SUFFIX;
     try {
       CopyRequest request =
           CopyRequest.builder()
@@ -537,7 +577,7 @@ public abstract class AbstractBlobBenchmarkTest {
     List<BlobIdentifier> ids = new ArrayList<>(BULK_DELETE_BATCH);
     try {
       for (int i = 0; i < BULK_DELETE_BATCH; i++) {
-        String key = BULK_DELETE_PREFIX + nextBulkDeleteId.incrementAndGet() + ".dat";
+        String key = BULK_DELETE_PREFIX + nextBulkDeleteId.incrementAndGet() + BLOB_KEY_SUFFIX;
         try (InputStream is = new ByteArrayInputStream(smallBlob)) {
           UploadRequest request =
               new UploadRequest.Builder().withKey(key).withContentLength(smallBlob.length).build();
@@ -554,6 +594,28 @@ public abstract class AbstractBlobBenchmarkTest {
 
   private static String pickRandom(List<String> keys) {
     return keys.get(ThreadLocalRandom.current().nextInt(keys.size()));
+  }
+
+  /**
+   * Guards {@link #stageCorpusFor(String)}: every {@code @Benchmark} must be classified as
+   * read-path (its corpus is staged) or write-path (stages nothing). Fails if a benchmark is added
+   * or renamed without updating the classification — which would otherwise let a read-path method
+   * fall through to the default and silently measure against an empty corpus.
+   */
+  @Test
+  public void stageCorpusForCoversEveryBenchmark() {
+    Set<String> actual = new HashSet<>();
+    for (Method method : getClass().getMethods()) {
+      if (method.isAnnotationPresent(Benchmark.class)) {
+        actual.add(method.getName());
+      }
+    }
+    Set<String> classified = new HashSet<>();
+    classified.addAll(READ_PATH_BENCHMARKS);
+    classified.addAll(WRITE_PATH_BENCHMARKS);
+    assertEquals(classified, actual,
+        "Every @Benchmark must be listed in READ_PATH_BENCHMARKS or WRITE_PATH_BENCHMARKS and "
+            + "match stageCorpusFor(); update these when adding or renaming a benchmark.");
   }
 
   @Test
