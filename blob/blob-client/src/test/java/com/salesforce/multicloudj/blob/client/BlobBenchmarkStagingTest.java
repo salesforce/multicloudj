@@ -27,17 +27,23 @@ import org.openjdk.jmh.annotations.Benchmark;
  */
 public class BlobBenchmarkStagingTest {
 
-  /** Concrete subclass so the test can drive the staging seam; the harness is never created. */
-  public static class Benchmarks extends AbstractBlobBenchmarkTest {
-    @Override
-    protected Harness createHarness() {
-      throw new UnsupportedOperationException("staging tests do not create a real harness");
-    }
+  /**
+   * Anonymous subclass so the test can drive the staging seam without a named, concrete
+   * {@code @Benchmark} host — JMH only generates runnable benchmarks for named public classes, so
+   * this keeps {@code blob-client}'s benchmarks jar free of stubs. The harness is never created.
+   */
+  private static AbstractBlobBenchmarkTest newBenchmarks() {
+    return new AbstractBlobBenchmarkTest() {
+      @Override
+      protected Harness createHarness() {
+        throw new UnsupportedOperationException("staging tests do not create a real harness");
+      }
 
-    @Override
-    protected String getProviderId() {
-      return "test";
-    }
+      @Override
+      protected String getProviderId() {
+        return "test";
+      }
+    };
   }
 
   /** Stages the corpus for one benchmark against a mock store and returns the uploaded keys. */
@@ -49,7 +55,7 @@ public class BlobBenchmarkStagingTest {
           uploadedKeys.add(inv.<UploadRequest>getArgument(0).getKey());
           return null;
         });
-    Benchmarks benchmarks = new Benchmarks();
+    AbstractBlobBenchmarkTest benchmarks = newBenchmarks();
     benchmarks.bucketClient = new BucketClient(store);
     benchmarks.initBlobPayloads();
     benchmarks.stageCorpusFor(benchmarkMethod);
