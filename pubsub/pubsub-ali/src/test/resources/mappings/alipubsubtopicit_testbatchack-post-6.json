@@ -1,0 +1,29 @@
+{
+  "id" : "1f527aea-cbd9-469a-8c79-e3890b4dd2ec",
+  "name" : "AliPubsubTopicIT_testBatchAck-POST-6",
+  "request" : {
+    "url" : "/topics/test-smq-conf-t-testBatchAck/messages",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><Message xmlns=\"http://mns.aliyuncs.com/doc/v1\"><MessageBody>batch-ack-3</MessageBody><UserProperties><PropertyValue><Name>batch</Name><Value>ack</Value><Type>STRING</Type></PropertyValue><PropertyValue><Name>topicoriginated</Name><Value>true</Value><Type>BOOLEAN</Type></PropertyValue></UserProperties></Message>"
+    } ]
+  },
+  "response" : {
+    "status" : 201,
+    "body" : "<?xml version=\"1.0\" ?>\n<Message xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <MessageId>972F184233FD7FCF7F8290D9FB83CE44</MessageId>\n  <MessageBodyMD5>DE6813B8ABE0653D84DC81D96AE44181</MessageBodyMD5>\n</Message>",
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "26",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6ABAB9FC3736370F00002F58",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Mon, 28 Sep 2026 19:03:24 GMT",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "1f527aea-cbd9-469a-8c79-e3890b4dd2ec",
+  "persistent" : true,
+  "insertionIndex" : 69
+}

@@ -1,0 +1,28 @@
+{
+  "id" : "cec53479-bc0d-4431-81a9-943ecefe4935",
+  "name" : "AliPubsubQueueIT_testAckAfterReceive-GET-3",
+  "request" : {
+    "url" : "/queues/test-smq-conf-q-testAckAfterReceive",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" ?>\n<Queue xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <QueueName>test-smq-conf-q-testAckAfterReceive</QueueName>\n  <DelaySeconds>0</DelaySeconds>\n  <MaximumMessageSize>65536</MaximumMessageSize>\n  <MessageRetentionPeriod>345600</MessageRetentionPeriod>\n  <VisibilityTimeout>30</VisibilityTimeout>\n  <CreateTime>1790184301</CreateTime>\n  <LastModifyTime>1790184301</LastModifyTime>\n  <PollingWaitSeconds>0</PollingWaitSeconds>\n  <ActiveMessages>0</ActiveMessages>\n  <InactiveMessages>0</InactiveMessages>\n  <DelayMessages>0</DelayMessages>\n  <LoggingEnabled>False</LoggingEnabled>\n  <MessageType>0</MessageType>\n  <EnableSSE>False</EnableSSE>\n</Queue>",
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "4",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6ABAB9123736370F00F6CF70",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Mon, 28 Sep 2026 18:59:30 GMT",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "cec53479-bc0d-4431-81a9-943ecefe4935",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-queues-test-smq-conf-q-testAckAfterReceive",
+  "requiredScenarioState" : "scenario-1-queues-test-smq-conf-q-testAckAfterReceive-2",
+  "insertionIndex" : 60
+}
