@@ -35,6 +35,16 @@ public class BlobInfoTest {
   }
 
   @Test
+  void testBuilderMarksCommonPrefixEntries() {
+    BlobInfo blobInfo = BlobInfo.builder().withKey("backups/2026/").withCommonPrefix(true).build();
+
+    assertEquals("backups/2026/", blobInfo.getKey());
+    assertEquals(true, blobInfo.isCommonPrefix());
+    assertEquals(0L, blobInfo.getObjectSize());
+    assertNull(blobInfo.getLastModified());
+  }
+
+  @Test
   void testEqualsWithTimestamp() {
     Instant timestamp = Instant.now();
     BlobInfo blobInfo1 =
@@ -100,5 +110,18 @@ public class BlobInfoTest {
     BlobInfo blobInfo2 = BlobInfo.builder().withKey("test-key").withObjectSize(1024L).build();
 
     assertNotEquals(blobInfo1, blobInfo2);
+  }
+
+  @Test
+  void testCommonPrefixAndBlobWithSameKeyAreDistinct() {
+    BlobInfo blob = BlobInfo.builder().withKey("backups/2026/").withObjectSize(0L).build();
+    BlobInfo commonPrefix =
+        BlobInfo.builder()
+            .withKey("backups/2026/")
+            .withObjectSize(0L)
+            .withCommonPrefix(true)
+            .build();
+
+    assertNotEquals(blob, commonPrefix);
   }
 }

@@ -1149,7 +1149,7 @@ class GcpBlobStoreTest {
     Page mockPage = mock(Page.class);
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-    when(mockPage.iterateAll()).thenReturn(mockBlobs);
+    when(mockPage.getValues()).thenReturn(mockBlobs);
     when(mockBlob.getName()).thenReturn("test-key-1", "test-key-2");
     when(mockBlob.getSize()).thenReturn(1024L, 2048L);
 
@@ -1295,7 +1295,7 @@ class GcpBlobStoreTest {
     Page mockPage = mock(Page.class);
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-    when(mockPage.iterateAll()).thenReturn(Collections.emptyList());
+    when(mockPage.getValues()).thenReturn(Collections.emptyList());
 
     // When
     var iterator = gcpBlobStore.doList(request);
@@ -1315,7 +1315,7 @@ class GcpBlobStoreTest {
     Page mockPage = mock(Page.class);
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-    when(mockPage.iterateAll()).thenReturn(Collections.singletonList(dirBlob));
+    when(mockPage.getValues()).thenReturn(Collections.singletonList(dirBlob));
 
     // When
     var iterator = gcpBlobStore.doList(request);
@@ -1343,7 +1343,7 @@ class GcpBlobStoreTest {
     Page mockPage = mock(Page.class);
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-    when(mockPage.iterateAll()).thenReturn(Arrays.asList(realBlob1, dirBlob, realBlob2));
+    when(mockPage.getValues()).thenReturn(Arrays.asList(realBlob1, dirBlob, realBlob2));
 
     // When
     var iterator = gcpBlobStore.doList(request);
@@ -1375,7 +1375,7 @@ class GcpBlobStoreTest {
     Page mockPage = mock(Page.class);
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-    when(mockPage.iterateAll()).thenReturn(Arrays.asList(dir1, dir2));
+    when(mockPage.getValues()).thenReturn(Arrays.asList(dir1, dir2));
 
     // When
     var iterator = gcpBlobStore.doList(request);
@@ -1396,7 +1396,7 @@ class GcpBlobStoreTest {
     Page mockPage = mock(Page.class);
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-    when(mockPage.iterateAll()).thenReturn(Collections.singletonList(dirBlob));
+    when(mockPage.getValues()).thenReturn(Collections.singletonList(dirBlob));
 
     // When
     var iterator = gcpBlobStore.doList(request);
@@ -1425,7 +1425,7 @@ class GcpBlobStoreTest {
     Page mockPage = mock(Page.class);
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-    when(mockPage.iterateAll()).thenReturn(Arrays.asList(realBlob1, dirBlob, realBlob2));
+    when(mockPage.getValues()).thenReturn(Arrays.asList(realBlob1, dirBlob, realBlob2));
 
     // When
     var iterator = gcpBlobStore.doList(request);
@@ -1445,6 +1445,43 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoList_IncludesCommonPrefixesWithoutRequestingFolders() {
+    ListBlobsRequest request =
+        ListBlobsRequest.builder()
+            .withPrefix("test-prefix")
+            .withDelimiter("-")
+            .withIncludeCommonPrefixes(true)
+            .build();
+
+    Blob commonPrefix = mock(Blob.class);
+    when(commonPrefix.isDirectory()).thenReturn(true);
+    when(commonPrefix.getName()).thenReturn("test-prefix-directory-");
+    Page mockPage = mock(Page.class);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+    when(mockPage.getValues()).thenReturn(List.of(commonPrefix));
+
+    Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> iterator =
+        gcpBlobStore.doList(request);
+
+    assertTrue(iterator.hasNext());
+    com.salesforce.multicloudj.blob.driver.BlobInfo result = iterator.next();
+    assertEquals("test-prefix-directory-", result.getKey());
+    assertTrue(result.isCommonPrefix());
+    assertFalse(iterator.hasNext());
+
+    ArgumentCaptor<Storage.BlobListOption[]> optionsCaptor =
+        ArgumentCaptor.forClass(Storage.BlobListOption[].class);
+    verify(mockStorage).list(eq(TEST_BUCKET), optionsCaptor.capture());
+    assertTrue(
+        Arrays.asList(optionsCaptor.getValue())
+            .contains(Storage.BlobListOption.includeFolders(false)));
+    assertFalse(
+        Arrays.asList(optionsCaptor.getValue())
+            .contains(Storage.BlobListOption.includeFolders(true)));
+  }
+
+  @Test
   void testDoList_DirectoryBlobsAtBoundariesFiltered() {
     // Given
     ListBlobsRequest request = ListBlobsRequest.builder().withPrefix("test-prefix/").build();
@@ -1461,7 +1498,7 @@ class GcpBlobStoreTest {
     Page mockPage = mock(Page.class);
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-    when(mockPage.iterateAll()).thenReturn(Arrays.asList(leadingDir, realBlob, trailingDir));
+    when(mockPage.getValues()).thenReturn(Arrays.asList(leadingDir, realBlob, trailingDir));
 
     // When
     var iterator = gcpBlobStore.doList(request);
@@ -2425,7 +2462,7 @@ class GcpBlobStoreTest {
 
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-    when(mockPage.iterateAll()).thenReturn(Collections.emptyList());
+    when(mockPage.getValues()).thenReturn(Collections.emptyList());
 
     Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> iterator =
         gcpBlobStore.doList(request);
@@ -2441,7 +2478,7 @@ class GcpBlobStoreTest {
 
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-    when(mockPage.iterateAll()).thenReturn(Collections.emptyList());
+    when(mockPage.getValues()).thenReturn(Collections.emptyList());
 
     Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> iterator =
         gcpBlobStore.doList(request);
@@ -2676,7 +2713,7 @@ class GcpBlobStoreTest {
 
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-    when(mockPage.iterateAll()).thenReturn(Collections.emptyList());
+    when(mockPage.getValues()).thenReturn(Collections.emptyList());
 
     Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> iterator =
         gcpBlobStore.doList(request);
@@ -2699,7 +2736,7 @@ class GcpBlobStoreTest {
     Blob mockBlobForList = mock(Blob.class);
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-    when(mockPage.iterateAll()).thenReturn(Collections.singletonList(mockBlobForList));
+    when(mockPage.getValues()).thenReturn(Collections.singletonList(mockBlobForList));
 
     Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> iterator =
         gcpBlobStore.doList(request);
@@ -2722,7 +2759,7 @@ class GcpBlobStoreTest {
 
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-    when(mockPage.iterateAll()).thenReturn(Collections.singletonList(mockBlobForList));
+    when(mockPage.getValues()).thenReturn(Collections.singletonList(mockBlobForList));
 
     Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> iterator =
         gcpBlobStore.doList(request);
@@ -2748,7 +2785,7 @@ class GcpBlobStoreTest {
 
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-    when(mockPage.iterateAll()).thenReturn(Collections.singletonList(mockBlobForList));
+    when(mockPage.getValues()).thenReturn(Collections.singletonList(mockBlobForList));
 
     Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> iterator =
         gcpBlobStore.doList(request);

@@ -56,12 +56,26 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
   @Test
   public void testUpload_createIfAbsent() {
     Assumptions.assumeTrue(
-        System.getProperty("record") != null || hasCreateIfAbsentReplayRecording(),
+        System.getProperty("record") != null
+            || hasReplayRecording("aliblobstoreit_testupload_createifabsent-"),
         "Alibaba create-if-absent replay is enabled after its recording is generated");
     super.testUpload_createIfAbsent();
   }
 
-  private static boolean hasCreateIfAbsentReplayRecording() {
+  @Override
+  @Test
+  public void testList_WithDelimiter_IncludesMarkedCommonPrefixesWhenRequested()
+      throws IOException {
+    Assumptions.assumeTrue(
+        System.getProperty("record") != null
+            || hasReplayRecording(
+                "aliblobstoreit_testlist_withdelimiter_"
+                    + "includesmarkedcommonprefixeswhenrequested-"),
+        "Alibaba common-prefix replay is enabled after its recording is generated");
+    super.testList_WithDelimiter_IncludesMarkedCommonPrefixesWhenRequested();
+  }
+
+  private static boolean hasReplayRecording(String fileNamePrefix) {
     URL mappings = AliBlobStoreIT.class.getClassLoader().getResource("mappings");
     if (mappings == null || !"file".equals(mappings.getProtocol())) {
       return false;
@@ -69,10 +83,7 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
     try (var files = Files.list(Path.of(mappings.toURI()))) {
       return files.anyMatch(
-          path ->
-              path.getFileName()
-                  .toString()
-                  .startsWith("aliblobstoreit_testupload_createifabsent-"));
+          path -> path.getFileName().toString().startsWith(fileNamePrefix));
     } catch (IOException | URISyntaxException e) {
       return false;
     }

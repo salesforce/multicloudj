@@ -8,9 +8,12 @@ import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
 import com.aliyun.sdk.service.oss2.models.ListObjectsV2Result;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.TreeSet;
+import org.apache.commons.lang3.StringUtils;
 
 /** Iterator object to retrieve BlobInfo list */
 public class BlobInfoIterator implements Iterator<BlobInfo> {
@@ -38,7 +41,7 @@ public class BlobInfoIterator implements Iterator<BlobInfo> {
         ossClient.listObjectsV2(request, OperationOptions.defaults());
     nextContinuationToken = result.nextContinuationToken();
 
-    return result.contents().stream()
+    List<BlobInfo> blobs = result.contents().stream()
         .map(
             objSum ->
                 new BlobInfo.Builder()
@@ -47,6 +50,22 @@ public class BlobInfoIterator implements Iterator<BlobInfo> {
                     .withLastModified(objSum.lastModified())
                     .build())
         .collect(toList());
+    if (!includesCommonPrefixes() || result.commonPrefixes() == null) {
+      return blobs;
+    }
+
+    TreeSet<String> commonPrefixes = new TreeSet<>();
+    result.commonPrefixes().forEach(prefix -> commonPrefixes.add(prefix.prefix()));
+    commonPrefixes.forEach(
+        prefix -> blobs.add(new BlobInfo.Builder().withKey(prefix).withCommonPrefix(true).build()));
+    blobs.sort(Comparator.comparing(BlobInfo::getKey).thenComparing(BlobInfo::isCommonPrefix));
+    return blobs;
+  }
+
+  private boolean includesCommonPrefixes() {
+    return listRequest != null
+        && listRequest.isIncludeCommonPrefixes()
+        && StringUtils.isNotEmpty(listRequest.getDelimiter());
   }
 
   @Override
@@ -55,10 +74,12 @@ public class BlobInfoIterator implements Iterator<BlobInfo> {
       return true;
     }
 
-    if (nextContinuationToken != null) {
+    while (nextContinuationToken != null) {
       currentBatch = nextBatch();
       currentIndex = 0;
-      return !currentBatch.isEmpty();
+      if (!currentBatch.isEmpty()) {
+        return true;
+      }
     }
 
     return false;
