@@ -18,29 +18,29 @@ These clients enable sending messages to topics, receiving messages from subscri
 
 | Feature Name | GCP | AWS | ALI | Comments |
 |--------------|-----|-----|-----|----------|
-| **Send Messages** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Send messages to topics |
-| **Receive Messages** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Pull messages from subscriptions |
-| **Acknowledge Messages** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Confirm message processing |
-| **Batch Acknowledgment** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Acknowledge multiple messages at once |
-| **Negative Acknowledgment** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Reject messages for redelivery |
-| **Subscription Attributes** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Retrieve subscription name and topic |
+| **Send Messages** | ✅ Supported | ✅ Supported | ✅ Supported | Send messages to topics |
+| **Receive Messages** | ✅ Supported | ✅ Supported | ✅ Supported | Pull messages from subscriptions |
+| **Acknowledge Messages** | ✅ Supported | ✅ Supported | ✅ Supported | Confirm message processing |
+| **Batch Acknowledgment** | ✅ Supported | ✅ Supported | ✅ Supported | Acknowledge multiple messages at once |
+| **Negative Acknowledgment** | ✅ Supported | ✅ Supported | ✅ Supported | Reject messages for redelivery |
+| **Subscription Attributes** | ✅ Supported | ✅ Supported | ✅ Supported | Retrieve subscription name and topic |
 
 ### Advanced Features
 
 | Feature Name | GCP | AWS | ALI | Comments |
 |--------------|-----|-----|-----|----------|
-| **Async Batch Acknowledgment** | ✅ Supported | ✅ Supported | 📅 In Roadmap | CompletableFuture-based async ack/nack |
-| **Double Acknowledgment Safety** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Safe to ack same message multiple times |
-| **Nack Visibility Timeout** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Control redelivery delay on nack (default and per-call) |
-| **Retryable Error Detection** | ✅ Supported | ✅ Supported | 📅 In Roadmap | `isRetryable()` classifies errors as transient or permanent |
+| **Async Batch Acknowledgment** | ✅ Supported | ✅ Supported | ✅ Supported | CompletableFuture-based async ack/nack |
+| **Double Acknowledgment Safety** | ✅ Supported | ✅ Supported | ✅ Supported | Safe to ack same message multiple times |
+| **Nack Visibility Timeout** | ✅ Supported | ✅ Supported | ✅ Supported | Control redelivery delay on nack (default and per-call) |
+| **Retryable Error Detection** | ✅ Supported | ✅ Supported | ✅ Supported | `isRetryable()` classifies errors as transient or permanent |
 
 ### Configuration Options
 
 | Configuration | GCP | AWS | ALI | Comments |
 |---------------|-----|-----|-----|----------|
 | **Region** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Target region for the topic/subscription |
-| **Endpoint Override** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom endpoint configuration |
-| **Proxy Support** | ✅ Supported | ✅ Supported | 📅 In Roadmap | HTTP proxy configuration |
+| **Endpoint Override** | ✅ Supported | ✅ Supported | ✅ Supported | Required for Ali — account-scoped `https://<accountId>.mns.<region>.aliyuncs.com` |
+| **Proxy Support** | ✅ Supported | ✅ Supported | ✅ Supported | HTTP proxy configuration |
 | **Credentials Override** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom credential providers via STS |
 
 ---
@@ -54,8 +54,12 @@ The provider ID passed to `TopicClient.builder(...)` and `SubscriptionClient.bui
 | GCP (Google Cloud Pub/Sub) | `gcp` | `gcp` |
 | AWS SNS | `awssns` | `aws` |
 | AWS SQS | `awssqs` | `aws` |
+| Alibaba SMQ (queue) | `alismqqueue` | `ali` |
+| Alibaba SMQ (topic) | `alismqtopic` | `ali` |
 
 On AWS, messages are published through either SNS (`awssns`) or SQS (`awssqs`), while messages are always received from an SQS queue using the `aws` subscription provider.
+
+On Alibaba, messages are published either directly to an SMQ queue (`alismqqueue`) or to an SMQ topic (`alismqtopic`) that fans out to a bound queue subscription; messages are always received from an SMQ queue using the `ali` subscription provider.
 
 ### Provider-Specific Notes
 
@@ -67,6 +71,14 @@ On AWS, messages are published through either SNS (`awssns`) or SQS (`awssqs`), 
 - SNS topics (`awssns`) are identified by their topic ARN, e.g. `arn:aws:sns:us-west-2:123456789012:my-topic`. The topic is validated to exist when the client is built.
 - SQS topics (`awssqs`) accept either a queue name (resolved to a queue URL automatically) or a full queue URL.
 - Subscriptions (`aws`) read from an SQS queue, identified by a queue name or queue URL.
+
+**Alibaba (SMQ / MNS)**
+- An account-scoped endpoint is **required** on every client: `https://<accountId>.mns.<region>.aliyuncs.com`. The account id cannot be derived from the region and credentials, so `.withEndpoint(...)` must be set. This is why the endpoint is required and the region is not consumed.
+- Credentials are resolved from Alibaba's default (ambient) credential provider chain.
+- Queue publish (`alismqqueue`) sends directly to an SMQ queue. Topic publish (`alismqtopic`) fans out to a bound SMQ queue subscription; the consumer reads that queue via the `ali` subscription provider.
+- When binding a topic to a queue, use a **non-SIMPLIFIED (JSON)** message format so that message metadata is preserved end to end.
+- You own provisioning and maintenance of the topic, the queue, and the topic-to-queue binding/subscription definition. The SDK does not create or manage these resources.
+- Message metadata is carried as native SMQ user properties.
 
 ---
 
@@ -90,6 +102,18 @@ TopicClient snsTopicClient = TopicClient.builder("awssns")
 TopicClient sqsTopicClient = TopicClient.builder("awssqs")
     .withTopicName("my-queue")
     .withRegion("us-west-2")
+    .build();
+
+// Alibaba SMQ — publish directly to a queue
+TopicClient aliQueueTopic = TopicClient.builder("alismqqueue")
+    .withTopicName("my-queue")
+    .withEndpoint(URI.create("https://1234567890123456.mns.cn-shanghai.aliyuncs.com"))
+    .build();
+
+// Alibaba SMQ — publish to a topic that fans out to a queue subscription
+TopicClient aliTopic = TopicClient.builder("alismqtopic")
+    .withTopicName("my-topic")
+    .withEndpoint(URI.create("https://1234567890123456.mns.cn-shanghai.aliyuncs.com"))
     .build();
 ```
 
@@ -118,6 +142,12 @@ SubscriptionClient subscriptionClient = SubscriptionClient.builder("gcp")
 SubscriptionClient awsSubscriptionClient = SubscriptionClient.builder("aws")
     .withSubscriptionName("my-queue")
     .withRegion("us-west-2")
+    .build();
+
+// Alibaba SMQ
+SubscriptionClient aliSubscriptionClient = SubscriptionClient.builder("ali")
+    .withSubscriptionName("my-queue")
+    .withEndpoint(URI.create("https://1234567890123456.mns.cn-shanghai.aliyuncs.com"))
     .build();
 ```
 

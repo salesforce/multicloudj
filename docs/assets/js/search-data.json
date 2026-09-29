@@ -409,98 +409,98 @@
     "title": "MultiCloudJ",
     "content": " ",
     "url": "/multicloudj/#multicloudj",
-
+    
     "relUrl": "/#multicloudj"
   },"59": {
     "doc": "MultiCloudJ Overview",
     "title": "Write once, deploy in any cloud…",
     "content": "MultiCloudJ providing unified and vendor-neutral interfaces for commonly used cloud services such as Blob Storage, Document Store, Security Token Service (STS), and more. It enabbles the cloud developers to write applications that can developed once and be deployed to any of the cloud providers. The interfaces are designed in a way that it can support any of the major cloud providers. ",
     "url": "/multicloudj/#write-once-deploy-in-any-cloud",
-
+    
     "relUrl": "/#write-once-deploy-in-any-cloud"
   },"60": {
     "doc": "MultiCloudJ Overview",
     "title": "Key Features",
     "content": "Substrate-Neutral Write once, deploy anywhere. No vendor lock-in or provider-specific code. Currently Supported Cloud Providers Seamlessly work across AWS, Alibaba Cloud, and Google Cloud Platform with a single, consistent API. Additional cloud providers such as Azure can also be potentially supported. Uniform Semantics Common abstractions with unform semantics that work identically across cloud providers. Enterprise Ready Built with security, scalability, and maintainability in mind for production workloads. Extensiblity Built with extensible architecture design to support additional cloud providers in future. Flexiblity Providers flexibility to users to provider their own custom implementation and just have it in the run time. ",
     "url": "/multicloudj/#key-features",
-
+    
     "relUrl": "/#key-features"
   },"61": {
     "doc": "MultiCloudJ Overview",
     "title": "Supported Services",
     "content": "STS (Security Token Service) . Get access credentials using roles, service accounts, and more across all supported cloud providers. Blob Storage . Manage object storage with unified operations for uploading, downloading, listing, and managing blobs. Document Store . Work with document-oriented databases using consistent interfaces for CRUD operations and querying. Additional services such pubsub, secrets, compute are also in roadmap. Getting Started . ",
     "url": "/multicloudj/#supported-services",
-
+    
     "relUrl": "/#supported-services"
   },"62": {
     "doc": "MultiCloudJ Overview",
     "title": "Running Examples",
     "content": "MultiCloudJ includes comprehensive example programs demonstrating how to interact with supported services. Examples are located in the examples directory and cover: . | STS authentication flows | Blob storage operations | Document store CRUD operations | Cross-provider migration scenarios | . ",
     "url": "/multicloudj/#running-examples",
-
+    
     "relUrl": "/#running-examples"
   },"63": {
     "doc": "MultiCloudJ Overview",
     "title": "Where to Go from Here",
     "content": "Documentation and Guides: . | How-to Guides - Step-by-step guides for developers ready to use the SDK | Design Decisions - Architecture and design principles behind the SDK | . API Documentation: . | Java API Documentation (Javadoc) - Complete API reference | . Community and Support: . | GitHub Issues - Report bugs and request features | Discussion Forum - Get help from the community | Contribution Guidelines - Contribute to the project | . Additional Resources: . | MultiCloudJ Homepage - Source code and project information | Release Notes - Latest updates and changes | Examples Repository - Complete working examples | . MultiCloudJ is maintained by the Salesforce MultiCloudJ team and is open source under the Apache License 2.0. ",
     "url": "/multicloudj/#where-to-go-from-here",
-
+    
     "relUrl": "/#where-to-go-from-here"
   },"64": {
     "doc": "MultiCloudJ Overview",
     "title": "MultiCloudJ Overview",
     "content": " ",
     "url": "/multicloudj/",
-
+    
     "relUrl": "/"
   },"65": {
     "doc": "Design",
     "title": "Design Guides",
     "content": "Welcome to the MultiCloudJ Design Guides. This section provides concise, task-focused guides to help you understand the key design decisions behind the SDK. | Layers of the SDK - Understanding the layered architecture | Error Handling - How errors are handled across the SDK | Flexibility - How to extend and customize the SDK | . ",
     "url": "/multicloudj/design/#design-guides",
-
+    
     "relUrl": "/design/#design-guides"
   },"66": {
     "doc": "Design",
     "title": "Core Design Principles",
     "content": "MultiCloudJ is built on several key principles: . | Unified/Cloud Agnostic Interfaces/: Write once, interact across multiple cloud providers without changing your application code. | Extensibility: New cloud providers can be added without modifying existing code. | Flexibility: Easily override the default implementations and inject your own custom implementation in the env. | Simplicity: The API is designed to be intuitive and easy to use. | Uniform Semantics*: SDK provides the uniform semantics to the end user irrespective of the cloud provider. Examples: . | Object Deletion: AWS S3 returns HTTP 200 when deleting a non-existent object, while Google Cloud Storage returns HTTP 404. MultiCloudJ provides consistent semantics, returning either 200 (success) or 400 (error) regardless of the underlying provider. | Pagination: DynamoDB paginated queries return LastEvaluatedKey for continuation, while Google Cloud Firestore doesn’t provide this field and let the user figure that out using the last document in the page. MultiCloudJ abstracts this complexity and provides a uniform pagination API that works consistently across all providers. | . Note: While MultiCloudJ strives for uniform semantics, certain provider-specific server side features may not be available across all substrates. For example, global transactions are supported in Google Cloud Firestore, Azure Cosmos and AWS DynamoDB but not in Alibaba Cloud TableStore. In such cases, the SDK will throw appropriate exceptions when unsupported features are attempted on providers that don’t support them. However, these advanced features are rarely required for majority of the use cases. | Reliability: Robust error handling and retry mechanisms ensure reliable operation. | . ",
     "url": "/multicloudj/design/#core-design-principles",
-
+    
     "relUrl": "/design/#core-design-principles"
   },"67": {
     "doc": "Design",
     "title": "Contributing to Design",
     "content": "We welcome contributions to improve MultiCloudJ’s design. When contributing: . | Follow the established architectural patterns | Document your design decisions | Consider backward compatibility | Test your changes thoroughly | Update relevant documentation | . ",
     "url": "/multicloudj/design/#contributing-to-design",
-
+    
     "relUrl": "/design/#contributing-to-design"
   },"68": {
     "doc": "Design",
     "title": "Design Decisions",
     "content": "Key design decisions in MultiCloudJ include: . | Layered Architecture: Separating concerns between portable, driver, and provider layers | Builder Pattern: Using builders for flexible client configuration | Provider Loading: Dynamic loading of cloud provider implementations | Error Handling: Comprehensive error handling and recovery mechanisms | Extensibility: Support for custom providers and implementations | . ",
     "url": "/multicloudj/design/#design-decisions",
-
+    
     "relUrl": "/design/#design-decisions"
   },"69": {
     "doc": "Design",
     "title": "Best Practices",
     "content": "When working with MultiCloudJ’s design: . | Keep it Simple: Prefer simple solutions over complex ones | Be Consistent: Follow established patterns and conventions | Think Ahead: Consider future extensibility and maintenance | Document Everything: Clear documentation is essential | Test Thoroughly: Ensure your changes work across all supported providers | . ",
     "url": "/multicloudj/design/#best-practices",
-
+    
     "relUrl": "/design/#best-practices"
   },"70": {
     "doc": "Design",
     "title": "Related Resources",
     "content": ". | API Documentation | How-to Guides | Examples | Contribution Guidelines | . ",
     "url": "/multicloudj/design/#related-resources",
-
+    
     "relUrl": "/design/#related-resources"
   },"71": {
     "doc": "Design",
     "title": "Design",
     "content": " ",
     "url": "/multicloudj/design/",
-
+    
     "relUrl": "/design/"
   },"72": {
     "doc": "Getting Started",
@@ -666,14 +666,14 @@
   },"95": {
     "doc": "How to Pub/Sub",
     "title": "Feature Support Across Providers",
-    "content": "Core API Features . | Feature Name | GCP | AWS | ALI | Comments | . | Send Messages | ✅ Supported | ✅ Supported | 📅 In Roadmap | Send messages to topics | . | Receive Messages | ✅ Supported | ✅ Supported | 📅 In Roadmap | Pull messages from subscriptions | . | Acknowledge Messages | ✅ Supported | ✅ Supported | 📅 In Roadmap | Confirm message processing | . | Batch Acknowledgment | ✅ Supported | ✅ Supported | 📅 In Roadmap | Acknowledge multiple messages at once | . | Negative Acknowledgment | ✅ Supported | ✅ Supported | 📅 In Roadmap | Reject messages for redelivery | . | Subscription Attributes | ✅ Supported | ✅ Supported | 📅 In Roadmap | Retrieve subscription name and topic | . Advanced Features . | Feature Name | GCP | AWS | ALI | Comments | . | Async Batch Acknowledgment | ✅ Supported | ✅ Supported | 📅 In Roadmap | CompletableFuture-based async ack/nack | . | Double Acknowledgment Safety | ✅ Supported | ✅ Supported | 📅 In Roadmap | Safe to ack same message multiple times | . | Nack Visibility Timeout | ✅ Supported | ✅ Supported | 📅 In Roadmap | Control redelivery delay on nack (default and per-call) | . | Retryable Error Detection | ✅ Supported | ✅ Supported | 📅 In Roadmap | isRetryable() classifies errors as transient or permanent | . Configuration Options . | Configuration | GCP | AWS | ALI | Comments | . | Region | ✅ Supported | ✅ Supported | 📅 In Roadmap | Target region for the topic/subscription | . | Endpoint Override | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom endpoint configuration | . | Proxy Support | ✅ Supported | ✅ Supported | 📅 In Roadmap | HTTP proxy configuration | . | Credentials Override | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom credential providers via STS | . Provider IDs . The provider ID passed to TopicClient.builder(...) and SubscriptionClient.builder(...) selects the backing implementation: . | Provider | Topic provider ID | Subscription provider ID | . | GCP (Google Cloud Pub/Sub) | gcp | gcp | . | AWS SNS | awssns | aws | . | AWS SQS | awssqs | aws | . On AWS, messages are published through either SNS (awssns) or SQS (awssqs), while messages are always received from an SQS queue using the aws subscription provider. Provider-Specific Notes . GCP (Google Cloud Pub/Sub) . | Topic names must use the full resource format: projects/{projectId}/topics/{topicId} | Subscription names must use the full resource format: projects/{projectId}/subscriptions/{subscriptionId} | . AWS (SNS / SQS) . | SNS topics (awssns) are identified by their topic ARN, e.g. arn:aws:sns:us-west-2:123456789012:my-topic. The topic is validated to exist when the client is built. | SQS topics (awssqs) accept either a queue name (resolved to a queue URL automatically) or a full queue URL. | Subscriptions (aws) read from an SQS queue, identified by a queue name or queue URL. | . ",
+    "content": "Core API Features . | Feature Name | GCP | AWS | ALI | Comments | . | Send Messages | ✅ Supported | ✅ Supported | ✅ Supported | Send messages to topics | . | Receive Messages | ✅ Supported | ✅ Supported | ✅ Supported | Pull messages from subscriptions | . | Acknowledge Messages | ✅ Supported | ✅ Supported | ✅ Supported | Confirm message processing | . | Batch Acknowledgment | ✅ Supported | ✅ Supported | ✅ Supported | Acknowledge multiple messages at once | . | Negative Acknowledgment | ✅ Supported | ✅ Supported | ✅ Supported | Reject messages for redelivery | . | Subscription Attributes | ✅ Supported | ✅ Supported | ✅ Supported | Retrieve subscription name and topic | . Advanced Features . | Feature Name | GCP | AWS | ALI | Comments | . | Async Batch Acknowledgment | ✅ Supported | ✅ Supported | ✅ Supported | CompletableFuture-based async ack/nack | . | Double Acknowledgment Safety | ✅ Supported | ✅ Supported | ✅ Supported | Safe to ack same message multiple times | . | Nack Visibility Timeout | ✅ Supported | ✅ Supported | ✅ Supported | Control redelivery delay on nack (default and per-call) | . | Retryable Error Detection | ✅ Supported | ✅ Supported | ✅ Supported | isRetryable() classifies errors as transient or permanent | . Configuration Options . | Configuration | GCP | AWS | ALI | Comments | . | Region | ✅ Supported | ✅ Supported | 📅 In Roadmap | Target region for the topic/subscription | . | Endpoint Override | ✅ Supported | ✅ Supported | ✅ Supported | Required for Ali — account-scoped https://&lt;accountId&gt;.mns.&lt;region&gt;.aliyuncs.com | . | Proxy Support | ✅ Supported | ✅ Supported | ✅ Supported | HTTP proxy configuration | . | Credentials Override | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom credential providers via STS | . Provider IDs . The provider ID passed to TopicClient.builder(...) and SubscriptionClient.builder(...) selects the backing implementation: . | Provider | Topic provider ID | Subscription provider ID | . | GCP (Google Cloud Pub/Sub) | gcp | gcp | . | AWS SNS | awssns | aws | . | AWS SQS | awssqs | aws | . | Alibaba SMQ (queue) | alismqqueue | ali | . | Alibaba SMQ (topic) | alismqtopic | ali | . On AWS, messages are published through either SNS (awssns) or SQS (awssqs), while messages are always received from an SQS queue using the aws subscription provider. On Alibaba, messages are published either directly to an SMQ queue (alismqqueue) or to an SMQ topic (alismqtopic) that fans out to a bound queue subscription; messages are always received from an SMQ queue using the ali subscription provider. Provider-Specific Notes . GCP (Google Cloud Pub/Sub) . | Topic names must use the full resource format: projects/{projectId}/topics/{topicId} | Subscription names must use the full resource format: projects/{projectId}/subscriptions/{subscriptionId} | . AWS (SNS / SQS) . | SNS topics (awssns) are identified by their topic ARN, e.g. arn:aws:sns:us-west-2:123456789012:my-topic. The topic is validated to exist when the client is built. | SQS topics (awssqs) accept either a queue name (resolved to a queue URL automatically) or a full queue URL. | Subscriptions (aws) read from an SQS queue, identified by a queue name or queue URL. | . Alibaba (SMQ / MNS) . | An account-scoped endpoint is required on every client: https://&lt;accountId&gt;.mns.&lt;region&gt;.aliyuncs.com. The account id cannot be derived from the region and credentials, so .withEndpoint(...) must be set. This is why the endpoint is required and the region is not consumed. | Credentials are resolved from Alibaba’s default (ambient) credential provider chain. | Queue publish (alismqqueue) sends directly to an SMQ queue. Topic publish (alismqtopic) fans out to a bound SMQ queue subscription; the consumer reads that queue via the ali subscription provider. | When binding a topic to a queue, use a non-SIMPLIFIED (JSON) message format so that message metadata is preserved end to end. | You own provisioning and maintenance of the topic, the queue, and the topic-to-queue binding/subscription definition. The SDK does not create or manage these resources. | Message metadata is carried as native SMQ user properties. | . ",
     "url": "/multicloudj/guides/pubsub-guide.html#feature-support-across-providers",
     
     "relUrl": "/guides/pubsub-guide.html#feature-support-across-providers"
   },"96": {
     "doc": "How to Pub/Sub",
     "title": "Creating Clients",
-    "content": "Topic Client . // GCP TopicClient topicClient = TopicClient.builder(\"gcp\") .withTopicName(\"projects/my-project/topics/my-topic\") .build(); // AWS SNS TopicClient snsTopicClient = TopicClient.builder(\"awssns\") .withTopicName(\"arn:aws:sns:us-west-2:123456789012:my-topic\") .withRegion(\"us-west-2\") .build(); // AWS SQS TopicClient sqsTopicClient = TopicClient.builder(\"awssqs\") .withTopicName(\"my-queue\") .withRegion(\"us-west-2\") .build(); . You can also configure advanced options: . URI endpoint = URI.create(\"https://custom-endpoint.com\"); URI proxy = URI.create(\"https://proxy.example.com\"); topicClient = TopicClient.builder(\"gcp\") .withTopicName(\"projects/my-project/topics/my-topic\") .withEndpoint(endpoint) .withProxyEndpoint(proxy) .build(); . Subscription Client . // GCP SubscriptionClient subscriptionClient = SubscriptionClient.builder(\"gcp\") .withSubscriptionName(\"projects/my-project/subscriptions/my-subscription\") .build(); // AWS SubscriptionClient awsSubscriptionClient = SubscriptionClient.builder(\"aws\") .withSubscriptionName(\"my-queue\") .withRegion(\"us-west-2\") .build(); . You can also configure advanced options: . URI endpoint = URI.create(\"https://custom-endpoint.com\"); URI proxy = URI.create(\"https://proxy.example.com\"); subscriptionClient = SubscriptionClient.builder(\"gcp\") .withSubscriptionName(\"projects/my-project/subscriptions/my-subscription\") .withEndpoint(endpoint) .withProxyEndpoint(proxy) .build(); . To delay redelivery whenever a message is nacked, set a default nack visibility timeout on the builder: . SubscriptionClient subscriptionClient = SubscriptionClient.builder(\"aws\") .withSubscriptionName(\"my-queue\") .withRegion(\"us-west-2\") .withNackVisibilityTimeout(Duration.ofSeconds(30)) .build(); . Duration.ZERO (the default) makes nacked messages immediately available for redelivery; a positive value delays redelivery by that amount. ",
+    "content": "Topic Client . // GCP TopicClient topicClient = TopicClient.builder(\"gcp\") .withTopicName(\"projects/my-project/topics/my-topic\") .build(); // AWS SNS TopicClient snsTopicClient = TopicClient.builder(\"awssns\") .withTopicName(\"arn:aws:sns:us-west-2:123456789012:my-topic\") .withRegion(\"us-west-2\") .build(); // AWS SQS TopicClient sqsTopicClient = TopicClient.builder(\"awssqs\") .withTopicName(\"my-queue\") .withRegion(\"us-west-2\") .build(); // Alibaba SMQ — publish directly to a queue TopicClient aliQueueTopic = TopicClient.builder(\"alismqqueue\") .withTopicName(\"my-queue\") .withEndpoint(URI.create(\"https://1234567890123456.mns.cn-shanghai.aliyuncs.com\")) .build(); // Alibaba SMQ — publish to a topic that fans out to a queue subscription TopicClient aliTopic = TopicClient.builder(\"alismqtopic\") .withTopicName(\"my-topic\") .withEndpoint(URI.create(\"https://1234567890123456.mns.cn-shanghai.aliyuncs.com\")) .build(); . You can also configure advanced options: . URI endpoint = URI.create(\"https://custom-endpoint.com\"); URI proxy = URI.create(\"https://proxy.example.com\"); topicClient = TopicClient.builder(\"gcp\") .withTopicName(\"projects/my-project/topics/my-topic\") .withEndpoint(endpoint) .withProxyEndpoint(proxy) .build(); . Subscription Client . // GCP SubscriptionClient subscriptionClient = SubscriptionClient.builder(\"gcp\") .withSubscriptionName(\"projects/my-project/subscriptions/my-subscription\") .build(); // AWS SubscriptionClient awsSubscriptionClient = SubscriptionClient.builder(\"aws\") .withSubscriptionName(\"my-queue\") .withRegion(\"us-west-2\") .build(); // Alibaba SMQ SubscriptionClient aliSubscriptionClient = SubscriptionClient.builder(\"ali\") .withSubscriptionName(\"my-queue\") .withEndpoint(URI.create(\"https://1234567890123456.mns.cn-shanghai.aliyuncs.com\")) .build(); . You can also configure advanced options: . URI endpoint = URI.create(\"https://custom-endpoint.com\"); URI proxy = URI.create(\"https://proxy.example.com\"); subscriptionClient = SubscriptionClient.builder(\"gcp\") .withSubscriptionName(\"projects/my-project/subscriptions/my-subscription\") .withEndpoint(endpoint) .withProxyEndpoint(proxy) .build(); . To delay redelivery whenever a message is nacked, set a default nack visibility timeout on the builder: . SubscriptionClient subscriptionClient = SubscriptionClient.builder(\"aws\") .withSubscriptionName(\"my-queue\") .withRegion(\"us-west-2\") .withNackVisibilityTimeout(Duration.ofSeconds(30)) .build(); . Duration.ZERO (the default) makes nacked messages immediately available for redelivery; a positive value delays redelivery by that amount. ",
     "url": "/multicloudj/guides/pubsub-guide.html#creating-clients",
     
     "relUrl": "/guides/pubsub-guide.html#creating-clients"
