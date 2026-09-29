@@ -30,6 +30,13 @@ public class AliPubsubProviderDiscoveryTest {
   }
 
   @Test
+  void topicClientBuilderDiscoversAliSmqTopicProvider() {
+    // Resolving the "alismqtopic" id through the public builder requires the ServiceLoader
+    // registration on AliSmqTopic; without it the constructor throws IllegalArgumentException.
+    assertNotNull(assertDoesNotThrow(() -> TopicClient.builder("alismqtopic")));
+  }
+
+  @Test
   void subscriptionClientBuilderDiscoversAliProvider() {
     // Resolving the "ali" id through the public builder requires the ServiceLoader registration on
     // AliSubscription; without it the constructor throws IllegalArgumentException.

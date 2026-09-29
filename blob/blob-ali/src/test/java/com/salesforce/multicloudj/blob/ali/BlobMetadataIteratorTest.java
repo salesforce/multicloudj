@@ -131,10 +131,10 @@ public class BlobMetadataIteratorTest {
   }
 
   @Test
-  void testHiddenMarkerStillDrivesArchivedAtFlagOff() {
+  void testMarkersHiddenAndNoArchivedAtWhenFlagOff() {
     String key = "obj-1";
-    // Timeline: v2(t3) -> marker(t2) -> v1(t1). With the flag off, the marker is hidden but must
-    // still supersede v1 so v1 reports archivedAt = marker time.
+    // Timeline: v2(t3) -> marker(t2) -> v1(t1). With the flag off, the marker is neither surfaced
+    // nor used to derive a supersession instant, so no version reports archivedAt.
     ObjectVersion v2 = version(key, "v2", 200L, Instant.ofEpochSecond(3));
     DeleteMarkerEntry marker = marker(key, "dm", Instant.ofEpochSecond(2), false);
     ObjectVersion v1 = version(key, "v1", 100L, Instant.ofEpochSecond(1));
@@ -154,8 +154,8 @@ public class BlobMetadataIteratorTest {
     assertEquals("v2", all.get(0).getVersionId());
     assertNull(all.get(0).getArchivedAt());
     assertEquals("v1", all.get(1).getVersionId());
-    assertEquals(Instant.ofEpochSecond(2), all.get(1).getArchivedAt(),
-        "Hidden marker must still supersede the version below it");
+    assertNull(all.get(1).getArchivedAt(),
+        "Default listing must not derive archivedAt when delete markers are not requested");
   }
 
   @Test
@@ -235,6 +235,117 @@ public class BlobMetadataIteratorTest {
     assertEquals(2, all.size());
     assertTrue(all.stream().anyMatch(m -> "v1".equals(m.getVersionId())));
     assertTrue(all.stream().anyMatch(m -> "dm".equals(m.getVersionId())));
+  }
+
+  @Test
+  void testEqualTimestampsLatestFlagBreaksTie() {
+    String key = "obj-1";
+    Instant t = Instant.ofEpochSecond(7);
+
+    // Same-instant PUT then DELETE: the delete marker is the current (latest) entry, so the latest
+    // flag must decide the order that the equal timestamps cannot.
+    ObjectVersion v1 = version(key, "v1", 100L, t);
+    DeleteMarkerEntry marker = marker(key, "dm1", t, true);
+
+    ListObjectVersionsResult page = mock(ListObjectVersionsResult.class);
+    when(page.versions()).thenReturn(List.of(v1));
+    when(page.deleteMarkers()).thenReturn(List.of(marker));
+
+    stubPages(page);
+
+    List<BlobMetadata> all = new ArrayList<>();
+    new BlobMetadataIterator(mockOssClient, TEST_BUCKET, key, true).forEachRemaining(all::add);
+
+    assertEquals(2, all.size());
+
+    // The delete marker OSS flagged latest is emitted first and is still current.
+    assertEquals("dm1", all.get(0).getVersionId());
+    assertTrue(all.get(0).isArchived());
+    assertNull(all.get(0).getArchivedAt());
+
+    // The content version sharing the instant is superseded by that marker.
+    assertEquals("v1", all.get(1).getVersionId());
+    assertFalse(all.get(1).isArchived());
+    assertEquals(t, all.get(1).getArchivedAt());
+  }
+
+  @Test
+  void testLazyPageLoadingPullsPagesOnDemand() {
+    String key = "obj-1";
+    // Build the version mocks first: stubbing them inside a thenReturn(...) argument would nest
+    // stubbing calls and trip Mockito's UnfinishedStubbingException.
+    ObjectVersion v3 = version(key, "v3", 300L, Instant.ofEpochSecond(3));
+    ObjectVersion v2 = version(key, "v2", 200L, Instant.ofEpochSecond(2));
+    ObjectVersion v1 = version(key, "v1", 100L, Instant.ofEpochSecond(1));
+    ListObjectVersionsResult page1 = mock(ListObjectVersionsResult.class);
+    when(page1.versions()).thenReturn(List.of(v3));
+    ListObjectVersionsResult page2 = mock(ListObjectVersionsResult.class);
+    when(page2.versions()).thenReturn(List.of(v2));
+    ListObjectVersionsResult page3 = mock(ListObjectVersionsResult.class);
+    when(page3.versions()).thenReturn(List.of(v1));
+
+    int[] fetched = {0};
+    Iterator<ListObjectVersionsResult> counting =
+        new Iterator<>() {
+          private final Iterator<ListObjectVersionsResult> delegate =
+              List.of(page1, page2, page3).iterator();
+
+          @Override
+          public boolean hasNext() {
+            return delegate.hasNext();
+          }
+
+          @Override
+          public ListObjectVersionsResult next() {
+            fetched[0]++;
+            return delegate.next();
+          }
+        };
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(counting);
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    Iterator<BlobMetadata> iterator = new BlobMetadataIterator(mockOssClient, TEST_BUCKET, key);
+
+    // Construction alone fetches nothing.
+    assertEquals(0, fetched[0]);
+
+    // Reading the first element pulls only the first page.
+    assertTrue(iterator.hasNext());
+    assertEquals("v3", iterator.next().getVersionId());
+    assertEquals(1, fetched[0]);
+
+    // Draining the rest pulls the remaining pages on demand.
+    List<BlobMetadata> rest = new ArrayList<>();
+    iterator.forEachRemaining(rest::add);
+    assertEquals(2, rest.size());
+    assertEquals(3, fetched[0]);
+  }
+
+  @Test
+  void testNullDeleteMarkersCollectionFlagOn() {
+    String key = "obj-1";
+    // Opt-in mode, but OSS returns a page whose deleteMarkers() collection is null. The null guard
+    // must skip marker merging and still emit the content version without deriving archivedAt.
+    ObjectVersion v1 = version(key, "v1", 100L, Instant.ofEpochSecond(1));
+
+    ListObjectVersionsResult page = mock(ListObjectVersionsResult.class);
+    when(page.versions()).thenReturn(List.of(v1));
+    // OSS can return a null deleteMarkers() collection; the guard must tolerate it. (A default
+    // Mockito mock would hand back an empty list, so stub null explicitly to exercise the guard.)
+    when(page.deleteMarkers()).thenReturn(null);
+
+    stubPages(page);
+
+    List<BlobMetadata> all = new ArrayList<>();
+    new BlobMetadataIterator(mockOssClient, TEST_BUCKET, key, true).forEachRemaining(all::add);
+
+    assertEquals(1, all.size());
+    assertEquals("v1", all.get(0).getVersionId());
+    assertFalse(all.get(0).isArchived());
+    assertNull(all.get(0).getArchivedAt());
   }
 
   private void stubPages(ListObjectVersionsResult... pages) {

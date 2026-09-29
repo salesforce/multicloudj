@@ -6487,18 +6487,15 @@ public abstract class AbstractBlobStoreIT {
           defaultByVersion.values().stream().noneMatch(BlobMetadata::isArchived),
           "Default listing must not surface delete markers");
 
-      // Point-in-time semantics: A was superseded (has a archivedAt), B is current (has none).
+      // Default listing derives no archivedAt: the supersession instant only exists to serve the
+      // opt-in delete-history view, so neither the superseded nor the current version reports one.
       BlobMetadata metaA = defaultByVersion.get(versionA);
       BlobMetadata metaB = defaultByVersion.get(versionB);
-      Assertions.assertNotNull(
-          metaA.getArchivedAt(), "Superseded version A should report a archivedAt instant");
       Assertions.assertNull(
-          metaB.getArchivedAt(), "Current version B should not report a archivedAt instant");
-      if (metaA.getCreatedTime() != null) {
-        Assertions.assertFalse(
-            metaA.getArchivedAt().isBefore(metaA.getCreatedTime()),
-            "Validity interval [createdTime, archivedAt) must be non-negative");
-      }
+          metaA.getArchivedAt(),
+          "Default listing must not derive archivedAt when delete markers are not requested");
+      Assertions.assertNull(
+          metaB.getArchivedAt(), "Current version B should not report an archivedAt instant");
 
       // Both content versions must be downloadable by their versionIds.
       for (String versionId : new String[] {versionA, versionB}) {
@@ -6516,10 +6513,23 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertTrue(
           includedByVersion.keySet().containsAll(defaultByVersion.keySet()),
           "Opt-in listing should contain every content version the default listing returned");
-      Assertions.assertEquals(
-          metaA.getArchivedAt(),
-          includedByVersion.get(versionA).getArchivedAt(),
-          "archivedAt for a content version must not depend on the includeArchived flag");
+
+      // Opt-in listing derives archivedAt: version A was superseded and reports the instant it
+      // stopped being current, while the still-current version B reports none.
+      BlobMetadata includedA = includedByVersion.get(versionA);
+      BlobMetadata includedB = includedByVersion.get(versionB);
+      Assertions.assertNotNull(
+          includedA.getArchivedAt(),
+          "With includeArchived set, superseded version A should report an archivedAt instant");
+      Assertions.assertNull(
+          includedB.getArchivedAt(),
+          "Current version B should not report an archivedAt instant even when includeArchived is "
+              + "set");
+      if (includedA.getCreatedTime() != null) {
+        Assertions.assertFalse(
+            includedA.getArchivedAt().isBefore(includedA.getCreatedTime()),
+            "Validity interval [createdTime, archivedAt) must be non-negative");
+      }
       Assertions.assertTrue(
           includedByVersion.size() >= defaultByVersion.size(),
           "Opt-in listing must not drop any entries relative to the default listing");

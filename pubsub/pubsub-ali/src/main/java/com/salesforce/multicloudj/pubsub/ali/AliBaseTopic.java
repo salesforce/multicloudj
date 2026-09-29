@@ -37,18 +37,20 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
   protected static final int MIN_BATCH_SIZE = 1;
   protected static final int MAX_BATCH_SIZE = 16;
 
-  // Alibaba SMQ BatchSendMessage documents a maximum total payload of 64 KB (65,536 bytes) per
-  // batch request. The byte guard (see splitBySize) keeps a conservative upper bound on the actual
-  // SDK-serialized request under this documented limit. The SDK serializes a batch as one XML
-  // document, so its serialized size is a fixed per-request framing (the XML prolog and the
-  // <Messages> root element), independent of message count, plus for each message its serialized
-  // body, its user-property (metadata) block, and a small per-message XML envelope
+  // The documented SMQ per-request size limit is 64 KB (65,536 bytes). It applies BOTH as the
+  // per-message body cap (MaximumMessageSize, range 1024-65536, default 65536; bounds a single
+  // PublishMessage) AND as the BatchSendMessage combined per-batch total (<=16 messages, <=64 KB).
+  // The byte guard (see splitBySize and ensureWithinRequestSizeLimit) keeps a conservative upper
+  // bound on the actual SDK-serialized request under this documented limit. The SDK serializes a
+  // batch as one XML document, so its serialized size is a fixed per-request framing (the XML
+  // prolog and the <Messages> root element), independent of message count, plus for each message
+  // its serialized body, its user-property (metadata) block, and a small per-message XML envelope
   // (<Message><MessageBody>...). A base64-encoded body of N raw bytes occupies 4*ceil(N/3) wire
   // bytes; a raw body occupies its XML-escaped byte length (see measureWireSize).
   // FIXED_REQUEST_OVERHEAD_BYTES covers the per-request framing and MESSAGE_ENVELOPE_OVERHEAD_BYTES
   // covers the per-message framing; both reserve conservative headroom so the estimated size is
   // always at least the true serialized size and stays under the documented 64 KB limit.
-  protected static final int MAX_BATCH_BYTE_SIZE = 64 * 1024;
+  protected static final int MAX_REQUEST_BYTE_SIZE = 64 * 1024;
   // Measured fixed per-request framing (XML prolog + <Messages> root) is ~114 bytes; rounded up to
   // 256 for buffer.
   protected static final int FIXED_REQUEST_OVERHEAD_BYTES = 256;
@@ -82,6 +84,14 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
   // force-escaped by encodeMetadataKey (see its reserved-flag collision handling), so no user
   // attribute can ever masquerade as — or be stripped as — this flag.
   static final String RESERVED_BASE64_FLAG_KEY = "base64encoded";
+
+  // Reserved user property a topic publisher stamps on every message so the subscription can tell a
+  // topic delivery (a JSON envelope) from a direct queue message authoritatively, without sniffing
+  // the body shape. Set only on the topic path (see AliSmqTopic); the queue path never sets it. A
+  // user metadata key that would otherwise encode to this same wire name is force-escaped by
+  // encodeMetadataKey (see its reserved-flag collision handling), so no user attribute can ever
+  // masquerade as — or be stripped as — this marker.
+  static final String RESERVED_TOPIC_ORIGINATED_KEY = "topicoriginated";
 
   /**
    * How message bodies are placed on the SMQ wire, and the round-trip contract for readers.
@@ -118,9 +128,37 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
 
   private final Base64EncodingStrategy bodyEncodingStrategy;
 
+  /** The SMQ client whose HTTP resources this publisher owns; closed by {@link #close()}. */
+  private final MNSClient smqClient;
+
   protected AliBaseTopic(Builder<?, T> builder) {
     super(builder);
     this.bodyEncodingStrategy = builder.bodyEncodingStrategy;
+    this.smqClient = builder.smqClient;
+  }
+
+  /**
+   * Closes this publisher: runs the base shutdown (flushing pending batches), then closes the SMQ
+   * client so its HTTP resources are not leaked. A client-close failure is attached as suppressed
+   * to a shutdown failure rather than replacing it.
+   */
+  @Override
+  public void close() throws Exception {
+    try {
+      super.close();
+    } catch (Throwable primary) {
+      if (smqClient != null) {
+        try {
+          smqClient.close();
+        } catch (Throwable clientCloseError) {
+          primary.addSuppressed(clientCloseError);
+        }
+      }
+      throw primary;
+    }
+    if (smqClient != null) {
+      smqClient.close();
+    }
   }
 
   /**
@@ -151,16 +189,24 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
   protected long measureWireSize(Message message) {
     byte[] body = message.getBody() == null ? new byte[0] : message.getBody();
     boolean base64 = shouldBase64EncodeBody(body);
+    boolean topicMarker = stampsTopicOriginatedMarker();
     long size = base64 ? encodedWireSize(body.length) : rawBodyWireSize(body);
     Map<String, String> metadata = message.getMetadata();
     size += metadataWireSize(metadata);
+    boolean hasMetadata = metadata != null && !metadata.isEmpty();
+    // Count the <UserProperties> wrapper exactly once: metadataWireSize already counted it when
+    // metadata is non-empty, so add it here only when a reserved flag rides on an otherwise
+    // metadata-less message.
+    if (!hasMetadata && (base64 || topicMarker)) {
+      size += USER_PROPERTIES_WRAPPER_OVERHEAD_BYTES;
+    }
     if (base64) {
-      // The base64 flag rides as an extra user property; count it, and count the <UserProperties>
-      // wrapper when the message has no other metadata that would already carry it.
-      if (metadata == null || metadata.isEmpty()) {
-        size += USER_PROPERTIES_WRAPPER_OVERHEAD_BYTES;
-      }
+      // The base64 flag rides as an extra user property.
       size += propertyWireSize(RESERVED_BASE64_FLAG_KEY, "true");
+    }
+    if (topicMarker) {
+      // The topic-originated marker rides as an extra user property on the topic path.
+      size += propertyWireSize(RESERVED_TOPIC_ORIGINATED_KEY, "true");
     }
     return size;
   }
@@ -282,7 +328,7 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
    * the body is not XML-safe UTF-8 — that is, when it is not valid UTF-8 or contains an XML-illegal
    * control byte, neither of which can be carried losslessly as raw XML text.
    */
-  private boolean shouldBase64EncodeBody(byte[] body) {
+  protected boolean shouldBase64EncodeBody(byte[] body) {
     switch (bodyEncodingStrategy) {
       case ALWAYS:
         return true;
@@ -333,10 +379,31 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
   }
 
   /**
+   * Fails fast with {@link InvalidArgumentException} if this single message, together with the
+   * fixed per-request overhead, exceeds {@link #MAX_REQUEST_BYTE_SIZE} — such a message could never
+   * be sent in any batch. Returns the message's measured wire size so callers can reuse it without
+   * re-measuring.
+   */
+  protected long ensureWithinRequestSizeLimit(Message message) {
+    long wireSize = measureWireSize(message);
+    if (FIXED_REQUEST_OVERHEAD_BYTES + wireSize > MAX_REQUEST_BYTE_SIZE) {
+      throw new InvalidArgumentException(
+          "message exceeds the Alibaba SMQ per-request size limit of "
+              + MAX_REQUEST_BYTE_SIZE
+              + " bytes (fixed request overhead plus serialized body, metadata, and envelope);"
+              + " measured "
+              + (FIXED_REQUEST_OVERHEAD_BYTES + wireSize)
+              + " bytes");
+    }
+    return wireSize;
+  }
+
+  /**
    * Packs an already count-capped ({@code <= MAX_BATCH_SIZE}) list into sub-batches whose estimated
    * request size ({@link #FIXED_REQUEST_OVERHEAD_BYTES} plus the cumulative
-   * {@link #measureWireSize wire size} of the messages) stays within {@link #MAX_BATCH_BYTE_SIZE},
-   * the 64 KB (65,536 bytes) total payload per batch that SMQ BatchSendMessage documents.
+   * {@link #measureWireSize wire size} of the messages) stays within
+   * {@link #MAX_REQUEST_BYTE_SIZE}, the 64 KB (65,536 bytes) total payload per batch that SMQ
+   * BatchSendMessage documents.
    *
    * <p>Fails fast with {@link InvalidArgumentException} if any single message, together with the
    * fixed per-request overhead, exceeds the limit on its own, since such a message can never be
@@ -347,20 +414,11 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
     List<List<Message>> batches = new ArrayList<>();
     List<Message> current = new ArrayList<>();
     // The accumulator carries the fixed per-request framing up front so each sub-batch's estimated
-    // request size (fixed overhead + per-message wire sizes) is bounded by MAX_BATCH_BYTE_SIZE.
+    // request size (fixed overhead + per-message wire sizes) is bounded by MAX_REQUEST_BYTE_SIZE.
     long currentSize = FIXED_REQUEST_OVERHEAD_BYTES;
     for (Message message : messages) {
-      long wireSize = measureWireSize(message);
-      if (FIXED_REQUEST_OVERHEAD_BYTES + wireSize > MAX_BATCH_BYTE_SIZE) {
-        throw new InvalidArgumentException(
-            "message exceeds the Alibaba SMQ per-request size limit of "
-                + MAX_BATCH_BYTE_SIZE
-                + " bytes (fixed request overhead plus serialized body, metadata, and envelope);"
-                + " measured "
-                + (FIXED_REQUEST_OVERHEAD_BYTES + wireSize)
-                + " bytes");
-      }
-      if (!current.isEmpty() && currentSize + wireSize > MAX_BATCH_BYTE_SIZE) {
+      long wireSize = ensureWithinRequestSizeLimit(message);
+      if (!current.isEmpty() && currentSize + wireSize > MAX_REQUEST_BYTE_SIZE) {
         batches.add(current);
         current = new ArrayList<>();
         currentSize = FIXED_REQUEST_OVERHEAD_BYTES;
@@ -404,17 +462,55 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
     smqMessage.setMessageBody(
         body, base64 ? MessageBodyType.BASE64 : MessageBodyType.RAW_STRING);
     Map<String, MessagePropertyValue> userProperties =
-        toUserProperties(message.getMetadata(), base64);
+        buildUserProperties(message.getMetadata(), base64);
+    if (userProperties != null) {
+      smqMessage.setUserProperties(userProperties);
+    }
+    return smqMessage;
+  }
+
+  /**
+   * Whether this publisher stamps the reserved {@link #RESERVED_TOPIC_ORIGINATED_KEY} marker on
+   * every message — topic publishers do (so the subscription can tell a topic delivery from a
+   * direct message authoritatively); the queue publisher does not. When {@code true} the marker is
+   * an always-present reserved user property, so the shared cap check ({@link #toUserProperties})
+   * and size accounting ({@link #measureWireSize}) each reserve one slot for it. The marker itself
+   * is stamped by the topic publisher, not here.
+   */
+  protected boolean stampsTopicOriginatedMarker() {
+    return false;
+  }
+
+  /**
+   * Assembles the native SMQ user-property map an outbound message carries: the
+   * {@link #toUserProperties metadata properties} (with the per-message limits enforced fail-fast)
+   * plus, when the body is base64-encoded, the reserved {@link #RESERVED_BASE64_FLAG_KEY} flag so
+   * the receiver knows to base64-decode the body.
+   *
+   * <p>Returns {@code null} when there is nothing to carry — no metadata and no base64 flag — so
+   * the caller can skip setting an empty user-property map on the SMQ message. Each always-present
+   * reserved flag (the base64 body flag when base64-encoded, and — on the topic path — the
+   * {@link #RESERVED_TOPIC_ORIGINATED_KEY} marker) reserves one of SMQ's
+   * {@link #MAX_USER_PROPERTIES} attribute slots, so {@code toUserProperties} enforces the
+   * correspondingly lower metadata cap before those flags are added. The base64 flag is added here;
+   * the topic marker is added by the topic publisher.
+   *
+   * @param metadata the message metadata to map onto user properties, or {@code null}
+   * @param base64 whether the body is base64-encoded, which adds the reserved flag property
+   * @throws InvalidArgumentException if the metadata exceeds the SMQ per-message limits (see
+   *     {@link #toUserProperties})
+   */
+  protected Map<String, MessagePropertyValue> buildUserProperties(
+      Map<String, String> metadata, boolean base64) {
+    Map<String, MessagePropertyValue> userProperties =
+        toUserProperties(metadata, base64, stampsTopicOriginatedMarker());
     if (base64) {
       if (userProperties == null) {
         userProperties = new HashMap<>();
       }
       userProperties.put(RESERVED_BASE64_FLAG_KEY, new MessagePropertyValue(true));
     }
-    if (userProperties != null) {
-      smqMessage.setUserProperties(userProperties);
-    }
-    return smqMessage;
+    return userProperties;
   }
 
   /**
@@ -423,24 +519,28 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
    * and its per-value length limit enforced by {@link #toPropertyValue} against the form the value
    * takes on the wire.
    *
-   * <p>When {@code base64Applies}, the caller adds the reserved base64 flag as an extra user
-   * property, so it counts toward SMQ's {@link #MAX_USER_PROPERTIES} cap: the metadata may then
-   * carry at most {@code MAX_USER_PROPERTIES - 1} attributes (the flag brings the wire total to
-   * exactly the cap). Enforcing that effective cap here keeps an over-limit message from slipping
-   * past this fail-fast check only to be rejected by the service once the flag is added.
+   * <p>Each always-present reserved flag the caller adds afterward counts toward SMQ's
+   * {@link #MAX_USER_PROPERTIES} cap, so the effective metadata cap is lowered by one per reserved
+   * flag: the reserved base64 flag when {@code base64Applies}, and the reserved topic-originated
+   * marker when {@code reserveTopicMarkerSlot}. Enforcing that effective cap here keeps an
+   * over-limit message from slipping past this fail-fast check only to be rejected by the service
+   * once the flags are added.
    *
    * @param base64Applies whether the body will be base64-encoded, reserving one user-property slot
    *     for the base64 flag
+   * @param reserveTopicMarkerSlot whether the topic-originated marker will be added, reserving one
+   *     user-property slot for it
    * @throws InvalidArgumentException if the metadata exceeds the effective attribute cap (
-   *     {@link #MAX_USER_PROPERTIES}, or one fewer when {@code base64Applies}), or if any value
-   *     exceeds the SMQ per-value length limit on its wire form (see {@link #toPropertyValue})
+   *     {@link #MAX_USER_PROPERTIES} minus one per reserved flag), or if any value exceeds the SMQ
+   *     per-value length limit on its wire form (see {@link #toPropertyValue})
    */
   private static Map<String, MessagePropertyValue> toUserProperties(
-      Map<String, String> metadata, boolean base64Applies) {
+      Map<String, String> metadata, boolean base64Applies, boolean reserveTopicMarkerSlot) {
     if (metadata == null || metadata.isEmpty()) {
       return null;
     }
-    int effectiveMaxProperties = base64Applies ? MAX_USER_PROPERTIES - 1 : MAX_USER_PROPERTIES;
+    int reservedSlots = (base64Applies ? 1 : 0) + (reserveTopicMarkerSlot ? 1 : 0);
+    int effectiveMaxProperties = MAX_USER_PROPERTIES - reservedSlots;
     if (metadata.size() > effectiveMaxProperties) {
       throw new InvalidArgumentException(
           "message metadata has "
@@ -448,8 +548,9 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
               + " attributes, exceeding the Alibaba SMQ limit of "
               + MAX_USER_PROPERTIES
               + " user properties"
-              + (base64Applies
-                  ? " (the base64 body flag reserves one, leaving " + effectiveMaxProperties + ")"
+              + (reservedSlots > 0
+                  ? " (" + reservedSlots + " reserved flag slot(s) leave " + effectiveMaxProperties
+                      + " for metadata)"
                   : ""));
     }
     Map<String, MessagePropertyValue> userProperties = new HashMap<>();
@@ -544,8 +645,8 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
    * {@code __0x2E__}; every other byte is escaped as {@code __0xHH__} over the key's UTF-8 bytes.
    * Two collisions are hardened so the wire form always decodes back to the original key: an
    * underscore that begins a literal {@code __0x} escape marker is escaped so decode cannot mistake
-   * the user's text for an encoded byte, and a key that would encode to the reserved base64 flag
-   * name has its first byte force-escaped so it can never masquerade as the flag.
+   * the user's text for an encoded byte, and a key that would encode to a reserved flag name has
+   * its first byte force-escaped so it can never masquerade as that flag.
    * {@link #decodeMetadataKey} reverses it.
    *
    * @throws InvalidArgumentException if the key is null or empty, or its encoded form exceeds
@@ -563,10 +664,10 @@ public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTo
     }
     byte[] bytes = key.getBytes(StandardCharsets.UTF_8);
     String encoded = encodeKeyBytes(bytes, false);
-    // Reserved-flag-key collision: a user key whose wire form would equal the reserved flag name
-    // must not masquerade as (or be stripped as) the flag. Force-escape its first byte so the wire
-    // key differs from the reserved name while still decoding back to the user's key.
-    if (encoded.equals(RESERVED_BASE64_FLAG_KEY)) {
+    // Reserved-flag-key collision: a user key whose wire form would equal a reserved flag name must
+    // not masquerade as (or be stripped as) that flag. Force-escape its first byte so the wire key
+    // differs from the reserved name while still decoding back to the user's key.
+    if (encoded.equals(RESERVED_BASE64_FLAG_KEY) || encoded.equals(RESERVED_TOPIC_ORIGINATED_KEY)) {
       encoded = encodeKeyBytes(bytes, true);
     }
     // Defensive: a non-empty key never encodes to an empty form, but guard it explicitly so an

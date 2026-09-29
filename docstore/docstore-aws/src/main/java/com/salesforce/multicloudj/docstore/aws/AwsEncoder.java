@@ -83,8 +83,9 @@ public class AwsEncoder implements Encoder {
 
   @Override
   public Encoder encodeMap(int n) {
-    this.attributeValue = AttributeValue.builder().m(map).build();
-    return new MapEncoder(map);
+    this.map = new HashMap<>();
+    this.attributeValue = AttributeValue.builder().m(this.map).build();
+    return new MapEncoder(this.map);
   }
 
   @Override

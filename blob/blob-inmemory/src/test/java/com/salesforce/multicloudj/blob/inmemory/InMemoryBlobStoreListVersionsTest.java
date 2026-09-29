@@ -97,28 +97,32 @@ class InMemoryBlobStoreListVersionsTest {
   }
 
   @Test
-  void archivedAt_reflectsSupersessionEvenWhenMarkerHidden() {
+  void archivedAt_isFlagDependent_derivedOnlyWhenMarkersRequested() {
     String key = "obj";
     upload(key, "A");
     store.delete(key, null);
     upload(key, "B");
 
-    // With the marker hidden, the older version's archivedAt must still be the marker's
-    // creation time (the instant it stopped being current), not version B's creation time.
     List<BlobMetadata> hidden = list(key, false);
     List<BlobMetadata> shown = list(key, true);
 
-    // Current version is never superseded.
-    assertNull(hidden.get(0).getArchivedAt());
+    // Default listing derives no archivedAt for any content version.
+    hidden.forEach(v -> assertNull(v.getArchivedAt()));
+
+    // Current version is never superseded, even in the opt-in view.
+    assertNull(shown.get(0).getArchivedAt());
 
     BlobMetadata markerEntry = shown.get(1);
     assertTrue(markerEntry.isArchived());
 
-    BlobMetadata oldestHidden = hidden.get(1);
-    assertNotNull(oldestHidden.getArchivedAt());
-    assertEquals(markerEntry.getCreatedTime(), oldestHidden.getArchivedAt());
+    // In the opt-in view the older version's archivedAt is the marker's creation time (the instant
+    // it stopped being current), not version B's creation time.
+    BlobMetadata oldestShown = shown.get(2);
+    assertFalse(oldestShown.isArchived());
+    assertNotNull(oldestShown.getArchivedAt());
+    assertEquals(markerEntry.getCreatedTime(), oldestShown.getArchivedAt());
     // Validity interval is end-exclusive: version A's window ends exactly at the marker instant.
-    assertTrue(oldestHidden.getCreatedTime().isBefore(oldestHidden.getArchivedAt()));
+    assertTrue(oldestShown.getCreatedTime().isBefore(oldestShown.getArchivedAt()));
   }
 
   @Test
