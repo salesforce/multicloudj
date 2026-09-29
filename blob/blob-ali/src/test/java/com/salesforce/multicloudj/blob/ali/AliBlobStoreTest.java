@@ -745,6 +745,41 @@ public class AliBlobStoreTest {
     assertFalse(iterator.hasNext());
   }
 
+  @Test
+  void testDoList_IncludesCommonPrefixesAcrossPages() {
+    ObjectSummary firstObject = ObjectSummary.newBuilder().key("b.txt").size(1L).build();
+    ObjectSummary lastObject = ObjectSummary.newBuilder().key("d.txt").size(1L).build();
+    ListObjectsV2Result firstPage = mock(ListObjectsV2Result.class);
+    ListObjectsV2Result lastPage = mock(ListObjectsV2Result.class);
+    when(firstPage.contents()).thenReturn(List.of(firstObject));
+    when(firstPage.commonPrefixes())
+        .thenReturn(List.of(CommonPrefix.newBuilder().prefix("a/").build()));
+    when(firstPage.nextContinuationToken()).thenReturn("page-2");
+    when(lastPage.contents()).thenReturn(List.of(lastObject));
+    when(lastPage.commonPrefixes())
+        .thenReturn(List.of(CommonPrefix.newBuilder().prefix("c/").build()));
+    when(lastPage.nextContinuationToken()).thenReturn(null);
+    when(mockOssClient.listObjectsV2(
+            any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(firstPage, lastPage);
+
+    Iterator<BlobInfo> iterator =
+        ali.doList(
+            ListBlobsRequest.builder()
+                .withDelimiter("/")
+                .withIncludeCommonPrefixes(true)
+                .build());
+    List<BlobInfo> entries = new ArrayList<>();
+    iterator.forEachRemaining(entries::add);
+
+    assertEquals(
+        List.of("a/", "b.txt", "c/", "d.txt"),
+        entries.stream().map(BlobInfo::getKey).toList());
+    assertEquals(
+        List.of(true, false, true, false),
+        entries.stream().map(BlobInfo::isCommonPrefix).toList());
+  }
+
   // Base instant for deterministic lastModified values in the object-summary fixtures;
   // each summary i gets BASE_LAST_MODIFIED + i seconds so tests can assert exact timestamps.
   private static final java.time.Instant BASE_LAST_MODIFIED =

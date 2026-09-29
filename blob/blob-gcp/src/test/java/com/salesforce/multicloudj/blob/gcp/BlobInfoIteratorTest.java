@@ -61,6 +61,31 @@ class BlobInfoIteratorTest {
     verify(emptyIntermediatePage).getNextPage();
   }
 
+  @Test
+  void includesCommonPrefixesAcrossPages() {
+    Page<Blob> firstPage = mock(Page.class);
+    Page<Blob> lastPage = mock(Page.class);
+    Blob firstObject = blob("b.txt", false);
+    Blob firstPrefix = blob("a/", true);
+    Blob lastObject = blob("d.txt", false);
+    Blob lastPrefix = blob("c/", true);
+    when(firstPage.getValues()).thenReturn(List.of(firstObject, firstPrefix));
+    when(firstPage.hasNextPage()).thenReturn(true);
+    when(firstPage.getNextPage()).thenReturn(lastPage);
+    when(lastPage.getValues()).thenReturn(List.of(lastObject, lastPrefix));
+
+    BlobInfoIterator iterator = new BlobInfoIterator(firstPage, true);
+    List<BlobInfo> entries = new ArrayList<>();
+    iterator.forEachRemaining(entries::add);
+
+    assertEquals(
+        List.of("a/", "b.txt", "c/", "d.txt"),
+        entries.stream().map(BlobInfo::getKey).toList());
+    assertEquals(
+        List.of(true, false, true, false),
+        entries.stream().map(BlobInfo::isCommonPrefix).toList());
+  }
+
   private Blob blob(String key, boolean commonPrefix) {
     Blob blob = mock(Blob.class);
     when(blob.getName()).thenReturn(key);

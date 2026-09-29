@@ -37,6 +37,8 @@ public class ListBlobsRequest {
 
     /**
      * Includes entries derived from the delimiter as common prefixes when listing synchronously.
+     * This option has no effect unless a non-empty delimiter is configured with {@link
+     * #withDelimiter(String)}.
      *
      * @param includeCommonPrefixes whether to include common-prefix entries
      * @return this builder

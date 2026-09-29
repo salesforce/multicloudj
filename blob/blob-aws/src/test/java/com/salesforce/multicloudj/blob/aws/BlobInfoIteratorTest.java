@@ -152,4 +152,39 @@ public class BlobInfoIteratorTest {
         entries.stream().map(BlobInfo::getKey).toList());
     assertFalse(iterator.hasNext());
   }
+
+  @Test
+  void testBlobInfoIteratorIncludesCommonPrefixesAcrossPages() {
+    ListObjectsV2Response firstPage =
+        ListObjectsV2Response.builder()
+            .contents(S3Object.builder().key("b.txt").size(1L).build())
+            .commonPrefixes(CommonPrefix.builder().prefix("a/").build())
+            .nextContinuationToken("page-2")
+            .build();
+    ListObjectsV2Response lastPage =
+        ListObjectsV2Response.builder()
+            .contents(S3Object.builder().key("d.txt").size(1L).build())
+            .commonPrefixes(CommonPrefix.builder().prefix("c/").build())
+            .build();
+    when(mockS3Client.listObjectsV2(any(ListObjectsV2Request.class)))
+        .thenReturn(firstPage, lastPage);
+
+    BlobInfoIterator iterator =
+        new BlobInfoIterator(
+            mockS3Client,
+            TEST_BUCKET,
+            ListBlobsRequest.builder()
+                .withDelimiter("/")
+                .withIncludeCommonPrefixes(true)
+                .build());
+    List<BlobInfo> entries = new ArrayList<>();
+    iterator.forEachRemaining(entries::add);
+
+    assertEquals(
+        List.of("a/", "b.txt", "c/", "d.txt"),
+        entries.stream().map(BlobInfo::getKey).toList());
+    assertEquals(
+        List.of(true, false, true, false),
+        entries.stream().map(BlobInfo::isCommonPrefix).toList());
+  }
 }
