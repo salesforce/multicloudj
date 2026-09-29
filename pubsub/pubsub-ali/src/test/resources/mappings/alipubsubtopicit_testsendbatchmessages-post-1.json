@@ -1,0 +1,29 @@
+{
+  "id" : "68d0acbb-6195-44a0-a479-3d4d34b06d74",
+  "name" : "AliPubsubTopicIT_testSendBatchMessages-POST-1",
+  "request" : {
+    "url" : "/topics/test-smq-conf-t-testSendBatchMessages/messages",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><Message xmlns=\"http://mns.aliyuncs.com/doc/v1\"><MessageBody>Message 2</MessageBody><UserProperties><PropertyValue><Name>topicoriginated</Name><Value>true</Value><Type>BOOLEAN</Type></PropertyValue><PropertyValue><Name>batch-id</Name><Value>2</Value><Type>STRING</Type></PropertyValue></UserProperties></Message>"
+    } ]
+  },
+  "response" : {
+    "status" : 201,
+    "body" : "<?xml version=\"1.0\" ?>\n<Message xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <MessageId>87461C0B33FD7FBA7F9990DAB1364CDE</MessageId>\n  <MessageBodyMD5>3E6CF4D7300D2D4BA1F9A2206DC90C8B</MessageBodyMD5>\n</Message>",
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "32",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6ABABA2B4643320F00903623",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Mon, 28 Sep 2026 19:04:11 GMT",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "68d0acbb-6195-44a0-a479-3d4d34b06d74",
+  "persistent" : true,
+  "insertionIndex" : 118
+}
