@@ -250,15 +250,14 @@ public class AwsDocStoreTest {
   }
 
   @Test
-  void testGetException() {
-    Class<?> clazz = docStore.getException(SdkClientException.create("Exception"));
-    Assertions.assertEquals(InvalidArgumentException.class, clazz);
-
-    clazz = docStore.getException(new IllegalArgumentException(""));
-    Assertions.assertEquals(InvalidArgumentException.class, clazz);
-
-    clazz = docStore.getException(new NotSerializableException(""));
-    Assertions.assertEquals(UnknownException.class, clazz);
+  void testMapException() {
+    Assertions.assertInstanceOf(
+        InvalidArgumentException.class,
+        docStore.mapException(SdkClientException.create("Exception")));
+    Assertions.assertInstanceOf(
+        InvalidArgumentException.class, docStore.mapException(new IllegalArgumentException("")));
+    Assertions.assertInstanceOf(
+        UnknownException.class, docStore.mapException(new NotSerializableException("")));
   }
 
   @Test
@@ -290,11 +289,11 @@ public class AwsDocStoreTest {
   @Test
   void testExceptionHandling() {
     SdkClientException sdkClientException = SdkClientException.builder().build();
-    Class<?> cls = docStore.getException(sdkClientException);
-    Assertions.assertEquals(cls, InvalidArgumentException.class);
+    Assertions.assertInstanceOf(
+        InvalidArgumentException.class, docStore.mapException(sdkClientException));
 
-    cls = docStore.getException(new IOException("Channel is closed"));
-    Assertions.assertEquals(cls, UnknownException.class);
+    Assertions.assertInstanceOf(
+        UnknownException.class, docStore.mapException(new IOException("Channel is closed")));
   }
 
   @Test

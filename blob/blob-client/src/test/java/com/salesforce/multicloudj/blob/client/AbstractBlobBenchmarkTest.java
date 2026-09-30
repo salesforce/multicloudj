@@ -1,9 +1,15 @@
 package com.salesforce.multicloudj.blob.client;
 
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
+import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
+import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.CopyRequest;
+import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
-import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
@@ -16,15 +22,18 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
-import java.util.UUID;
+import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
-import org.junit.jupiter.api.Disabled;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -38,16 +47,39 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.BenchmarkParams;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.results.format.ResultFormatType;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/** Abstract JMH benchmark class for Blob operations */
-@Disabled
-@BenchmarkMode({Mode.Throughput, Mode.AverageTime})
+/**
+ * JMH benchmarks for sync blob operations via {@link BucketClient}.
+ *
+ * <p>Covers single-object upload/download (small/medium/large), write-read-delete lifecycle,
+ * multipart upload, metadata, list, listPage, and copy.
+ *
+ * <p>Each benchmark method performs exactly one logical operation per invocation so that JMH
+ * reports true per-op latency and throughput. Pre-seeded data is used for read-path benchmarks
+ * to avoid conflating write cost into read measurements.
+ *
+ * <p>{@link #cleanupBenchmarkData()} runs at both {@code @Setup} and {@code @TearDown} on
+ * purpose, to clear residue from interrupted prior runs; it batch-deletes via
+ * {@code delete(Collection)} rather than one round trip per object. Blob content uses a fixed
+ * seed ({@code new Random(42)}) for reproducibility, which may flatter dedup/compression vs.
+ * real data.
+ *
+ * <p>JMH forks the whole trial per method, so each fork runs exactly one {@code @Benchmark}.
+ * {@code @Setup} stages only the pre-seeded corpus the active method actually reads (see
+ * {@link #stageCorpusFor(String)}); write-path methods stage nothing. Read-path methods still
+ * see the identical corpus they measured before, so per-op results are unchanged — only setup
+ * wall-clock drops.
+ */
+@BenchmarkMode({Mode.Throughput, Mode.SampleTime})
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
 @Warmup(iterations = 3, time = 2, timeUnit = TimeUnit.SECONDS)
@@ -56,27 +88,102 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractBlobBenchmarkTest {
 
-  // Blob size constants
+  private static final Logger logger = LoggerFactory.getLogger(AbstractBlobBenchmarkTest.class);
+
   protected static final int SMALL_BLOB = 1024; // 1KB
   protected static final int MEDIUM_BLOB = 1024 * 1024; // 1MB
   protected static final int LARGE_BLOB = 10 * 1024 * 1024; // 10MB
-  protected static final int PART_SIZE = 5 * 1024 * 1024;
+  protected static final int PART_SIZE = 5 * 1024 * 1024; // 5MB per MPU part
+  protected static final int LIST_PAGE_MAX_RESULTS = 20;
 
-  // Test data
+  protected static final String DOWNLOAD_BLOBS_PREFIX = "bench-download/";
+  protected static final String SMALL_BLOBS_PREFIX = DOWNLOAD_BLOBS_PREFIX + "small/";
+  protected static final String MEDIUM_BLOBS_PREFIX = DOWNLOAD_BLOBS_PREFIX + "medium/";
+  protected static final String LARGE_BLOBS_PREFIX = DOWNLOAD_BLOBS_PREFIX + "large/";
+
+  protected static final String UPLOAD_SMALL_PREFIX = "bench-upload-small/";
+  protected static final String UPLOAD_MEDIUM_PREFIX = "bench-upload-medium/";
+  protected static final String UPLOAD_LARGE_PREFIX = "bench-upload-large/";
+  protected static final String WRITE_READ_DELETE_PREFIX = "bench-write-read-delete/";
+  protected static final String MULTIPART_PREFIX = "bench-multipart/";
+  protected static final String COPY_DEST_PREFIX = "bench-copy-dest/";
+  protected static final String BULK_DELETE_PREFIX = "bench-bulk-delete/";
+
+  private static final String BLOB_KEY_INFIX = "blob_";
+  private static final String BLOB_KEY_SUFFIX = ".dat";
+
+  private static final int BULK_DELETE_BATCH = 25;
+
+  private static final int SMALL_COUNT = 100;
+  private static final int MEDIUM_COUNT = 20;
+  private static final int LARGE_COUNT = 5;
+
+  // @Benchmark method names as constants so the stageCorpusFor() switch and the
+  // read/write classification below share one source of truth.
+  private static final String BENCHMARK_UPLOAD_SMALL = "benchmarkUploadSmall";
+  private static final String BENCHMARK_UPLOAD_MEDIUM = "benchmarkUploadMedium";
+  private static final String BENCHMARK_UPLOAD_LARGE = "benchmarkUploadLarge";
+  private static final String BENCHMARK_WRITE_READ_DELETE = "benchmarkWriteReadDelete";
+  private static final String BENCHMARK_MULTIPART_UPLOAD = "benchmarkMultipartUpload";
+  private static final String BENCHMARK_BULK_DELETE = "benchmarkBulkDelete";
+  private static final String BENCHMARK_DOWNLOAD_SMALL = "benchmarkDownloadSmall";
+  private static final String BENCHMARK_DOWNLOAD_MEDIUM = "benchmarkDownloadMedium";
+  private static final String BENCHMARK_DOWNLOAD_LARGE = "benchmarkDownloadLarge";
+  private static final String BENCHMARK_GET_METADATA = "benchmarkGetMetadata";
+  private static final String BENCHMARK_LIST = "benchmarkList";
+  private static final String BENCHMARK_LIST_PAGE = "benchmarkListPage";
+  private static final String BENCHMARK_COPY = "benchmarkCopy";
+
+  // Package-private so BlobBenchmarkStagingTest can assert every @Benchmark is classified and
+  // stages accordingly.
+
+  /** Benchmarks that read pre-seeded objects — {@code @Setup} stages their corpus. */
+  static final Set<String> READ_PATH_BENCHMARKS = Set.of(
+      BENCHMARK_DOWNLOAD_SMALL, BENCHMARK_GET_METADATA, BENCHMARK_LIST, BENCHMARK_LIST_PAGE,
+      BENCHMARK_DOWNLOAD_MEDIUM, BENCHMARK_DOWNLOAD_LARGE, BENCHMARK_COPY);
+
+  /** Benchmarks that create their own objects — {@code @Setup} stages nothing for them. */
+  static final Set<String> WRITE_PATH_BENCHMARKS = Set.of(
+      BENCHMARK_UPLOAD_SMALL, BENCHMARK_UPLOAD_MEDIUM, BENCHMARK_UPLOAD_LARGE,
+      BENCHMARK_WRITE_READ_DELETE, BENCHMARK_MULTIPART_UPLOAD, BENCHMARK_BULK_DELETE);
+
   protected String bucketName;
-  protected List<String> blobKeys;
-  protected List<byte[]> testBlobs;
-  protected Random random;
   protected BucketClient bucketClient;
 
-  private final AtomicInteger nextPutId = new AtomicInteger(0);
-  private final AtomicInteger nextGetId = new AtomicInteger(0);
-  private final AtomicInteger nextBatchPutId = new AtomicInteger(0);
-  private final AtomicInteger nextBatchGetId = new AtomicInteger(0);
+  private byte[] smallBlob;
+  private byte[] mediumBlob;
+  private byte[] largeBlob;
+  private List<String> smallKeys;
+  private List<String> mediumKeys;
+  private List<String> largeKeys;
+  private String copySourceKey;
+
+  private final AtomicInteger nextUploadSmallId = new AtomicInteger(0);
+  private final AtomicInteger nextUploadMediumId = new AtomicInteger(0);
+  private final AtomicInteger nextUploadLargeId = new AtomicInteger(0);
   private final AtomicInteger nextWriteReadDeleteId = new AtomicInteger(0);
   private final AtomicInteger nextMultipartUploadId = new AtomicInteger(0);
+  private final AtomicInteger nextCopyId = new AtomicInteger(0);
+  private final AtomicInteger nextBulkDeleteId = new AtomicInteger(0);
 
-  // Harness interface
+  private final ConcurrentLinkedQueue<String> copyDestKeys = new ConcurrentLinkedQueue<>();
+
+  /**
+   * Reads a required config value from OS environment first, then from -D system properties.
+   * Fails fast with a clear error if neither is set — avoids silent misconfiguration producing
+   * garbage benchmark results.
+   */
+  protected static String requireEnv(String name) {
+    String value = System.getenv(name);
+    if (StringUtils.isBlank(value)) {
+      value = System.getProperty(name);
+    }
+    if (StringUtils.isBlank(value)) {
+      throw new IllegalStateException("Required environment variable not set: " + name);
+    }
+    return value;
+  }
+
   public interface Harness extends AutoCloseable {
     AbstractBlobStore createBlobStore();
 
@@ -85,33 +192,39 @@ public abstract class AbstractBlobBenchmarkTest {
 
   protected abstract Harness createHarness();
 
+  protected abstract String getProviderId();
+
   private Harness harness;
 
   @Setup(Level.Trial)
-  public void setupBenchmark() {
+  public void setupBenchmark(BenchmarkParams params) {
+    logger.info("Creating {} sync blob store", getProviderId());
     try {
       harness = createHarness();
-
       bucketName = harness.getBucketName();
-      blobKeys = new ArrayList<>();
-      testBlobs = new ArrayList<>();
-      random = new Random(42);
 
       AbstractBlobStore blobStore = harness.createBlobStore();
       bucketClient = new BucketClient(blobStore);
-      cleanupTestData();
-      generateTestBlobs();
-      setupTestData();
+
+      cleanupBenchmarkData();
+      initBlobPayloads();
+      stageCorpusFor(benchmarkMethod(params));
     } catch (Exception e) {
       throw new RuntimeException("Failed to setup benchmark", e);
     }
   }
 
+  /** Extracts the short {@code @Benchmark} method name from the fully-qualified JMH id. */
+  private static String benchmarkMethod(BenchmarkParams params) {
+    String fqn = params.getBenchmark();
+    int lastDot = fqn.lastIndexOf('.');
+    return lastDot >= 0 ? fqn.substring(lastDot + 1) : fqn;
+  }
+
   @TearDown(Level.Trial)
   public void teardownBenchmark() {
     try {
-      cleanupTestData();
-
+      cleanupBenchmarkData();
       if (harness != null) {
         harness.close();
       }
@@ -120,294 +233,278 @@ public abstract class AbstractBlobBenchmarkTest {
     }
   }
 
-  /** Generate test blobs of various sizes */
-  private void generateTestBlobs() {
-    // Generate small blobs
-    for (int i = 0; i < 100; i++) {
-      byte[] blob = createBlob(SMALL_BLOB);
-      blobKeys.add("small/blob_" + i + ".dat");
-      testBlobs.add(blob);
-    }
+  /** Allocates the in-memory payloads every method needs and resets the per-trial key lists. */
+  void initBlobPayloads() {
+    Random rnd = new Random(42);
+    smallBlob = new byte[SMALL_BLOB];
+    rnd.nextBytes(smallBlob);
+    mediumBlob = new byte[MEDIUM_BLOB];
+    rnd.nextBytes(mediumBlob);
+    largeBlob = new byte[LARGE_BLOB];
+    rnd.nextBytes(largeBlob);
 
-    // Generate medium blobs
-    for (int i = 0; i < 20; i++) {
-      byte[] blob = createBlob(MEDIUM_BLOB);
-      blobKeys.add("medium/blob_" + i + ".dat");
-      testBlobs.add(blob);
-    }
+    smallKeys = new ArrayList<>(SMALL_COUNT);
+    mediumKeys = new ArrayList<>(MEDIUM_COUNT);
+    largeKeys = new ArrayList<>(LARGE_COUNT);
+  }
 
-    // Generate large blobs
-    for (int i = 0; i < 5; i++) {
-      byte[] blob = createBlob(LARGE_BLOB);
-      blobKeys.add("large/blob_" + i + ".dat");
-      testBlobs.add(blob);
+  /**
+   * Stages only the pre-seeded objects the active benchmark reads. Read-path methods get the
+   * same corpus size as before (so results are unchanged); {@code benchmarkCopy} needs only its
+   * single source object; write-path methods stage nothing.
+   */
+  void stageCorpusFor(String method) {
+    switch (method) {
+      case BENCHMARK_DOWNLOAD_SMALL:
+      case BENCHMARK_GET_METADATA:
+      case BENCHMARK_LIST:
+      case BENCHMARK_LIST_PAGE:
+        stageSmallCorpus();
+        break;
+      case BENCHMARK_DOWNLOAD_MEDIUM:
+        stageMediumCorpus();
+        break;
+      case BENCHMARK_DOWNLOAD_LARGE:
+        stageLargeCorpus();
+        break;
+      case BENCHMARK_COPY:
+        copySourceKey = blobKey(SMALL_BLOBS_PREFIX, 0);
+        uploadBlob(copySourceKey, smallBlob);
+        smallKeys.add(copySourceKey);
+        break;
+      default:
+        // Write-path benchmarks stage nothing.
+        break;
     }
   }
 
-  /** Setup pre-populated test data */
-  private void setupTestData() {
-    try {
-      for (int i = 0; i < blobKeys.size(); i++) {
-        String key = blobKeys.get(i);
-        byte[] blob = testBlobs.get(i);
+  /** Builds a pre-seeded corpus object key: {@code <prefix>blob_<index>.dat}. */
+  private static String blobKey(String prefix, int index) {
+    return prefix + BLOB_KEY_INFIX + index + BLOB_KEY_SUFFIX;
+  }
 
-        try (InputStream inputStream = new ByteArrayInputStream(blob)) {
-          UploadRequest request =
-              new UploadRequest.Builder().withKey(key).withContentLength(blob.length).build();
-          bucketClient.upload(request, inputStream);
-        }
-      }
+  private void stageSmallCorpus() {
+    for (int i = 0; i < SMALL_COUNT; i++) {
+      String key = blobKey(SMALL_BLOBS_PREFIX, i);
+      uploadBlob(key, smallBlob);
+      smallKeys.add(key);
+    }
+    copySourceKey = smallKeys.get(0);
+  }
+
+  private void stageMediumCorpus() {
+    for (int i = 0; i < MEDIUM_COUNT; i++) {
+      String key = blobKey(MEDIUM_BLOBS_PREFIX, i);
+      uploadBlob(key, mediumBlob);
+      mediumKeys.add(key);
+    }
+  }
+
+  private void stageLargeCorpus() {
+    for (int i = 0; i < LARGE_COUNT; i++) {
+      String key = blobKey(LARGE_BLOBS_PREFIX, i);
+      uploadBlob(key, largeBlob);
+      largeKeys.add(key);
+    }
+  }
+
+  private void uploadBlob(String key, byte[] data) {
+    try (InputStream inputStream = new ByteArrayInputStream(data)) {
+      UploadRequest request =
+          new UploadRequest.Builder().withKey(key).withContentLength(data.length).build();
+      bucketClient.upload(request, inputStream);
     } catch (Exception e) {
-      throw new RuntimeException("Failed to setup test data", e);
+      throw new RuntimeException("Failed to upload test blob: " + key, e);
     }
   }
 
-  /** Cleanup test data */
-  private void cleanupTestData() {
-    if (blobKeys == null || bucketClient == null) {
+  private void cleanupBenchmarkData() {
+    if (bucketClient == null) {
       return;
     }
-    for (String key : blobKeys) {
+    String[] prefixes = {
+        DOWNLOAD_BLOBS_PREFIX, UPLOAD_SMALL_PREFIX, UPLOAD_MEDIUM_PREFIX,
+        UPLOAD_LARGE_PREFIX, WRITE_READ_DELETE_PREFIX, MULTIPART_PREFIX,
+        COPY_DEST_PREFIX, BULK_DELETE_PREFIX
+    };
+    List<BlobIdentifier> toDelete = new ArrayList<>();
+    for (String prefix : prefixes) {
       try {
-        bucketClient.delete(key, null);
-      } catch (Exception expected) {
+        ListBlobsRequest listRequest = ListBlobsRequest.builder().withPrefix(prefix).build();
+        Iterator<BlobInfo> iter = bucketClient.list(listRequest);
+        while (iter.hasNext()) {
+          toDelete.add(new BlobIdentifier(iter.next().getKey(), null));
+        }
+      } catch (Exception e) {
+        logger.warn("Failed to list prefix {} for cleanup", prefix, e);
+      }
+    }
+    for (String key : copyDestKeys) {
+      toDelete.add(new BlobIdentifier(key, null));
+    }
+    copyDestKeys.clear();
+    deleteInBatches(toDelete);
+  }
+
+  /**
+   * Deletes via the bulk {@code delete(Collection)} API in chunks — one round trip per chunk
+   * instead of one per object. Chunked at 1000 to stay within provider bulk-delete limits.
+   */
+  private void deleteInBatches(List<BlobIdentifier> ids) {
+    final int chunkSize = 1000;
+    for (int start = 0; start < ids.size(); start += chunkSize) {
+      List<BlobIdentifier> batch = ids.subList(start, Math.min(start + chunkSize, ids.size()));
+      try {
+        bucketClient.delete(batch);
+      } catch (Exception e) {
+        logger.warn("Batch delete of {} objects failed", batch.size(), e);
       }
     }
   }
 
   @Benchmark
   @Threads(4)
-  public void benchmarkSingleActionPut(Blackhole bh) {
-    benchmarkSingleActionPut(bh, 10);
-  }
-
-  private void benchmarkSingleActionPut(Blackhole bh, int n) {
-    final String baseKey = "benchmarksingleaction-put-";
-
-    try {
-      for (int i = 0; i < n; i++) {
-        String key = baseKey + nextPutId.incrementAndGet();
-        byte[] blobData = createBlob(SMALL_BLOB);
-
-        try (InputStream inputStream = new ByteArrayInputStream(blobData)) {
-          UploadRequest request =
-              new UploadRequest.Builder().withKey(key).withContentLength(blobData.length).build();
-          UploadResponse response = bucketClient.upload(request, inputStream);
-          bh.consume(response.getETag());
-        }
-      }
+  public void benchmarkUploadSmall(Blackhole bh) {
+    String key = UPLOAD_SMALL_PREFIX + nextUploadSmallId.incrementAndGet() + BLOB_KEY_SUFFIX;
+    try (InputStream is = new ByteArrayInputStream(smallBlob)) {
+      UploadRequest request =
+          new UploadRequest.Builder().withKey(key).withContentLength(smallBlob.length).build();
+      UploadResponse response = bucketClient.upload(request, is);
+      bh.consume(response.getETag());
     } catch (Exception e) {
-      throw new RuntimeException("Benchmark single action put failed", e);
+      throw new RuntimeException("Benchmark upload small failed", e);
     }
   }
 
-  /** Single Action Get */
-  @Benchmark
-  @Threads(4)
-  public void benchmarkSingleActionGet(Blackhole bh) {
-    benchmarkSingleActionGet(bh, 10);
-  }
-
-  private void benchmarkSingleActionGet(Blackhole bh, int n) {
-    final String baseKey = "benchmarksingleaction-get-";
-
-    try {
-      // Pre-populate data
-      List<String> keys = new ArrayList<>();
-      for (int i = 0; i < n; i++) {
-        String key = baseKey + nextGetId.incrementAndGet();
-        keys.add(key);
-        byte[] blobData = createBlob(SMALL_BLOB);
-
-        try (InputStream inputStream = new ByteArrayInputStream(blobData)) {
-          UploadRequest request =
-              new UploadRequest.Builder().withKey(key).withContentLength(blobData.length).build();
-          bucketClient.upload(request, inputStream);
-        }
-      }
-      for (String key : keys) {
-        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-          DownloadRequest request = new DownloadRequest.Builder().withKey(key).build();
-          DownloadResponse response = bucketClient.download(request, outputStream);
-          bh.consume(outputStream.toByteArray());
-        }
-      }
-    } catch (Exception e) {
-      throw new RuntimeException("Benchmark single action get failed", e);
-    }
-  }
-
-  /** Batch Action Put */
-  @Benchmark
-  @Threads(4)
-  public void benchmarkActionListPut(Blackhole bh) {
-    benchmarkActionListPut(bh, 50);
-  }
-
-  private void benchmarkActionListPut(Blackhole bh, int n) {
-    final String baseKey = "benchmarkactionlist-put-";
-
-    try {
-      List<String> etags = new ArrayList<>();
-      for (int i = 0; i < n; i++) {
-        String key = baseKey + nextBatchPutId.incrementAndGet();
-        byte[] blobData = createBlob(SMALL_BLOB);
-
-        try (InputStream inputStream = new ByteArrayInputStream(blobData)) {
-          UploadRequest request =
-              new UploadRequest.Builder().withKey(key).withContentLength(blobData.length).build();
-          UploadResponse response = bucketClient.upload(request, inputStream);
-          etags.add(response.getETag());
-        }
-      }
-      bh.consume(etags.size());
-    } catch (Exception e) {
-      throw new RuntimeException("Benchmark action list put failed", e);
-    }
-  }
-
-  /** Batch Action Get */
-  @Benchmark
-  @Threads(4)
-  public void benchmarkActionListGet(Blackhole bh) {
-    benchmarkActionListGet(bh, 100);
-  }
-
-  private void benchmarkActionListGet(Blackhole bh, int n) {
-    final String baseKey = "benchmarkactionlist-get-";
-
-    try {
-      // Pre-populate data
-      List<String> keys = new ArrayList<>();
-      for (int i = 0; i < n; i++) {
-        String key = baseKey + nextBatchGetId.incrementAndGet();
-        keys.add(key);
-        byte[] blobData = createBlob(SMALL_BLOB);
-
-        try (InputStream inputStream = new ByteArrayInputStream(blobData)) {
-          UploadRequest request =
-              new UploadRequest.Builder().withKey(key).withContentLength(blobData.length).build();
-          bucketClient.upload(request, inputStream);
-        }
-      }
-
-      // Benchmark batched Get operations
-      List<Integer> results = new ArrayList<>();
-      for (String key : keys) {
-        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-          DownloadRequest request = new DownloadRequest.Builder().withKey(key).build();
-          bucketClient.download(request, outputStream);
-          results.add(outputStream.size());
-        }
-      }
-      bh.consume(results.size());
-    } catch (Exception e) {
-      throw new RuntimeException("Benchmark action list get failed", e);
-    }
-  }
-
-  /** Multipart Upload */
   @Benchmark
   @Threads(2)
-  public void benchmarkMultipartUpload(Blackhole bh) {
-    benchmarkMultipartUpload(bh, 10);
-  }
-
-  private void benchmarkMultipartUpload(Blackhole bh, int n) {
-    final String baseKey = "benchmarkmultipartupload-";
-    final byte[] content = createBlob(LARGE_BLOB);
-    try {
-      for (int i = 0; i < n; i++) {
-        String key = baseKey + nextMultipartUploadId.incrementAndGet();
-
-        MultipartUploadRequest request = new MultipartUploadRequest.Builder().withKey(key).build();
-        MultipartUpload mpu = bucketClient.initiateMultipartUpload(request);
-        bh.consume(mpu.getId());
-
-        List<UploadPartResponse> partResponses = new ArrayList<>();
-
-        int numParts = (int) Math.ceil((double) content.length / PART_SIZE);
-        for (int partNum = 1; partNum <= numParts; partNum++) {
-          int startIndex = (partNum - 1) * PART_SIZE;
-          int endIndex = Math.min(startIndex + PART_SIZE, content.length);
-          byte[] partData = Arrays.copyOfRange(content, startIndex, endIndex);
-
-          MultipartPart part = new MultipartPart(partNum, partData);
-          UploadPartResponse partResponse = bucketClient.uploadMultipartPart(mpu, part);
-          partResponses.add(partResponse);
-          bh.consume(partResponse.getEtag());
-        }
-
-        MultipartUploadResponse completeResponse =
-            bucketClient.completeMultipartUpload(mpu, partResponses);
-        bh.consume(completeResponse.getEtag());
-      }
+  public void benchmarkUploadMedium(Blackhole bh) {
+    String key = UPLOAD_MEDIUM_PREFIX + nextUploadMediumId.incrementAndGet() + BLOB_KEY_SUFFIX;
+    try (InputStream is = new ByteArrayInputStream(mediumBlob)) {
+      UploadRequest request =
+          new UploadRequest.Builder().withKey(key).withContentLength(mediumBlob.length).build();
+      UploadResponse response = bucketClient.upload(request, is);
+      bh.consume(response.getETag());
     } catch (Exception e) {
-      throw new RuntimeException("Benchmark multipart upload failed", e);
+      throw new RuntimeException("Benchmark upload medium failed", e);
     }
   }
 
-  /** Write-Read-Delete Benchmark */
+  @Benchmark
+  @Threads(1)
+  @Measurement(iterations = 5, time = 30, timeUnit = TimeUnit.SECONDS)
+  public void benchmarkUploadLarge(Blackhole bh) {
+    String key = UPLOAD_LARGE_PREFIX + nextUploadLargeId.incrementAndGet() + BLOB_KEY_SUFFIX;
+    try (InputStream is = new ByteArrayInputStream(largeBlob)) {
+      UploadRequest request =
+          new UploadRequest.Builder().withKey(key).withContentLength(largeBlob.length).build();
+      UploadResponse response = bucketClient.upload(request, is);
+      bh.consume(response.getETag());
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark upload large failed", e);
+    }
+  }
+
+  @Benchmark
+  @Threads(4)
+  public void benchmarkDownloadSmall(Blackhole bh) {
+    String key = pickRandom(smallKeys);
+    try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+      DownloadRequest request = new DownloadRequest.Builder().withKey(key).build();
+      bucketClient.download(request, os);
+      bh.consume(os.toByteArray());
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark download small failed", e);
+    }
+  }
+
+  @Benchmark
+  @Threads(2)
+  public void benchmarkDownloadMedium(Blackhole bh) {
+    String key = pickRandom(mediumKeys);
+    try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+      DownloadRequest request = new DownloadRequest.Builder().withKey(key).build();
+      bucketClient.download(request, os);
+      bh.consume(os.toByteArray());
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark download medium failed", e);
+    }
+  }
+
+  @Benchmark
+  @Threads(1)
+  @Measurement(iterations = 5, time = 30, timeUnit = TimeUnit.SECONDS)
+  public void benchmarkDownloadLarge(Blackhole bh) {
+    String key = pickRandom(largeKeys);
+    try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+      DownloadRequest request = new DownloadRequest.Builder().withKey(key).build();
+      bucketClient.download(request, os);
+      bh.consume(os.toByteArray());
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark download large failed", e);
+    }
+  }
+
   @Benchmark
   @Threads(4)
   public void benchmarkWriteReadDelete(Blackhole bh) {
-    final String baseKey = "writereaddeletebenchmark-blob-";
-    final byte[] content = createBlob(SMALL_BLOB);
+    String key =
+        WRITE_READ_DELETE_PREFIX + nextWriteReadDeleteId.incrementAndGet() + BLOB_KEY_SUFFIX;
 
     try {
-      String key = baseKey + nextWriteReadDeleteId.incrementAndGet();
-
-      // Write operation
-      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+      try (InputStream is = new ByteArrayInputStream(smallBlob)) {
         UploadRequest uploadRequest =
-            new UploadRequest.Builder().withKey(key).withContentLength(content.length).build();
-        UploadResponse uploadResponse = bucketClient.upload(uploadRequest, inputStream);
+            new UploadRequest.Builder().withKey(key).withContentLength(smallBlob.length).build();
+        UploadResponse uploadResponse = bucketClient.upload(uploadRequest, is);
         bh.consume(uploadResponse.getETag());
       }
 
-      // Read operation
-      byte[] readData;
-      try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+      try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
         DownloadRequest downloadRequest = new DownloadRequest.Builder().withKey(key).build();
-        DownloadResponse downloadResponse = bucketClient.download(downloadRequest, outputStream);
-        readData = outputStream.toByteArray();
-        bh.consume(downloadResponse);
+        bucketClient.download(downloadRequest, os);
+        bh.consume(os.toByteArray());
       }
 
-      // Verify content match
-      if (!Arrays.equals(readData, content)) {
-        throw new RuntimeException("Read data didn't match written data");
-      }
-
-      // Delete operation
       bucketClient.delete(key, null);
-
     } catch (Exception e) {
       throw new RuntimeException("Benchmark write-read-delete failed", e);
     }
   }
 
-  /** Benchmark downloads using pre-populated test data */
   @Benchmark
-  public void benchmarkDownloadFromTestData(Blackhole bh) {
-    try {
-      String key = getRandomBlobKey();
+  @Threads(2)
+  public void benchmarkMultipartUpload(Blackhole bh) {
+    String key = MULTIPART_PREFIX + nextMultipartUploadId.incrementAndGet() + BLOB_KEY_SUFFIX;
 
-      try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-        DownloadRequest request = new DownloadRequest.Builder().withKey(key).build();
-        DownloadResponse response = bucketClient.download(request, outputStream);
-        bh.consume(outputStream.toByteArray());
+    try {
+      MultipartUploadRequest request = new MultipartUploadRequest.Builder().withKey(key).build();
+      MultipartUpload mpu = bucketClient.initiateMultipartUpload(request);
+
+      List<UploadPartResponse> partResponses = new ArrayList<>();
+      int numParts = (int) Math.ceil((double) largeBlob.length / PART_SIZE);
+      for (int partNum = 1; partNum <= numParts; partNum++) {
+        int startIndex = (partNum - 1) * PART_SIZE;
+        int endIndex = Math.min(startIndex + PART_SIZE, largeBlob.length);
+        byte[] partData = Arrays.copyOfRange(largeBlob, startIndex, endIndex);
+
+        MultipartPart part = new MultipartPart(partNum, partData);
+        UploadPartResponse partResponse = bucketClient.uploadMultipartPart(mpu, part);
+        partResponses.add(partResponse);
       }
+
+      MultipartUploadResponse completeResponse =
+          bucketClient.completeMultipartUpload(mpu, partResponses);
+      bh.consume(completeResponse.getEtag());
     } catch (Exception e) {
-      throw new RuntimeException("Benchmark download from test data failed", e);
+      throw new RuntimeException("Benchmark multipart upload failed", e);
     }
   }
 
-  /** Benchmark metadata operations on pre-populated data */
   @Benchmark
-  public void benchmarkGetMetadataFromTestData(Blackhole bh) {
+  @Threads(4)
+  public void benchmarkGetMetadata(Blackhole bh) {
+    String key = pickRandom(smallKeys);
     try {
-      String key = getRandomBlobKey();
       BlobMetadata metadata = bucketClient.getMetadata(key, null);
       bh.consume(metadata);
     } catch (Exception e) {
@@ -415,94 +512,106 @@ public abstract class AbstractBlobBenchmarkTest {
     }
   }
 
-  /** Benchmark small blob downloads using helper method */
   @Benchmark
   @Threads(4)
-  public void benchmarkDownloadSmallBlobs(Blackhole bh) {
-    benchmarkDownloadByPrefix(bh, "small/");
-  }
-
-  /** Benchmark medium blob downloads using helper method */
-  @Benchmark
-  @Threads(4)
-  public void benchmarkDownloadMediumBlobs(Blackhole bh) {
-    benchmarkDownloadByPrefix(bh, "medium/");
-  }
-
-  /** Benchmark large blob downloads using helper method */
-  @Benchmark
-  @Threads(4)
-  public void benchmarkDownloadLargeBlobs(Blackhole bh) {
-    benchmarkDownloadByPrefix(bh, "large/");
-  }
-
-  /** Generic helper method for downloading blobs by prefix */
-  private void benchmarkDownloadByPrefix(Blackhole bh, String prefix) {
+  public void benchmarkList(Blackhole bh) {
     try {
-      String key = getRandomBlobKeyWithPrefix(prefix);
-
-      try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-        DownloadRequest request = new DownloadRequest.Builder().withKey(key).build();
-        DownloadResponse response = bucketClient.download(request, outputStream);
-        bh.consume(outputStream.toByteArray());
+      ListBlobsRequest request = ListBlobsRequest.builder().withPrefix(SMALL_BLOBS_PREFIX).build();
+      Iterator<BlobInfo> iter = bucketClient.list(request);
+      int count = 0;
+      while (iter.hasNext()) {
+        bh.consume(iter.next());
+        count++;
       }
+      bh.consume(count);
     } catch (Exception e) {
-      throw new RuntimeException("Benchmark download " + prefix + " blobs failed", e);
+      throw new RuntimeException("Benchmark list failed", e);
     }
   }
 
-  /** Create a blob of specified size with random data */
-  protected byte[] createBlob(int size) {
-    byte[] blob = new byte[size];
-    random.nextBytes(blob);
-    return blob;
-  }
-
-  /** Generate a unique blob key */
-  protected String generateUniqueBlobKey(String prefix) {
-    return prefix + "/blob_" + UUID.randomUUID().toString() + ".dat";
-  }
-
-  /** Get a random blob key from pre-populated test data */
-  protected String getRandomBlobKey() {
-    if (blobKeys.isEmpty()) {
-      return generateUniqueBlobKey("fallback");
+  @Benchmark
+  @Threads(4)
+  public void benchmarkListPage(Blackhole bh) {
+    try {
+      ListBlobsPageRequest request =
+          ListBlobsPageRequest.builder()
+              .withPrefix(SMALL_BLOBS_PREFIX)
+              .withMaxResults(LIST_PAGE_MAX_RESULTS)
+              .build();
+      ListBlobsPageResponse response = bucketClient.listPage(request);
+      bh.consume(response.getBlobs().size());
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark list page failed", e);
     }
-    int index = random.nextInt(blobKeys.size());
-    return blobKeys.get(index);
   }
 
-  /** Get a random blob key with specific prefix */
-  protected String getRandomBlobKeyWithPrefix(String prefix) {
-    List<String> filteredKeys =
-        blobKeys.stream().filter(key -> key.startsWith(prefix)).collect(Collectors.toList());
-
-    if (filteredKeys.isEmpty()) {
-      return generateUniqueBlobKey(prefix);
+  @Benchmark
+  @Threads(4)
+  public void benchmarkCopy(Blackhole bh) {
+    String destKey = COPY_DEST_PREFIX + nextCopyId.incrementAndGet() + BLOB_KEY_SUFFIX;
+    try {
+      CopyRequest request =
+          CopyRequest.builder()
+              .srcKey(copySourceKey)
+              .destBucket(bucketName)
+              .destKey(destKey)
+              .build();
+      CopyResponse response = bucketClient.copy(request);
+      bh.consume(response);
+      copyDestKeys.add(destKey);
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark copy failed", e);
     }
-
-    return filteredKeys.get(random.nextInt(filteredKeys.size()));
   }
 
-  /** Get random blob data from test blobs */
-  protected byte[] getRandomBlob() {
-    if (testBlobs.isEmpty()) {
-      return createBlob(SMALL_BLOB);
+  /**
+   * Bulk-delete lifecycle: upload a batch then delete it in one {@code delete(Collection)} call.
+   * The bulk-delete API had no benchmark; it guards the {@literal >}1000-object batching path.
+   * Single-threaded and upload-bundled by design — the shared @State precludes per-invocation
+   * staging of delete-only targets, so upload cost is included and documented rather than hidden.
+   */
+  @Benchmark
+  @Threads(1)
+  public void benchmarkBulkDelete(Blackhole bh) {
+    List<BlobIdentifier> ids = new ArrayList<>(BULK_DELETE_BATCH);
+    try {
+      for (int i = 0; i < BULK_DELETE_BATCH; i++) {
+        String key = BULK_DELETE_PREFIX + nextBulkDeleteId.incrementAndGet() + BLOB_KEY_SUFFIX;
+        try (InputStream is = new ByteArrayInputStream(smallBlob)) {
+          UploadRequest request =
+              new UploadRequest.Builder().withKey(key).withContentLength(smallBlob.length).build();
+          bucketClient.upload(request, is);
+        }
+        ids.add(new BlobIdentifier(key, null));
+      }
+      bucketClient.delete(ids);
+      bh.consume(ids.size());
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark bulk delete failed", e);
     }
-    return testBlobs.get(random.nextInt(testBlobs.size()));
   }
 
-  /** JUnit test method to run JMH benchmarks */
+  private static String pickRandom(List<String> keys) {
+    return keys.get(ThreadLocalRandom.current().nextInt(keys.size()));
+  }
+
   @Test
+  @EnabledIfSystemProperty(named = "runBenchmarks", matches = "true")
   public void runBenchmarks() throws RunnerException {
+    List<String> forwardedArgs = new ArrayList<>();
+    for (String key : System.getProperties().stringPropertyNames()) {
+      if (key.startsWith("BLOB_BENCHMARK_")) {
+        forwardedArgs.add("-D" + key + "=" + System.getProperty(key));
+      }
+    }
+
     Options opt =
         new OptionsBuilder()
             .include(".*" + this.getClass().getName() + ".*")
             .forks(1)
-            .warmupIterations(3)
-            .measurementIterations(5)
             .resultFormat(ResultFormatType.JSON)
-            .result("target/jmh-results.json")
+            .result("target/jmh-sync-results-" + getProviderId() + ".json")
+            .jvmArgsAppend(forwardedArgs.toArray(new String[0]))
             .build();
 
     new Runner(opt).run();

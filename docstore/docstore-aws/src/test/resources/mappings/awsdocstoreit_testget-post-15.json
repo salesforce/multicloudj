@@ -1,5 +1,5 @@
 {
-  "id" : "e69db387-604b-411e-ac3a-d1374f29d781",
+  "id" : "4bc91c01-3a58-482e-8fb9-663e1cd8e09a",
   "name" : "AwsDocstoreIT_testGet-POST-15",
   "request" : {
     "url" : "/",
@@ -17,16 +17,16 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"BishopPlayer\"}}]},\"UnprocessedKeys\":{}}",
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"121\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"BishopPlayer\"}}]},\"UnprocessedKeys\":{}}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-requestid" : "G7HJBHO7MKNCRUC8QM1U98RDUNVV4KQNSO5AEMVJF66Q9ASUAAJG",
-      "x-amz-crc32" : "1930985268",
-      "Date" : "Wed, 04 Mar 2026 21:12:38 GMT",
+      "x-amzn-requestid" : "TCCHQD2Q3GKV6CMB6EOE3EIJNJVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "3172805810",
+      "Date" : "Wed, 22 Apr 2026 22:57:51 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "e69db387-604b-411e-ac3a-d1374f29d781",
+  "uuid" : "4bc91c01-3a58-482e-8fb9-663e1cd8e09a",
   "persistent" : true,
-  "insertionIndex" : 56
+  "insertionIndex" : 237
 }

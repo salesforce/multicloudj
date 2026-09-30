@@ -1,0 +1,38 @@
+{
+  "id" : "96d0d697-7fa9-498b-8e55-1244b3e99e3b",
+  "name" : "AliBlobStoreIT_testVersionedDelete-GET-5",
+  "request" : {
+    "urlPath" : "/conformance-tests/delete/happyPath",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "versionId" : {
+        "hasExactly" : [ {
+          "equalTo" : "CAEQigEYgYDAvIaSsvIZIiA1YWE4MjQ4MTk3M2I0NjgwYWM0MzMyNTVkY2RiNjU5Mg--"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchVersion</Code>\n  <Message>The specified version does not exist.</Message>\n  <RequestId>6A0F7F3F7C04A331301CAAF2</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>conformance-tests/delete/happyPath</Key>\n  <VersionId>CAEQigEYgYDAvIaSsvIZIiA1YWE4MjQ4MTk3M2I0NjgwYWM0MzMyNTVkY2RiNjU5Mg--</VersionId>\n  <EC>0012-00000203</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0012-00000203</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A0F7F3F7C04A331301CAAF2",
+      "x-oss-server-time" : "4",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0012-00000203",
+      "Date" : "Thu, 21 May 2026 21:55:11 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "96d0d697-7fa9-498b-8e55-1244b3e99e3b",
+  "persistent" : true,
+  "insertionIndex" : 279
+}

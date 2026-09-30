@@ -1,8 +1,6 @@
 package com.salesforce.multicloudj.iam.client;
 
-import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
@@ -91,9 +89,7 @@ public class IamClient implements AutoCloseable {
       return this.iam.createIdentity(
           identityName, description, tenantId, region, trustConfig, options);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw this.iam.mapException(t);
     }
   }
 
@@ -115,8 +111,7 @@ public class IamClient implements AutoCloseable {
     try {
       this.iam.attachInlinePolicy(request);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
+      throw this.iam.mapException(t);
     }
   }
 
@@ -131,9 +126,7 @@ public class IamClient implements AutoCloseable {
     try {
       return this.iam.getInlinePolicyDetails(request);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw this.iam.mapException(t);
     }
   }
 
@@ -147,9 +140,7 @@ public class IamClient implements AutoCloseable {
     try {
       return this.iam.getAttachedPolicies(request);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw this.iam.mapException(t);
     }
   }
 
@@ -165,8 +156,7 @@ public class IamClient implements AutoCloseable {
     try {
       this.iam.removePolicy(identityName, policyName, tenantId, region);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
+      throw this.iam.mapException(t);
     }
   }
 
@@ -181,8 +171,7 @@ public class IamClient implements AutoCloseable {
     try {
       this.iam.deleteIdentity(identityName, tenantId, region);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
+      throw this.iam.mapException(t);
     }
   }
 
@@ -198,9 +187,7 @@ public class IamClient implements AutoCloseable {
     try {
       return this.iam.getIdentity(identityName, tenantId, region);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw this.iam.mapException(t);
     }
   }
 

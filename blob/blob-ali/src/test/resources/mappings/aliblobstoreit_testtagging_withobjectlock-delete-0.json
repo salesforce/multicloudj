@@ -1,0 +1,27 @@
+{
+  "id" : "17b2fdf3-9769-4ef0-990e-a5764fe64ce1",
+  "name" : "AliBlobStoreIT_testTagging_withObjectLock-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/blob-for-tagging-objectlock-fake",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkYi8TJ8qD81PQZIiBhNzRiZDBjMTk1ZTE0ZDVhYTVkNDNiN2E2ZjU1ZTMwMg--",
+      "x-oss-request-id" : "6A221C3183DA7338362DA56D",
+      "x-oss-server-time" : "71",
+      "Server" : "AliyunOSS",
+      "x-oss-delete-marker" : "true",
+      "Date" : "Fri, 05 Jun 2026 00:45:37 GMT"
+    }
+  },
+  "uuid" : "17b2fdf3-9769-4ef0-990e-a5764fe64ce1",
+  "persistent" : true,
+  "insertionIndex" : 613
+}

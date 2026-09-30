@@ -38,6 +38,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
   protected final String region;
   protected final URI endpoint;
   protected final URI proxyEndpoint;
+  protected final Duration nackVisibilityTimeout;
 
   /**
    * Constants class for queue batching and sizing parameters. Contains immutable configuration
@@ -113,10 +114,10 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
   protected final CredentialsOverrider credentialsOverrider;
 
   /** Synchronization lock for thread-safe access to subscription state and queue operations. */
-  private final ReentrantLock lock = new ReentrantLock();
+  private final ReentrantLock lock;
 
   /** Condition variable signaled when new batches of messages arrive in the queue. */
-  private final Condition batchArrived = lock.newCondition();
+  private final Condition batchArrived;
 
   /** In-memory queue holding messages that have been fetched but not yet delivered to callers. */
   private final Queue<Message> queue = new ArrayDeque<>();
@@ -153,11 +154,29 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
       String subscriptionName,
       String region,
       CredentialsOverrider credentialsOverrider) {
+    this(providerId, subscriptionName, region, credentialsOverrider, new ReentrantLock());
+  }
+
+  /**
+   * Package-private constructor accepting the {@link ReentrantLock} that guards the receive queue
+   * and prefetch state; production callers use the four-argument constructor (a plain {@code new
+   * ReentrantLock()}). Tests may inject an instrumented lock to force specific interleavings.
+   */
+  AbstractSubscription(
+      String providerId,
+      String subscriptionName,
+      String region,
+      CredentialsOverrider credentialsOverrider,
+      ReentrantLock lock) {
     this.providerId = providerId;
     this.subscriptionName = subscriptionName;
     this.region = region;
     this.endpoint = null;
     this.proxyEndpoint = null;
+    this.nackVisibilityTimeout = Duration.ZERO;
+
+    this.lock = lock;
+    this.batchArrived = lock.newCondition();
 
     this.receiveBatcherOptions = createReceiveBatcherOptions();
     this.credentialsOverrider = credentialsOverrider;
@@ -181,6 +200,11 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     this.region = builder.region;
     this.endpoint = builder.endpoint;
     this.proxyEndpoint = builder.proxyEndpoint;
+    this.nackVisibilityTimeout =
+        builder.nackVisibilityTimeout == null ? Duration.ZERO : builder.nackVisibilityTimeout;
+
+    this.lock = new ReentrantLock();
+    this.batchArrived = this.lock.newCondition();
 
     this.receiveBatcherOptions = createReceiveBatcherOptions();
     this.credentialsOverrider = builder.credentialsOverrider;
@@ -349,13 +373,29 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
   }
 
   /**
-   * Sends negative acknowledgment for a single message.
+   * Sends negative acknowledgment for a single message, using the subscription's default nack
+   * visibility timeout.
    *
    * @param ackID the acknowledgment ID to negatively acknowledge
    * @throws InvalidArgumentException if ackID is null
    * @throws SubstrateSdkException if the subscription is in an error state or has been shut down
    */
   public void sendNack(AckID ackID) {
+    sendNack(ackID, null);
+  }
+
+  /**
+   * Sends negative acknowledgment for a single message, overriding the subscription's default
+   * nack visibility timeout for this call only.
+   *
+   * @param ackID the acknowledgment ID to negatively acknowledge
+   * @param visibilityTimeout the visibility timeout to apply to this nack. When {@code null}, the
+   *     subscription's default {@link #getNackVisibilityTimeout()} is used. Must be non-negative;
+   *     providers will clamp the upper bound to their supported maximum.
+   * @throws InvalidArgumentException if ackID is null or visibilityTimeout is negative
+   * @throws SubstrateSdkException if the subscription is in an error state or has been shut down
+   */
+  public void sendNack(AckID ackID, Duration visibilityTimeout) {
     if (isShutdown.get()) {
       throw new FailedPreconditionException("Subscription has been shut down");
     }
@@ -366,11 +406,20 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
       throw error;
     }
 
-    ackBatcher.addNoWait(new AckInfo(ackID, false));
+    if (visibilityTimeout != null && visibilityTimeout.isNegative()) {
+      InvalidArgumentException error =
+          new InvalidArgumentException(
+              "Nack visibility timeout cannot be negative: " + visibilityTimeout);
+      permanentError.set(error);
+      throw error;
+    }
+
+    ackBatcher.addNoWait(new AckInfo(ackID, false, visibilityTimeout));
   }
 
   /**
-   * Sends negative acknowledgment for multiple messages.
+   * Sends negative acknowledgment for multiple messages, using the subscription's default nack
+   * visibility timeout.
    *
    * @param ackIDs the list of acknowledgment IDs to negatively acknowledge
    * @return a CompletableFuture that completes when the nack is queued
@@ -378,6 +427,23 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
    * @throws SubstrateSdkException if the subscription is in an error state or has been shut down
    */
   public CompletableFuture<Void> sendNacks(List<AckID> ackIDs) {
+    return sendNacks(ackIDs, null);
+  }
+
+  /**
+   * Sends negative acknowledgment for multiple messages, overriding the subscription's default
+   * nack visibility timeout for this batch only.
+   *
+   * @param ackIDs the list of acknowledgment IDs to negatively acknowledge
+   * @param visibilityTimeout the visibility timeout to apply to every nack in this batch. When
+   *     {@code null}, the subscription's default {@link #getNackVisibilityTimeout()} is used.
+   *     Must be non-negative; providers will clamp the upper bound to their supported maximum.
+   * @return a CompletableFuture that completes when the nack is queued
+   * @throws InvalidArgumentException if ackIDs is null, contains null elements, or
+   *     visibilityTimeout is negative
+   * @throws SubstrateSdkException if the subscription is in an error state or has been shut down
+   */
+  public CompletableFuture<Void> sendNacks(List<AckID> ackIDs, Duration visibilityTimeout) {
     if (isShutdown.get()) {
       throw new FailedPreconditionException("Subscription has been shut down");
     }
@@ -401,8 +467,16 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
       }
     }
 
+    if (visibilityTimeout != null && visibilityTimeout.isNegative()) {
+      InvalidArgumentException error =
+          new InvalidArgumentException(
+              "Nack visibility timeout cannot be negative: " + visibilityTimeout);
+      permanentError.set(error);
+      throw error;
+    }
+
     for (AckID ackID : ackIDs) {
-      ackBatcher.addNoWait(new AckInfo(ackID, false));
+      ackBatcher.addNoWait(new AckInfo(ackID, false, visibilityTimeout));
     }
 
     return CompletableFuture.completedFuture(null);
@@ -416,7 +490,12 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
 
   protected abstract void doSendAcks(List<AckID> ackIDs);
 
-  protected abstract void doSendNacks(List<AckID> ackIDs);
+  /**
+   * Sends negative acknowledgments for a batch of messages. Each {@link AckInfo} may carry an
+   * optional per-message visibility timeout; when {@code null}, implementations should fall back
+   * to {@link #getNackVisibilityTimeout()}. All entries passed here have {@code isAck() == false}.
+   */
+  protected abstract void doSendNacks(List<AckInfo> nacks);
 
   protected abstract Batcher.Options createAckBatcherOptions();
 
@@ -430,13 +509,13 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     }
 
     List<AckID> acks = new ArrayList<>();
-    List<AckID> nacks = new ArrayList<>();
+    List<AckInfo> nacks = new ArrayList<>();
 
     for (AckInfo info : ackInfos) {
       if (info.isAck()) {
         acks.add(info.getAckID());
       } else {
-        nacks.add(info.getAckID());
+        nacks.add(info);
       }
     }
 
@@ -599,6 +678,10 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
       List<Message> msgs = getNextBatch(batchSize);
       lock.lock();
       try {
+        // Clear the flag under the same lock that publishes batchArrived, before signalling, so a
+        // woken receive() re-reads prefetchInFlight consistently and never re-enters the wait
+        // observing a still-true flag whose later clearing would carry no signal.
+        prefetchInFlight.set(false);
         queue.addAll(msgs);
         batchArrived.signalAll();
       } finally {
@@ -607,6 +690,10 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     } catch (Throwable t) {
       lock.lock();
       try {
+        // Clear the flag under the same lock that publishes batchArrived, before signalling, so a
+        // woken receive() re-reads prefetchInFlight consistently and never re-enters the wait
+        // observing a still-true flag whose later clearing would carry no signal.
+        prefetchInFlight.set(false);
         // Set permanentError if the error is not retryable
         if (!isRetryable(t)) {
           permanentError.compareAndSet(null, t);
@@ -615,8 +702,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
       } finally {
         lock.unlock();
       }
-    } finally {
-      prefetchInFlight.set(false);
     }
   }
 
@@ -664,7 +749,9 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     }
   }
 
-  public abstract Class<? extends SubstrateSdkException> getException(Throwable t);
+  public Duration getNackVisibilityTimeout() {
+    return nackVisibilityTimeout;
+  }
 
   public abstract static class Builder<T extends AbstractSubscription<T>>
       implements Provider.Builder {
@@ -674,6 +761,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     protected URI endpoint;
     protected URI proxyEndpoint;
     protected CredentialsOverrider credentialsOverrider;
+    protected Duration nackVisibilityTimeout;
 
     @Override
     public Builder<T> providerId(String providerId) {
@@ -703,6 +791,15 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
 
     public Builder<T> withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
       this.credentialsOverrider = credentialsOverrider;
+      return this;
+    }
+
+    public Builder<T> withNackVisibilityTimeout(Duration nackVisibilityTimeout) {
+      if (nackVisibilityTimeout != null && nackVisibilityTimeout.isNegative()) {
+        throw new InvalidArgumentException(
+            "Nack visibility timeout cannot be negative: " + nackVisibilityTimeout);
+      }
+      this.nackVisibilityTimeout = nackVisibilityTimeout;
       return this;
     }
 

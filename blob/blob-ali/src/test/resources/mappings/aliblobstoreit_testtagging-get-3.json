@@ -1,0 +1,39 @@
+{
+  "id" : "8f9c9107-fcae-424a-9b4b-beadc7b11369",
+  "name" : "AliBlobStoreIT_testTagging-GET-3",
+  "request" : {
+    "urlPath" : "/conformance-tests/blob-for-tagging",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Tagging>\n  <TagSet>\n    <Tag>\n      <Key>tag3</Key>\n      <Value>value3</Value>\n    </Tag>\n  </TagSet>\n</Tagging>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A0F7EAC6BF28E3432125FD8",
+      "x-oss-server-time" : "50",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 21 May 2026 21:52:44 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "8f9c9107-fcae-424a-9b4b-beadc7b11369",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-conformance-tests-blob-for-tagging",
+  "requiredScenarioState" : "scenario-1-conformance-tests-blob-for-tagging-2",
+  "insertionIndex" : 49
+}

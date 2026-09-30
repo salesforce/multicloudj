@@ -1,0 +1,35 @@
+{
+  "id" : "bc7b9e50-3749-4f3d-a0a7-359324c21c03",
+  "name" : "AliBlobStoreIT_testVersionedDownload_happy-PUT-8",
+  "request" : {
+    "url" : "/conformance-tests/versioned_download_happy_versioned",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGhpcyBpcyB0ZXN0IGRhdGE="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-version-id" : "CAEQigEYgYDAzpGUsvIZIiAxMmYxN2RmMDQwZjI0MDU1YmEwZDZjY2I4NjA5NDQzYQ--",
+      "x-oss-request-id" : "6A0F7F8195CBF137312D443D",
+      "x-oss-server-time" : "10",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "4694637722962336160",
+      "ETag" : "\"701BBD4BDE1EE04E3B0596F63994EBAE\"",
+      "Date" : "Thu, 21 May 2026 21:56:17 GMT",
+      "Content-MD5" : "cBu9S94e4E47BZb2OZTrrg=="
+    }
+  },
+  "uuid" : "bc7b9e50-3749-4f3d-a0a7-359324c21c03",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-conformance-tests-versioned_download_happy_versioned",
+  "requiredScenarioState" : "scenario-2-conformance-tests-versioned_download_happy_versioned-2",
+  "newScenarioState" : "scenario-2-conformance-tests-versioned_download_happy_versioned-3",
+  "insertionIndex" : 400
+}

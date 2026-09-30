@@ -1,0 +1,32 @@
+{
+  "id" : "d8bc438b-aa1c-4c77-b170-f9532c5d5cb0",
+  "name" : "AliBlobStoreIT_testListPage_WithDelimiter_MultiPage-PUT-9",
+  "request" : {
+    "url" : "/conformance-tests/common-prefix-multipage/a/file.txt",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "test",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A10CD035E37263839EB49E0",
+      "x-oss-server-time" : "20",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "18020588380933092773",
+      "ETag" : "\"098F6BCD4621D373CADE4E832627B4F6\"",
+      "Date" : "Fri, 22 May 2026 21:39:15 GMT",
+      "Content-MD5" : "CY9rzUYh03PK3k6DJie09g=="
+    }
+  },
+  "uuid" : "d8bc438b-aa1c-4c77-b170-f9532c5d5cb0",
+  "persistent" : true,
+  "insertionIndex" : 885
+}

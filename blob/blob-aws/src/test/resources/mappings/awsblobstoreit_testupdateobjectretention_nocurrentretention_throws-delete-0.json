@@ -1,0 +1,22 @@
+{
+  "id" : "ef756759-a94c-4c85-aa7b-69b19874e2e3",
+  "name" : "AwsBlobStoreIT_testUpdateObjectRetention_noCurrentRetention_throws-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/update/no-current-retention",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "F1FV268D2CCBPP59",
+      "x-amz-id-2" : "qAlmcrrpjfR6uhg7GJKTnZG5XDuzs3i4PjvEL2Hch+flTDpAZ45ey5hSzOorQ67x3mK8XdtJXbzgk5L31jZp4iD8OpsGrCFR",
+      "x-amz-version-id" : "NtX.B5o7GZW5VpkH2x8vHLSRy3aBwPo9",
+      "Date" : "Thu, 14 May 2026 07:06:52 GMT"
+    }
+  },
+  "uuid" : "ef756759-a94c-4c85-aa7b-69b19874e2e3",
+  "persistent" : true,
+  "insertionIndex" : 728
+}

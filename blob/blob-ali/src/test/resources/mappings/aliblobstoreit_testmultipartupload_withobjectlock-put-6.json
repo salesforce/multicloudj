@@ -1,0 +1,44 @@
+{
+  "id" : "d5f4b2dc-91df-4ab7-86dc-b759a73eba48",
+  "name" : "AliBlobStoreIT_testMultipartUpload_withObjectLock-PUT-6",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-withObjectLock",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "2113D3DD89F7480B85617C857A770A55"
+        } ]
+      },
+      "partNumber" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A31C2E189F0063134AA2CBD",
+      "x-oss-server-time" : "180",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "14920568100270865136",
+      "ETag" : "\"2B5C91AD399409EC9B409B66F5BB00FB\"",
+      "Date" : "Tue, 16 Jun 2026 21:40:51 GMT",
+      "Content-MD5" : "K1yRrTmUCeybQJtm9bsA+w=="
+    }
+  },
+  "uuid" : "d5f4b2dc-91df-4ab7-86dc-b759a73eba48",
+  "persistent" : true,
+  "insertionIndex" : 50
+}

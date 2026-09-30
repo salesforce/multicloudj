@@ -10,9 +10,16 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>registry</artifactId>
-        <version>0.3.1-SNAPSHOT</version>
+        <version>0.4.8-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
+
+    <properties>
+        <!-- opt in to the centralized benchmarks jar + guard (config in the root pluginManagement) -->
+        <benchmarks.jar.phase>package</benchmarks.jar.phase>
+        <!-- provider package the benchmark-jar guard asserts is present in META-INF/BenchmarkList -->
+        <benchmarks.expected.package>com.salesforce.multicloudj.registry.gcp.</benchmarks.expected.package>
+    </properties>
 
     <dependencies>
         <dependency>
@@ -20,9 +27,14 @@
             <artifactId>registry-client</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>com.google.auth</groupId>
             <artifactId>google-auth-library-oauth2-http</artifactId>
-            <version>1.19.0</version>
+            <version>1.40.0</version>
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
@@ -52,13 +64,11 @@
         <dependency>
             <groupId>com.google.auto.service</groupId>
             <artifactId>auto-service-annotations</artifactId>
-            <version>1.0-rc7</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.google.auto.service</groupId>
             <artifactId>auto-service</artifactId>
-            <version>1.0-rc7</version>
             <scope>provided</scope>
         </dependency>
 
@@ -102,6 +112,11 @@
     </dependencies>
     <build>
         <plugins>
+            <!-- opt in to the centralized benchmarks jar (guard runs automatically because benchmarks.expected.package is set) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>

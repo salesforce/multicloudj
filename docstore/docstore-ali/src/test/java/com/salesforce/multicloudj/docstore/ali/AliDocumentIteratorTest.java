@@ -2,118 +2,238 @@ package com.salesforce.multicloudj.docstore.ali;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.alicloud.openservices.tablestore.model.sql.SQLQueryRequest;
+import com.alicloud.openservices.tablestore.model.Column;
+import com.alicloud.openservices.tablestore.model.ColumnValue;
+import com.alicloud.openservices.tablestore.model.PrimaryKey;
+import com.alicloud.openservices.tablestore.model.PrimaryKeyBuilder;
+import com.alicloud.openservices.tablestore.model.PrimaryKeyValue;
+import com.alicloud.openservices.tablestore.model.Row;
 import com.salesforce.multicloudj.docstore.driver.Document;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
+/**
+ * Behavioral tests for {@link AliDocumentIterator}: page-walking, limit, client-side offset, resume
+ * (inclusive-start skip), and pagination-token emptiness. The underlying {@link QueryRunner} is
+ * mocked to hand back scripted pages, so no live client is needed.
+ */
 class AliDocumentIteratorTest {
-  QueryRunner runner = mock(QueryRunner.class);
-  Document document = mock(Document.class);
 
-  @Test
-  void testNext() {
-    AliDocumentIterator iter = new AliDocumentIterator(runner, 0, 0);
-    iter.run(AliDocumentIterator.INIT_TOKEN);
-    when(runner.run(any(), any(), any(), any())).thenReturn(null);
-    when(runner.getSqlQueryRequest()).thenReturn(mock(SQLQueryRequest.class));
-    Assertions.assertThrows(NoSuchElementException.class, () -> iter.next(document));
+  private PrimaryKey pk(String player) {
+    return PrimaryKeyBuilder.createPrimaryKeyBuilder()
+        .addPrimaryKeyColumn("Game", PrimaryKeyValue.fromString("Zombie DMV"))
+        .addPrimaryKeyColumn("Player", PrimaryKeyValue.fromString(player))
+        .build();
+  }
 
-    AliDocumentIterator iter2 = new AliDocumentIterator(runner, 2, 5);
-    iter2.run(AliDocumentIterator.INIT_TOKEN);
-    when(runner.run(any(), any(), any(), any())).thenReturn(null);
-    Assertions.assertThrows(NoSuchElementException.class, () -> iter.next(document));
-    iter2.stop();
+  private Row row(String player, long score) {
+    return new Row(pk(player), new Column[] {new Column("Score", ColumnValue.fromLong(score))});
+  }
 
-    AliDocumentIterator iter3 = new AliDocumentIterator(runner, 0, 1);
-    when(runner.run(any(), any(), any(), any()))
+  /**
+   * Scripts the mocked runner to return {@code pages} in order (appending each page's rows to the
+   * caller-supplied list), returning the given next-cursor per page. The last page returns null.
+   */
+  private QueryRunner runnerReturning(List<List<Row>> pages, List<PrimaryKey> nextCursors) {
+    QueryRunner runner = mock(QueryRunner.class);
+    int[] call = {0};
+    when(runner.run(any(), any()))
         .thenAnswer(
-            invocation -> {
-              // Extract the queryItems parameter (2nd argument in this case).
-              List<Map<String, Object>> queryItems = invocation.getArgument(2);
+            inv -> {
+              int i = call[0]++;
+              @SuppressWarnings("unchecked")
+              List<Row> sink = (List<Row>) inv.getArgument(1);
+              if (i < pages.size()) {
+                sink.addAll(pages.get(i));
+                return nextCursors.get(i);
+              }
+              return null;
+            });
+    return runner;
+  }
 
-              // Add items to the list.
-              Map<String, Object> item1 = new HashMap<>();
-              item1.put("key1", "value1");
-              item1.put("key2", "value2");
-              queryItems.add(item1);
-
-              // Return a token for the first call.
-              return "anyToken";
-            })
-        .thenReturn(null);
-    iter3.run("anyToken");
-    // The first call to next should be okay since there is one element
-    Assertions.assertDoesNotThrow(() -> iter3.next(document));
-    // the second call to next should not get any elements
-    Assertions.assertThrows(NoSuchElementException.class, () -> iter3.next(document));
-    iter3.stop();
+  private List<String> collectPlayers(AliDocumentIterator iter) {
+    List<String> players = new ArrayList<>();
+    while (iter.hasNext()) {
+      Map<String, Object> sink = new HashMap<>();
+      iter.next(new Document(sink));
+      players.add((String) sink.get("Player"));
+    }
+    return players;
   }
 
   @Test
-  void testNextWithMultiplePages() {
-    AliDocumentIterator iter = spy(new AliDocumentIterator(runner, 0, 0));
-    when(runner.getSqlQueryRequest()).thenReturn(mock(SQLQueryRequest.class));
-    when(runner.run(any(), any(), any(), any()))
-        .thenAnswer(
-            invocation -> {
-              // Extract the queryItems parameter (2nd argument in this case).
-              List<Map<String, Object>> queryItems = invocation.getArgument(2);
+  void singlePageReturnsAllThenStops() {
+    QueryRunner runner =
+        runnerReturning(
+            List.of(List.of(row("billie", 111), row("fran", 33))),
+            java.util.Arrays.asList((PrimaryKey) null));
+    AliDocumentIterator iter = new AliDocumentIterator(runner, 0, 0, null);
+    Assertions.assertEquals(List.of("billie", "fran"), collectPlayers(iter));
+    Assertions.assertThrows(
+        NoSuchElementException.class, () -> iter.next(new Document(new HashMap<>())));
+  }
 
-              // Add items to the list.
-              Map<String, Object> item1 = new HashMap<>();
-              item1.put("key12", "value12");
-              item1.put("key22", "value22");
-              queryItems.add(item1);
+  @Test
+  void loopsAcrossPagesFollowingCursor() {
+    QueryRunner runner =
+        runnerReturning(
+            List.of(List.of(row("billie", 111)), List.of(row("fran", 33))),
+            java.util.Arrays.asList(pk("fran"), (PrimaryKey) null));
+    AliDocumentIterator iter = new AliDocumentIterator(runner, 0, 0, null);
+    Assertions.assertEquals(List.of("billie", "fran"), collectPlayers(iter));
+  }
 
-              // Return a token for the first call.
-              return "anyToken";
-            })
-        .thenAnswer(
-            invocation -> {
-              // Extract the queryItems parameter (2nd argument in this case).
-              List<Map<String, Object>> queryItems = invocation.getArgument(2);
+  // A filtered page can be EMPTY yet non-final (0 matches + a live nextStartPrimaryKey), because
+  // GetRange's limit caps rows scanned, not matched. The iterator must keep fetching across such
+  // pages, not stop at the first empty one.
+  @Test
+  void skipsFilteredEmptyPageThenReturnsLaterMatches() {
+    QueryRunner runner =
+        runnerReturning(
+            java.util.Arrays.asList(
+                java.util.Collections.<Row>emptyList(), // page 1: all scanned rows filtered out
+                List.of(row("fran", 33))), // page 2: real matches
+            java.util.Arrays.asList(pk("cursor1"), (PrimaryKey) null));
+    AliDocumentIterator iter = new AliDocumentIterator(runner, 0, 0, null);
+    Assertions.assertEquals(List.of("fran"), collectPlayers(iter));
+  }
 
-              // Add items to the list.
-              Map<String, Object> item1 = new HashMap<>();
-              item1.put("key21", "value21");
-              item1.put("key23", "value22");
-              queryItems.add(item1);
+  @Test
+  void skipsMultipleConsecutiveFilteredEmptyPages() {
+    QueryRunner runner =
+        runnerReturning(
+            java.util.Arrays.asList(
+                java.util.Collections.<Row>emptyList(),
+                java.util.Collections.<Row>emptyList(),
+                List.of(row("mel", 190))),
+            java.util.Arrays.asList(pk("c1"), pk("c2"), (PrimaryKey) null));
+    AliDocumentIterator iter = new AliDocumentIterator(runner, 0, 0, null);
+    Assertions.assertEquals(List.of("mel"), collectPlayers(iter));
+  }
 
-              // Return a token for the second call.
-              return "anyToken";
-            })
-        .thenReturn(null);
-    iter.run("anyToken");
-    // The first call to next should be okay since there is one element
-    Assertions.assertDoesNotThrow(() -> iter.next(document));
-    // There is still one page, verify the hasNext is true even with multiple calls
+  // Offset skipping must also cross filtered-empty pages (same root cause as #1).
+  @Test
+  void offsetSkipCrossesFilteredEmptyPage() {
+    QueryRunner runner =
+        runnerReturning(
+            java.util.Arrays.asList(
+                List.of(row("billie", 111)), // page 1: 1 match (this is the one we skip)
+                java.util.Collections.<Row>emptyList(), // page 2: filtered empty, live cursor
+                List.of(row("fran", 33))), // page 3: the row we should return
+            java.util.Arrays.asList(pk("c1"), pk("c2"), (PrimaryKey) null));
+    AliDocumentIterator iter = new AliDocumentIterator(runner, 1, 0, null);
+    Assertions.assertEquals(List.of("fran"), collectPlayers(iter));
+  }
+
+  @Test
+  void limitStopsEarlyWithinPage() {
+    QueryRunner runner =
+        runnerReturning(
+            List.of(List.of(row("billie", 111), row("fran", 33), row("mel", 190))),
+            java.util.Arrays.asList((PrimaryKey) null));
+    AliDocumentIterator iter = new AliDocumentIterator(runner, 0, 2, null);
+    Assertions.assertEquals(List.of("billie", "fran"), collectPlayers(iter));
+  }
+
+  @Test
+  void offsetSkipsWithinPage() {
+    QueryRunner runner =
+        runnerReturning(
+            List.of(List.of(row("billie", 111), row("fran", 33), row("mel", 190))),
+            java.util.Arrays.asList((PrimaryKey) null));
+    // offset 1, no limit: skip billie, return fran + mel.
+    AliDocumentIterator iter = new AliDocumentIterator(runner, 1, 0, null);
+    Assertions.assertEquals(List.of("fran", "mel"), collectPlayers(iter));
+  }
+
+  @Test
+  void offsetPlusLimit() {
+    QueryRunner runner =
+        runnerReturning(
+            List.of(
+                List.of(row("billie", 111), row("fran", 33), row("mel", 190), row("pat", 120))),
+            java.util.Arrays.asList((PrimaryKey) null));
+    // offset 1, limit 2: skip billie, return fran + mel, stop before pat.
+    AliDocumentIterator iter = new AliDocumentIterator(runner, 1, 2, null);
+    Assertions.assertEquals(List.of("fran", "mel"), collectPlayers(iter));
+  }
+
+  @Test
+  void offsetSpansPageBoundary() {
+    QueryRunner runner =
+        runnerReturning(
+            List.of(List.of(row("billie", 111)), List.of(row("fran", 33), row("mel", 190))),
+            java.util.Arrays.asList(pk("fran"), (PrimaryKey) null));
+    // offset 2 crosses from page 1 (billie) into page 2 (fran) -> return only mel.
+    AliDocumentIterator iter = new AliDocumentIterator(runner, 2, 0, null);
+    Assertions.assertEquals(List.of("mel"), collectPlayers(iter));
+  }
+
+  @Test
+  void offsetBeyondResultsYieldsNothing() {
+    QueryRunner runner =
+        runnerReturning(
+            List.of(List.of(row("billie", 111), row("fran", 33))),
+            java.util.Arrays.asList((PrimaryKey) null));
+    AliDocumentIterator iter = new AliDocumentIterator(runner, 5, 0, null);
+    Assertions.assertEquals(List.of(), collectPlayers(iter));
+    Assertions.assertTrue(iter.getPaginationToken().isEmpty());
+  }
+
+  @Test
+  void resumeSkipsInclusiveStartRow() {
+    // Resuming at 'fran' (inclusive start): server returns fran (already seen) + pat; skip fran.
+    QueryRunner runner =
+        runnerReturning(
+            List.of(List.of(row("fran", 33), row("pat", 120))),
+            java.util.Arrays.asList((PrimaryKey) null));
+    AliDocumentIterator iter = new AliDocumentIterator(runner, 0, 0, pk("fran"));
+    Assertions.assertEquals(List.of("pat"), collectPlayers(iter));
+  }
+
+  @Test
+  void paginationTokenIsLastConsumedRowKey() {
+    QueryRunner runner =
+        runnerReturning(
+            List.of(List.of(row("billie", 111), row("fran", 33))),
+            java.util.Arrays.asList(pk("mel"))); // server cursor exists, but limit stops us first
+    AliDocumentIterator iter = new AliDocumentIterator(runner, 0, 1, null);
     Assertions.assertTrue(iter.hasNext());
-    Assertions.assertTrue(iter.hasNext());
-    Assertions.assertTrue(iter.hasNext());
+    iter.next(new Document(new HashMap<>()));
+    AliPaginationToken token = (AliPaginationToken) iter.getPaginationToken();
+    Assertions.assertFalse(token.isEmpty());
+    String tokenPlayer =
+        token.getNextStartPrimaryKey().getPrimaryKeyColumn("Player").getValue().asString();
+    Assertions.assertEquals("billie", tokenPlayer);
+  }
 
-    // the second call to next should call has next to get the next page
-    Assertions.assertDoesNotThrow(() -> iter.next(document));
-    verify(iter, times(5)).hasNext();
-    verify(runner, times(2)).run(any(), any(), any(), any());
-
-    // now there should be no more pages
+  @Test
+  void emptyResultHasEmptyToken() {
+    QueryRunner runner =
+        runnerReturning(List.of(List.of()), java.util.Arrays.asList((PrimaryKey) null));
+    AliDocumentIterator iter = new AliDocumentIterator(runner, 0, 0, null);
     Assertions.assertFalse(iter.hasNext());
-    iter.stop();
+    Assertions.assertTrue(iter.getPaginationToken().isEmpty());
   }
 
   @Test
-  void testGetPaginationToken() {
-    AliDocumentIterator iter = new AliDocumentIterator(runner, 0, 0);
-    Assertions.assertNull(iter.getPaginationToken());
+  void stopHaltsIteration() {
+    QueryRunner runner =
+        runnerReturning(
+            List.of(List.of(row("billie", 111), row("fran", 33))),
+            java.util.Arrays.asList((PrimaryKey) null));
+    AliDocumentIterator iter = new AliDocumentIterator(runner, 0, 0, null);
+    Assertions.assertTrue(iter.hasNext());
+    iter.stop();
+    Assertions.assertFalse(iter.hasNext());
   }
 }

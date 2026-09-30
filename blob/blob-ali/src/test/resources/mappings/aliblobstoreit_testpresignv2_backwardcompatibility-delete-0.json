@@ -1,0 +1,25 @@
+{
+  "id" : "744bda0a-2ea3-4752-9b3c-749c24519efe",
+  "name" : "AliBlobStoreIT_testPresignV2_backwardCompatibility-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/presign-v2/backward-compat",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A3448BB692283333671E432",
+      "x-oss-server-time" : "45",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 18 Jun 2026 19:36:27 GMT"
+    }
+  },
+  "uuid" : "744bda0a-2ea3-4752-9b3c-749c24519efe",
+  "persistent" : true,
+  "insertionIndex" : 147
+}

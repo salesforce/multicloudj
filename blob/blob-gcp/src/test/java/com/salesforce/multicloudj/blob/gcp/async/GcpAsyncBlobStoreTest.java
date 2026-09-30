@@ -46,6 +46,7 @@ import com.salesforce.multicloudj.blob.gcp.GcpBlobStore;
 import com.salesforce.multicloudj.blob.gcp.GcpTransformer;
 import com.salesforce.multicloudj.blob.gcp.GcpTransformerSupplier;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -123,6 +124,26 @@ class GcpAsyncBlobStoreTest {
     assertEquals(GcpConstants.PROVIDER_ID, gcpAsyncBlobStore.getProviderId());
     assertEquals(mockBlobStore, gcpAsyncBlobStore.getBlobStore());
     assertEquals(executorService, gcpAsyncBlobStore.getExecutorService());
+  }
+
+  @Test
+  void testProviderBuilderTransferManagerPerfConfig() {
+    // Async builder delegates to GcpBlobStore.Builder via copyFrom + build(), which exercises
+    // buildTransferManager. This test asserts the perf config path goes end-to-end without
+    // breaking.
+    GcpAsyncBlobStore store =
+        (GcpAsyncBlobStore)
+            GcpAsyncBlobStore.builder()
+                .withBucket(TEST_BUCKET)
+                .withTransferManagerThreadPoolSize(15)
+                .withPartBufferSize(8L * 1024L * 1024L)
+                .withParallelDownloadsEnabled(true)
+                .withParallelUploadsEnabled(true)
+                .build();
+
+    assertNotNull(store);
+    assertEquals(GcpConstants.PROVIDER_ID, store.getProviderId());
+    assertEquals(TEST_BUCKET, store.getBucket());
   }
 
   @Test
@@ -504,19 +525,15 @@ class GcpAsyncBlobStoreTest {
   }
 
   @Test
-  void testGetException() {
-    // Given
+  void testMapException() {
     Throwable testException = new RuntimeException("Test exception");
-    Class<? extends SubstrateSdkException> expectedExceptionClass = SubstrateSdkException.class;
-    doReturn(expectedExceptionClass).when(mockBlobStore).getException(testException);
+    SubstrateSdkException expected = new UnknownException(testException);
+    doReturn(expected).when(mockBlobStore).mapException(testException);
 
-    // When
-    Class<? extends SubstrateSdkException> actualExceptionClass =
-        gcpAsyncBlobStore.getException(testException);
+    SubstrateSdkException actual = gcpAsyncBlobStore.mapException(testException);
 
-    // Then
-    assertEquals(expectedExceptionClass, actualExceptionClass);
-    verify(mockBlobStore).getException(testException);
+    assertEquals(expected, actual);
+    verify(mockBlobStore).mapException(testException);
   }
 
   @Test
@@ -843,6 +860,18 @@ class GcpAsyncBlobStoreTest {
     assertNotNull(store);
     assertEquals("test-bucket", store.getBucket());
     assertEquals("us-central1", store.getRegion());
+  }
+
+  @Test
+  void testBuilder_WithUseTransferListener_DummyApiAccepted() {
+    GcpAsyncBlobStore.Builder builder = new GcpAsyncBlobStore.Builder();
+    builder.withBucket(TEST_BUCKET);
+    builder.withRegion(TEST_REGION);
+    builder.withStorage(mockStorage);
+    builder.withUseTransferListener(true);
+    GcpAsyncBlobStore store = builder.build();
+    assertNotNull(store);
+    assertEquals(TEST_BUCKET, store.getBucket());
   }
 
   @Test

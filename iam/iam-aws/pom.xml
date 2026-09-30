@@ -9,9 +9,16 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>iam</artifactId>
-        <version>0.3.1-SNAPSHOT</version>
+        <version>0.4.8-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
+
+    <properties>
+        <!-- opt in to the centralized benchmarks jar + guard (config in the root pluginManagement) -->
+        <benchmarks.jar.phase>package</benchmarks.jar.phase>
+        <!-- provider package the benchmark-jar guard asserts is present in META-INF/BenchmarkList -->
+        <benchmarks.expected.package>com.salesforce.multicloudj.iam.aws.</benchmarks.expected.package>
+    </properties>
 
     <dependencies>
         <dependency>
@@ -27,12 +34,6 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.powermock</groupId>
-            <artifactId>powermock-api-mockito2</artifactId>
-            <version>2.0.9</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.wiremock</groupId>
@@ -85,9 +86,19 @@
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
+            <!-- opt in to the centralized benchmarks jar (guard runs automatically because benchmarks.expected.package is set) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+            </plugin>
             <plugin>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok-maven-plugin</artifactId>

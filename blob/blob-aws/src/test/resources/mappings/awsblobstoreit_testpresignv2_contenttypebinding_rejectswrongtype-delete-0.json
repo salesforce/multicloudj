@@ -1,0 +1,20 @@
+{
+  "id" : "66dcf0b8-782f-4430-bda3-abf976cfc6a9",
+  "name" : "AwsBlobStoreIT_testPresignV2_contentTypeBinding_rejectsWrongType-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/presign-v2/negative/wrong-type",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "P3JY964YM1RXK0KT",
+      "x-amz-id-2" : "Wr/n5Gk57TNjeVPTFMQ6YgkhJ9uZOxlomRI/DfcV9oy9Nt/wvh2zyNXX2rxbyiiORZvv6rvAJ/eccJlCC1VAJf9HGg+KoZJX",
+      "Date" : "Fri, 05 Jun 2026 09:03:14 GMT"
+    }
+  },
+  "uuid" : "66dcf0b8-782f-4430-bda3-abf976cfc6a9",
+  "persistent" : true,
+  "insertionIndex" : 761
+}

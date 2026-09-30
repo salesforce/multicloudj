@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.aws;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -11,6 +12,9 @@ import static org.mockito.Mockito.mock;
 
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
+import com.salesforce.multicloudj.blob.driver.Checksum;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
@@ -31,6 +35,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -43,17 +48,25 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
+import software.amazon.awssdk.services.s3.model.ChecksumMode;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.GetBucketVersioningRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketVersioningResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingRequest;
@@ -71,10 +84,12 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.services.s3.model.StorageClass;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.Tagging;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
+import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
@@ -90,6 +105,13 @@ import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
 public class AwsTransformerTest {
 
   private static final String BUCKET = "some-bucket";
+  private static final String SOME_KEY = "some-key";
+  private static final String SOME_VALUE = "some-value";
+  private static final String TEST_OBJECT_KEY = "object-1";
+  private static final String TEST_METADATA_KEY = "key1";
+  private static final String TEST_METADATA_VALUE = "value1";
+  private static final String TEST_METADATA_KEY_2 = "key2";
+  private static final String TEST_METADATA_VALUE_2 = "value2";
   private final AwsTransformer transformer = new AwsTransformer(BUCKET);
 
   @Test
@@ -99,8 +121,8 @@ public class AwsTransformerTest {
 
   @Test
   void testUpload() {
-    var key = "some-key";
-    var metadata = Map.of("some-key", "some-value");
+    var key = SOME_KEY;
+    var metadata = Map.of(SOME_KEY, SOME_VALUE);
     var tags = Map.of("tag-key", "tag-value");
 
     var request =
@@ -118,6 +140,25 @@ public class AwsTransformerTest {
             .build();
 
     assertEquals(expected, transformer.toRequest(request));
+  }
+
+  @Test
+  void testUploadCreateIfAbsentUsesConditionalPut() {
+    UploadRequest request =
+        UploadRequest.builder().withKey(SOME_KEY).withCreateIfAbsent(true).build();
+
+    PutObjectRequest actual = transformer.toRequest(request);
+
+    assertEquals("*", actual.ifNoneMatch());
+  }
+
+  @Test
+  void testUploadDefaultDoesNotUseConditionalPut() {
+    UploadRequest request = UploadRequest.builder().withKey(SOME_KEY).build();
+
+    PutObjectRequest actual = transformer.toRequest(request);
+
+    assertNull(actual.ifNoneMatch());
   }
 
   @Test
@@ -158,6 +199,271 @@ public class AwsTransformerTest {
     assertEquals(metadata, actual.metadata());
     assertNull(actual.serverSideEncryptionAsString());
     assertNull(actual.ssekmsKeyId());
+  }
+
+  @Test
+  void testUpload_correlationIdInjectedIntoMetadata() {
+    var key = "some-key";
+    var ctx = OperationContext.builder().correlationId("req-abc-123").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        actual.metadata().get("sdk-logging-correlation-id"),
+        "transformer must persist the operation correlation_id under the well-known metadata key");
+  }
+
+  @Test
+  void testUpload_correlationIdNotInjectedWhenContextMissing() {
+    var key = "some-key";
+    var metadata = Map.of("user-key", "user-value");
+
+    var request = UploadRequest.builder().withKey(key).withMetadata(metadata).build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(metadata, actual.metadata());
+    assertFalse(
+        actual.metadata().containsKey("sdk-logging-correlation-id"),
+        "no injection when the request carries no OperationContext");
+  }
+
+  @Test
+  void testUpload_userSuppliedCorrelationIdNotOverwritten() {
+    var key = "some-key";
+    var ctx = OperationContext.builder().correlationId("sdk-generated").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("sdk-logging-correlation-id", "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(
+        "user-supplied",
+        actual.metadata().get("sdk-logging-correlation-id"),
+        "application's explicit sdk-logging-correlation-id metadata value"
+            + " must take precedence over the SDK's");
+  }
+
+  @Test
+  void testUpload_customCorrelationIdKeyUsed() {
+    var key = "some-key";
+    var ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .correlationIdKey("x-custom-corr")
+            .build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        actual.metadata().get("x-custom-corr"),
+        "transformer must use the custom correlation id key when specified");
+    assertFalse(
+        actual.metadata().containsKey("sdk-logging-correlation-id"),
+        "default key must not be used when custom key is specified");
+  }
+
+  @Test
+  void testUpload_customCorrelationIdKeyNotOverwrittenWhenUserSupplied() {
+    var key = "some-key";
+    var ctx =
+        OperationContext.builder()
+            .correlationId("sdk-generated")
+            .correlationIdKey("x-custom-corr")
+            .build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("x-custom-corr", "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(
+        "user-supplied",
+        actual.metadata().get("x-custom-corr"),
+        "application's explicit custom correlation id metadata value"
+            + " must take precedence over the SDK's");
+  }
+
+  @Test
+  void testUpload_serviceIdAndTenantIdInjectedIntoMetadata() {
+    var key = "some-key";
+    var ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("keystone-boxoffice")
+            .tenantId("tenant-42")
+            .build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "keystone-boxoffice",
+        actual.metadata().get("sdk-logging-service-id"),
+        "transformer must persist the operation service_id under the well-known metadata key");
+    assertEquals(
+        "tenant-42",
+        actual.metadata().get("sdk-logging-tenant-id"),
+        "transformer must persist the operation tenant_id under the well-known metadata key");
+  }
+
+  @Test
+  void testUpload_serviceIdAndTenantIdNotInjectedWhenAbsent() {
+    var key = "some-key";
+    // Context present with only a correlation id: service/tenant keys must not appear.
+    var ctx = OperationContext.builder().correlationId("req-abc-123").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertFalse(
+        actual.metadata().containsKey("sdk-logging-service-id"),
+        "no service_id injection when the context has no serviceId");
+    assertFalse(
+        actual.metadata().containsKey("sdk-logging-tenant-id"),
+        "no tenant_id injection when the context has no tenantId");
+  }
+
+  @Test
+  void testUpload_blankServiceIdAndTenantIdNotInjected() {
+    var key = "some-key";
+    // Empty / whitespace-only ids must be treated as absent, not stamped as blank metadata.
+    var ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("")
+            .tenantId("   ")
+            .build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertFalse(
+        actual.metadata().containsKey("sdk-logging-service-id"),
+        "blank serviceId must be skipped, not stamped as an empty metadata value");
+    assertFalse(
+        actual.metadata().containsKey("sdk-logging-tenant-id"),
+        "blank tenantId must be skipped, not stamped as an empty metadata value");
+  }
+
+  @Test
+  void testUpload_userSuppliedServiceIdAndTenantIdNotOverwritten() {
+    var key = "some-key";
+    var ctx =
+        OperationContext.builder().serviceId("sdk-service").tenantId("sdk-tenant").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(
+                Map.of(
+                    "sdk-logging-service-id", "user-service",
+                    "sdk-logging-tenant-id", "user-tenant"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(
+        "user-service",
+        actual.metadata().get("sdk-logging-service-id"),
+        "application's explicit service_id metadata value must take precedence over the SDK's");
+    assertEquals(
+        "user-tenant",
+        actual.metadata().get("sdk-logging-tenant-id"),
+        "application's explicit tenant_id metadata value must take precedence over the SDK's");
+  }
+
+  @Test
+  void testUpload_serviceIdStampedWhenTenantIdAbsent() {
+    var key = "some-key";
+    // Isolates the serviceId branch: serviceId present, tenantId absent.
+    var ctx = OperationContext.builder().serviceId("keystone-boxoffice").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(
+        "keystone-boxoffice",
+        actual.metadata().get("sdk-logging-service-id"),
+        "serviceId must be stamped even when tenantId is absent");
+    assertFalse(
+        actual.metadata().containsKey("sdk-logging-tenant-id"),
+        "no tenant_id injection when the context has no tenantId");
+  }
+
+  @Test
+  void testUpload_tenantIdStampedWhenServiceIdAbsent() {
+    var key = "some-key";
+    // Isolates the tenantId branch: tenantId present, serviceId absent.
+    var ctx = OperationContext.builder().tenantId("tenant-42").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(
+        "tenant-42",
+        actual.metadata().get("sdk-logging-tenant-id"),
+        "tenantId must be stamped even when serviceId is absent");
+    assertFalse(
+        actual.metadata().containsKey("sdk-logging-service-id"),
+        "no service_id injection when the context has no serviceId");
   }
 
   @Test
@@ -261,6 +567,53 @@ public class AwsTransformerTest {
 
     assertTrue(asyncRequestBody.contentLength().isPresent());
     assertEquals(content.length, asyncRequestBody.contentLength().get());
+  }
+
+  @Test
+  void testToAsyncRequestBodyInputStreamWithoutContentLength() {
+    // When the caller omits contentLength (Optional per UploadRequest javadoc), the SDK must
+    // read the stream to EOF instead of interpreting the primitive default 0 as an empty body.
+    byte[] content = "This is test data".getBytes();
+    InputStream inputStream = new ByteArrayInputStream(content);
+    UploadRequest uploadRequest = UploadRequest.builder().withKey("key").build();
+
+    AsyncRequestBody asyncRequestBody = transformer.toAsyncRequestBody(uploadRequest, inputStream);
+
+    assertFalse(asyncRequestBody.contentLength().isPresent());
+  }
+
+  @Test
+  void testToRequestBodyInputStreamWithContentLength() throws Exception {
+    byte[] content = "This is test data".getBytes();
+    InputStream inputStream = new ByteArrayInputStream(content);
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey("key").withContentLength(content.length).build();
+
+    RequestBody requestBody = transformer.toRequestBody(uploadRequest, inputStream);
+
+    assertTrue(requestBody.optionalContentLength().isPresent());
+    assertEquals(content.length, requestBody.optionalContentLength().get());
+    // Bytes streamed through the provider must match the input verbatim.
+    try (InputStream streamed = requestBody.contentStreamProvider().newStream()) {
+      assertArrayEquals(content, streamed.readAllBytes());
+    }
+  }
+
+  @Test
+  void testToRequestBodyInputStreamWithoutContentLength() throws Exception {
+    // Bug reproduction: without withContentLength(...) the previous code called
+    // RequestBody.fromInputStream(stream, 0) which uploads a zero-length body. The fixed
+    // path must produce an unknown-length RequestBody whose bytes still match the input.
+    byte[] content = "This is test data".getBytes();
+    InputStream inputStream = new ByteArrayInputStream(content);
+    UploadRequest uploadRequest = UploadRequest.builder().withKey("key").build();
+
+    RequestBody requestBody = transformer.toRequestBody(uploadRequest, inputStream);
+
+    assertFalse(requestBody.optionalContentLength().isPresent());
+    try (InputStream streamed = requestBody.contentStreamProvider().newStream()) {
+      assertArrayEquals(content, streamed.readAllBytes());
+    }
   }
 
   @Test
@@ -375,6 +728,73 @@ public class AwsTransformerTest {
     assertEquals(BUCKET, actual.bucket());
     assertEquals(key, actual.key());
     assertEquals(versionId, actual.versionId());
+    assertEquals(ChecksumMode.ENABLED, actual.checksumMode());
+  }
+
+  @Test
+  void testToRequest_downloadEnablesChecksumMode() {
+    var request = DownloadRequest.builder().withKey("some/key").build();
+    var actual = transformer.toRequest(request);
+    assertEquals(ChecksumMode.ENABLED, actual.checksumMode());
+  }
+
+  @Test
+  void testToDownloadResponse_preferSha256OverCrc32c() {
+    var request = DownloadRequest.builder().withKey("k").build();
+    GetObjectResponse response = mock(GetObjectResponse.class);
+    doReturn("sha256-value").when(response).checksumSHA256();
+    doReturn("crc32c-value").when(response).checksumCRC32C();
+
+    Checksum checksum =
+        transformer.toDownloadResponse(request, response).getMetadata().getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.SHA256, checksum.getAlgorithm());
+    assertEquals("sha256-value", checksum.getValue());
+  }
+
+  @Test
+  void testToDownloadResponse_preferCrc32cOverCrc64() {
+    var request = DownloadRequest.builder().withKey("k").build();
+    GetObjectResponse response = mock(GetObjectResponse.class);
+    doReturn("crc32c-value").when(response).checksumCRC32C();
+    doReturn("crc64-value").when(response).checksumCRC64NVME();
+
+    Checksum checksum =
+        transformer.toDownloadResponse(request, response).getMetadata().getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC32C, checksum.getAlgorithm());
+    assertEquals("crc32c-value", checksum.getValue());
+  }
+
+  @Test
+  void testToDownloadResponse_fallbackToCrc64NvmeMappedAsCrc64() {
+    var request = DownloadRequest.builder().withKey("k").build();
+    GetObjectResponse response = mock(GetObjectResponse.class);
+    doReturn("crc64nvme-value").when(response).checksumCRC64NVME();
+
+    Checksum checksum =
+        transformer.toDownloadResponse(request, response).getMetadata().getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC64, checksum.getAlgorithm());
+    assertEquals("crc64nvme-value", checksum.getValue());
+  }
+
+  @Test
+  void testToDownloadResponse_crc32OnlyReturnsNullChecksum() {
+    // SDK's WHEN_SUPPORTED default auto-attaches CRC32 on some PUTs; we intentionally do NOT
+    // surface it since ChecksumMethod does not expose CRC32.
+    var request = DownloadRequest.builder().withKey("k").build();
+    GetObjectResponse response = mock(GetObjectResponse.class);
+    doReturn("crc32-value").when(response).checksumCRC32();
+
+    assertNull(transformer.toDownloadResponse(request, response).getMetadata().getChecksum());
+  }
+
+  @Test
+  void testToDownloadResponse_noChecksumHeadersReturnsNull() {
+    var request = DownloadRequest.builder().withKey("k").build();
+    GetObjectResponse response = mock(GetObjectResponse.class);
+    assertNull(transformer.toDownloadResponse(request, response).getMetadata().getChecksum());
   }
 
   @Test
@@ -396,6 +816,53 @@ public class AwsTransformerTest {
     assertEquals(metadata, actual.getMetadata());
     assertEquals(1024L, actual.getObjectSize());
     assertEquals(now, actual.getLastModified());
+    assertNull(actual.getChecksum());
+  }
+
+  @Test
+  void testToMetadata_preferSha256() {
+    var response =
+        HeadObjectResponse.builder()
+            .contentLength(0L)
+            .checksumSHA256("sha256-value")
+            .checksumCRC32C("crc32c-value")
+            .checksumCRC64NVME("crc64-value")
+            .build();
+    Checksum checksum = transformer.toMetadata(response, "k").getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.SHA256, checksum.getAlgorithm());
+    assertEquals("sha256-value", checksum.getValue());
+  }
+
+  @Test
+  void testToMetadata_preferCrc32cOverCrc64() {
+    var response =
+        HeadObjectResponse.builder()
+            .contentLength(0L)
+            .checksumCRC32C("crc32c-value")
+            .checksumCRC64NVME("crc64-value")
+            .build();
+    Checksum checksum = transformer.toMetadata(response, "k").getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC32C, checksum.getAlgorithm());
+    assertEquals("crc32c-value", checksum.getValue());
+  }
+
+  @Test
+  void testToMetadata_fallbackToCrc64NvmeMappedAsCrc64() {
+    var response =
+        HeadObjectResponse.builder().contentLength(0L).checksumCRC64NVME("crc64-value").build();
+    Checksum checksum = transformer.toMetadata(response, "k").getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC64, checksum.getAlgorithm());
+    assertEquals("crc64-value", checksum.getValue());
+  }
+
+  @Test
+  void testToMetadata_crc32OnlyReturnsNullChecksum() {
+    var response =
+        HeadObjectResponse.builder().contentLength(0L).checksumCRC32("crc32-value").build();
+    assertNull(transformer.toMetadata(response, "k").getChecksum());
   }
 
   @Test
@@ -429,22 +896,214 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testToCreateMultipartUploadRequest_correlationIdInjectedIntoMetadata() {
+    var ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    var mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals("user-value", request.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        request.metadata().get("sdk-logging-correlation-id"),
+        "transformer must persist the operation correlation_id under the well-known metadata key");
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequest_correlationIdNotInjectedWhenContextMissing() {
+    var metadata = Map.of("user-key", "user-value");
+    var mpuRequest =
+        new MultipartUploadRequest.Builder().withKey("object-1").withMetadata(metadata).build();
+
+    var request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals(metadata, request.metadata());
+    assertFalse(
+        request.metadata().containsKey("sdk-logging-correlation-id"),
+        "no injection when the request carries no OperationContext");
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequest_userSuppliedCorrelationIdNotOverwritten() {
+    var ctx = OperationContext.builder().correlationId("sdk-generated").build();
+    var mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(Map.of("sdk-logging-correlation-id", "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    var request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals(
+        "user-supplied",
+        request.metadata().get("sdk-logging-correlation-id"),
+        "application's explicit sdk-logging-correlation-id metadata value"
+            + " must take precedence over the SDK's");
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequest_customCorrelationIdKeyUsed() {
+    var ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .correlationIdKey("x-custom-corr")
+            .build();
+    var mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals("user-value", request.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        request.metadata().get("x-custom-corr"),
+        "multipart create must use the custom correlation id key when specified");
+    assertFalse(
+        request.metadata().containsKey("sdk-logging-correlation-id"),
+        "default key must not be used on multipart create when a custom key is specified");
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequest_serviceIdAndTenantIdInjectedIntoMetadata() {
+    var ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("keystone-boxoffice")
+            .tenantId("tenant-42")
+            .build();
+    var mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals("user-value", request.metadata().get("user-key"));
+    assertEquals(
+        "keystone-boxoffice",
+        request.metadata().get("sdk-logging-service-id"),
+        "transformer must persist the operation service_id under the well-known metadata key");
+    assertEquals(
+        "tenant-42",
+        request.metadata().get("sdk-logging-tenant-id"),
+        "transformer must persist the operation tenant_id under the well-known metadata key");
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequest_blankServiceIdAndTenantIdNotInjected() {
+    var ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("")
+            .tenantId("   ")
+            .build();
+    var mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertFalse(
+        request.metadata().containsKey("sdk-logging-service-id"),
+        "blank serviceId must be skipped, not stamped as an empty metadata value");
+    assertFalse(
+        request.metadata().containsKey("sdk-logging-tenant-id"),
+        "blank tenantId must be skipped, not stamped as an empty metadata value");
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequest_userSuppliedServiceIdAndTenantIdNotOverwritten() {
+    var ctx =
+        OperationContext.builder().serviceId("sdk-service").tenantId("sdk-tenant").build();
+    var mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(
+                Map.of(
+                    "sdk-logging-service-id", "user-service",
+                    "sdk-logging-tenant-id", "user-tenant"))
+            .withOperationContext(ctx)
+            .build();
+
+    var request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals(
+        "user-service",
+        request.metadata().get("sdk-logging-service-id"),
+        "application's explicit service_id metadata value must take precedence over the SDK's");
+    assertEquals(
+        "user-tenant",
+        request.metadata().get("sdk-logging-tenant-id"),
+        "application's explicit tenant_id metadata value must take precedence over the SDK's");
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequestWithObjectLock() {
+    Map<String, String> metadata = Map.of(TEST_METADATA_KEY, TEST_METADATA_VALUE);
+    Instant retainUntil = Instant.parse("2026-12-31T23:59:59Z");
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.COMPLIANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(true)
+            .build();
+    MultipartUploadRequest mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey(TEST_OBJECT_KEY)
+            .withMetadata(metadata)
+            .withObjectLock(objectLock)
+            .build();
+    CreateMultipartUploadRequest request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+    assertEquals(TEST_OBJECT_KEY, request.key());
+    assertEquals(BUCKET, request.bucket());
+    assertEquals(metadata, request.metadata());
+    // Verify object lock settings
+    assertEquals(ObjectLockMode.COMPLIANCE, request.objectLockMode());
+    assertEquals(retainUntil, request.objectLockRetainUntilDate());
+    assertEquals(ObjectLockLegalHoldStatus.ON, request.objectLockLegalHoldStatus());
+  }
+
+  @Test
   void testToUploadPartRequest() {
-    Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
+    Map<String, String> metadata =
+        Map.of(
+            TEST_METADATA_KEY,
+            TEST_METADATA_VALUE,
+            TEST_METADATA_KEY_2,
+            TEST_METADATA_VALUE_2);
     MultipartUpload multipartUpload =
         MultipartUpload.builder()
             .bucket("bucket-1")
-            .key("object-1")
+            .key(TEST_OBJECT_KEY)
             .id("mpu-id")
             .metadata(metadata)
+            .contentType("text/plain")
             .build();
     byte[] content = "This is test data".getBytes();
     MultipartPart multipartPart = new MultipartPart(1, content);
     UploadPartRequest request = transformer.toUploadPartRequest(multipartUpload, multipartPart);
-    assertEquals("object-1", request.key());
+    assertEquals(TEST_OBJECT_KEY, request.key());
     assertEquals(BUCKET, request.bucket());
     assertEquals("mpu-id", request.uploadId());
     assertEquals(content.length, request.contentLength());
+    assertEquals(
+        "text/plain",
+        request.overrideConfiguration().get().headers().get("Content-Type").get(0));
   }
 
   @Test
@@ -631,6 +1290,37 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testToPutObjectPresignRequest_checksumDefaultsCrc32c() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .checksumValue("abc123==")
+            .build();
+    PutObjectPresignRequest actual = transformer.toPutObjectPresignRequest(request);
+    assertEquals("abc123==", actual.putObjectRequest().checksumCRC32C());
+    assertEquals(
+        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C,
+        actual.putObjectRequest().checksumAlgorithm());
+  }
+
+  @Test
+  void testToPutObjectPresignRequest_withContentLengthAndType() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .contentLength(2048)
+            .contentType("text/plain")
+            .build();
+    PutObjectPresignRequest actual = transformer.toPutObjectPresignRequest(request);
+    assertEquals(Long.valueOf(2048), actual.putObjectRequest().contentLength());
+    assertEquals("text/plain", actual.putObjectRequest().contentType());
+  }
+
+  @Test
   void testGetPrefixExclusionsFilter() {
     List<String> prefixesToExclude = List.of("files/images", "files/personal");
     DownloadFilter downloadFilter = transformer.getPrefixExclusionsFilter(prefixesToExclude);
@@ -660,12 +1350,86 @@ public class AwsTransformerTest {
             .build();
 
     DownloadDirectoryRequest downloadDirectoryRequest =
-        transformer.toDownloadDirectoryRequest(request);
+        transformer.toDownloadDirectoryRequest(request, null, null);
 
     assertEquals(BUCKET, downloadDirectoryRequest.bucket());
     assertEquals(destination, downloadDirectoryRequest.destination().toString());
     assertNotNull(downloadDirectoryRequest.filter());
     assertNotNull(downloadDirectoryRequest.listObjectsRequestTransformer());
+  }
+
+  @Test
+  void testToDownloadDirectoryRequest_LoggingEnabledButNullCounter_NoListener() {
+    // Pinning symmetric behavior with the upload path: when transferStatusLoggingEnabled is
+    // true but the caller passes a null totalBytesTransferred counter, no listener should be
+    // attached. A null counter signals "don't count", and constructing the listener with null
+    // would NPE — silently dropping it would be a worse footgun.
+    DirectoryDownloadRequest request =
+        DirectoryDownloadRequest.builder()
+            .localDestinationDirectory("/home/documents")
+            .prefixToDownload("/files")
+            .transferStatusLoggingEnabled(true)
+            .build();
+
+    DownloadDirectoryRequest downloadDirectoryRequest =
+        transformer.toDownloadDirectoryRequest(request, null, null);
+
+    // Drive the SDK's downloadFileRequestTransformer against a stub per-file builder; with
+    // the null-counter guard in place no listener should be attached, even though the
+    // request flag asks for transfer-status logging.
+    DownloadFileRequest.Builder fileBuilder =
+        DownloadFileRequest.builder()
+            .destination(Paths.get("/tmp/dest.txt"))
+            .getObjectRequest(GetObjectRequest.builder().bucket(BUCKET).key("a").build());
+    downloadDirectoryRequest.downloadFileRequestTransformer().accept(fileBuilder);
+    DownloadFileRequest fileRequest = fileBuilder.build();
+    assertTrue(fileRequest.transferListeners() == null
+        || fileRequest.transferListeners().isEmpty());
+
+    // And the default filter (no exclusions, no counter) admits every object without
+    // mutating any shared counter.
+    AtomicLong wouldBeRequested = new AtomicLong(0L);
+    downloadDirectoryRequest.filter().test(S3Object.builder().key("a").size(123L).build());
+    assertEquals(0L, wouldBeRequested.get());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_LoggingEnabledButNullCounter_NoListener()
+      throws java.io.IOException {
+    // Symmetric guard to the download path: logging request + null totalBytesTransferred
+    // should not attach the listener. Counters opt in to byte tracking; null means opt out.
+    java.nio.file.Path tempDir =
+        java.nio.file.Files.createTempDirectory("aws-transformer-null-counter");
+    try {
+      DirectoryUploadRequest directoryUploadRequest =
+          DirectoryUploadRequest.builder()
+              .localSourceDirectory(tempDir.toString())
+              .prefix("/files")
+              .includeSubFolders(true)
+              .transferStatusLoggingEnabled(true)
+              .build();
+
+      // Pass null transferred-counter, non-null requested-counter — listener should be skipped,
+      // and (because requested counter is non-null) the per-file transformer is installed for
+      // the byte-stat side-effect but not for the listener.
+      AtomicLong totalBytesRequested = new AtomicLong(0L);
+      UploadDirectoryRequest request =
+          transformer.toUploadDirectoryRequest(directoryUploadRequest, null, totalBytesRequested);
+
+      UploadFileRequest.Builder fileBuilder =
+          UploadFileRequest.builder()
+              .source(Paths.get(tempDir.toString(), "missing.txt"))
+              .putObjectRequest(
+                  PutObjectRequest.builder().bucket(BUCKET).key("/files/missing.txt").build());
+      request.uploadFileRequestTransformer().accept(fileBuilder);
+      UploadFileRequest fileRequest = fileBuilder.build();
+      // SDK returns null when no listeners were attached. Either null or empty proves the
+      // guard worked: the listener was not attached despite isTransferStatusLoggingEnabled().
+      assertTrue(fileRequest.transferListeners() == null
+          || fileRequest.transferListeners().isEmpty());
+    } finally {
+      java.nio.file.Files.deleteIfExists(tempDir);
+    }
   }
 
   @Test
@@ -688,7 +1452,7 @@ public class AwsTransformerTest {
     doReturn(failedTransfers).when(completedDirectoryDownload).failedTransfers();
 
     DirectoryDownloadResponse response =
-        transformer.toDirectoryDownloadResponse(completedDirectoryDownload);
+        transformer.toDirectoryDownloadResponse(completedDirectoryDownload, null);
 
     assertEquals(2, response.getFailedTransfers().size());
     assertEquals(path1, response.getFailedTransfers().get(0).getDestination());
@@ -705,7 +1469,8 @@ public class AwsTransformerTest {
             .prefix("/files")
             .includeSubFolders(true)
             .build();
-    UploadDirectoryRequest request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
     assertEquals(BUCKET, request.bucket());
     assertTrue(request.maxDepth().isPresent());
     assertEquals(Integer.MAX_VALUE, request.maxDepth().getAsInt());
@@ -719,7 +1484,7 @@ public class AwsTransformerTest {
             .prefix("/files")
             .includeSubFolders(false)
             .build();
-    request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+    request = transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
     assertTrue(request.maxDepth().isPresent());
   }
 
@@ -732,7 +1497,8 @@ public class AwsTransformerTest {
             .includeSubFolders(true)
             .followSymbolicLinks(true)
             .build();
-    UploadDirectoryRequest request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
     assertEquals(Optional.of(true), request.followSymbolicLinks());
 
     directoryUploadRequest =
@@ -742,7 +1508,7 @@ public class AwsTransformerTest {
             .includeSubFolders(true)
             .followSymbolicLinks(false)
             .build();
-    request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+    request = transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
     assertEquals(Optional.of(false), request.followSymbolicLinks());
   }
 
@@ -759,7 +1525,8 @@ public class AwsTransformerTest {
             .build();
 
     // When
-    UploadDirectoryRequest request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
 
     // Then
     assertEquals(BUCKET, request.bucket());
@@ -772,6 +1539,175 @@ public class AwsTransformerTest {
     // Note: AWS SDK 2.35.0 doesn't support tagging in directory uploads via UploadDirectoryRequest
     // Tags would need to be applied post-upload or when AWS SDK is upgraded
     assertNotNull(request);
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_WithObjectLock() {
+    Instant retainUntil = Instant.parse("2100-01-01T00:00:00Z");
+    ObjectLockConfiguration lockConfig =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(false)
+            .build();
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .includeSubFolders(true)
+            .objectLock(lockConfig)
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
+
+    assertNotNull(request);
+    // Verify the per-file transformer applies object lock to each PutObjectRequest
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertEquals(ObjectLockMode.GOVERNANCE, putRequest.objectLockMode());
+    assertEquals(retainUntil, putRequest.objectLockRetainUntilDate());
+    assertNull(putRequest.objectLockLegalHoldStatus());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_WithObjectLockAndTags() {
+    Instant retainUntil = Instant.parse("2100-01-01T00:00:00Z");
+    ObjectLockConfiguration lockConfig =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.COMPLIANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(true)
+            .build();
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .includeSubFolders(false)
+            .tags(Map.of("env", "prod"))
+            .objectLock(lockConfig)
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
+
+    assertNotNull(request);
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertEquals(ObjectLockMode.COMPLIANCE, putRequest.objectLockMode());
+    assertEquals(retainUntil, putRequest.objectLockRetainUntilDate());
+    assertEquals(ObjectLockLegalHoldStatus.ON, putRequest.objectLockLegalHoldStatus());
+    assertNotNull(putRequest.tagging());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_WithKmsKeyId() {
+    String kmsKeyId = "arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab";
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .includeSubFolders(true)
+            .kmsKeyId(kmsKeyId)
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
+
+    assertNotNull(request);
+    // The KMS-only request must not be dropped by the early-return guard.
+    assertNotNull(request.uploadFileRequestTransformer());
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertEquals(ServerSideEncryption.AWS_KMS, putRequest.serverSideEncryption());
+    assertEquals(kmsKeyId, putRequest.ssekmsKeyId());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_WithUseKmsManagedKey() {
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .includeSubFolders(true)
+            .useKmsManagedKey(true)
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
+
+    assertNotNull(request);
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertEquals(ServerSideEncryption.AWS_KMS, putRequest.serverSideEncryption());
+    assertNull(putRequest.ssekmsKeyId());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_KmsKeyIdWinsOverUseKmsManagedKey() {
+    String kmsKeyId = "arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab";
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .kmsKeyId(kmsKeyId)
+            .useKmsManagedKey(true)
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
+
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertEquals(ServerSideEncryption.AWS_KMS, putRequest.serverSideEncryption());
+    assertEquals(kmsKeyId, putRequest.ssekmsKeyId());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_NoKmsLeavesEncryptionUnset() {
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .tags(Map.of("env", "prod"))
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
+
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertNull(putRequest.serverSideEncryption());
+    assertNull(putRequest.ssekmsKeyId());
   }
 
   @Test
@@ -794,7 +1730,7 @@ public class AwsTransformerTest {
     doReturn(failedTransfers).when(completedDirectoryUpload).failedTransfers();
 
     DirectoryUploadResponse response =
-        transformer.toDirectoryUploadResponse(completedDirectoryUpload);
+        transformer.toDirectoryUploadResponse(completedDirectoryUpload, null);
 
     assertEquals(2, response.getFailedTransfers().size());
     assertEquals(path1, response.getFailedTransfers().get(0).getSource());
@@ -988,6 +1924,125 @@ public class AwsTransformerTest {
     assertEquals("object-1", request.key());
     assertEquals(BUCKET, request.bucket());
     assertEquals("application/x-directory", request.contentType());
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequest_WithObjectLockLegalHoldTrue() {
+    Instant retainUntilDate = Instant.now().plusSeconds(3600);
+    MultipartUploadRequest mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withObjectLock(
+                ObjectLockConfiguration.builder()
+                    .mode(RetentionMode.GOVERNANCE)
+                    .retainUntilDate(retainUntilDate)
+                    .legalHold(true)
+                    .build())
+            .build();
+
+    CreateMultipartUploadRequest request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals("object-1", request.key());
+    assertEquals(BUCKET, request.bucket());
+    assertEquals(ObjectLockMode.GOVERNANCE, request.objectLockMode());
+    assertEquals(retainUntilDate, request.objectLockRetainUntilDate());
+    assertEquals(ObjectLockLegalHoldStatus.ON, request.objectLockLegalHoldStatus());
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequest_WithObjectLockLegalHoldFalse_OmitsHeader() {
+    Instant retainUntilDate = Instant.now().plusSeconds(3600);
+    MultipartUploadRequest mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withObjectLock(
+                ObjectLockConfiguration.builder()
+                    .mode(RetentionMode.GOVERNANCE)
+                    .retainUntilDate(retainUntilDate)
+                    .legalHold(false)
+                    .build())
+            .build();
+
+    CreateMultipartUploadRequest request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals("object-1", request.key());
+    assertEquals(BUCKET, request.bucket());
+    assertEquals(ObjectLockMode.GOVERNANCE, request.objectLockMode());
+    assertEquals(retainUntilDate, request.objectLockRetainUntilDate());
+    assertNull(request.objectLockLegalHoldStatus());
+  }
+
+  @Test
+  void testToMultipartUpload_PropagatesObjectLockConfiguration() {
+    Instant retainUntilDate = Instant.now().plusSeconds(7200);
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.COMPLIANCE)
+            .retainUntilDate(retainUntilDate)
+            .legalHold(true)
+            .build();
+    MultipartUploadRequest mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withObjectLock(objectLock)
+            .build();
+    CreateMultipartUploadResponse response =
+        CreateMultipartUploadResponse.builder()
+            .bucket(BUCKET)
+            .key("object-1")
+            .uploadId("upload-id")
+            .build();
+
+    MultipartUpload mpu = transformer.toMultipartUpload(mpuRequest, response);
+
+    assertEquals(BUCKET, mpu.getBucket());
+    assertEquals("object-1", mpu.getKey());
+    assertEquals("upload-id", mpu.getId());
+    assertNotNull(mpu.getObjectLock());
+    assertEquals(RetentionMode.COMPLIANCE, mpu.getObjectLock().getMode());
+    assertEquals(retainUntilDate, mpu.getObjectLock().getRetainUntilDate());
+    assertTrue(mpu.getObjectLock().isLegalHold());
+  }
+
+  @Test
+  void testToMultipartUpload_handleEchoesStampedMetadata() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("keystone-boxoffice")
+            .tenantId("tenant-42")
+            .build();
+    MultipartUploadRequest mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+    CreateMultipartUploadResponse response =
+        CreateMultipartUploadResponse.builder()
+            .bucket(BUCKET)
+            .key("object-1")
+            .uploadId("upload-id")
+            .build();
+
+    MultipartUpload mpu = transformer.toMultipartUpload(mpuRequest, response);
+
+    // The returned handle echoes the stamped metadata so it reflects what actually lands on the
+    // object, matching the create request and a subsequent getMetadata read-back.
+    Map<String, String> handleMetadata = mpu.getMetadata();
+    assertEquals("user-value", handleMetadata.get("user-key"));
+    assertEquals(
+        "keystone-boxoffice",
+        handleMetadata.get("sdk-logging-service-id"),
+        "service id must be echoed onto the multipart upload handle metadata");
+    assertEquals(
+        "tenant-42",
+        handleMetadata.get("sdk-logging-tenant-id"),
+        "tenant id must be echoed onto the multipart upload handle metadata");
+    assertEquals(
+        "req-abc-123",
+        handleMetadata.get("sdk-logging-correlation-id"),
+        "correlation id must be echoed onto the multipart upload handle metadata");
   }
 
   @Test
@@ -1192,7 +2247,7 @@ public class AwsTransformerTest {
     var actual = transformer.toRequest(request);
 
     assertEquals(ObjectLockMode.COMPLIANCE, actual.objectLockMode());
-    assertEquals(ObjectLockLegalHoldStatus.OFF, actual.objectLockLegalHoldStatus());
+    assertNull(actual.objectLockLegalHoldStatus());
   }
 
   @Test
@@ -1241,11 +2296,9 @@ public class AwsTransformerTest {
   @Test
   void testToObjectLockInfo_WithNullRetention() {
     var legalHoldResponse =
-        software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse.builder()
+        GetObjectLegalHoldResponse.builder()
             .legalHold(
-                software.amazon.awssdk.services.s3.model.ObjectLockLegalHold.builder()
-                    .status(ObjectLockLegalHoldStatus.OFF)
-                    .build())
+                ObjectLockLegalHold.builder().status(ObjectLockLegalHoldStatus.OFF).build())
             .build();
 
     var result = transformer.toObjectLockInfo(null, legalHoldResponse);
@@ -1254,22 +2307,40 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testToObjectLockInfo_LegalHoldOnly() {
+    var legalHoldResponse =
+        GetObjectLegalHoldResponse.builder()
+            .legalHold(ObjectLockLegalHold.builder().status(ObjectLockLegalHoldStatus.ON).build())
+            .build();
+
+    var result = transformer.toObjectLockInfo(null, legalHoldResponse);
+
+    assertNotNull(result);
+    assertTrue(result.isLegalHold());
+    assertNull(result.getMode());
+    assertNull(result.getRetainUntilDate());
+  }
+
+  @Test
+  void testToObjectLockInfo_NoRetentionAndNoLegalHold() {
+    assertNull(transformer.toObjectLockInfo(null, null));
+  }
+
+  @Test
   void testToObjectLockInfo_WithComplianceMode() {
     var retentionResponse =
-        software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse.builder()
+        GetObjectRetentionResponse.builder()
             .retention(
-                software.amazon.awssdk.services.s3.model.ObjectLockRetention.builder()
+                ObjectLockRetention.builder()
                     .mode(ObjectLockRetentionMode.COMPLIANCE)
                     .retainUntilDate(Instant.now().plusSeconds(3600))
                     .build())
             .build();
 
     var legalHoldResponse =
-        software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse.builder()
+        GetObjectLegalHoldResponse.builder()
             .legalHold(
-                software.amazon.awssdk.services.s3.model.ObjectLockLegalHold.builder()
-                    .status(ObjectLockLegalHoldStatus.OFF)
-                    .build())
+                ObjectLockLegalHold.builder().status(ObjectLockLegalHoldStatus.OFF).build())
             .build();
 
     var result = transformer.toObjectLockInfo(retentionResponse, legalHoldResponse);
@@ -1332,8 +2403,7 @@ public class AwsTransformerTest {
     var actual = transformer.toRequest(request);
 
     assertEquals(
-        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.SHA256,
-        actual.checksumAlgorithm());
+        ChecksumAlgorithm.SHA256, actual.checksumAlgorithm());
     assertEquals("abc123sha256", actual.checksumSHA256());
   }
 
@@ -1349,9 +2419,21 @@ public class AwsTransformerTest {
     var actual = transformer.toRequest(request);
 
     assertEquals(
-        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C,
-        actual.checksumAlgorithm());
+        ChecksumAlgorithm.CRC32_C, actual.checksumAlgorithm());
     assertEquals("abc123crc32c", actual.checksumCRC32C());
+  }
+
+  @Test
+  void testToRequest_UploadWithCrc64Checksum_throwsUnsupported() {
+    // S3 does not expose a plain CRC64 object checksum; an explicit CRC64 request is rejected.
+    var request =
+        UploadRequest.builder()
+            .withKey("some-key")
+            .withChecksumValue("abc123crc64")
+            .withChecksumAlgorithm(ChecksumMethod.CRC64)
+            .build();
+
+    assertThrows(InvalidArgumentException.class, () -> transformer.toRequest(request));
   }
 
   @Test
@@ -1368,8 +2450,7 @@ public class AwsTransformerTest {
     assertEquals("object-1", request.key());
     assertEquals(BUCKET, request.bucket());
     assertEquals(
-        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.SHA256,
-        request.checksumAlgorithm());
+        ChecksumAlgorithm.SHA256, request.checksumAlgorithm());
   }
 
   @Test
@@ -1392,8 +2473,7 @@ public class AwsTransformerTest {
     assertEquals(BUCKET, request.bucket());
     assertEquals("mpu-id", request.uploadId());
     assertEquals(
-        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.SHA256,
-        request.checksumAlgorithm());
+        ChecksumAlgorithm.SHA256, request.checksumAlgorithm());
     assertEquals("sha256checksum", request.checksumSHA256());
   }
 
@@ -1444,8 +2524,8 @@ public class AwsTransformerTest {
 
   @Test
   void testToUploadPartResponse_WithSha256Checksum() {
-    software.amazon.awssdk.services.s3.model.UploadPartResponse response =
-        software.amazon.awssdk.services.s3.model.UploadPartResponse.builder()
+    UploadPartResponse response =
+        UploadPartResponse.builder()
             .eTag("etag")
             .checksumSHA256("sha256partvalue")
             .build();
@@ -1473,4 +2553,103 @@ public class AwsTransformerTest {
     assertEquals("etag", actual.getEtag());
     assertEquals("sha256completevalue", actual.getChecksumValue());
   }
+
+  @Test
+  void testToRequest_md5_routesToContentMd5() {
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withChecksumValue("rL0Y20zC+Fzt72VPzMSk2A==")
+        .withChecksumAlgorithm(ChecksumMethod.MD5)
+        .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", actual.contentMD5());
+    // MD5 uses the classic Content-MD5 header, not the x-amz-checksum-* additional-checksum path.
+    assertNull(actual.checksumAlgorithm());
+    assertNull(actual.checksumCRC32C());
+    assertNull(actual.checksumSHA256());
+  }
+
+  @Test
+  void testToRequest_crc32c_stillUsesAdditionalChecksumNotContentMd5() {
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withChecksumValue("abc123==")
+        .withChecksumAlgorithm(ChecksumMethod.CRC32C)
+        .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertNull(actual.contentMD5());
+    assertEquals("abc123==", actual.checksumCRC32C());
+    assertEquals(
+        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C,
+        actual.checksumAlgorithm());
+  }
+
+  @Test
+  void testToPutObjectPresignRequest_md5_routesToContentMd5() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .checksumValue("rL0Y20zC+Fzt72VPzMSk2A==")
+            .checksumAlgorithm(ChecksumMethod.MD5)
+            .build();
+
+    PutObjectPresignRequest actual = transformer.toPutObjectPresignRequest(request);
+
+    assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", actual.putObjectRequest().contentMD5());
+    assertNull(actual.putObjectRequest().checksumAlgorithm());
+  }
+
+  @Test
+  void testToGetBucketVersioningRequest_setsBucket() {
+    GetBucketVersioningRequest request = transformer.toGetBucketVersioningRequest();
+
+    assertEquals(BUCKET, request.bucket());
+  }
+
+  @Test
+  void testToBucketVersioningConfiguration_enabled() {
+    GetBucketVersioningResponse response =
+        GetBucketVersioningResponse.builder()
+            .status(software.amazon.awssdk.services.s3.model.BucketVersioningStatus.ENABLED)
+            .build();
+
+    BucketVersioningConfiguration actual = transformer.toBucketVersioningConfiguration(response);
+
+    assertEquals(BucketVersioningStatus.ENABLED, actual.getStatus());
+  }
+
+  @Test
+  void testToBucketVersioningConfiguration_suspended() {
+    GetBucketVersioningResponse response =
+        GetBucketVersioningResponse.builder()
+            .status(software.amazon.awssdk.services.s3.model.BucketVersioningStatus.SUSPENDED)
+            .build();
+
+    BucketVersioningConfiguration actual = transformer.toBucketVersioningConfiguration(response);
+
+    assertEquals(BucketVersioningStatus.SUSPENDED, actual.getStatus());
+  }
+
+  @Test
+  void testToBucketVersioningConfiguration_nullStatusMapsToUnversioned() {
+    GetBucketVersioningResponse response = GetBucketVersioningResponse.builder().build();
+
+    BucketVersioningConfiguration actual = transformer.toBucketVersioningConfiguration(response);
+
+    assertEquals(BucketVersioningStatus.UNVERSIONED, actual.getStatus());
+  }
+
+  @Test
+  void testToBucketVersioningConfiguration_nullResponseMapsToUnversioned() {
+    BucketVersioningConfiguration actual = transformer.toBucketVersioningConfiguration(null);
+
+    assertEquals(BucketVersioningStatus.UNVERSIONED, actual.getStatus());
+  }
+
 }

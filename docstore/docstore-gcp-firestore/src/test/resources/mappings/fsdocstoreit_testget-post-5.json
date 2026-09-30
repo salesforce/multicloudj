@@ -1,5 +1,5 @@
 {
-  "id" : "83e995c9-868a-4ef7-bfb3-bcf0c9073a72",
+  "id" : "30878593-0ff3-4ff3-9488-38a5cd9fae16",
   "name" : "FSDocstoreIT_testGet-POST-5",
   "request" : {
     "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet",
@@ -17,27 +17,27 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/QueenMap\"],\"mask\":{\"fieldPaths\":[\"S\",\"pName\",\"f\",\"I\"]}}",
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/QueenMap\"],\"mask\":{\"fieldPaths\":[\"Bytes\",\"S\",\"pName\",\"f\",\"I\"]}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/QueenMap\",\n    \"fields\": {\n      \"pName\": {\n        \"stringValue\": \"QueenMap\"\n      },\n      \"f\": {\n        \"doubleValue\": 12.659999847412109\n      }\n    },\n    \"createTime\": \"2026-03-04T21:19:42.512720Z\",\n    \"updateTime\": \"2026-03-04T21:19:42.512720Z\"\n  },\n  \"readTime\": \"2026-03-04T21:19:42.512720Z\"\n}\n]",
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/QueenMap\",\n    \"fields\": {\n      \"pName\": {\n        \"stringValue\": \"QueenMap\"\n      },\n      \"f\": {\n        \"doubleValue\": 12.659999847412109\n      }\n    },\n    \"createTime\": \"2026-04-22T22:41:19.273265Z\",\n    \"updateTime\": \"2026-04-22T22:41:19.273265Z\"\n  },\n  \"readTime\": \"2026-04-22T22:41:19.273265Z\"\n}\n]",
     "headers" : {
       "X-Frame-Options" : "SAMEORIGIN",
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "ESF",
-      "X-Debug-Tracking-ID" : "2279001680654340328;o=1",
+      "X-Debug-Tracking-ID" : "2112142762341322533;o=1",
       "X-Content-Type-Options" : "nosniff",
       "Vary" : [ "Origin", "X-Origin", "Referer" ],
       "X-XSS-Protection" : "0",
-      "Date" : "Wed, 04 Mar 2026 21:19:42 GMT",
+      "Date" : "Wed, 22 Apr 2026 22:41:19 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "83e995c9-868a-4ef7-bfb3-bcf0c9073a72",
+  "uuid" : "30878593-0ff3-4ff3-9488-38a5cd9fae16",
   "persistent" : true,
-  "insertionIndex" : 48
+  "insertionIndex" : 171
 }

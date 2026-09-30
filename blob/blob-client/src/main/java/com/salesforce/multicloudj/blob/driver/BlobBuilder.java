@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.observability.TracingPolicy;
 import com.salesforce.multicloudj.common.provider.SdkProvider;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.service.SdkService;
@@ -29,6 +30,7 @@ public abstract class BlobBuilder<T extends SdkService> implements SdkProvider.B
   private RetryConfig retryConfig;
   private Boolean useSystemPropertyProxyValues;
   private Boolean useEnvironmentVariableProxyValues;
+  private TracingPolicy tracingPolicy;
 
   public BlobBuilder<T> providerId(String providerId) {
     this.providerId = providerId;
@@ -121,6 +123,20 @@ public abstract class BlobBuilder<T extends SdkService> implements SdkProvider.B
   public BlobBuilder<T> withUseEnvironmentVariableProxyValues(
       Boolean useEnvironmentVariableProxyValues) {
     this.useEnvironmentVariableProxyValues = useEnvironmentVariableProxyValues;
+    return this;
+  }
+
+  /**
+   * Method to supply the per-client tracing policy. Resolution order at runtime is per-client
+   * &gt; global default &gt; {@link TracingPolicy#DISABLED}. Default behavior (when not set) is no
+   * spans created and zero behavior change for existing callers; the correlation ID is still
+   * populated in MDC for log correlation.
+   *
+   * @param tracingPolicy the tracing policy
+   * @return An instance of self
+   */
+  public BlobBuilder<T> withTracingPolicy(TracingPolicy tracingPolicy) {
+    this.tracingPolicy = tracingPolicy;
     return this;
   }
 }

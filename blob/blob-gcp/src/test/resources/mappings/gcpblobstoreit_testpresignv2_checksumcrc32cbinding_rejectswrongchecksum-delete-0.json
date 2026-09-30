@@ -1,0 +1,26 @@
+{
+  "id" : "f22ec86c-f1ce-42c4-ae89-59e402a0dd92",
+  "name" : "GcpBlobStoreIT_testPresignV2_checksumCrc32cBinding_rejectsWrongChecksum-DELETE-0",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fpresign-v2%2Fnegative%2Fwrong-checksum",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/presign-v2/negative/wrong-checksum\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/presign-v2/negative/wrong-checksum\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AJ5rDhGiPoWSgIVNvO39w_yKJt9Rrkku7-tW9F-jcECJnldjhXOgVeRxg0U0ztwjp-87z75z9IwWpUIWIcQtsw",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Fri, 05 Jun 2026 08:56:55 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "f22ec86c-f1ce-42c4-ae89-59e402a0dd92",
+  "persistent" : true,
+  "insertionIndex" : 1450
+}

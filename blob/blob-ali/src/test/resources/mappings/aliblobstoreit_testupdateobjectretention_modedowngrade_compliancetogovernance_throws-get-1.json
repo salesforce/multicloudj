@@ -1,0 +1,38 @@
+{
+  "id" : "bf5e7b2e-8c3c-41c8-8797-87c3009dc9a6",
+  "name" : "AliBlobStoreIT_testUpdateObjectRetention_modeDowngrade_complianceToGovernance_throws-GET-1",
+  "request" : {
+    "urlPath" : "/conformance-tests/objectlock/update/mode-downgrade",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "retention" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Retention>\n  <Mode>COMPLIANCE</Mode>\n  <RetainUntilDate>2030-01-01T00:00:00.000Z</RetainUntilDate>\n</Retention>\n",
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkY6NeigLn71PQZIiBhNDhhMTJkZDI1MWU0ZjNjOTFkMjE3OTBjOTgxYTY1Mw--",
+      "x-oss-request-id" : "6A221C183E95CC36395AF198",
+      "x-oss-server-time" : "35",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 05 Jun 2026 00:45:12 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "bf5e7b2e-8c3c-41c8-8797-87c3009dc9a6",
+  "persistent" : true,
+  "insertionIndex" : 588
+}

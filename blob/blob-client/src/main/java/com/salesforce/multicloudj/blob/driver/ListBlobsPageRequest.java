@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import lombok.Getter;
 
 /** Request object for paginated list operations */
@@ -11,11 +12,19 @@ public class ListBlobsPageRequest {
   private final String paginationToken;
   private final Integer maxResults;
 
+  /**
+   * (Optional parameter) Per-call observability context carrying the correlation ID. The
+   * correlation ID is never auto-generated; when it is null or missing it defaults to an empty
+   * string and tracing is treated as disabled.
+   */
+  private final OperationContext operationContext;
+
   private ListBlobsPageRequest(Builder builder) {
     this.prefix = builder.prefix;
     this.delimiter = builder.delimiter;
     this.paginationToken = builder.paginationToken;
     this.maxResults = builder.maxResults;
+    this.operationContext = builder.operationContext;
   }
 
   public static Builder builder() {
@@ -27,6 +36,7 @@ public class ListBlobsPageRequest {
     private String delimiter;
     private String paginationToken;
     private Integer maxResults;
+    private OperationContext operationContext;
 
     public Builder withPrefix(String prefix) {
       this.prefix = prefix;
@@ -45,6 +55,19 @@ public class ListBlobsPageRequest {
 
     public Builder withMaxResults(Integer maxResults) {
       this.maxResults = maxResults;
+      return this;
+    }
+
+    /**
+     * Sets the per-call observability context carrying the correlation ID. The correlation ID is
+     * never auto-generated; if not set (or if the context's correlation ID is null/empty) it
+     * defaults to an empty string and tracing is treated as disabled.
+     *
+     * @param operationContext the observability context
+     * @return this builder
+     */
+    public Builder withOperationContext(OperationContext operationContext) {
+      this.operationContext = operationContext;
       return this;
     }
 

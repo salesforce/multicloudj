@@ -4,13 +4,20 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -20,16 +27,23 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -50,6 +64,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -71,6 +86,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,10 +102,10 @@ public abstract class AbstractBlobStoreIT {
         boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket);
 
     /**
-     * Whether this provider supports object lock (WORM). When false, object lock conformance
+     * Whether this provider supports directory upload. When false, directory upload conformance
      * tests are skipped.
      */
-    default boolean isObjectLockSupported() {
+    default boolean isDirectoryUploadSupported() {
       return true;
     }
 
@@ -134,6 +150,40 @@ public abstract class AbstractBlobStoreIT {
       return Base64.getEncoder().encodeToString(checksumBytes);
     }
 
+    // Computes the base64-encoded checksum of the given content using the requested algorithm,
+    // independent of the substrate's native default. Used by tests that exercise a specific
+    // caller-supplied algorithm (e.g. MD5). Algorithm-driven, so no per-provider override needed.
+    default String computeChecksum(byte[] content, ChecksumMethod algorithm) {
+      switch (algorithm) {
+        case MD5:
+          return base64Digest(content, "MD5");
+        case SHA256:
+          return base64Digest(content, "SHA-256");
+        case CRC32C:
+          return computeChecksum(content);
+        default:
+          throw new UnSupportedOperationException(
+              "computeChecksum does not support algorithm " + algorithm);
+      }
+    }
+
+    default String base64Digest(byte[] content, String jdkAlgorithm) {
+      try {
+        return Base64.getEncoder().encodeToString(
+            MessageDigest.getInstance(jdkAlgorithm).digest(content));
+      } catch (NoSuchAlgorithmException e) {
+        throw new UnSupportedOperationException(jdkAlgorithm + " not available", e);
+      }
+    }
+
+    // The checksum algorithms this substrate validates against a caller-supplied digest on
+    // single-object upload and presigned-URL upload. Excludes server-computed-only checksums
+    // and multipart per-part validation (see isSha256Supported). Tests that exercise a specific
+    // caller-supplied algorithm gate on this set.
+    default Set<ChecksumMethod> getSupportedChecksumAlgorithmsForUpload() {
+      return Set.of(ChecksumMethod.CRC32C);
+    }
+
     // Whether this provider supports SHA256 checksums.
     default boolean isSha256Supported() {
       return true;
@@ -149,6 +199,14 @@ public abstract class AbstractBlobStoreIT {
         throw new UnSupportedOperationException("SHA-256 not available", e);
       }
     }
+
+    default List<String> getWiremockExtensions() {
+      return List.of();
+    }
+
+    default List<String> getRecordingCaptureHeaders() {
+      return List.of();
+    }
   }
 
   protected abstract Harness createHarness();
@@ -157,31 +215,47 @@ public abstract class AbstractBlobStoreIT {
 
   private static final String GCP_PROVIDER_ID = "gcp";
   private static final String ALI_PROVIDER_ID = "ali";
+  private static final String INMEMORY_PROVIDER_ID = "inmemory";
 
-  /** Initializes the WireMock server before all tests. */
+  /**
+   * Initializes the WireMock server before all tests.
+   */
   @BeforeAll
   public void initializeWireMockServer() {
     harness = createHarness();
-    TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
+    TestsUtil.startWireMockServer(
+        "src/test/resources",
+        harness.getPort(),
+        harness.getWiremockExtensions().toArray(new String[0]));
   }
 
-  /** Shuts down the WireMock server after all tests. */
+  /**
+   * Shuts down the WireMock server after all tests.
+   */
   @AfterAll
   public void shutdownWireMockServer() throws Exception {
     TestsUtil.stopWireMockServer();
     harness.close();
   }
 
-  /** Initialize the harness and */
+  /**
+   * Initialize the harness and
+   */
   @BeforeEach
   public void setupTestEnvironment(TestInfo testInfo) {
     String testClassName = testInfo.getTestClass().map(Class::getSimpleName).orElse("Unknown");
     String testMethodName =
-        testInfo.getTestMethod().map(java.lang.reflect.Method::getName).orElse("unknown");
-    TestsUtil.startWireMockRecording(harness.getEndpoint(), testClassName, testMethodName);
+            testInfo.getTestMethod().map(java.lang.reflect.Method::getName).orElse("unknown");
+    TestsUtil.startWireMockRecording(
+            harness.getEndpoint(),
+            testClassName,
+            testMethodName,
+            harness.getRecordingCaptureHeaders());
   }
 
-  /** Cleans up the test environment after each test. */
+  /**
+   * Cleans up the test environment after each test.
+   */
   @AfterEach
   public void cleanupTestEnvironment() {
     TestsUtil.stopWireMockRecording();
@@ -203,7 +277,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testInvalidCredentials() {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     // Create the blobstore driver for a bucket that exists, but use invalid credentialsOverrider
     AbstractBlobStore blobStore = harness.createBlobStore(true, false, false);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -413,19 +486,277 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUpload_emptyContent() {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     runUploadTests(
         "testUpload_emptyContent", "conformance-tests/upload/emptyContent", new byte[] {}, false);
   }
 
   @Test
   public void testUpload_happyPath() {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     runUploadTests(
         "testUpload_happyPath",
         "conformance-tests/upload/happyPath",
         "This is test data".getBytes(),
         false);
+  }
+
+  @Test
+  public void testUpload_createIfAbsent() {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String key = "conformance-tests/upload/createIfAbsent/ByteArray";
+    byte[] originalContent =
+        "original create-if-absent content for ByteArray".getBytes(StandardCharsets.UTF_8);
+    byte[] replacementContent =
+        "replacement create-if-absent content for ByteArray".getBytes(StandardCharsets.UTF_8);
+    Map<String, String> originalMetadata = Map.of("writer", "original-ByteArray");
+    Map<String, String> replacementMetadata = Map.of("writer", "replacement-ByteArray");
+
+    UploadRequest originalRequest =
+        new UploadRequest.Builder()
+            .withKey(key)
+            .withContentLength(originalContent.length)
+            .withMetadata(originalMetadata)
+            .withCreateIfAbsent(true)
+            .build();
+
+    try {
+      UploadResponse originalResponse = bucketClient.upload(originalRequest, originalContent);
+      Assertions.assertNotNull(originalResponse, "no upload response returned");
+
+      UploadRequest replacementRequest =
+          new UploadRequest.Builder()
+              .withKey(key)
+              .withContentLength(replacementContent.length)
+              .withMetadata(replacementMetadata)
+              .withCreateIfAbsent(true)
+              .build();
+      Assertions.assertThrows(
+          ResourceAlreadyExistsException.class,
+          () -> bucketClient.upload(replacementRequest, replacementContent),
+          "a second create-if-absent upload must lose the race");
+
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      bucketClient.download(new DownloadRequest.Builder().withKey(key).build(), outputStream);
+      Assertions.assertArrayEquals(
+          originalContent,
+          outputStream.toByteArray(),
+          "the failed upload must not replace the original bytes");
+
+      BlobMetadata storedMetadata = bucketClient.getMetadata(key, null);
+      assertUserMetadataEquals(
+          originalMetadata,
+          storedMetadata.getMetadata(),
+          "the failed upload must not replace the original metadata");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  /**
+   * Verifies that when an {@link OperationContext} carrying a service ID and tenant ID is attached
+   * to an upload, the SDK stamps those identifiers onto the stored object's metadata under the
+   * {@code sdk-logging-service-id} and {@code sdk-logging-tenant-id} keys. This is what lets cloud
+   * audit logs (e.g. S3 server access logs / GCS data access logs) be traced back to the
+   * originating service and tenant. When a correlation ID is also supplied, it is likewise
+   * persisted under {@code sdk-logging-correlation-id}.
+   */
+  @Test
+  public void testUpload_withServiceAndTenantId_stampsObjectMetadata() {
+    // Ali: the OSS provider stamps only the correlation id, not service/tenant id, so it does not
+    // satisfy this conformance expectation and has no recorded mappings for it.
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
+    String key = "conformance-tests/upload/observabilityMetadata";
+    String serviceId = "conformance-service";
+    String tenantId = "conformance-tenant";
+    String correlationId = "conformance-correlation-id";
+    byte[] content = "observability metadata test".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      OperationContext operationContext =
+          OperationContext.builder()
+              .serviceId(serviceId)
+              .tenantId(tenantId)
+              .correlationId(correlationId)
+              .build();
+
+      UploadResponse uploadResponse;
+      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+        UploadRequest request =
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(content.length)
+                .withOperationContext(operationContext)
+                .build();
+        uploadResponse = bucketClient.upload(request, inputStream);
+      }
+      Assertions.assertNotNull(uploadResponse, "No upload response returned");
+
+      BlobMetadata blobMetadata = bucketClient.getMetadata(key, null);
+      Assertions.assertNotNull(blobMetadata, "No metadata returned");
+      Map<String, String> storedMetadata = blobMetadata.getMetadata();
+
+      Assertions.assertEquals(
+          serviceId,
+          storedMetadata.get("sdk-logging-service-id"),
+          "service id was not stamped onto object metadata");
+      Assertions.assertEquals(
+          tenantId,
+          storedMetadata.get("sdk-logging-tenant-id"),
+          "tenant id was not stamped onto object metadata");
+      Assertions.assertEquals(
+          correlationId,
+          storedMetadata.get("sdk-logging-correlation-id"),
+          "correlation id was not stamped onto object metadata");
+    } catch (IOException e) {
+      Assertions.fail("testUpload_withServiceAndTenantId: unexpected error " + e.getMessage());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  /**
+   * Verifies that when an {@link OperationContext} supplies a custom correlation id key via {@code
+   * correlationIdKey}, the SDK stamps the correlation id under that custom key <em>instead of</em>
+   * the default {@code sdk-logging-correlation-id} key. Runs only against the in-memory provider:
+   * the AWS/GCP/Ali suites replay recorded WireMock fixtures that were never recorded with a custom
+   * key, so exercising it there would require re-recording them.
+   */
+  @Test
+  public void testUpload_withCustomCorrelationIdKey_stampsCustomKeyOnly() {
+    Assumptions.assumeTrue(
+        INMEMORY_PROVIDER_ID.equals(harness.getProviderId()),
+        "Custom correlation id key test only runs on the in-memory provider");
+
+    String key = "conformance-tests/upload/customCorrelationIdKey";
+    String customKey = "x-request-id";
+    String correlationId = "custom-key-test-correlation-id";
+    byte[] content = "custom correlation id key test".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      OperationContext operationContext =
+          OperationContext.builder()
+              .correlationId(correlationId)
+              .correlationIdKey(customKey)
+              .build();
+
+      UploadResponse uploadResponse;
+      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+        UploadRequest request =
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(content.length)
+                .withOperationContext(operationContext)
+                .build();
+        uploadResponse = bucketClient.upload(request, inputStream);
+      }
+      Assertions.assertNotNull(uploadResponse, "No upload response returned");
+
+      Map<String, String> storedMetadata = bucketClient.getMetadata(key, null).getMetadata();
+      Assertions.assertEquals(
+          correlationId,
+          storedMetadata.get(customKey),
+          "Custom correlation id key '" + customKey + "' was not stamped onto object metadata");
+      Assertions.assertFalse(
+          storedMetadata.containsKey(SdkLoggingMetadataKeys.CORRELATION_ID),
+          "Default correlation id key must be absent when a custom key is supplied");
+    } catch (Exception e) {
+      Assertions.fail("testUpload_withCustomCorrelationIdKey: unexpected error " + e.getMessage());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  /**
+   * Verifies that when an {@link OperationContext} carrying a service ID and tenant ID is attached
+   * to an initiateMultipartUpload, the SDK stamps those identifiers onto the completed object's
+   * metadata under the {@code sdk-logging-service-id} and {@code sdk-logging-tenant-id} keys,
+   * mirroring the single-shot upload behavior. When a correlation ID is also supplied, it is
+   * likewise persisted under {@code sdk-logging-correlation-id}.
+   */
+  @Test
+  public void testInitiateMultipartUpload_withServiceAndTenantId_stampsObjectMetadata() {
+    // Ali: the OSS provider stamps only the correlation id, not service/tenant id, so it does not
+    // satisfy this conformance expectation and has no recorded mappings for it.
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
+    String key = "conformance-tests/multipart/observabilityMetadata";
+    String serviceId = "conformance-service";
+    String tenantId = "conformance-tenant";
+    String correlationId = "conformance-correlation-id";
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    MultipartUpload mpu = null;
+    try {
+      OperationContext operationContext =
+          OperationContext.builder()
+              .serviceId(serviceId)
+              .tenantId(tenantId)
+              .correlationId(correlationId)
+              .build();
+
+      MultipartUploadRequest request =
+          new MultipartUploadRequest.Builder()
+              .withKey(key)
+              .withOperationContext(operationContext)
+              .build();
+      mpu = bucketClient.initiateMultipartUpload(request);
+
+      // The returned handle echoes the stamped metadata so it reflects what actually lands on the
+      // object, consistent with the getMetadata read-back asserted below.
+      Map<String, String> handleMetadata = mpu.getMetadata();
+      Assertions.assertEquals(
+          serviceId,
+          handleMetadata.get("sdk-logging-service-id"),
+          "service id was not echoed onto the multipart upload handle metadata");
+      Assertions.assertEquals(
+          tenantId,
+          handleMetadata.get("sdk-logging-tenant-id"),
+          "tenant id was not echoed onto the multipart upload handle metadata");
+      Assertions.assertEquals(
+          correlationId,
+          handleMetadata.get("sdk-logging-correlation-id"),
+          "correlation id was not echoed onto the multipart upload handle metadata");
+
+      UploadPartResponse partResponse =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(1, multipartBytes1));
+      bucketClient.completeMultipartUpload(mpu, List.of(partResponse));
+      mpu = null;
+
+      BlobMetadata blobMetadata = bucketClient.getMetadata(key, null);
+      Assertions.assertNotNull(blobMetadata, "No metadata returned");
+      Map<String, String> storedMetadata = blobMetadata.getMetadata();
+
+      Assertions.assertEquals(
+          serviceId,
+          storedMetadata.get("sdk-logging-service-id"),
+          "service id was not stamped onto object metadata");
+      Assertions.assertEquals(
+          tenantId,
+          storedMetadata.get("sdk-logging-tenant-id"),
+          "tenant id was not stamped onto object metadata");
+      Assertions.assertEquals(
+          correlationId,
+          storedMetadata.get("sdk-logging-correlation-id"),
+          "correlation id was not stamped onto object metadata");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+      if (mpu != null) {
+        try {
+          bucketClient.abortMultipartUpload(mpu);
+        } catch (Throwable t) {
+          // Ignore
+        }
+      }
+    }
   }
 
   private void runUploadTests(String testName, String key, byte[] content, boolean wantError) {
@@ -539,6 +870,37 @@ public abstract class AbstractBlobStoreIT {
         "conformance-tests/download_happy",
         "conformance-tests/download_happy",
         false);
+  }
+
+  /**
+   * {@link DownloadRequest.Builder#withCreateParentPath(boolean)}: object key contains slashes and
+   * content is written under a destination directory preserving that layout.
+   */
+  @Test
+  public void testDownload_createParentPath() throws IOException {
+    String key = "conformance-tests/download_create_parent/nested/object_unversioned";
+    runDownloadTest(
+        "create parent path file download",
+        key,
+        key,
+        false,
+        DownloadType.File,
+        true,
+        true,
+        false,
+        false,
+        true);
+    runDownloadTest(
+        "create parent path path download",
+        key,
+        key,
+        false,
+        DownloadType.Path,
+        true,
+        true,
+        false,
+        false,
+        true);
   }
 
   @Test
@@ -673,6 +1035,31 @@ public abstract class AbstractBlobStoreIT {
       boolean useCorrectVersionId,
       boolean wantError)
       throws IOException {
+    runDownloadTest(
+        testName,
+        uploadKey,
+        downloadKey,
+        useVersionedBucket,
+        downloadType,
+        downloadUsingVersionId,
+        useCorrectVersionId,
+        wantError,
+        false,
+        false);
+  }
+
+  private void runDownloadTest(
+      String testName,
+      String uploadKey,
+      String downloadKey,
+      boolean useVersionedBucket,
+      DownloadType downloadType,
+      boolean downloadUsingVersionId,
+      boolean useCorrectVersionId,
+      boolean wantError,
+      boolean parallelDownload,
+      boolean createParentPath)
+      throws IOException {
     // Test data
     String blobData = "This is test data";
     byte[] blobBytes = blobData.getBytes(StandardCharsets.UTF_8);
@@ -707,16 +1094,21 @@ public abstract class AbstractBlobStoreIT {
         requestBuilder.withVersionId(
             useCorrectVersionId ? uploadResponse.getVersionId() : "fakeVersionId");
       }
+      requestBuilder.withParallelDownload(parallelDownload);
+      requestBuilder.withCreateParentPath(createParentPath);
       DownloadRequest request = requestBuilder.build();
       DownloadResponse response;
       byte[] content;
       try {
-        Pair<DownloadResponse, byte[]> result = readContent(bucketClient, request, downloadType);
+        Pair<DownloadResponse, byte[]> result =
+            readContent(bucketClient, request, downloadType, createParentPath);
         response = result.getLeft();
         content = result.getRight();
         Assertions.assertEquals(
             blobBytes.length, content.length, testName + ": Content-Length did not match");
         Assertions.assertArrayEquals(blobBytes, content, testName + ": Bytes arrays did not match");
+        Assertions.assertNotNull(response.getMetadata().getChecksum(),
+            testName + ": checksum is not there");
       } catch (SubstrateSdkException e) {
         Assertions.assertTrue(wantError, testName + ": Did not expect error. " + e.getMessage());
         return;
@@ -736,6 +1128,8 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertNotNull(response.getMetadata().getETag(), testName + ": etag was missing");
       Assertions.assertNotNull(
           response.getMetadata().getLastModified(), testName + ": lastModified was missing");
+      Assertions.assertNotNull(
+          response.getMetadata().getCreatedTime(), testName + ": createdTime was missing");
     } finally {
       // Delete our blob to clean up the test
       safeDeleteBlobs(bucketClient, uploadKey);
@@ -846,9 +1240,20 @@ public abstract class AbstractBlobStoreIT {
     }
   }
 
-  /** Helper function for downloading content using the overloaded download() types */
+  /**
+   * Helper function for downloading content using the overloaded download() types
+   */
   private Pair<DownloadResponse, byte[]> readContent(
       BucketClient bucketClient, DownloadRequest request, DownloadType downloadType)
+      throws IOException {
+    return readContent(bucketClient, request, downloadType, false);
+  }
+
+  private Pair<DownloadResponse, byte[]> readContent(
+      BucketClient bucketClient,
+      DownloadRequest request,
+      DownloadType downloadType,
+      boolean createParentPath)
       throws IOException {
     byte[] content = null;
     DownloadResponse response = null;
@@ -857,7 +1262,7 @@ public abstract class AbstractBlobStoreIT {
         response = bucketClient.download(request);
         if (response.getInputStream() != null) {
           try (InputStream inputStream = response.getInputStream();
-              ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+               ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[1024];
             int bytesRead;
             while ((bytesRead = inputStream.read(buffer)) != -1) {
@@ -873,22 +1278,64 @@ public abstract class AbstractBlobStoreIT {
         content = byteArray.getBytes();
         break;
       case File:
-        Path path = Files.createTempFile("tempFile", ".txt");
-        File file = path.toFile();
-        file.delete();
-        response = bucketClient.download(request, file);
-        content = Files.readAllBytes(path);
+        if (createParentPath) {
+          Path rootDir = Files.createTempDirectory("mcbj-create-parent-");
+          try {
+            response = bucketClient.download(request, rootDir.toFile());
+            Path dataPath = rootDir.resolve(request.getKey()).normalize();
+            content = Files.readAllBytes(dataPath);
+          } finally {
+            deleteRecursivelyQuietly(rootDir);
+          }
+        } else {
+          Path path = Files.createTempFile("tempFile", ".txt");
+          File file = path.toFile();
+          file.delete();
+          response = bucketClient.download(request, file);
+          content = Files.readAllBytes(path);
+        }
         break;
       case Path:
-        Path path2 = Files.createTempFile("tempPath", ".txt");
-        path2.toFile().delete();
-        response = bucketClient.download(request, path2);
-        content = Files.readAllBytes(path2);
+        if (createParentPath) {
+          Path rootDir = Files.createTempDirectory("mcbj-create-parent-");
+          try {
+            response = bucketClient.download(request, rootDir);
+            Path dataPath = rootDir.resolve(request.getKey()).normalize();
+            content = Files.readAllBytes(dataPath);
+          } finally {
+            deleteRecursivelyQuietly(rootDir);
+          }
+        } else {
+          Path path2 = Files.createTempFile("tempPath", ".txt");
+          path2.toFile().delete();
+          response = bucketClient.download(request, path2);
+          content = Files.readAllBytes(path2);
+        }
         break;
       default:
         throw new IllegalArgumentException("Unsupported download type: " + downloadType);
     }
     return new ImmutablePair<>(response, content);
+  }
+
+  private static void deleteRecursivelyQuietly(Path root) {
+    if (root == null || !Files.exists(root)) {
+      return;
+    }
+    try (var paths = Files.walk(root)) {
+      paths.sorted(Comparator.reverseOrder()).forEach(AbstractBlobStoreIT::deletePathQuietly);
+    } catch (IOException e) {
+      LoggerFactory.getLogger(AbstractBlobStoreIT.class)
+          .debug("Failed to walk temp directory for cleanup: {}", root, e);
+    }
+  }
+
+  private static void deletePathQuietly(Path p) {
+    try {
+      Files.deleteIfExists(p);
+    } catch (IOException e) {
+      LoggerFactory.getLogger(AbstractBlobStoreIT.class).debug("Failed to delete path: {}", p, e);
+    }
   }
 
   // Note: This tests delete for non-versioned buckets
@@ -1100,7 +1547,7 @@ public abstract class AbstractBlobStoreIT {
       UploadResponse uploadResponse1;
       UploadResponse uploadResponse2;
       try (InputStream inputStream1 = new ByteArrayInputStream(blobBytes1);
-          InputStream inputStream2 = new ByteArrayInputStream(blobBytes2)) {
+           InputStream inputStream2 = new ByteArrayInputStream(blobBytes2)) {
         UploadRequest request1 =
             new UploadRequest.Builder().withKey(key).withContentLength(blobBytes1.length).build();
         uploadResponse1 = bucketClient.upload(request1, inputStream1);
@@ -1286,7 +1733,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testCopy() throws IOException {
-
     String key = "conformance-tests/blob-for-copying";
     String destKey = "conformance-tests/copied-blob";
     String blobToClobber = "conformance-tests/clobbered-blob";
@@ -1478,7 +1924,7 @@ public abstract class AbstractBlobStoreIT {
 
     // Verify the copied contents are the same
     try (ByteArrayOutputStream originalOutputStream = new ByteArrayOutputStream();
-        ByteArrayOutputStream destOutputStream = new ByteArrayOutputStream()) {
+         ByteArrayOutputStream destOutputStream = new ByteArrayOutputStream()) {
 
       bucketClient.download(
           new DownloadRequest.Builder()
@@ -1514,7 +1960,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testCopyFrom() throws IOException {
-
     String key = "conformance-tests/blob-for-copyFrom";
     String destKey = "conformance-tests/copied-from-blob";
     String blobToClobber = "conformance-tests/clobbered-from-blob";
@@ -1779,6 +2224,49 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
+  public void testList_WithDelimiter_IncludesMarkedCommonPrefixesWhenRequested()
+      throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String base = "conformance-tests/list-common-prefixes/";
+    String[] keys = {base + "directory/blob.txt", base + "root.txt"};
+    byte[] content = "test".getBytes(StandardCharsets.UTF_8);
+
+    try {
+      for (String key : keys) {
+        try (InputStream inputStream = new ByteArrayInputStream(content)) {
+          bucketClient.upload(
+              new UploadRequest.Builder().withKey(key).withContentLength(content.length).build(),
+              inputStream);
+        }
+      }
+
+      Iterator<BlobInfo> entries =
+          bucketClient.list(
+              ListBlobsRequest.builder()
+                  .withPrefix(base)
+                  .withDelimiter("/")
+                  .withIncludeCommonPrefixes(true)
+                  .build());
+      Set<String> commonPrefixes = new HashSet<>();
+      Set<String> blobKeys = new HashSet<>();
+      entries.forEachRemaining(
+          entry -> {
+            if (entry.isCommonPrefix()) {
+              commonPrefixes.add(entry.getKey());
+            } else {
+              blobKeys.add(entry.getKey());
+            }
+          });
+
+      Assertions.assertEquals(Set.of(base + "directory/"), commonPrefixes);
+      Assertions.assertEquals(Set.of(base + "root.txt"), blobKeys);
+    } finally {
+      safeDeleteBlobs(bucketClient, keys);
+    }
+  }
+
+  @Test
   public void testListPage() throws IOException {
 
     // Create the BucketClient
@@ -1790,13 +2278,13 @@ public abstract class AbstractBlobStoreIT {
     String prefixKey = baseKey + "/prefix";
     String[] keys =
         new String[] {
-          baseKey,
-          prefixKey + "-1",
-          prefixKey + "-2",
-          prefixKey + "_3",
-          prefixKey + "-4",
-          prefixKey + "-5",
-          prefixKey + "_6"
+            baseKey,
+            prefixKey + "-1",
+            prefixKey + "-2",
+            prefixKey + "_3",
+            prefixKey + "-4",
+            prefixKey + "-5",
+            prefixKey + "_6"
         };
     byte[] blobBytes = "Default content for this blob".getBytes(StandardCharsets.UTF_8);
 
@@ -1915,16 +2403,15 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListPage_WithDelimiter_ReturnsCommonPrefixes() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
     String base = "conformance-tests/common-prefix-basic/";
     String[] keys = {
-      base + "dir1/a.txt",
-      base + "dir1/b.txt",
-      base + "dir2/c.txt",
-      base + "root.txt"
+        base + "dir1/a.txt",
+        base + "dir1/b.txt",
+        base + "dir2/c.txt",
+        base + "root.txt"
     };
     byte[] content = "test".getBytes(StandardCharsets.UTF_8);
 
@@ -1962,16 +2449,15 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListPage_WithPrefixAndDelimiter_OneBlobOnePrefix() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
     String base = "conformance-tests/common-prefix-nested/";
     String[] keys = {
-      base + "dir1/a.txt",
-      base + "dir1/b.txt",
-      base + "dir2/c.txt",
-      base + "root.txt"
+        base + "dir1/a.txt",
+        base + "dir1/b.txt",
+        base + "dir2/c.txt",
+        base + "root.txt"
     };
     byte[] content = "test".getBytes(StandardCharsets.UTF_8);
 
@@ -2004,14 +2490,13 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListPage_AllPrefixes_NoTopLevelBlobs() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
     String base = "conformance-tests/common-prefix-all-dirs/";
     String[] keys = {
-      base + "dir1/a.txt",
-      base + "dir2/b.txt"
+        base + "dir1/a.txt",
+        base + "dir2/b.txt"
     };
     byte[] content = "test".getBytes(StandardCharsets.UTF_8);
 
@@ -2045,17 +2530,16 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListPage_WithDelimiter_MultiPage() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
     // 3 virtual dirs + 1 top-level blob = 4 total entries; maxResults=2 forces 2 pages
     String base = "conformance-tests/common-prefix-multipage/";
     String[] keys = {
-      base + "a/file.txt",
-      base + "b/file.txt",
-      base + "c/file.txt",
-      base + "root.txt"
+        base + "a/file.txt",
+        base + "b/file.txt",
+        base + "c/file.txt",
+        base + "root.txt"
     };
     byte[] content = "test".getBytes(StandardCharsets.UTF_8);
 
@@ -2116,7 +2600,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListPage_NoDelimiter_CommonPrefixesEmpty() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -2152,7 +2635,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListPage_MaxResults1_WithDelimiter() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -2207,7 +2689,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListPage_CommonPrefixesNeverNull() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -2389,11 +2870,13 @@ public abstract class AbstractBlobStoreIT {
             uploadResponse.getETag(),
             blobMetadata.getETag(),
             testConfig.testName + ": The metadata etag does not match the original");
-        Assertions.assertEquals(
+        assertUserMetadataEquals(
             testConfig.expectedMetadata,
             blobMetadata.getMetadata(),
             testConfig.testName + ": The metadata does not match the original");
         Assertions.assertNotNull(blobMetadata.getLastModified());
+        Assertions.assertNotNull(blobMetadata.getCreatedTime());
+        Assertions.assertNotNull(blobMetadata.getChecksum());
       }
     } finally {
       // Delete our blob to clean up the test
@@ -2413,16 +2896,24 @@ public abstract class AbstractBlobStoreIT {
         () -> bucketClient.getMetadata("conformance-tests/non-existent-blob", null));
   }
 
-  /** Fixed retainUntil for object lock tests so WireMock replay matches recorded request body. */
+  /**
+   * Fixed retainUntil for object lock tests so WireMock replay matches recorded request body.
+   * Values must remain far in the future so record mode remains valid over time and providers
+   * that reject past retention dates on upload continue to accept the request.
+   */
   private static final Instant OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE =
-      Instant.parse("2026-03-11T15:47:28.252Z");
+      Instant.parse("2030-04-30T00:00:00Z");
   private static final Instant OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE =
-      Instant.parse("2026-03-11T15:47:25.512Z");
+      Instant.parse("2030-04-30T00:00:00Z");
+  private static final Instant OBJECT_LOCK_RETAIN_UNTIL_DIRECTORY_UPLOAD =
+      Instant.parse("2030-04-30T00:00:00Z");
 
   @Test
   public void testGetObjectLock_afterUploadWithRetentionGovernance() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+    // Ali: OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE was bumped forward, but the Ali code path and its
+    // stubs were not re-recorded as part of that change, so the recorded body no longer matches
+    // the outgoing request. This test remains skipped for Ali until its stubs are regenerated.
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
 
     String key = "conformance-tests/objectlock/retention-governance";
     byte[] content = "Object lock retention governance test".getBytes(StandardCharsets.UTF_8);
@@ -2461,8 +2952,11 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testGetObjectLock_afterUploadWithRetentionCompliance() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+    // Ali: OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE was previously in the past, which OSS rejected in
+    // record mode. The constant has been bumped forward, but the Ali code path and its stubs
+    // were not re-recorded as part of that change, so this test remains skipped for Ali until
+    // its stubs are regenerated.
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
 
     String key = "conformance-tests/objectlock/retention-compliance";
     byte[] content = "Object lock retention compliance test".getBytes(StandardCharsets.UTF_8);
@@ -2501,9 +2995,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testGetObjectLock_objectWithoutLock_returnsNullOrNoRetention() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
-
     String key = "conformance-tests/objectlock/no-lock";
     byte[] content = "Object without lock test".getBytes(StandardCharsets.UTF_8);
 
@@ -2541,15 +3032,424 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testGetObjectLock_nonexistentKey_throws() {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
-
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
 
     Assertions.assertThrows(
         Exception.class,
         () -> bucketClient.getObjectLock("conformance-tests/objectlock/nonexistent", null));
+  }
+
+  // ------------------------------------------------------------------------------------
+  // Conformance tests for getBucketVersioning()
+  //
+  // These verify that every provider that supports bucket-level versioning reports the same
+  // status for an enabled bucket and surfaces an error for a bucket that does not exist. The
+  // SUSPENDED / UNVERSIONED mapping differs by substrate and is covered by provider unit tests.
+  // ------------------------------------------------------------------------------------
+
+  @Test
+  public void testGetBucketVersioning_enabledBucket() {
+    // The versioned conformance bucket is provisioned with versioning enabled.
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    BucketVersioningConfiguration configuration = bucketClient.getBucketVersioning();
+
+    Assertions.assertNotNull(
+        configuration, "getBucketVersioning should return a non-null configuration");
+    Assertions.assertEquals(
+        BucketVersioningStatus.ENABLED,
+        configuration.getStatus(),
+        "Versioned conformance bucket should report ENABLED");
+  }
+
+  @Test
+  public void testGetBucketVersioning_nonexistentBucket_throws() {
+    AbstractBlobStore blobStore = harness.createBlobStore(false, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // All providers must throw SubstrateSdkException for a bucket that does not exist.
+    Assertions.assertThrows(SubstrateSdkException.class, bucketClient::getBucketVersioning);
+  }
+
+  // ------------------------------------------------------------------------------------
+  // Conformance tests for updateObjectRetention(key, versionId, ObjectRetentionConfig)
+  //
+  // These verify that AWS, GCP, and the in-memory provider behave identically against the
+  // (config.mode, config.bypassGovernanceRetention, current state, new date vs current)
+  // rules table documented on BlobStore#updateObjectRetention(String, String,
+  // ObjectRetentionConfig).
+  // ------------------------------------------------------------------------------------
+
+  /** Fixed retain-until pair for update-retention tests; second value is later than first. */
+  private static final Instant UPDATE_RETENTION_INITIAL =
+      Instant.parse("2030-01-01T00:00:00Z");
+  private static final Instant UPDATE_RETENTION_EXTENDED =
+      Instant.parse("2030-06-01T00:00:00Z");
+  private static final Instant UPDATE_RETENTION_SHORTENED =
+      Instant.parse("2030-02-01T00:00:00Z");
+
+  /**
+   * Helper to upload a key with a specific retention configuration so the update-retention
+   * conformance tests have a known starting state.
+   */
+  private void uploadWithRetention(
+      BucketClient bucketClient, String key, RetentionMode mode, Instant retainUntil)
+      throws IOException {
+    byte[] content = ("retention-update-" + key).getBytes(StandardCharsets.UTF_8);
+    ObjectLockConfiguration lockConfig =
+        ObjectLockConfiguration.builder()
+            .mode(mode)
+            .retainUntilDate(retainUntil)
+            .legalHold(false)
+            .build();
+    try (InputStream inputStream = new ByteArrayInputStream(content)) {
+      bucketClient.upload(
+          new UploadRequest.Builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withObjectLock(lockConfig)
+              .withChecksumValue(harness.computeChecksum(content))
+              .build(),
+          inputStream);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_governance_extend_succeeds() throws IOException {
+    String key = "conformance-tests/objectlock/update/gov-extend";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.GOVERNANCE, UPDATE_RETENTION_INITIAL);
+
+      bucketClient.updateObjectRetention(
+          key,
+          null,
+          ObjectRetentionConfig.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(UPDATE_RETENTION_EXTENDED)
+              .build());
+
+      ObjectLockInfo info = bucketClient.getObjectLock(key, null);
+      Assertions.assertEquals(RetentionMode.GOVERNANCE, info.getMode());
+      Assertions.assertEquals(UPDATE_RETENTION_EXTENDED, info.getRetainUntilDate());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_compliance_extend_succeeds() throws IOException {
+    String key = "conformance-tests/objectlock/update/comp-extend";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.COMPLIANCE, UPDATE_RETENTION_INITIAL);
+
+      bucketClient.updateObjectRetention(
+          key,
+          null,
+          ObjectRetentionConfig.builder()
+              .mode(RetentionMode.COMPLIANCE)
+              .retainUntilDate(UPDATE_RETENTION_EXTENDED)
+              .build());
+
+      Assertions.assertEquals(
+          UPDATE_RETENTION_EXTENDED, bucketClient.getObjectLock(key, null).getRetainUntilDate());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_governance_shorten_withBypass_succeeds()
+      throws IOException {
+    String key = "conformance-tests/objectlock/update/gov-shorten-bypass";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.GOVERNANCE, UPDATE_RETENTION_EXTENDED);
+
+      bucketClient.updateObjectRetention(
+          key,
+          null,
+          ObjectRetentionConfig.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(UPDATE_RETENTION_SHORTENED)
+              .bypassGovernanceRetention(Boolean.TRUE)
+              .build());
+
+      Assertions.assertEquals(
+          UPDATE_RETENTION_SHORTENED, bucketClient.getObjectLock(key, null).getRetainUntilDate());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_governance_shorten_withoutBypass_throws()
+      throws IOException {
+    String key = "conformance-tests/objectlock/update/gov-shorten-no-bypass";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.GOVERNANCE, UPDATE_RETENTION_EXTENDED);
+
+      ObjectRetentionConfig cfg =
+          ObjectRetentionConfig.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(UPDATE_RETENTION_SHORTENED)
+              .build();
+      Assertions.assertThrows(
+          Exception.class, () -> bucketClient.updateObjectRetention(key, null, cfg));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_modeUpgrade_governanceToCompliance_withBypass_succeeds()
+      throws IOException {
+    // Mode upgrade requires bypassGovernanceRetention=true on both AWS and GCP — the cloud
+    // treats the lock-mode change as a modification of the existing lock. The rules helper
+    // mirrors that and rejects upgrade without bypass.
+    // OSS rejects mode upgrade (GOVERNANCE→COMPLIANCE) with 409 FileImmutable even with
+    // bypass — OSS does not support changing retention mode once set on an object version.
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    String key = "conformance-tests/objectlock/update/mode-upgrade";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.GOVERNANCE, UPDATE_RETENTION_INITIAL);
+
+      bucketClient.updateObjectRetention(
+          key,
+          null,
+          ObjectRetentionConfig.builder()
+              .mode(RetentionMode.COMPLIANCE)
+              .retainUntilDate(UPDATE_RETENTION_EXTENDED)
+              .bypassGovernanceRetention(Boolean.TRUE)
+              .build());
+
+      ObjectLockInfo info = bucketClient.getObjectLock(key, null);
+      Assertions.assertEquals(RetentionMode.COMPLIANCE, info.getMode());
+      Assertions.assertEquals(UPDATE_RETENTION_EXTENDED, info.getRetainUntilDate());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_modeUpgrade_governanceToCompliance_withoutBypass_throws()
+      throws IOException {
+    // Without bypassGovernanceRetention=true, the cloud rejects the lock-mode change.
+    // The rules helper rejects this client-side for uniform error reporting.
+    String key = "conformance-tests/objectlock/update/mode-upgrade-no-bypass";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.GOVERNANCE, UPDATE_RETENTION_INITIAL);
+
+      ObjectRetentionConfig cfg =
+          ObjectRetentionConfig.builder()
+              .mode(RetentionMode.COMPLIANCE)
+              .retainUntilDate(UPDATE_RETENTION_EXTENDED)
+              .build();
+      Assertions.assertThrows(
+          Exception.class, () -> bucketClient.updateObjectRetention(key, null, cfg));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_modeDowngrade_complianceToGovernance_throws()
+      throws IOException {
+    String key = "conformance-tests/objectlock/update/mode-downgrade";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.COMPLIANCE, UPDATE_RETENTION_INITIAL);
+
+      ObjectRetentionConfig cfg =
+          ObjectRetentionConfig.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(UPDATE_RETENTION_EXTENDED)
+              .bypassGovernanceRetention(Boolean.TRUE)
+              .build();
+      Assertions.assertThrows(
+          Exception.class, () -> bucketClient.updateObjectRetention(key, null, cfg));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_compliance_shorten_evenWithBypass_throws()
+      throws IOException {
+    // bypassGovernanceRetention=true CANNOT rescue a shorten on COMPLIANCE/LOCKED — both AWS
+    // and GCP ignore the flag on the immutable mode. MultiCloudJ surfaces a uniform
+    // FailedPreconditionException client-side rather than waiting for HTTP 403 from AWS or
+    // HTTP 400/412 from GCP.
+    String key = "conformance-tests/objectlock/update/comp-shorten-bypass";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.COMPLIANCE, UPDATE_RETENTION_EXTENDED);
+
+      ObjectRetentionConfig cfg =
+          ObjectRetentionConfig.builder()
+              .mode(RetentionMode.COMPLIANCE)
+              .retainUntilDate(UPDATE_RETENTION_SHORTENED)
+              .bypassGovernanceRetention(Boolean.TRUE)
+              .build();
+      Assertions.assertThrows(
+          Exception.class, () -> bucketClient.updateObjectRetention(key, null, cfg));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_noCurrentRetention_throws() throws IOException {
+    // Upload WITHOUT retention config — object has no retention set.
+    String key = "conformance-tests/objectlock/update/no-current-retention";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      byte[] content = "no-retention".getBytes(StandardCharsets.UTF_8);
+      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+        bucketClient.upload(
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(content.length)
+                .withChecksumValue(harness.computeChecksum(content))
+                .build(),
+            inputStream);
+      }
+
+      ObjectRetentionConfig cfg =
+          ObjectRetentionConfig.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(UPDATE_RETENTION_EXTENDED)
+              .build();
+      Assertions.assertThrows(
+          FailedPreconditionException.class,
+          () -> bucketClient.updateObjectRetention(key, null, cfg));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  @Disabled(
+      "Backward-compat verification covered by deprecated-method tests in"
+          + " AbstractBlobStoreTest; full IT path requires the Instant overload to be exercised"
+          + " against a recorded WireMock fixture, which is generated alongside the new overload"
+          + " fixtures.")
+  public void testUpdateObjectRetention_deprecatedInstantOverload_stillWorks() throws IOException {
+    String key = "conformance-tests/objectlock/update/deprecated-path";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.GOVERNANCE, UPDATE_RETENTION_INITIAL);
+
+      // Deprecated Instant overload — must keep working with unchanged semantics.
+      bucketClient.updateObjectRetention(key, null, UPDATE_RETENTION_EXTENDED);
+
+      Assertions.assertEquals(
+          UPDATE_RETENTION_EXTENDED, bucketClient.getObjectLock(key, null).getRetainUntilDate());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_nullConfig_throws() {
+    // Stateless validation in BlobStoreValidator runs before any provider hook —
+    // so this test does NOT need a provider implementation to pass. Verifies that the
+    // template (AbstractBlobStore.updateObjectRetention) invokes the validator.
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // BucketClient wraps IllegalArgumentException in InvalidArgumentException via
+    // ExceptionHandler; assert on the wrapper for parity with other client-level tests.
+    Assertions.assertThrows(
+        com.salesforce.multicloudj.common.exceptions.InvalidArgumentException.class,
+        () ->
+            bucketClient.updateObjectRetention(
+                "conformance-tests/objectlock/null-config",
+                null,
+                (ObjectRetentionConfig) null));
+  }
+
+  @Test
+  public void testUpdateObjectRetention_nullRetainUntilDate_throws() {
+    // Stateless validation. Same as above — does not require a provider implementation.
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .build(); // retainUntilDate intentionally null
+
+    Assertions.assertThrows(
+        com.salesforce.multicloudj.common.exceptions.InvalidArgumentException.class,
+        () ->
+            bucketClient.updateObjectRetention(
+                "conformance-tests/objectlock/null-date", null, cfg));
+  }
+
+  @Test
+  public void testUpdateObjectRetention_legalHoldPreservedAcrossUpdate() throws IOException {
+    String key = "conformance-tests/objectlock/update/legalhold-preserved";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      // Upload with retention + legal hold ON.
+      byte[] content = "legalhold-preserved".getBytes(StandardCharsets.UTF_8);
+      ObjectLockConfiguration lockConfig =
+          ObjectLockConfiguration.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(UPDATE_RETENTION_INITIAL)
+              .legalHold(true)
+              .build();
+      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+        bucketClient.upload(
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(content.length)
+                .withObjectLock(lockConfig)
+                .withChecksumValue(harness.computeChecksum(content))
+                .build(),
+            inputStream);
+      }
+
+      bucketClient.updateObjectRetention(
+          key,
+          null,
+          ObjectRetentionConfig.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(UPDATE_RETENTION_EXTENDED)
+              .build());
+
+      Assertions.assertTrue(
+          bucketClient.getObjectLock(key, null).isLegalHold(),
+          "Legal hold should be preserved across retention update");
+    } finally {
+      // Release the legal hold before delete (else cleanup hangs on AWS).
+      try {
+        bucketClient.updateLegalHold(key, null, false);
+      } catch (Exception ignored) {
+        // Best-effort cleanup; continues to safeDeleteBlobs.
+      }
+      safeDeleteBlobs(bucketClient, key);
+    }
   }
 
   @Test
@@ -2595,14 +3495,14 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertNotNull(v1Metadata);
       Assertions.assertEquals(v1Metadata.getKey(), uploadResponse1.getKey());
       Assertions.assertEquals(v1Metadata.getVersionId(), uploadResponse1.getVersionId());
-      Assertions.assertEquals(v1Metadata.getMetadata(), metadata1);
+      assertUserMetadataEquals(metadata1, v1Metadata.getMetadata(), "v1 metadata mismatch");
 
       // Now verify the metadata from v2
       BlobMetadata v2Metadata = bucketClient.getMetadata(key, uploadResponse2.getVersionId());
       Assertions.assertNotNull(v2Metadata);
       Assertions.assertEquals(v2Metadata.getKey(), uploadResponse2.getKey());
       Assertions.assertEquals(v2Metadata.getVersionId(), uploadResponse2.getVersionId());
-      Assertions.assertEquals(v2Metadata.getMetadata(), metadata2);
+      assertUserMetadataEquals(metadata2, v2Metadata.getMetadata(), "v2 metadata mismatch");
     } finally {
       // Delete our blob to clean up the test
       safeDeleteBlobs(bucketClient, key);
@@ -2643,6 +3543,9 @@ public abstract class AbstractBlobStoreIT {
   }
 
   static class MultipartUploadTestConfig {
+    // The client defaults to binary (application/octet-stream). Override to text/plain here
+    // so that WireMock records body patterns as text instead of binary.
+    private static final String DEFAULT_CONTENT_TYPE = "text/plain";
     final String testName;
     final String key;
     final Map<String, String> metadata;
@@ -2652,6 +3555,7 @@ public abstract class AbstractBlobStoreIT {
     final boolean wantCompletionError;
     final String kmsKeyId;
     final Map<String, String> tags;
+    final String contentType;
 
     public MultipartUploadTestConfig(
         String testName,
@@ -2670,7 +3574,8 @@ public abstract class AbstractBlobStoreIT {
           abortUpload,
           wantCompletionError,
           null,
-          null);
+          null,
+          DEFAULT_CONTENT_TYPE);
     }
 
     public MultipartUploadTestConfig(
@@ -2691,7 +3596,8 @@ public abstract class AbstractBlobStoreIT {
           abortUpload,
           wantCompletionError,
           kmsKeyId,
-          null);
+          null,
+          DEFAULT_CONTENT_TYPE);
     }
 
     public MultipartUploadTestConfig(
@@ -2704,6 +3610,30 @@ public abstract class AbstractBlobStoreIT {
         boolean wantCompletionError,
         String kmsKeyId,
         Map<String, String> tags) {
+      this(
+          testName,
+          key,
+          metadata,
+          partsToUpload,
+          partsToComplete,
+          abortUpload,
+          wantCompletionError,
+          kmsKeyId,
+          tags,
+          DEFAULT_CONTENT_TYPE);
+    }
+
+    public MultipartUploadTestConfig(
+        String testName,
+        String key,
+        Map<String, String> metadata,
+        List<MultipartUploadTestPart> partsToUpload,
+        List<MultipartUploadPartResult> partsToComplete,
+        boolean abortUpload,
+        boolean wantCompletionError,
+        String kmsKeyId,
+        Map<String, String> tags,
+        String contentType) {
       this.testName = testName;
       this.key = key;
       this.metadata = metadata;
@@ -2713,6 +3643,7 @@ public abstract class AbstractBlobStoreIT {
       this.wantCompletionError = wantCompletionError;
       this.kmsKeyId = kmsKeyId;
       this.tags = tags;
+      this.contentType = contentType;
     }
   }
 
@@ -2735,6 +3666,9 @@ public abstract class AbstractBlobStoreIT {
       }
       if (testConfig.tags != null && !testConfig.tags.isEmpty()) {
         requestBuilder.withTags(testConfig.tags);
+      }
+      if (testConfig.contentType != null) {
+        requestBuilder.withContentType(testConfig.contentType);
       }
       MultipartUploadRequest multipartUploadRequest = requestBuilder.build();
       mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
@@ -3143,6 +4077,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_withChecksum() {
+    // Runs for all providers. Each substrate resolves its native composite-checksum algorithm
+    // from withChecksumEnabled(true): CRC32C on AWS/GCP, CRC64 on Ali. The harness computes the
+    // matching per-part checksum via the provider-specific computeChecksum() override.
     String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withChecksum";
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
@@ -3187,11 +4124,10 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertNotNull(completeResponse);
       Assertions.assertNotNull(completeResponse.getEtag());
 
-      // For AWS/GCP, verify composite checksum is returned
-      if (!ALI_PROVIDER_ID.equals(harness.getProviderId())) {
-        Assertions.assertNotNull(completeResponse.getChecksumValue(),
-            "Expected composite checksum in complete response for " + harness.getProviderId());
-      }
+      // All providers surface a substrate-native composite checksum on completion
+      // (CRC32C on AWS/GCP, CRC64 on Ali).
+      Assertions.assertNotNull(completeResponse.getChecksumValue(),
+          "Expected composite checksum in complete response for " + harness.getProviderId());
 
       // Verify the blob exists and content is correct
       boolean exists = bucketClient.doesObjectExist(expectedKey, null);
@@ -3254,15 +4190,61 @@ public abstract class AbstractBlobStoreIT {
   }
 
   /**
+   * Conformance test for the reserved lifecycle-expiration tag. Verifies the documented reserved
+   * key ({@code expiration-days} with a day-count value) is accepted and
+   * round-trips through {@code setTags}, and that removing it via {@code setTags} clears it. The
+   * out-of-band bucket lifecycle rule that performs the deletion is not exercised here; this locks
+   * in that every provider persists the reserved tag like any other tag rather than rejecting or
+   * stripping it.
+   */
+  @Test
+  public void testTagging_lifecycleExpiration() throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // Documented reserved lifecycle-expiration tag key. The conformance suite references the
+    // published contract string directly so it stays provider-agnostic.
+    final String reservedKey = "expiration-days";
+    String key = "conformance-tests/blob-for-lifecycle-expiration";
+    try {
+      byte[] utf8BlobBytes = "lifecycle expiration test data".getBytes(StandardCharsets.UTF_8);
+
+      // Upload a plain object first; the reserved tag is applied afterward via setTags.
+      try (InputStream inputStream = new ByteArrayInputStream(utf8BlobBytes)) {
+        UploadRequest request =
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(utf8BlobBytes.length)
+                .build();
+        bucketClient.upload(request, inputStream);
+      }
+
+      // Positive: setting the reserved tag with a day-count value round-trips like any other tag.
+      Map<String, String> tags = Map.of(reservedKey, "30");
+      bucketClient.setTags(key, tags);
+      Map<String, String> tagResults = bucketClient.getTags(key);
+      Assertions.assertEquals(
+          tags,
+          tagResults,
+          "testTagging_lifecycleExpiration: reserved tag did not round-trip on setTags");
+
+      // Removing the reserved tag via setTags clears it.
+      bucketClient.setTags(key, Map.of("unrelated", "value"));
+      tagResults = bucketClient.getTags(key);
+      Assertions.assertFalse(
+          tagResults.containsKey(reservedKey),
+          "testTagging_lifecycleExpiration: reserved tag was not cleared by setTags");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  /**
    * Conformance test for tagging on an object-lock-enabled bucket. Same flow as testTagging but
-   * uses a blob store configured for object lock (e.g. versioned/object-lock bucket). Skipped if
-   * the provider does not support object lock.
+   * uses a blob store configured for object lock (e.g. versioned/object-lock bucket).
    */
   @Test
   public void testTagging_withObjectLock() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
-
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -3474,6 +4456,7 @@ public abstract class AbstractBlobStoreIT {
             metadataForUrlGeneration, downloadResponse.getMetadata().getMetadata());
         Assertions.assertNotNull(downloadResponse.getMetadata().getETag());
         Assertions.assertNotNull(downloadResponse.getMetadata().getLastModified());
+        Assertions.assertNotNull(downloadResponse.getMetadata().getCreatedTime());
 
         // Check the metadata on the object
         BlobMetadata blobMetadata = bucketClient.getMetadata(key, null);
@@ -3601,7 +4584,7 @@ public abstract class AbstractBlobStoreIT {
     UploadResponse uploadResponse2;
 
     try (InputStream inputStream1 = new ByteArrayInputStream(blobBytes1);
-        InputStream inputStream2 = new ByteArrayInputStream(blobBytes2)) {
+         InputStream inputStream2 = new ByteArrayInputStream(blobBytes2)) {
       UploadRequest request1 =
           new UploadRequest.Builder().withKey(key).withContentLength(blobBytes1.length).build();
       uploadResponse1 = bucketClient.upload(request1, inputStream1);
@@ -3641,7 +4624,9 @@ public abstract class AbstractBlobStoreIT {
     Assertions.assertFalse(bucketClient.doesBucketExist());
   }
 
-  /** Helper function for uploading to a presignedUrl */
+  /**
+   * Helper function for uploading to a presignedUrl
+   */
   void useHttpUrlConnectionToPut(
       Harness harness,
       URL presignedUrl,
@@ -3666,7 +4651,7 @@ public abstract class AbstractBlobStoreIT {
     connection.setRequestMethod("PUT");
 
     try (InputStream inputStream = new ByteArrayInputStream(blobBytes);
-        OutputStream out = connection.getOutputStream()) {
+         OutputStream out = connection.getOutputStream()) {
       byte[] buffer = new byte[1024];
       int bytesRead;
       while ((bytesRead = inputStream.read(buffer)) != -1) {
@@ -3679,7 +4664,61 @@ public abstract class AbstractBlobStoreIT {
     }
   }
 
-  /** Helper function for downloading from a presignedUrl */
+  /**
+   * Helper for presign v2 tests: uploads to a presigned URL replaying the signed headers verbatim
+   * (no metadata-prefix wrapping).
+   *
+   * <p><b>Consumer-facing implication:</b> HTTP clients that add a default Content-Type (e.g.
+   * HttpURLConnection sends "application/x-www-form-urlencoded") will break presigned URL
+   * signatures when Content-Type was not part of the signed set. Consumers replaying presigned
+   * URLs must either (a) set Content-Type from the signedHeaders map, or (b) explicitly set it
+   * to empty when not present in signedHeaders. This helper demonstrates the correct pattern.
+   */
+  void uploadWithSignedHeaders(URL presignedUrl, byte[] content, Map<String, String> signedHeaders)
+      throws IOException {
+    HttpURLConnection connection = (HttpURLConnection) presignedUrl.openConnection();
+    connection.setDoOutput(true);
+    connection.setRequestMethod("PUT");
+    connection.setFixedLengthStreamingMode(content.length);
+
+    // Replay signed headers exactly as returned by presign().
+    // Skip host (set by connection) and content-length (handled via setFixedLengthStreamingMode).
+    if (signedHeaders != null) {
+      signedHeaders.forEach((k, v) -> {
+        if (!"host".equalsIgnoreCase(k) && !"content-length".equalsIgnoreCase(k)) {
+          connection.setRequestProperty(k, v);
+        }
+      });
+    }
+    // If Content-Type wasn't in signedHeaders, set empty to prevent HttpURLConnection from
+    // sending a default that would cause signature mismatch.
+    // Use case-insensitive check because AWS SDK returns lowercase header names.
+    boolean hasContentType = signedHeaders != null
+        && signedHeaders.keySet().stream().anyMatch(k -> k.equalsIgnoreCase("Content-Type"));
+    if (!hasContentType) {
+      connection.setRequestProperty("Content-Type", "");
+    }
+
+    try (OutputStream out = connection.getOutputStream()) {
+      out.write(content);
+    }
+    int responseCode = connection.getResponseCode();
+    if (responseCode != 200) {
+      String errorBody = "";
+      try (InputStream err = connection.getErrorStream()) {
+        if (err != null) {
+          errorBody = new String(err.readAllBytes(), StandardCharsets.UTF_8);
+        }
+      }
+      throw new IOException(
+          "Failed to upload using presignedUrl with signed headers. responseCode=" + responseCode
+              + "\nError body: " + errorBody);
+    }
+  }
+
+  /**
+   * Helper function for downloading from a presignedUrl
+   */
   public byte[] useHttpUrlConnectionToGet(URL presignedUrl) throws IOException {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     HttpURLConnection connection = (HttpURLConnection) presignedUrl.openConnection();
@@ -3694,7 +4733,9 @@ public abstract class AbstractBlobStoreIT {
     return byteArrayOutputStream.toByteArray();
   }
 
-  /** Helper function to generate the tag header value of the format tag1=value1&tag2=value2 */
+  /**
+   * Helper function to generate the tag header value of the format tag1=value1&tag2=value2
+   */
   protected String generateTagsValue(Map<String, String> tags) {
     if (tags == null || tags.isEmpty()) {
       return null;
@@ -3726,6 +4767,68 @@ public abstract class AbstractBlobStoreIT {
         // Ignore
       }
     }
+  }
+
+  /**
+   * Best-effort cleanup for blobs left behind by object-lock tests. Each key is walked through
+   * three independent steps so partial failures don't skip remaining work:
+   *
+   * <ol>
+   *   <li>Release legal hold, if any.
+   *   <li>Shorten the object's retention with {@code bypassGovernanceRetention=true}. This clears
+   *       GOVERNANCE/UNLOCKED retention so the subsequent delete can succeed. COMPLIANCE/LOCKED
+   *       retention cannot be shortened; the delete step still runs and creates a delete-marker
+   *       on a versioned bucket, which is sufficient to let re-record runs re-upload the key.
+   *   <li>Delete the blob (creates a delete-marker on versioned buckets).
+   * </ol>
+   *
+   * <p>Every step swallows exceptions so tests that call this in a {@code finally} block always
+   * make progress across all supplied keys.
+   */
+  private void safeCleanupLockedBlobs(BucketClient bucketClient, String... keys) {
+    Instant clearedRetention = Instant.parse("2020-01-01T00:00:00Z");
+    for (String key : keys) {
+      try {
+        bucketClient.updateLegalHold(key, null, false);
+      } catch (Throwable t) {
+        // Ignore
+      }
+      try {
+        bucketClient.updateObjectRetention(
+            key,
+            null,
+            ObjectRetentionConfig.builder()
+                .mode(RetentionMode.GOVERNANCE)
+                .retainUntilDate(clearedRetention)
+                .bypassGovernanceRetention(Boolean.TRUE)
+                .build());
+      } catch (Throwable t) {
+        // Ignore
+      }
+      try {
+        bucketClient.delete(key, null);
+      } catch (Throwable t) {
+        // Ignore
+      }
+    }
+  }
+
+  /**
+   * Asserts that the user-visible portion of {@code actual} blob metadata equals {@code expected},
+   * ignoring SDK-internal entries that the blob clients stamp onto uploaded objects. Today that
+   * means the {@code sdk-logging-correlation-id} key the SDK persists to tie a stored
+   * blob back to the trace
+   * span and logs of the upload that produced it; the value is non-deterministic per upload and is
+   * not user content, so it must not participate in user-metadata round-trip equality checks.
+   *
+   * <p>Keep this filter list in sync with the {@code CORRELATION_ID_METADATA_KEY} constants in the
+   * provider transformers.
+   */
+  private static void assertUserMetadataEquals(
+      Map<String, String> expected, Map<String, String> actual, String message) {
+    Map<String, String> filtered = new HashMap<>(actual);
+    filtered.remove("sdk-logging-correlation-id");
+    Assertions.assertEquals(expected, filtered, message);
   }
 
   @Test
@@ -3891,7 +4994,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testPresignedUrlWithKmsKey_nullKmsKeyId() throws IOException {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/kms/presigned-url-null-key";
     Map<String, String> metadata = Map.of("key2", "value2");
     byte[] content = "Test data for presigned URL without KMS".getBytes(StandardCharsets.UTF_8);
@@ -3923,8 +5025,334 @@ public abstract class AbstractBlobStoreIT {
     }
   }
 
+  // =====================================================================
+  // Presign v2 conformance tests — constraint binding + signed headers
+  // =====================================================================
+
+  @Test
+  public void testPresignV2_contentLengthBinding() throws Exception {
+    String key = "conformance-tests/presign-v2/content-length-binding";
+    byte[] content = "exact length content".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentLength(content.length)
+              .contentType("application/octet-stream")
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+      Assertions.assertFalse(response.getSignedHeaders().isEmpty());
+
+      // Upload only in record mode — presigned URLs bypass WireMock and can't be replayed
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_contentTypeBinding() throws Exception {
+    String key = "conformance-tests/presign-v2/content-type-binding";
+    byte[] content = "{\"test\": true}".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentType("application/json")
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+
+      // Upload only in record mode — presigned URLs bypass WireMock and cannot be replayed
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_checksumCrc32cBinding() throws Exception {
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
+    String key = "conformance-tests/presign-v2/checksum-crc32c-binding";
+    byte[] content = "checksum test data".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .checksumValue("q50emA==")
+              .checksumAlgorithm(ChecksumMethod.CRC32C)
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+
+      // Upload only in record mode — presigned URLs bypass WireMock and cannot be replayed
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_signedHeadersNonEmpty() throws Exception {
+    String key = "conformance-tests/presign-v2/signed-headers-present";
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentLength(100)
+              .contentType("application/octet-stream")
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+      Assertions.assertFalse(response.getSignedHeaders().isEmpty(),
+          "signedHeaders should be non-empty when constraints are bound");
+      Assertions.assertNotNull(response.getExpiration(),
+          "expiration should be present");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_allConstraintsCombined() throws Exception {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    String key = "conformance-tests/presign-v2/all-constraints-combined";
+    byte[] content = "combined constraint test data".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentLength(content.length)
+              .contentType("text/plain")
+              .checksumValue("0gBWRg==")
+              .checksumAlgorithm(ChecksumMethod.CRC32C)
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+      Assertions.assertFalse(response.getSignedHeaders().isEmpty(),
+          "signedHeaders should contain all constraint headers");
+      Assertions.assertNotNull(response.getExpiration(),
+          "expiration should be present");
+
+      // Upload only in record mode — presigned URLs bypass WireMock and can't be replayed
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  //@Disabled("Enable after recording: existing generatePresignedUrl still works unchanged")
+  public void testPresignV2_backwardCompatibility() throws Exception {
+    String key = "conformance-tests/presign-v2/backward-compat";
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      // Old API still works exactly as before — no constraints, bare URL
+      URL url = bucketClient.generatePresignedUrl(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .build());
+
+      Assertions.assertNotNull(url);
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  // =====================================================================
+  // Presign v2 negative tests — verify substrate REJECTS mismatched uploads
+  // These only run in record mode (presigned URLs bypass WireMock).
+  // =====================================================================
+
+  @Test
+  public void testPresignV2_contentLengthBinding_rejectsWrongSize() throws Exception {
+    Assumptions.assumeTrue(System.getProperty("record") != null,
+        "Negative presign tests require record mode (real substrate)");
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    // GCS cannot enforce Content-Length at the signature level
+    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+
+    String key = "conformance-tests/presign-v2/negative/wrong-size";
+    byte[] signedContent = "short".getBytes(StandardCharsets.UTF_8);
+    byte[] wrongContent = "this body is much longer than what was signed".getBytes(
+        StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentLength(signedContent.length)
+              .contentType("application/octet-stream")
+              .build());
+
+      // Upload with WRONG body size should be rejected
+      assertUploadRejected(response.getUrl(), wrongContent, response.getSignedHeaders());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_contentTypeBinding_rejectsWrongType() throws Exception {
+    Assumptions.assumeTrue(System.getProperty("record") != null,
+        "Negative presign tests require record mode (real substrate)");
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    // GCS does not enforce Content-Type mismatch on presigned URL uploads
+    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+
+    String key = "conformance-tests/presign-v2/negative/wrong-type";
+    byte[] content = "test data".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentType("text/plain")
+              .build());
+
+      // Upload with WRONG Content-Type should be rejected
+      Map<String, String> wrongHeaders = new java.util.LinkedHashMap<>(
+          response.getSignedHeaders());
+      wrongHeaders.entrySet().stream()
+          .filter(e -> e.getKey().equalsIgnoreCase("content-type"))
+          .findFirst()
+          .ifPresent(e -> e.setValue("application/octet-stream"));
+
+      assertUploadRejected(response.getUrl(), content, wrongHeaders);
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_checksumCrc32cBinding_rejectsWrongChecksum() throws Exception {
+    Assumptions.assumeTrue(System.getProperty("record") != null,
+        "Negative presign tests require record mode (real substrate)");
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
+    String key = "conformance-tests/presign-v2/negative/wrong-checksum";
+    byte[] content = "data whose checksum won't match".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      // Sign with a checksum that does NOT match the content
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentType("application/octet-stream")
+              .checksumValue("AAAAAAAA==")
+              .checksumAlgorithm(ChecksumMethod.CRC32C)
+              .build());
+
+      // Upload should be rejected — checksum doesn't match body
+      assertUploadRejected(response.getUrl(), content, response.getSignedHeaders());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  /**
+   * Asserts that uploading to a presigned URL with the given headers results in a 4xx rejection.
+   */
+  private void assertUploadRejected(URL presignedUrl, byte[] content,
+      Map<String, String> headers) throws IOException {
+    HttpURLConnection connection = (HttpURLConnection) presignedUrl.openConnection();
+    connection.setDoOutput(true);
+    connection.setRequestMethod("PUT");
+    connection.setFixedLengthStreamingMode(content.length);
+
+    if (headers != null) {
+      headers.forEach((k, v) -> {
+        if (!"host".equalsIgnoreCase(k) && !"content-length".equalsIgnoreCase(k)) {
+          connection.setRequestProperty(k, v);
+        }
+      });
+    }
+    boolean hasContentType = headers != null
+        && headers.keySet().stream().anyMatch(k -> k.equalsIgnoreCase("Content-Type"));
+    if (!hasContentType) {
+      connection.setRequestProperty("Content-Type", "");
+    }
+
+    try (OutputStream out = connection.getOutputStream()) {
+      out.write(content);
+    }
+    int responseCode = connection.getResponseCode();
+    Assertions.assertTrue(responseCode >= 400 && responseCode < 500,
+        "Expected 4xx rejection but got " + responseCode);
+  }
+
+
   @Test
   public void testUploadWithChecksumValidationInputStream() {
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/checksum/upload-inputstream-checksum";
     byte[] content = "Test checksum with InputStream".getBytes(StandardCharsets.UTF_8);
 
@@ -3960,6 +5388,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUploadWithChecksumValidationFile() throws Exception {
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/checksum/upload-file-checksum";
     byte[] content = "Test checksum with File".getBytes(StandardCharsets.UTF_8);
 
@@ -3992,6 +5423,227 @@ public abstract class AbstractBlobStoreIT {
       boolean exists = bucketClient.doesObjectExist(key, null);
       Assertions.assertTrue(exists, "Uploaded blob should exist");
 
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+      if (tempFile != null) {
+        Files.deleteIfExists(tempFile);
+      }
+    }
+  }
+
+  @Test
+  public void testUploadWithMd5Checksum_InputStream() {
+    // MD5 is validated as a caller-supplied digest on every substrate this SDK supports, so this
+    // test runs unconditionally.
+    String key = "conformance-tests/checksum/upload-inputstream-md5";
+    byte[] content = "Test MD5 checksum with InputStream".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      String md5 = harness.computeChecksum(content, ChecksumMethod.MD5);
+
+      UploadRequest uploadRequest =
+          UploadRequest.builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withChecksumValue(md5)
+              .withChecksumAlgorithm(ChecksumMethod.MD5)
+              .build();
+
+      UploadResponse uploadResponse =
+          bucketClient.upload(uploadRequest, new ByteArrayInputStream(content));
+
+      Assertions.assertNotNull(uploadResponse);
+      Assertions.assertEquals(key, uploadResponse.getKey());
+      Assertions.assertTrue(
+          bucketClient.doesObjectExist(key, null), "Uploaded blob should exist");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUploadWithMd5Checksum_ByteArray() {
+    String key = "conformance-tests/checksum/upload-bytearray-md5";
+    byte[] content = "Test MD5 checksum with byte array".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      String md5 = harness.computeChecksum(content, ChecksumMethod.MD5);
+
+      UploadRequest uploadRequest =
+          UploadRequest.builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withChecksumValue(md5)
+              .withChecksumAlgorithm(ChecksumMethod.MD5)
+              .build();
+
+      UploadResponse uploadResponse = bucketClient.upload(uploadRequest, content);
+
+      Assertions.assertNotNull(uploadResponse);
+      Assertions.assertEquals(key, uploadResponse.getKey());
+      Assertions.assertTrue(
+          bucketClient.doesObjectExist(key, null), "Uploaded blob should exist");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUploadWithInvalidMd5Checksum_InputStream() {
+    String key = "conformance-tests/checksum/upload-inputstream-invalid-md5";
+    byte[] content = "Test invalid MD5 checksum".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      // A syntactically valid but incorrect base64 MD5 (16 zero bytes) the substrate must reject.
+      String invalidMd5 = Base64.getEncoder().encodeToString(new byte[16]);
+
+      UploadRequest uploadRequest =
+          UploadRequest.builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withChecksumValue(invalidMd5)
+              .withChecksumAlgorithm(ChecksumMethod.MD5)
+              .build();
+
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> bucketClient.upload(uploadRequest, new ByteArrayInputStream(content)));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_md5Binding() throws Exception {
+    String key = "conformance-tests/presign-v2/md5-binding";
+    byte[] content = "Test MD5 presign binding".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              // Bind a content-type so the upload helper replays a signed Content-Type rather than
+              // forcing an unsigned empty one (which would break the OSS V4 signature).
+              .contentType("text/plain")
+              .checksumValue(harness.computeChecksum(content, ChecksumMethod.MD5))
+              .checksumAlgorithm(ChecksumMethod.MD5)
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+      Assertions.assertFalse(response.getSignedHeaders().isEmpty());
+
+      // Upload only in record mode — presigned URLs bypass WireMock and can't be replayed.
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUploadWithInvalidChecksumInputStream() {
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
+    String key = "conformance-tests/checksum/upload-inputstream-invalid-checksum";
+    byte[] content = "Test invalid checksum with InputStream".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      String invalidChecksum = Base64.getEncoder().encodeToString(new byte[] {0, 0, 0, 0});
+
+      UploadRequest uploadRequest =
+          UploadRequest.builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withChecksumValue(invalidChecksum)
+              .build();
+
+      InputStream inputStream = new ByteArrayInputStream(content);
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> bucketClient.upload(uploadRequest, inputStream));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUploadWithInvalidChecksumByteArray() {
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
+    String key = "conformance-tests/checksum/upload-bytearray-invalid-checksum";
+    byte[] content = "Test invalid checksum with byte array".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      String invalidChecksum = Base64.getEncoder().encodeToString(new byte[] {0, 0, 0, 0});
+
+      UploadRequest uploadRequest =
+          UploadRequest.builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withChecksumValue(invalidChecksum)
+              .build();
+
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> bucketClient.upload(uploadRequest, content));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUploadWithInvalidChecksumFile() throws Exception {
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
+    String key = "conformance-tests/checksum/upload-file-invalid-checksum";
+    byte[] content = "Test invalid checksum with File".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    Path tempFile = null;
+    try {
+      tempFile = Files.createTempFile("invalid-checksum-test", ".txt");
+      Files.write(tempFile, content);
+
+      String invalidChecksum = Base64.getEncoder().encodeToString(new byte[] {0, 0, 0, 0});
+
+      UploadRequest uploadRequest =
+          UploadRequest.builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withChecksumValue(invalidChecksum)
+              .build();
+
+      Path finalTempFile = tempFile;
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> bucketClient.upload(uploadRequest, finalTempFile.toFile()));
     } finally {
       safeDeleteBlobs(bucketClient, key);
       if (tempFile != null) {
@@ -4070,6 +5722,50 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
+  public void testMultipartUpload_withContentType() {
+    String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withContentType";
+    String contentType = "text/plain";
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    MultipartUpload mpu = null;
+    try {
+      MultipartUploadRequest multipartUploadRequest =
+          new MultipartUploadRequest.Builder()
+              .withKey(expectedKey)
+              .withContentType(contentType)
+              .build();
+      mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
+      Assertions.assertNotNull(mpu);
+
+      // Upload parts
+      UploadPartResponse part1Response =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(1, multipartBytes1));
+      UploadPartResponse part2Response =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(2, multipartBytes2));
+
+      // Complete multipart upload
+      List<UploadPartResponse> partsToComplete = List.of(part1Response, part2Response);
+      MultipartUploadResponse completeResponse =
+          bucketClient.completeMultipartUpload(mpu, partsToComplete);
+
+      Assertions.assertNotNull(completeResponse);
+      Assertions.assertNotNull(completeResponse.getEtag());
+
+      // Verify content type is set correctly on the resulting object
+      BlobMetadata metadata = bucketClient.getMetadata(expectedKey, null);
+      Assertions.assertNotNull(metadata, "Metadata should not be null");
+      Assertions.assertEquals(
+          contentType, metadata.getContentType(),
+          "Content type should match what was set in multipart upload request");
+
+    } finally {
+      safeDeleteBlobs(bucketClient, expectedKey);
+    }
+  }
+
+  @Test
   public void testUploadWithContentType() {
     String key = "conformance-tests/content-type/upload-with-content-type";
     byte[] content = new byte[0];
@@ -4101,5 +5797,854 @@ public abstract class AbstractBlobStoreIT {
     } finally {
       safeDeleteBlobs(bucketClient, key);
     }
+  }
+
+  @Test
+  public void testDownload_checkArchived() throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String key = "conformance-tests/check-archived/archived-blob";
+
+    try {
+      byte[] blobBytes = "archived content".getBytes(StandardCharsets.UTF_8);
+      try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
+        UploadRequest request =
+            new UploadRequest.Builder().withKey(key).withContentLength(blobBytes.length).build();
+        bucketClient.upload(request, inputStream);
+      }
+
+      bucketClient.delete(key, null);
+
+      try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+        bucketClient.download(
+            new DownloadRequest.Builder().withKey(key).withCheckArchived(true).build(),
+            outputStream);
+        Assertions.fail("Should have thrown ResourceNotFoundException");
+      } catch (ResourceNotFoundException e) {
+        ArchiveInfo archiveInfo = e.getArchiveInfo();
+        Assertions.assertNotNull(archiveInfo, "ArchiveInfo should be non-null for archived blob");
+        Assertions.assertTrue(archiveInfo.isArchived(), "archived flag should be true");
+        Assertions.assertFalse(archiveInfo.getVersionId().isEmpty(),
+            "versionId should not be empty");
+
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+          bucketClient.download(
+              new DownloadRequest.Builder()
+                  .withKey(key)
+                  .withVersionId(archiveInfo.getVersionId())
+                  .build(),
+              outputStream);
+          Assertions.assertArrayEquals(blobBytes, outputStream.toByteArray(),
+              "Should be able to download archived version by versionId");
+        }
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testDownload_checkArchived_neverExisted() throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+      bucketClient.download(
+          new DownloadRequest.Builder()
+              .withKey("conformance-tests/check-archived/never-existed")
+              .withCheckArchived(true)
+              .build(),
+          outputStream);
+      Assertions.fail("Should have thrown ResourceNotFoundException");
+    } catch (ResourceNotFoundException e) {
+      ArchiveInfo archiveInfo = e.getArchiveInfo();
+      if (archiveInfo != null) {
+        Assertions.assertFalse(archiveInfo.isArchived(),
+            "archived flag should be false for never-existed blob");
+      }
+    }
+  }
+
+  @Test
+  public void testUploadDirectory_basic(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // Create test files with nested subdirectories
+    Path file1 = tempDir.resolve("file1.txt");
+    Path subdir = tempDir.resolve("subdir");
+    Files.createDirectories(subdir);
+    Path file2 = subdir.resolve("file2.txt");
+    Path deepDir = subdir.resolve("deep");
+    Files.createDirectories(deepDir);
+    Path file3 = deepDir.resolve("file3.txt");
+
+    Files.write(file1, "content-file1".getBytes(StandardCharsets.UTF_8));
+    Files.write(file2, "content-file2".getBytes(StandardCharsets.UTF_8));
+    Files.write(file3, "content-file3".getBytes(StandardCharsets.UTF_8));
+
+    String prefix = "conformance-tests/directory/upload-basic-v1";
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .build();
+
+    DirectoryUploadResponse response = blobStore.uploadDirectory(request);
+
+    Assertions.assertNotNull(response);
+    Assertions.assertTrue(
+        response.getFailedTransfers().isEmpty(), "Upload should succeed without failures");
+
+    // Verify all files were uploaded
+    try {
+      ListBlobsRequest listRequest = ListBlobsRequest.builder().withPrefix(prefix).build();
+      Iterator<BlobInfo> blobs = blobStore.list(listRequest);
+      Set<String> uploadedKeys = new HashSet<>();
+      while (blobs.hasNext()) {
+        uploadedKeys.add(blobs.next().getKey());
+      }
+
+      Assertions.assertTrue(
+          uploadedKeys.contains(prefix + "/file1.txt"),
+          "file1.txt should be uploaded");
+      Assertions.assertTrue(
+          uploadedKeys.contains(prefix + "/subdir/file2.txt"),
+          "subdir/file2.txt should be uploaded");
+      Assertions.assertTrue(
+          uploadedKeys.contains(prefix + "/subdir/deep/file3.txt"),
+          "subdir/deep/file3.txt should be uploaded");
+      Assertions.assertEquals(3, uploadedKeys.size(), "Exactly 3 files should be uploaded");
+    } finally {
+      // Cleanup
+      blobStore.deleteDirectory(prefix);
+    }
+
+    blobStore.close();
+  }
+
+  @Test
+  public void testUploadDirectory_withoutSubFolders(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+
+    // Create test files with nested directory
+    Path file1 = tempDir.resolve("top-level.txt");
+    Path subdir = tempDir.resolve("subdir");
+    Files.createDirectories(subdir);
+    Path file2 = subdir.resolve("nested.txt");
+
+    Files.write(file1, "top-level-content".getBytes(StandardCharsets.UTF_8));
+    Files.write(file2, "nested-content".getBytes(StandardCharsets.UTF_8));
+
+    String prefix = "conformance-tests/directory/upload-no-subfolder-v1";
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(false)
+            .build();
+
+    DirectoryUploadResponse response = blobStore.uploadDirectory(request);
+
+    Assertions.assertNotNull(response);
+    Assertions.assertTrue(
+        response.getFailedTransfers().isEmpty(), "Upload should succeed without failures");
+
+    // Verify only top-level file was uploaded
+    try {
+      ListBlobsRequest listRequest = ListBlobsRequest.builder().withPrefix(prefix).build();
+      Iterator<BlobInfo> blobs = blobStore.list(listRequest);
+      Set<String> uploadedKeys = new HashSet<>();
+      while (blobs.hasNext()) {
+        uploadedKeys.add(blobs.next().getKey());
+      }
+
+      Assertions.assertTrue(
+          uploadedKeys.contains(prefix + "/top-level.txt"),
+          "top-level.txt should be uploaded");
+      Assertions.assertFalse(
+          uploadedKeys.contains(prefix + "/subdir/nested.txt"),
+          "nested.txt should NOT be uploaded when includeSubFolders is false");
+      Assertions.assertEquals(1, uploadedKeys.size(),
+          "Only 1 file should be uploaded when includeSubFolders is false");
+    } finally {
+      blobStore.deleteDirectory(prefix);
+    }
+
+    blobStore.close();
+  }
+
+  @Test
+  public void testUploadDirectory_withTags(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // Create test file
+    Path file1 = tempDir.resolve("tagged-file.txt");
+    Files.write(file1, "tagged-content".getBytes(StandardCharsets.UTF_8));
+
+    String prefix = "conformance-tests/directory/upload-tags-v1";
+    Map<String, String> tags = new HashMap<>();
+    tags.put("env", "test");
+    tags.put("team", "multicloudj");
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .tags(tags)
+            .build();
+
+    DirectoryUploadResponse response = blobStore.uploadDirectory(request);
+
+    Assertions.assertNotNull(response);
+    Assertions.assertTrue(
+        response.getFailedTransfers().isEmpty(), "Upload should succeed without failures");
+
+    // Verify tags were applied
+    try {
+      String key = prefix + "/tagged-file.txt";
+      Map<String, String> retrievedTags = bucketClient.getTags(key);
+      Assertions.assertEquals("test", retrievedTags.get("env"),
+          "Tag 'env' should have value 'test'");
+      Assertions.assertEquals("multicloudj", retrievedTags.get("team"),
+          "Tag 'team' should have value 'multicloudj'");
+    } finally {
+      blobStore.deleteDirectory(prefix);
+    }
+
+    blobStore.close();
+  }
+
+  @Test
+  public void testUploadDirectory_withKmsKey(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+
+    String kmsKeyId = harness.getKmsKeyId();
+    Assumptions.assumeTrue(
+        kmsKeyId != null && !kmsKeyId.isEmpty(), "KMS key not configured for this harness");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    Path file1 = tempDir.resolve("kms-file1.txt");
+    Path subdir = tempDir.resolve("subdir");
+    Files.createDirectories(subdir);
+    Path file2 = subdir.resolve("kms-file2.txt");
+
+    byte[] content1 = "kms-directory-content-1".getBytes(StandardCharsets.UTF_8);
+    byte[] content2 = "kms-directory-content-2".getBytes(StandardCharsets.UTF_8);
+    Files.write(file1, content1);
+    Files.write(file2, content2);
+
+    String prefix = "conformance-tests/directory/upload-kms-v1";
+    String key1 = prefix + "/kms-file1.txt";
+    String key2 = prefix + "/subdir/kms-file2.txt";
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .kmsKeyId(kmsKeyId)
+            .build();
+
+    try {
+      DirectoryUploadResponse response = blobStore.uploadDirectory(request);
+      Assertions.assertNotNull(response);
+      Assertions.assertTrue(
+          response.getFailedTransfers().isEmpty(),
+          "Upload with KMS key should succeed without failures");
+
+      for (Map.Entry<String, byte[]> entry :
+          Map.of(key1, content1, key2, content2).entrySet()) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+          DownloadRequest downloadRequest =
+              new DownloadRequest.Builder().withKey(entry.getKey()).build();
+          bucketClient.download(downloadRequest, out);
+          Assertions.assertArrayEquals(
+              entry.getValue(),
+              out.toByteArray(),
+              "Content roundtrip should succeed for " + entry.getKey());
+        }
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key1, key2);
+    }
+
+    blobStore.close();
+  }
+
+  @Test
+  public void testUploadDirectory_withNullKmsKey(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    Path file1 = tempDir.resolve("null-kms.txt");
+    byte[] content = "null-kms-content".getBytes(StandardCharsets.UTF_8);
+    Files.write(file1, content);
+
+    String prefix = "conformance-tests/directory/upload-kms-null-v1";
+    String key1 = prefix + "/null-kms.txt";
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .kmsKeyId(null)
+            .build();
+
+    try {
+      DirectoryUploadResponse response = blobStore.uploadDirectory(request);
+      Assertions.assertNotNull(response);
+      Assertions.assertTrue(
+          response.getFailedTransfers().isEmpty(),
+          "Upload with null KMS key should fall back to bucket defaults without error");
+
+      try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+        bucketClient.download(new DownloadRequest.Builder().withKey(key1).build(), out);
+        Assertions.assertArrayEquals(content, out.toByteArray(), "Content roundtrip should match");
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key1);
+    }
+
+    blobStore.close();
+  }
+
+  @Test
+  public void testDownloadDirectory_basic(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // Create and upload test files
+    Path uploadDir = tempDir.resolve("upload");
+    Files.createDirectories(uploadDir);
+    Path file1 = uploadDir.resolve("file1.txt");
+    Path subdir = uploadDir.resolve("subdir");
+    Files.createDirectories(subdir);
+    Path file2 = subdir.resolve("file2.txt");
+
+    String content1 = "download-test-content1";
+    String content2 = "download-test-content2";
+    Files.write(file1, content1.getBytes(StandardCharsets.UTF_8));
+    Files.write(file2, content2.getBytes(StandardCharsets.UTF_8));
+
+    String prefix = "conformance-tests/directory/download-basic-v1";
+
+    DirectoryUploadRequest uploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(uploadDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .build();
+
+    DirectoryUploadResponse uploadResponse = blobStore.uploadDirectory(uploadRequest);
+    Assertions.assertTrue(
+        uploadResponse.getFailedTransfers().isEmpty(), "Upload should succeed without failures");
+
+    // Now download to a different directory
+    Path downloadDir = tempDir.resolve("download");
+    Files.createDirectories(downloadDir);
+
+    DirectoryDownloadRequest downloadRequest =
+        DirectoryDownloadRequest.builder()
+            .prefixToDownload(prefix)
+            .localDestinationDirectory(downloadDir.toString())
+            .build();
+
+    DirectoryDownloadResponse downloadResponse = blobStore.downloadDirectory(downloadRequest);
+
+    Assertions.assertNotNull(downloadResponse);
+    if (!downloadResponse.getFailedTransfers().isEmpty()) {
+      StringBuilder sb = new StringBuilder("Download failures: ");
+      downloadResponse.getFailedTransfers().forEach(f ->
+          sb.append(f.getDestination()).append(" -> ")
+              .append(f.getException().getClass().getName()).append(": ")
+              .append(f.getException().getMessage()).append("; "));
+      Assertions.fail(sb.toString());
+    }
+
+    // Verify downloaded files have correct content
+    Path downloadedFile1 = downloadDir.resolve("file1.txt");
+    Path downloadedFile2 = downloadDir.resolve("subdir/file2.txt");
+
+    Assertions.assertTrue(Files.exists(downloadedFile1), "file1.txt should be downloaded");
+    Assertions.assertTrue(
+        Files.exists(downloadedFile2), "subdir/file2.txt should be downloaded");
+
+    String downloadedContent1 =
+        new String(Files.readAllBytes(downloadedFile1), StandardCharsets.UTF_8);
+    String downloadedContent2 =
+        new String(Files.readAllBytes(downloadedFile2), StandardCharsets.UTF_8);
+
+    Assertions.assertEquals(content1, downloadedContent1,
+        "file1.txt content should match");
+    Assertions.assertEquals(content2, downloadedContent2,
+        "subdir/file2.txt content should match");
+
+    // Cleanup
+    safeDeleteBlobs(bucketClient, prefix + "/file1.txt", prefix + "/subdir/file2.txt");
+
+    blobStore.close();
+  }
+
+  @Test
+  public void testDeleteDirectory_basic(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // Create and upload test files
+    Path file1 = tempDir.resolve("delete1.txt");
+    Path subdir = tempDir.resolve("subdir");
+    Files.createDirectories(subdir);
+    Path file2 = subdir.resolve("delete2.txt");
+
+    Files.write(file1, "delete-content1".getBytes(StandardCharsets.UTF_8));
+    Files.write(file2, "delete-content2".getBytes(StandardCharsets.UTF_8));
+
+    String prefix = "conformance-tests/directory/delete-basic-v1";
+
+    DirectoryUploadRequest uploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .build();
+
+    DirectoryUploadResponse uploadResponse = blobStore.uploadDirectory(uploadRequest);
+    Assertions.assertTrue(
+        uploadResponse.getFailedTransfers().isEmpty(), "Upload should succeed without failures");
+
+    // Verify files exist using doesObjectExist
+    String key1 = prefix + "/delete1.txt";
+    String key2 = prefix + "/subdir/delete2.txt";
+    Assertions.assertTrue(blobStore.doesObjectExist(key1, null),
+        "delete1.txt should exist before delete");
+    Assertions.assertTrue(blobStore.doesObjectExist(key2, null),
+        "subdir/delete2.txt should exist before delete");
+
+    // Delete the directory
+    blobStore.deleteDirectory(prefix);
+
+    // Verify all files are gone
+    Assertions.assertFalse(blobStore.doesObjectExist(key1, null),
+        "delete1.txt should not exist after deleteDirectory");
+    Assertions.assertFalse(blobStore.doesObjectExist(key2, null),
+        "subdir/delete2.txt should not exist after deleteDirectory");
+
+    blobStore.close();
+  }
+
+  @Test
+  public void testUploadDirectory_WithObjectLock(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        GCP_PROVIDER_ID.equals(harness.getProviderId()),
+        "Directory upload with object lock conformance test runs only for GCP");
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+
+    // Create test files
+    Path file1 = tempDir.resolve("file1.txt");
+    Path file2 = tempDir.resolve("subdir");
+    Files.createDirectories(file2);
+    Path file2File = file2.resolve("file2.txt");
+    Files.write(file1, "content1".getBytes(StandardCharsets.UTF_8));
+    Files.write(file2File, "content2".getBytes(StandardCharsets.UTF_8));
+
+    // Fixed retainUntil to keep WireMock replay stable.
+    Instant retainUntil = OBJECT_LOCK_RETAIN_UNTIL_DIRECTORY_UPLOAD;
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(true)
+            .useEventBasedHold(false)
+            .build();
+
+    String prefix = "conformance-tests/directory-objectlock/upload-with-lock";
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .objectLock(objectLock)
+            .build();
+
+    // Upload directory with object lock
+    DirectoryUploadResponse response = blobStore.uploadDirectory(request);
+
+    Assertions.assertNotNull(response);
+    Assertions.assertTrue(
+        response.getFailedTransfers().isEmpty(), "Upload should succeed without failures");
+
+    // Verify uploaded files have object lock
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      ListBlobsRequest listRequest = ListBlobsRequest.builder().withPrefix(prefix).build();
+      java.util.Iterator<BlobInfo> blobs = blobStore.list(listRequest);
+      int fileCount = 0;
+      while (blobs.hasNext()) {
+        BlobInfo blob = blobs.next();
+        fileCount++;
+
+        // Get object lock info for each file
+        ObjectLockInfo lockInfo = bucketClient.getObjectLock(blob.getKey(), null);
+        Assertions.assertNotNull(
+            lockInfo, "Object lock should be set on uploaded file: " + blob.getKey());
+        Assertions.assertEquals(
+            RetentionMode.GOVERNANCE, lockInfo.getMode(), "Retention mode should be GOVERNANCE");
+        Assertions.assertTrue(lockInfo.isLegalHold(), "Legal hold should be enabled");
+        Assertions.assertNotNull(lockInfo.getRetainUntilDate(), "Retain until date should be set");
+      }
+
+      // Verify we found the files (at least 2 files were uploaded)
+      Assertions.assertTrue(fileCount >= 2, "Should have uploaded at least 2 files");
+    } finally {
+      ListBlobsRequest cleanupListRequest = ListBlobsRequest.builder().withPrefix(prefix).build();
+      java.util.Iterator<BlobInfo> cleanupBlobs = blobStore.list(cleanupListRequest);
+      List<String> cleanupKeys = new ArrayList<>();
+      while (cleanupBlobs.hasNext()) {
+        cleanupKeys.add(cleanupBlobs.next().getKey());
+      }
+      safeCleanupLockedBlobs(bucketClient, cleanupKeys.toArray(new String[0]));
+    }
+
+    blobStore.close();
+  }
+
+  @Test
+  public void testMultipartUpload_withObjectLock() {
+    // Ali: the recorded part-upload PUT stubs intentionally use empty bodyPatterns (no body
+    // matching) because WireMock's regex body matching fails on large (5MB) binary payloads.
+    // Requests are still uniquely matched by method + URL + query (uploadId/partNumber), so the
+    // test passes in both record and replay mode.
+
+    String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withObjectLock";
+    // Keep retainUntil in the future so record mode remains valid over time.
+    Instant retainUntil = Instant.parse("2100-01-01T00:00:00Z");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    MultipartUpload mpu = null;
+    try {
+      // Create object lock configuration
+      ObjectLockConfiguration objectLock =
+          ObjectLockConfiguration.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(retainUntil)
+              .legalHold(false)
+              .build();
+
+      // Initiate multipart upload with object lock
+      MultipartUploadRequest multipartUploadRequest =
+          new MultipartUploadRequest.Builder()
+              .withKey(expectedKey)
+              .withMetadata(Map.of("test-key", "test-value"))
+              .withObjectLock(objectLock)
+              .build();
+      mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
+      Assertions.assertNotNull(mpu, "Multipart upload should be initiated");
+
+      // Upload parts
+      UploadPartResponse part1Response =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(1, multipartBytes1));
+      UploadPartResponse part2Response =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(2, multipartBytes2));
+
+      Assertions.assertNotNull(part1Response, "Part 1 response should not be null");
+      Assertions.assertNotNull(part2Response, "Part 2 response should not be null");
+
+      // Complete multipart upload
+      List<UploadPartResponse> partsToComplete = List.of(part1Response, part2Response);
+      MultipartUploadResponse completeResponse =
+          bucketClient.completeMultipartUpload(mpu, partsToComplete);
+
+      Assertions.assertNotNull(completeResponse, "Complete response should not be null");
+      Assertions.assertNotNull(completeResponse.getEtag(), "ETag should not be null");
+
+      // Verify object lock was applied
+      ObjectLockInfo lockInfo = bucketClient.getObjectLock(expectedKey, null);
+      Assertions.assertNotNull(lockInfo, "Object lock info should not be null");
+      Assertions.assertEquals(
+          RetentionMode.GOVERNANCE, lockInfo.getMode(), "Retention mode should be GOVERNANCE");
+      Assertions.assertFalse(lockInfo.isLegalHold(), "Legal hold should be false");
+      // Note: retainUntilDate comparison may vary slightly by provider, so we just check it exists
+      Assertions.assertNotNull(lockInfo.getRetainUntilDate(), "Retain until date should be set");
+
+    } finally {
+      safeDeleteBlobs(bucketClient, expectedKey);
+    }
+  }
+
+  @Test
+  public void testListBlobVersions_happy() throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String key = "conformance-tests/list-object-versions/exact-three-versions-blob";
+
+    try {
+      Set<String> uploadedVersionIds = new HashSet<>();
+      for (int i = 1; i <= 3; i++) {
+        byte[] blobBytes = ("archived content v" + i).getBytes(StandardCharsets.UTF_8);
+        try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
+          UploadRequest request =
+              new UploadRequest.Builder().withKey(key).withContentLength(blobBytes.length).build();
+          UploadResponse uploadResponse = bucketClient.upload(request, inputStream);
+          Assertions.assertNotNull(uploadResponse, "Upload response should not be null");
+          Assertions.assertTrue(
+              StringUtils.isNotBlank(uploadResponse.getVersionId()),
+              "Versioned upload should return a non-empty versionId");
+          uploadedVersionIds.add(uploadResponse.getVersionId());
+        }
+      }
+
+      ListBlobVersionsRequest listVersionsRequest =
+          ListBlobVersionsRequest.builder().withKey(key).build();
+      Iterator<BlobMetadata> iterator =
+          bucketClient.listBlobVersions(listVersionsRequest);
+
+      List<BlobMetadata> versions = new ArrayList<>();
+      while (iterator.hasNext()) {
+        versions.add(iterator.next());
+      }
+
+      Assertions.assertEquals(3, versions.size(), "Expected exactly 3 object versions");
+      Assertions.assertTrue(
+          versions.stream().allMatch(version -> key.equals(version.getKey())),
+          "All listed versions should match the requested key");
+      Assertions.assertTrue(
+          versions.stream().allMatch(version -> StringUtils.isNotBlank(version.getVersionId())),
+          "All listed versions should have non-empty versionIds");
+      Set<String> returnedVersionIds =
+          versions.stream().map(BlobMetadata::getVersionId).collect(Collectors.toSet());
+      Assertions.assertEquals(
+          uploadedVersionIds, returnedVersionIds, "Returned versionIds should match uploaded ones");
+      for (BlobMetadata version : versions) {
+        DownloadRequest versionedRequest =
+            new DownloadRequest.Builder()
+                .withKey(key)
+                .withVersionId(version.getVersionId())
+                .build();
+        DownloadResponse response = bucketClient.download(versionedRequest, new ByteArray());
+        Assertions.assertNotNull(
+            response, "Listed version should be downloadable by its versionId");
+      }
+    } finally {
+      // Delete all versions by their versionIds to ensure complete cleanup
+      try {
+        List<BlobIdentifier> toDelete = new ArrayList<>();
+        ListBlobVersionsRequest cleanupRequest =
+            ListBlobVersionsRequest.builder().withKey(key).build();
+        Iterator<BlobMetadata> allVersions = bucketClient.listBlobVersions(cleanupRequest);
+        allVersions.forEachRemaining(
+            v -> toDelete.add(new BlobIdentifier(v.getKey(), v.getVersionId())));
+        if (!toDelete.isEmpty()) {
+          bucketClient.delete(toDelete);
+        }
+      } catch (Throwable t) {
+        // Best effort cleanup - ignore failures
+      }
+    }
+  }
+
+  @Test
+  public void testListBlobVersions_deleteMarkerTimeline() throws IOException {
+    // Ali: the delete-marker code path is implemented, but the WireMock fixtures for this scenario
+    // must be recorded by an engineer with Alibaba credentials on the versioned test bucket. Skip
+    // for Ali until those recordings land; remove this guard once they are captured.
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String key = "conformance-tests/list-object-versions/delete-marker-timeline-blob";
+
+    try {
+      // Canonical timeline: PUT A -> DELETE (unqualified) -> PUT B. This exercises supersession by
+      // a deletion, which every versioned store must reflect in the cloud-neutral validity window.
+      byte[] contentA = "content-A".getBytes(StandardCharsets.UTF_8);
+      String versionA;
+      try (InputStream in = new ByteArrayInputStream(contentA)) {
+        versionA =
+            bucketClient
+                .upload(
+                    new UploadRequest.Builder().withKey(key).withContentLength(contentA.length)
+                        .build(),
+                    in)
+                .getVersionId();
+      }
+      Assertions.assertTrue(StringUtils.isNotBlank(versionA), "PUT A should return a versionId");
+
+      // Unqualified delete removes the live object; prior content versions remain listable.
+      bucketClient.delete(key, null);
+
+      byte[] contentB = "content-B".getBytes(StandardCharsets.UTF_8);
+      String versionB;
+      try (InputStream in = new ByteArrayInputStream(contentB)) {
+        versionB =
+            bucketClient
+                .upload(
+                    new UploadRequest.Builder().withKey(key).withContentLength(contentB.length)
+                        .build(),
+                    in)
+                .getVersionId();
+      }
+      Assertions.assertTrue(StringUtils.isNotBlank(versionB), "PUT B should return a versionId");
+
+      // Default listing (flag omitted) must be backward-compatible: only content versions, no
+      // delete markers. Both A and B remain present and downloadable.
+      Map<String, BlobMetadata> defaultByVersion =
+          collectByVersionId(bucketClient, key, false);
+      Assertions.assertTrue(
+          defaultByVersion.containsKey(versionA), "Default listing should include version A");
+      Assertions.assertTrue(
+          defaultByVersion.containsKey(versionB), "Default listing should include version B");
+      Assertions.assertTrue(
+          defaultByVersion.values().stream().noneMatch(BlobMetadata::isArchived),
+          "Default listing must not surface delete markers");
+
+      // Default listing derives no archivedAt: the supersession instant only exists to serve the
+      // opt-in delete-history view, so neither the superseded nor the current version reports one.
+      BlobMetadata metaA = defaultByVersion.get(versionA);
+      BlobMetadata metaB = defaultByVersion.get(versionB);
+      Assertions.assertNull(
+          metaA.getArchivedAt(),
+          "Default listing must not derive archivedAt when delete markers are not requested");
+      Assertions.assertNull(
+          metaB.getArchivedAt(), "Current version B should not report an archivedAt instant");
+
+      // Both content versions must be downloadable by their versionIds.
+      for (String versionId : new String[] {versionA, versionB}) {
+        DownloadResponse response =
+            bucketClient.download(
+                new DownloadRequest.Builder().withKey(key).withVersionId(versionId).build(),
+                new ByteArray());
+        Assertions.assertNotNull(response, "Content version should be downloadable: " + versionId);
+      }
+
+      // Opt-in listing is a superset: the same content versions plus any store-native delete
+      // markers. Stores that do not model standalone delete markers simply add nothing here.
+      Map<String, BlobMetadata> includedByVersion =
+          collectByVersionId(bucketClient, key, true);
+      Assertions.assertTrue(
+          includedByVersion.keySet().containsAll(defaultByVersion.keySet()),
+          "Opt-in listing should contain every content version the default listing returned");
+
+      // Opt-in listing derives archivedAt: version A was superseded and reports the instant it
+      // stopped being current, while the still-current version B reports none.
+      BlobMetadata includedA = includedByVersion.get(versionA);
+      BlobMetadata includedB = includedByVersion.get(versionB);
+      Assertions.assertNotNull(
+          includedA.getArchivedAt(),
+          "With includeArchived set, superseded version A should report an archivedAt instant");
+      Assertions.assertNull(
+          includedB.getArchivedAt(),
+          "Current version B should not report an archivedAt instant even when includeArchived is "
+              + "set");
+      if (includedA.getCreatedTime() != null) {
+        Assertions.assertFalse(
+            includedA.getArchivedAt().isBefore(includedA.getCreatedTime()),
+            "Validity interval [createdTime, archivedAt) must be non-negative");
+      }
+      Assertions.assertTrue(
+          includedByVersion.size() >= defaultByVersion.size(),
+          "Opt-in listing must not drop any entries relative to the default listing");
+      Assertions.assertTrue(
+          includedByVersion.values().stream()
+              .filter(BlobMetadata::isArchived)
+              .allMatch(m -> key.equals(m.getKey())),
+          "Any surfaced archived entry must belong to the requested key");
+
+      // Stores that model deletion as a standalone delete marker (rather than archiving a content
+      // generation) must actually surface that marker when the opt-in flag is set; otherwise the
+      // superset assertions above pass vacuously. GCS has no standalone marker to emit and is
+      // exempt.
+      boolean surfacesStandaloneDeleteMarkers = !GCP_PROVIDER_ID.equals(harness.getProviderId());
+      if (surfacesStandaloneDeleteMarkers) {
+        long archivedCount =
+            includedByVersion.values().stream().filter(BlobMetadata::isArchived).count();
+        Assertions.assertTrue(
+            archivedCount > 0,
+            "Opt-in listing must surface the delete marker created by the unqualified delete");
+        Assertions.assertTrue(
+            includedByVersion.size() > defaultByVersion.size(),
+            "Opt-in listing must add the delete marker on top of the content versions");
+      }
+    } finally {
+      try {
+        List<BlobIdentifier> toDelete = new ArrayList<>();
+        Iterator<BlobMetadata> allEntries =
+            bucketClient.listBlobVersions(
+                ListBlobVersionsRequest.builder().withKey(key).withIncludeArchived(true)
+                    .build());
+        allEntries.forEachRemaining(
+            v -> toDelete.add(new BlobIdentifier(v.getKey(), v.getVersionId())));
+        if (!toDelete.isEmpty()) {
+          bucketClient.delete(toDelete);
+        }
+      } catch (Throwable t) {
+        // Best effort cleanup - ignore failures
+      }
+    }
+  }
+
+  private static Map<String, BlobMetadata> collectByVersionId(
+      BucketClient bucketClient, String key, boolean includeArchived) {
+    Iterator<BlobMetadata> iterator =
+        bucketClient.listBlobVersions(
+            ListBlobVersionsRequest.builder()
+                .withKey(key)
+                .withIncludeArchived(includeArchived)
+                .build());
+    Map<String, BlobMetadata> byVersion = new HashMap<>();
+    iterator.forEachRemaining(v -> byVersion.put(v.getVersionId(), v));
+    return byVersion;
+  }
+
+  @Test
+  public void testListBlobVersions_nullKey() {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    ListBlobVersionsRequest nullKeyRequest =
+        ListBlobVersionsRequest.builder().withKey(null).build();
+    InvalidArgumentException exception =
+        Assertions.assertThrows(
+            InvalidArgumentException.class,
+            () -> bucketClient.listBlobVersions(nullKeyRequest));
+    Assertions.assertNotNull(
+        exception.getCause(), "Expected InvalidArgumentException to wrap cause");
+    Assertions.assertTrue(
+        exception.getCause() instanceof IllegalArgumentException,
+        "Expected cause to be IllegalArgumentException");
+    Assertions.assertEquals(
+        "Object name cannot be null or empty", exception.getCause().getMessage());
   }
 }

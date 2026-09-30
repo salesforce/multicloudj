@@ -1,0 +1,41 @@
+{
+  "id" : "0d469300-77f5-44b1-84e0-ee9aed3b0b4f",
+  "name" : "AliBlobStoreIT_testUpdateObjectRetention_governance_extend_succeeds-GET-4",
+  "request" : {
+    "urlPath" : "/conformance-tests/objectlock/update/gov-extend",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "retention" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Retention>\n  <Mode>GOVERNANCE</Mode>\n  <RetainUntilDate>2030-01-01T00:00:00.000Z</RetainUntilDate>\n</Retention>\n",
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkYw86c2JeF1fQZIiBkM2RjNzFlMjg0MmE0ZmRlYjA4ZGI2OTQxZTdiYWZmZA--",
+      "x-oss-request-id" : "6A221D57F5C7C43835955579",
+      "x-oss-server-time" : "6",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 05 Jun 2026 00:50:31 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "0d469300-77f5-44b1-84e0-ee9aed3b0b4f",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-conformance-tests-objectlock-update-gov-extend",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-conformance-tests-objectlock-update-gov-extend-2",
+  "insertionIndex" : 973
+}

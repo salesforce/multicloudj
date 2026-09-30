@@ -1,0 +1,40 @@
+{
+  "id" : "7e11728c-59c1-45ac-9f83-331770bf0796",
+  "name" : "AliBlobStoreIT_testTagging_withObjectLock-GET-3",
+  "request" : {
+    "urlPath" : "/conformance-tests/blob-for-tagging-objectlock",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Tagging>\n  <TagSet>\n    <Tag>\n      <Key>tag3</Key>\n      <Value>value3</Value>\n    </Tag>\n  </TagSet>\n</Tagging>\n",
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkYzYzJ0Iz81PQZIiBhYzZjMWMyNWI1OTk0ZDg5OWRkNmM2Y2Q1ZGM4ZTIxNg--",
+      "x-oss-request-id" : "6A221C2EE05A523632406BB7",
+      "x-oss-server-time" : "34",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 05 Jun 2026 00:45:34 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "7e11728c-59c1-45ac-9f83-331770bf0796",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-conformance-tests-blob-for-tagging-objectlock",
+  "requiredScenarioState" : "scenario-1-conformance-tests-blob-for-tagging-objectlock-2",
+  "insertionIndex" : 616
+}

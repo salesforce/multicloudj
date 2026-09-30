@@ -1,0 +1,44 @@
+{
+  "id" : "db0b4cf2-9403-41a4-a82a-714c56cc1c6d",
+  "name" : "AliBlobStoreIT_testMultipartUpload_skippingNumbers-PUT-7",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-skippingNumbers",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "6682F54B0D2441AF94E4E34E58CFF0AF"
+        } ]
+      },
+      "partNumber" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A3303F6945E9F3931A6F771",
+      "x-oss-server-time" : "71",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "14920568100270865136",
+      "ETag" : "\"2B5C91AD399409EC9B409B66F5BB00FB\"",
+      "Date" : "Wed, 17 Jun 2026 20:30:48 GMT",
+      "Content-MD5" : "K1yRrTmUCeybQJtm9bsA+w=="
+    }
+  },
+  "uuid" : "db0b4cf2-9403-41a4-a82a-714c56cc1c6d",
+  "persistent" : true,
+  "insertionIndex" : 139
+}

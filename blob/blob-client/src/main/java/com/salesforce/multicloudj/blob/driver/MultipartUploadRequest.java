@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.driver;
 
 import static java.util.Collections.unmodifiableMap;
 
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import java.util.Collections;
 import java.util.Map;
 import lombok.Getter;
@@ -17,7 +18,15 @@ public class MultipartUploadRequest {
   private final boolean useKmsManagedKey;
   private final boolean checksumEnabled;
   private final ChecksumMethod checksumAlgorithm;
+  private final ObjectLockConfiguration objectLock;
   private final String contentType;
+
+  /**
+   * (Optional parameter) Per-call observability context carrying the correlation ID. The
+   * correlation ID is never auto-generated; when it is null or missing it defaults to an empty
+   * string and tracing is treated as disabled.
+   */
+  private final OperationContext operationContext;
 
   private MultipartUploadRequest(final Builder builder) {
     this.key = builder.key;
@@ -25,11 +34,15 @@ public class MultipartUploadRequest {
     this.tags = builder.tags;
     this.kmsKeyId = builder.kmsKeyId;
     this.useKmsManagedKey = builder.useKmsManagedKey;
-    this.checksumAlgorithm = builder.checksumAlgorithm != null
-        ? builder.checksumAlgorithm
-        : (builder.checksumEnabled ? ChecksumMethod.CRC32C : null);
-    this.checksumEnabled = this.checksumAlgorithm != null;
+    // Carry the caller's explicit algorithm (or null) through to the driver. When checksumming is
+    // enabled without an explicit algorithm, the substrate-native default is resolved per provider
+    // (e.g. CRC32C for S3/GCS, CRC64 for OSS) rather than hard-coding one here — a fixed default
+    // cannot be honored by every substrate.
+    this.checksumAlgorithm = builder.checksumAlgorithm;
+    this.checksumEnabled = builder.checksumEnabled || builder.checksumAlgorithm != null;
+    this.objectLock = builder.objectLock;
     this.contentType = builder.contentType;
+    this.operationContext = builder.operationContext;
   }
 
   public Map<String, String> getMetadata() {
@@ -40,6 +53,26 @@ public class MultipartUploadRequest {
     return tags == null ? Map.of() : unmodifiableMap(tags);
   }
 
+  /**
+   * Returns a {@link Builder} pre-populated with this request's current field values, so callers
+   * can produce a modified copy without restating every field. Adding a new field to
+   * {@link MultipartUploadRequest} requires only extending this method (and the corresponding
+   * builder setter) — not every callsite that copies a request.
+   */
+  public Builder toBuilder() {
+    return new Builder()
+        .withKey(key)
+        .withMetadata(metadata)
+        .withTags(tags)
+        .withKmsKeyId(kmsKeyId)
+        .withUseKmsManagedKey(useKmsManagedKey)
+        .withChecksumEnabled(checksumEnabled)
+        .withChecksumAlgorithm(checksumAlgorithm)
+        .withObjectLock(objectLock)
+        .withContentType(contentType)
+        .withOperationContext(operationContext);
+  }
+
   public static class Builder {
     private String key;
     private Map<String, String> metadata = Collections.emptyMap();
@@ -48,7 +81,9 @@ public class MultipartUploadRequest {
     private boolean useKmsManagedKey;
     private boolean checksumEnabled;
     private ChecksumMethod checksumAlgorithm;
+    private ObjectLockConfiguration objectLock;
     private String contentType;
+    private OperationContext operationContext;
 
     public Builder withKey(String key) {
       this.key = key;
@@ -85,8 +120,26 @@ public class MultipartUploadRequest {
       return this;
     }
 
+    public Builder withObjectLock(ObjectLockConfiguration objectLock) {
+      this.objectLock = objectLock;
+      return this;
+    }
+
     public Builder withContentType(String contentType) {
       this.contentType = contentType;
+      return this;
+    }
+
+    /**
+     * Sets the per-call observability context carrying the correlation ID. The correlation ID is
+     * never auto-generated; if not set (or if the context's correlation ID is null/empty) it
+     * defaults to an empty string and tracing is treated as disabled.
+     *
+     * @param operationContext the observability context
+     * @return this builder
+     */
+    public Builder withOperationContext(OperationContext operationContext) {
+      this.operationContext = operationContext;
       return this;
     }
 

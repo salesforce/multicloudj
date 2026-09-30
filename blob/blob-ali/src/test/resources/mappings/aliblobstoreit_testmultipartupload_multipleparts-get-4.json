@@ -1,0 +1,42 @@
+{
+  "id" : "466321ba-688e-46ac-9b0c-d1fb4fa444b5",
+  "name" : "AliBlobStoreIT_testMultipartUpload_multipleParts-GET-4",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-multipleParts",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "1193F808DD6D40DFAE9259A34AE86870"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult>\n  <EncodingType>url</EncodingType>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests%2Fmultipart-multipleParts</Key>\n  <UploadId>1193F808DD6D40DFAE9259A34AE86870</UploadId>\n  <StorageClass>Standard</StorageClass>\n  <PartNumberMarker>0</PartNumberMarker>\n  <NextPartNumberMarker>4</NextPartNumberMarker>\n  <MaxParts>1000</MaxParts>\n  <IsTruncated>false</IsTruncated>\n  <Part>\n    <PartNumber>1</PartNumber>\n    <LastModified>2026-06-17T20:31:25.000Z</LastModified>\n    <ETag>\"2B5C91AD399409EC9B409B66F5BB00FB\"</ETag>\n    <HashCrc64ecma>14920568100270865136</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n  <Part>\n    <PartNumber>2</PartNumber>\n    <LastModified>2026-06-17T20:31:28.000Z</LastModified>\n    <ETag>\"267C038CC2EC32FFD0EE2512FF5DA5A5\"</ETag>\n    <HashCrc64ecma>9618452871104087932</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n  <Part>\n    <PartNumber>3</PartNumber>\n    <LastModified>2026-06-17T20:31:30.000Z</LastModified>\n    <ETag>\"FE9E522B589EF23E2C49B65C0522CE97\"</ETag>\n    <HashCrc64ecma>13592587331863467000</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n  <Part>\n    <PartNumber>4</PartNumber>\n    <LastModified>2026-06-17T20:31:33.000Z</LastModified>\n    <ETag>\"00AD619297CCD041956FE69BE4251D30\"</ETag>\n    <HashCrc64ecma>1273867173178489956</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n</ListPartsResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A33042678C4B53733CFF804",
+      "x-oss-server-time" : "45",
+      "Server" : "AliyunOSS",
+      "Date" : "Wed, 17 Jun 2026 20:31:34 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "466321ba-688e-46ac-9b0c-d1fb4fa444b5",
+  "persistent" : true,
+  "insertionIndex" : 170
+}

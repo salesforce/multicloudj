@@ -1,0 +1,20 @@
+{
+  "id" : "31c020bb-aaad-4f76-b95c-ecca5ed661a2",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_withObjectLock-DELETE-6",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/multipart-withObjectLock",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "OBJECTLOCKMPU0007",
+      "x-amz-id-2" : "objectlock-multipart-upload-delete",
+      "Date" : "Tue, 05 May 2026 20:00:06 GMT"
+    }
+  },
+  "uuid" : "31c020bb-aaad-4f76-b95c-ecca5ed661a2",
+  "persistent" : true,
+  "insertionIndex" : 2007
+}

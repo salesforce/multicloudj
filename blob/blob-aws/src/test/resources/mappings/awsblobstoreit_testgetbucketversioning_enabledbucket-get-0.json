@@ -1,0 +1,33 @@
+{
+  "id" : "18d9bac5-1783-4bf2-a86c-8f2dd804c3f4",
+  "name" : "AwsBlobStoreIT_testGetBucketVersioning_enabledBucket-GET-0",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "versioning" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPFZlcnNpb25pbmdDb25maWd1cmF0aW9uIHhtbG5zPSJodHRwOi8vczMuYW1hem9uYXdzLmNvbS9kb2MvMjAwNi0wMy0wMS8iPjxTdGF0dXM+RW5hYmxlZDwvU3RhdHVzPjwvVmVyc2lvbmluZ0NvbmZpZ3VyYXRpb24+",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "ZPSKRXDWZDCA188N",
+      "x-amz-id-2" : "c1L6fuqiYF/AkE5ycSrNskwlX/rxnCGbPgN7+iHaNSK3HUP2KyNwqIc++/f9l3ZOYsBVuKjlxDo=",
+      "Date" : "Tue, 23 Jun 2026 15:21:07 GMT"
+    }
+  },
+  "uuid" : "18d9bac5-1783-4bf2-a86c-8f2dd804c3f4",
+  "persistent" : true,
+  "insertionIndex" : 762
+}

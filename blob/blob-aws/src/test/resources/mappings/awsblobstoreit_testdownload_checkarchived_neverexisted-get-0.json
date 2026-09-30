@@ -1,0 +1,22 @@
+{
+  "id" : "0a5275f7-35b9-4670-a072-8acccd35d47f",
+  "name" : "AwsBlobStoreIT_testDownload_checkArchived_neverExisted-GET-0",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/check-archived/never-existed",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/check-archived/never-existed</Key><RequestId>X9CEZE867VYD97ME</RequestId><HostId>s92IcQoYkTzAzhK9dia9H4Cm5QAFlUospPrz6GJxRKUd29KJoRtmrgsADmKntKZbjvBu30H+v10=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "X9CEZE867VYD97ME",
+      "x-amz-id-2" : "s92IcQoYkTzAzhK9dia9H4Cm5QAFlUospPrz6GJxRKUd29KJoRtmrgsADmKntKZbjvBu30H+v10=",
+      "Date" : "Wed, 06 May 2026 20:03:13 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "0a5275f7-35b9-4670-a072-8acccd35d47f",
+  "persistent" : true,
+  "insertionIndex" : 690
+}

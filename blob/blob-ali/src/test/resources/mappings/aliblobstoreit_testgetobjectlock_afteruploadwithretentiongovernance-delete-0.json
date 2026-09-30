@@ -1,0 +1,27 @@
+{
+  "id" : "d8addd29-f5a9-4c0c-b4a0-2ab283e7ed60",
+  "name" : "AliBlobStoreIT_testGetObjectLock_afterUploadWithRetentionGovernance-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/objectlock/retention-governance",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkYsbK4sKyL1fQZIiA1NWEwNTNmODVmNzc0NGMzYjViZTczM2I4ZmI3ZTE1OQ--",
+      "x-oss-request-id" : "6A221E1FFA230831337551F0",
+      "x-oss-server-time" : "26",
+      "Server" : "AliyunOSS",
+      "x-oss-delete-marker" : "true",
+      "Date" : "Fri, 05 Jun 2026 00:53:51 GMT"
+    }
+  },
+  "uuid" : "d8addd29-f5a9-4c0c-b4a0-2ab283e7ed60",
+  "persistent" : true,
+  "insertionIndex" : 1210
+}

@@ -1,0 +1,43 @@
+{
+  "id" : "067e2345-b5b3-4c84-87a3-fdc81be826f8",
+  "name" : "GcpBlobStoreIT_testListBlobVersions_deleteMarkerTimeline-GET-7",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Flist-object-versions%2Fdelete-marker-timeline-blob",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "generation" : {
+        "hasExactly" : [ {
+          "equalTo" : "1788764036083713"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/list-object-versions/delete-marker-timeline-blob/1788764036083713\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Flist-object-versions%2Fdelete-marker-timeline-blob\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Flist-object-versions%2Fdelete-marker-timeline-blob?generation=1788764036083713&alt=media\",\n  \"name\": \"conformance-tests/list-object-versions/delete-marker-timeline-blob\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1788764036083713\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"9\",\n  \"md5Hash\": \"+9F93vJ26hUlLkubkXWCZw==\",\n  \"crc32c\": \"zQar2A==\",\n  \"etag\": \"CIHg1Kfx25YDEAE=\",\n  \"timeCreated\": \"2026-09-07T06:53:56.158Z\",\n  \"updated\": \"2026-09-07T06:53:56.158Z\",\n  \"timeDeleted\": \"2026-09-07T06:53:57.089Z\",\n  \"timeStorageClassUpdated\": \"2026-09-07T06:53:56.158Z\",\n  \"timeFinalized\": \"2026-09-07T06:53:56.158Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CIHg1Kfx25YDEAE=",
+      "X-GUploader-UploadID" : "AJjja9a6a6lSeK2on0u_yVcGuzcP_j3uf-7C4Byzp4jJ4tU7232x2CwozG-Lp0AtngZtVYWIzOjBnSM",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 07 Sep 2026 06:53:58 GMT",
+      "Date" : "Mon, 07 Sep 2026 06:53:58 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "067e2345-b5b3-4c84-87a3-fdc81be826f8",
+  "persistent" : true,
+  "insertionIndex" : 1519
+}

@@ -1,0 +1,27 @@
+{
+  "id" : "4fec5240-bb06-4c45-906d-90a319807b90",
+  "name" : "AliBlobStoreIT_testUpdateObjectRetention_modeDowngrade_complianceToGovernance_throws-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/objectlock/update/mode-downgrade",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkY.bW678L71PQZIiA5OTU4ZjFkMzA5YTE0ODQxOTViZWFkMDE5MzA2ODkyZg--",
+      "x-oss-request-id" : "6A221C193870173737C6BBC0",
+      "x-oss-server-time" : "67",
+      "Server" : "AliyunOSS",
+      "x-oss-delete-marker" : "true",
+      "Date" : "Fri, 05 Jun 2026 00:45:13 GMT"
+    }
+  },
+  "uuid" : "4fec5240-bb06-4c45-906d-90a319807b90",
+  "persistent" : true,
+  "insertionIndex" : 587
+}

@@ -1,0 +1,27 @@
+{
+  "id" : "545b6186-01cf-4613-b481-e81f2e5b62a7",
+  "name" : "AliBlobClientIT_testCreateBucket-GET-0",
+  "request" : {
+    "url" : "/",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListAllMyBucketsResult>\n  <Owner>\n    <ID>1099202394511537</ID>\n    <DisplayName>1099202394511537</DisplayName>\n  </Owner>\n  <Buckets>\n    <Bucket>\n      <Comment></Comment>\n      <CreationDate>2025-04-04T06:05:48.000Z</CreationDate>\n      <ExtranetEndpoint>oss-cn-shanghai.aliyuncs.com</ExtranetEndpoint>\n      <IntranetEndpoint>oss-cn-shanghai-internal.aliyuncs.com</IntranetEndpoint>\n      <Location>oss-cn-shanghai</Location>\n      <Name>chameleon-jcloud</Name>\n      <Region>cn-shanghai</Region>\n      <StorageClass>Standard</StorageClass>\n    </Bucket>\n    <Bucket>\n      <Comment></Comment>\n      <CreationDate>2024-07-08T18:48:24.000Z</CreationDate>\n      <ExtranetEndpoint>oss-cn-shanghai.aliyuncs.com</ExtranetEndpoint>\n      <IntranetEndpoint>oss-cn-shanghai-internal.aliyuncs.com</IntranetEndpoint>\n      <Location>oss-cn-shanghai</Location>\n      <Name>chameleon-jcloud2</Name>\n      <Region>cn-shanghai</Region>\n      <StorageClass>Standard</StorageClass>\n    </Bucket>\n    <Bucket>\n      <Comment></Comment>\n      <CreationDate>2026-05-12T17:58:26.000Z</CreationDate>\n      <ExtranetEndpoint>oss-cn-shanghai.aliyuncs.com</ExtranetEndpoint>\n      <IntranetEndpoint>oss-cn-shanghai-internal.aliyuncs.com</IntranetEndpoint>\n      <Location>oss-cn-shanghai</Location>\n      <Name>chameleon-multicloudj-test</Name>\n      <Region>cn-shanghai</Region>\n      <StorageClass>Standard</StorageClass>\n    </Bucket>\n    <Bucket>\n      <Comment></Comment>\n      <CreationDate>2026-05-12T18:00:20.000Z</CreationDate>\n      <ExtranetEndpoint>oss-cn-shanghai.aliyuncs.com</ExtranetEndpoint>\n      <IntranetEndpoint>oss-cn-shanghai-internal.aliyuncs.com</IntranetEndpoint>\n      <Location>oss-cn-shanghai</Location>\n      <Name>chameleon-multicloudj-test-versioned</Name>\n      <Region>cn-shanghai</Region>\n      <StorageClass>Standard</StorageClass>\n    </Bucket>\n    <Bucket>\n      <Comment></Comment>\n      <CreationDate>2024-11-07T03:56:43.000Z</CreationDate>\n      <ExtranetEndpoint>oss-cn-shanghai.aliyuncs.com</ExtranetEndpoint>\n      <IntranetEndpoint>oss-cn-shanghai-internal.aliyuncs.com</IntranetEndpoint>\n      <Location>oss-cn-shanghai</Location>\n      <Name>quantumk1-service-providers1-1099202394511537</Name>\n      <Region>cn-shanghai</Region>\n      <StorageClass>Standard</StorageClass>\n    </Bucket>\n    <Bucket>\n      <Comment></Comment>\n      <CreationDate>2024-11-07T03:56:42.000Z</CreationDate>\n      <ExtranetEndpoint>oss-cn-shanghai.aliyuncs.com</ExtranetEndpoint>\n      <IntranetEndpoint>oss-cn-shanghai-internal.aliyuncs.com</IntranetEndpoint>\n      <Location>oss-cn-shanghai</Location>\n      <Name>quantumk1-service-providers1-1099202394511537-logging</Name>\n      <Region>cn-shanghai</Region>\n      <StorageClass>Standard</StorageClass>\n    </Bucket>\n    <Bucket>\n      <Comment></Comment>\n      <CreationDate>2024-11-12T01:02:44.000Z</CreationDate>\n      <ExtranetEndpoint>oss-cn-shanghai.aliyuncs.com</ExtranetEndpoint>\n      <IntranetEndpoint>oss-cn-shanghai-internal.aliyuncs.com</IntranetEndpoint>\n      <Location>oss-cn-shanghai</Location>\n      <Name>quantumk2-service-providers1-1099202394511537</Name>\n      <Region>cn-shanghai</Region>\n      <StorageClass>Standard</StorageClass>\n    </Bucket>\n    <Bucket>\n      <Comment></Comment>\n      <CreationDate>2024-11-12T01:02:43.000Z</CreationDate>\n      <ExtranetEndpoint>oss-cn-shanghai.aliyuncs.com</ExtranetEndpoint>\n      <IntranetEndpoint>oss-cn-shanghai-internal.aliyuncs.com</IntranetEndpoint>\n      <Location>oss-cn-shanghai</Location>\n      <Name>quantumk2-service-providers1-1099202394511537-logging</Name>\n      <Region>cn-shanghai</Region>\n      <StorageClass>Standard</StorageClass>\n    </Bucket>\n    <Bucket>\n      <Comment></Comment>\n      <CreationDate>2026-05-21T22:15:09.000Z</CreationDate>\n      <ExtranetEndpoint>oss-cn-shanghai.aliyuncs.com</ExtranetEndpoint>\n      <IntranetEndpoint>oss-cn-shanghai-internal.aliyuncs.com</IntranetEndpoint>\n      <Location>oss-cn-shanghai</Location>\n      <Name>test-bucket-create-multicloudj3</Name>\n      <Region>cn-shanghai</Region>\n      <StorageClass>Standard</StorageClass>\n    </Bucket>\n  </Buckets>\n</ListAllMyBucketsResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A0F83EE2BFAFA3939A17383",
+      "x-oss-server-time" : "75",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 21 May 2026 22:15:11 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "545b6186-01cf-4613-b481-e81f2e5b62a7",
+  "persistent" : true,
+  "insertionIndex" : 482
+}

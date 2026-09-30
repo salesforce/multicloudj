@@ -1,0 +1,25 @@
+{
+  "id" : "c039d016-9866-4873-9363-94b536e39c9e",
+  "name" : "AliBlobStoreIT_testTagging_lifecycleExpiration-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/blob-for-lifecycle-expiration",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6AA856A71017793432E06627",
+      "x-oss-server-time" : "145",
+      "Server" : "AliyunOSS",
+      "Date" : "Mon, 14 Sep 2026 20:18:47 GMT"
+    }
+  },
+  "uuid" : "c039d016-9866-4873-9363-94b536e39c9e",
+  "persistent" : true,
+  "insertionIndex" : 758
+}

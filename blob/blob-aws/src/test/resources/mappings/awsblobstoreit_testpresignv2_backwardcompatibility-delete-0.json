@@ -1,0 +1,20 @@
+{
+  "id" : "2a5bce5e-6af3-414c-88b3-ad9ba6f9a98f",
+  "name" : "AwsBlobStoreIT_testPresignV2_backwardCompatibility-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/presign-v2/backward-compat",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "J3ZRV0YRZSZ3Y837",
+      "x-amz-id-2" : "Bo+kUlFCkmbT17kQ6+6Hfj69zbVbZcJd8CDJELCzcxqcZnS14CFcUqxYgcBhAHhgpfYEjyYCSXI=",
+      "Date" : "Fri, 05 Jun 2026 04:48:05 GMT"
+    }
+  },
+  "uuid" : "2a5bce5e-6af3-414c-88b3-ad9ba6f9a98f",
+  "persistent" : true,
+  "insertionIndex" : 753
+}

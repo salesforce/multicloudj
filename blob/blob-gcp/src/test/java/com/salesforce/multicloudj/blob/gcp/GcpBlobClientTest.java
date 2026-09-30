@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.gcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -100,50 +101,46 @@ public class GcpBlobClientTest {
 
   @Test
   void testExceptionHandlingStorageException() {
-    // Test 404 error
     StorageException notFoundException = new StorageException(404, "Not found");
-    Class<?> cls = gcpBlobClient.getException(notFoundException);
-    assertEquals(ResourceNotFoundException.class, cls);
+    assertInstanceOf(
+        ResourceNotFoundException.class, gcpBlobClient.mapException(notFoundException));
 
-    // Test 400 error
     StorageException badRequestException = new StorageException(400, "Bad request");
-    cls = gcpBlobClient.getException(badRequestException);
-    assertEquals(InvalidArgumentException.class, cls);
+    assertInstanceOf(
+        InvalidArgumentException.class, gcpBlobClient.mapException(badRequestException));
   }
 
   @Test
   void testExceptionHandlingApiException() {
-    // Test NOT_FOUND
     ApiException notFoundException = mock(ApiException.class);
     StatusCode notFoundStatusCode = mock(StatusCode.class);
     when(notFoundStatusCode.getCode()).thenReturn(StatusCode.Code.NOT_FOUND);
     when(notFoundException.getStatusCode()).thenReturn(notFoundStatusCode);
 
-    Class<?> cls = gcpBlobClient.getException(notFoundException);
-    assertEquals(ResourceNotFoundException.class, cls);
+    assertInstanceOf(
+        ResourceNotFoundException.class, gcpBlobClient.mapException(notFoundException));
 
-    // Test INVALID_ARGUMENT
     ApiException invalidArgException = mock(ApiException.class);
     StatusCode invalidArgStatusCode = mock(StatusCode.class);
     when(invalidArgStatusCode.getCode()).thenReturn(StatusCode.Code.INVALID_ARGUMENT);
     when(invalidArgException.getStatusCode()).thenReturn(invalidArgStatusCode);
 
-    cls = gcpBlobClient.getException(invalidArgException);
-    assertEquals(InvalidArgumentException.class, cls);
+    assertInstanceOf(
+        InvalidArgumentException.class, gcpBlobClient.mapException(invalidArgException));
   }
 
   @Test
   void testExceptionHandlingIllegalArgument() {
     IllegalArgumentException illegalArgException = new IllegalArgumentException("Invalid argument");
-    Class<?> cls = gcpBlobClient.getException(illegalArgException);
-    assertEquals(InvalidArgumentException.class, cls);
+    assertInstanceOf(
+        InvalidArgumentException.class, gcpBlobClient.mapException(illegalArgException));
   }
 
   @Test
   void testExceptionHandlingUnknown() {
     RuntimeException unknownException = new RuntimeException("Unknown error");
-    Class<?> cls = gcpBlobClient.getException(unknownException);
-    assertEquals(UnknownException.class, cls);
+    assertInstanceOf(
+        UnknownException.class, gcpBlobClient.mapException(unknownException));
   }
 
   @Test

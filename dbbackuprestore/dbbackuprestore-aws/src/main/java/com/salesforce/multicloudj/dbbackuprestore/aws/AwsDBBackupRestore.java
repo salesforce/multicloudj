@@ -2,6 +2,8 @@ package com.salesforce.multicloudj.dbbackuprestore.aws;
 
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
+import com.salesforce.multicloudj.common.aws.AwsRetryClassifier;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.util.UUID;
@@ -66,8 +68,9 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    return ErrorCodeMapping.getException(t);
+  public SubstrateSdkException mapException(Throwable t) {
+    return ExceptionHandler.build(
+        ErrorCodeMapping.getException(t), t, AwsRetryClassifier.classify(t));
   }
 
   @Override
@@ -179,18 +182,25 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
   }
 
   private Backup convertToBackup(RecoveryPointByResource recoveryPoint) {
+    // backupSizeBytes() is a boxed Long that AWS leaves null until the size is computed (e.g. while
+    // the recovery point is still CREATING/PARTIAL). Guard the unboxing and report -1 (unavailable)
+    // per the Backup.sizeInBytes contract instead of throwing NPE.
+    Long sizeInBytes = recoveryPoint.backupSizeBytes();
     return Backup.builder()
         .backupId(recoveryPoint.recoveryPointArn())
         .resourceName(getResourceName())
         .status(convertRecoveryPointStatus(recoveryPoint.status()))
         .creationTime(recoveryPoint.creationDate())
         .expiryTime(null)
-        .sizeInBytes(recoveryPoint.backupSizeBytes())
+        .sizeInBytes(sizeInBytes != null ? sizeInBytes : -1)
         .vaultId(recoveryPoint.backupVaultName())
         .build();
   }
 
   private Backup convertToBackup(DescribeRecoveryPointResponse response) {
+    // backupSizeInBytes() is a boxed Long that AWS leaves null until the size is computed. Guard
+    // the unboxing and report -1 (unavailable) per the Backup.sizeInBytes contract instead of NPE.
+    Long sizeInBytes = response.backupSizeInBytes();
     return Backup.builder()
         .backupId(response.recoveryPointArn())
         .resourceName(getResourceName())
@@ -200,7 +210,7 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
             response.calculatedLifecycle() != null
                 ? response.calculatedLifecycle().deleteAt()
                 : null)
-        .sizeInBytes(response.backupSizeInBytes())
+        .sizeInBytes(sizeInBytes != null ? sizeInBytes : -1)
         .vaultId(response.backupVaultName())
         .build();
   }

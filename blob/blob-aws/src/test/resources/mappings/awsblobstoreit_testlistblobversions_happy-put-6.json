@@ -1,0 +1,28 @@
+{
+  "id" : "69a27752-054b-4d5d-a68c-9b461d00740f",
+  "name" : "AwsBlobStoreIT_testListBlobVersions_happy-PUT-6",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/list-object-versions/exact-three-versions-blob",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "YXJjaGl2ZWQgY29udGVudCB2Mg=="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"ab9782dd75210385218989f982be54eb\"",
+      "x-amz-checksum-crc64nvme" : "LlJ1h8QRSJ8=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "E14TT4WX5V6M8CB5",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "RN5mKKCX/w659bjECgiuwc4Zwc83Zmrj4VDe6eB5Xm4HAbQRX5yipoQULBJ1kBxaMHsNAaAKeIrRJPaFvj24e7UNVxZjjx4B",
+      "x-amz-version-id" : "UtxV4ZatqLdhXivzpRwSv2CxrpV90Fsl",
+      "Date" : "Wed, 27 May 2026 00:23:42 GMT"
+    }
+  },
+  "uuid" : "69a27752-054b-4d5d-a68c-9b461d00740f",
+  "persistent" : true,
+  "insertionIndex" : 751
+}

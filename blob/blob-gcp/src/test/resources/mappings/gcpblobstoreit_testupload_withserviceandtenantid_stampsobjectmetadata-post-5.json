@@ -1,0 +1,48 @@
+{
+  "id" : "d7a060a4-bb33-45bb-8ca2-1b0ee606c873",
+  "name" : "GcpBlobStoreIT_testUpload_withServiceAndTenantId_stampsObjectMetadata-POST-5",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/upload/observabilityMetadata"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{\"sdk-logging-tenant-id\":\"conformance-tenant\",\"sdk-logging-correlation-id\":\"conformance-correlation-id\",\"sdk-logging-service-id\":\"conformance-service\"},\"name\":\"conformance-tests/upload/observabilityMetadata\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AKhXX7JnjRJKgoREMtOzZ3s7wWrpufV0svoIEXs-8uaEHlWQQCwiWyv3_QSbextBNFOtEVNytKGSPGTgh33wi4y7sFcgCe2yCFzVKBNp-Z-Cyg",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 16 Jul 2026 23:00:33 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/upload/observabilityMetadata&uploadType=resumable&upload_id=AKhXX7JnjRJKgoREMtOzZ3s7wWrpufV0svoIEXs-8uaEHlWQQCwiWyv3_QSbextBNFOtEVNytKGSPGTgh33wi4y7sFcgCe2yCFzVKBNp-Z-Cyg",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "d7a060a4-bb33-45bb-8ca2-1b0ee606c873",
+  "persistent" : true,
+  "insertionIndex" : 1477
+}

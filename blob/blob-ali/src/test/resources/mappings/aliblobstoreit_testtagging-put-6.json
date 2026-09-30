@@ -1,0 +1,31 @@
+{
+  "id" : "d60fab50-4918-45c9-b093-ed275fb5efc0",
+  "name" : "AliBlobStoreIT_testTagging-PUT-6",
+  "request" : {
+    "url" : "/conformance-tests/blob-for-tagging",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGhpcyBpcyB0YWdnaW5nIHRlc3QgZGF0YQ=="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A0F7EAA5336F132399E5DB0",
+      "x-oss-server-time" : "43",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "6950286887824660853",
+      "ETag" : "\"6699DFAB4039D2105BDAEF07F4D36D79\"",
+      "Date" : "Thu, 21 May 2026 21:52:42 GMT",
+      "Content-MD5" : "Zpnfq0A50hBb2u8H9NNteQ=="
+    }
+  },
+  "uuid" : "d60fab50-4918-45c9-b093-ed275fb5efc0",
+  "persistent" : true,
+  "insertionIndex" : 52
+}

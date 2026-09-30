@@ -1,0 +1,53 @@
+{
+  "id" : "b0fa39ee-1a79-4a0f-b842-a907d3231306",
+  "name" : "GcpBlobStoreIT_testUploadDirectory_withKmsKey-POST-10",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "kmsKeyName" : {
+        "hasExactly" : [ {
+          "equalTo" : "projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test"
+        } ]
+      },
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/directory/upload-kms-v1/kms-file1.txt"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"name\":\"conformance-tests/directory/upload-kms-v1/kms-file1.txt\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AJjja9ZMwDrGtkznDtvn1-gx1la3vy2DvAEII-x9_pEyQRyRLyy4cdjeOUgHO4XMkLrf5yj8_dABauxpFP4qGT3UirON4rpJW9NUKjU9VI3d5g",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 18 Aug 2026 20:22:23 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?kmsKeyName=projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test&name=conformance-tests/directory/upload-kms-v1/kms-file1.txt&uploadType=resumable&upload_id=AJjja9ZMwDrGtkznDtvn1-gx1la3vy2DvAEII-x9_pEyQRyRLyy4cdjeOUgHO4XMkLrf5yj8_dABauxpFP4qGT3UirON4rpJW9NUKjU9VI3d5g",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "b0fa39ee-1a79-4a0f-b842-a907d3231306",
+  "persistent" : true,
+  "insertionIndex" : 1511
+}

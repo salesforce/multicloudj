@@ -1,0 +1,22 @@
+{
+  "id" : "0d9eb22e-b529-447b-b03e-c24fc494d802",
+  "name" : "AwsBlobStoreIT_testUpdateObjectRetention_modeDowngrade_complianceToGovernance_throws-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/update/mode-downgrade",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "SBJMD9GFRBW9D3SM",
+      "x-amz-id-2" : "1tOijF1faGl0BHr4jI0KneE1C9NhhkJwYwdL11xkoYzUyk8KZ9nRhOxUUoHMhS3JM29VXo5d5wg=",
+      "x-amz-version-id" : "lxJw25Ixs1y6N_hrMjODe31sgR5Xbo1A",
+      "Date" : "Mon, 11 May 2026 10:38:54 GMT"
+    }
+  },
+  "uuid" : "0d9eb22e-b529-447b-b03e-c24fc494d802",
+  "persistent" : true,
+  "insertionIndex" : 692
+}

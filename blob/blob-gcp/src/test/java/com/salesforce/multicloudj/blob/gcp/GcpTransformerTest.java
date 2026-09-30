@@ -13,8 +13,13 @@ import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Storage;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
+import com.salesforce.multicloudj.blob.driver.Checksum;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
@@ -30,6 +35,8 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.gcp.GcpConstants;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.File;
 import java.io.IOException;
@@ -39,6 +46,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -198,6 +206,106 @@ class GcpTransformerTest {
   }
 
   @Test
+  void testToBlobInfo_withExpirationTag_stampsCustomTimeDaysFromNow() {
+    // Given the reserved lifecycle-expiration tag requests a 30-day lifetime
+    Map<String, String> tags = new HashMap<>();
+    tags.put(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "30");
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey(TEST_KEY).withTags(tags).build();
+
+    OffsetDateTime before = OffsetDateTime.now(ZoneOffset.UTC);
+
+    // When
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    OffsetDateTime after = OffsetDateTime.now(ZoneOffset.UTC);
+
+    // Then the object's custom time is stamped ~30 days out (creation time is "now" on upload) so
+    // a daysSinceCustomTime rule can expire it, and the tag itself is still persisted as prefixed
+    // metadata
+    OffsetDateTime customTime = blobInfo.getCustomTimeOffsetDateTime();
+    assertNotNull(customTime);
+    assertFalse(customTime.isBefore(before.plusDays(30)));
+    assertFalse(customTime.isAfter(after.plusDays(30)));
+    assertEquals(
+        "30",
+        blobInfo.getMetadata().get("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
+  }
+
+  @Test
+  void testToBlobInfo_withoutExpirationTag_doesNotStampCustomTime() {
+    // Given only non-reserved tags are present
+    Map<String, String> tags = new HashMap<>();
+    tags.put("environment", "production");
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey(TEST_KEY).withTags(tags).build();
+
+    // When
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    // Then no custom time marker is added
+    assertNull(blobInfo.getCustomTimeOffsetDateTime());
+  }
+
+  @Test
+  void testToBlobInfo_withNeverExpirationTag_doesNotStampCustomTime() {
+    // Given the reserved tag carries a non-numeric "never expire" sentinel
+    Map<String, String> tags = new HashMap<>();
+    tags.put(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "Never");
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey(TEST_KEY).withTags(tags).build();
+
+    // When
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    // Then no custom time marker is added, but the tag is still persisted verbatim
+    assertNull(blobInfo.getCustomTimeOffsetDateTime());
+    assertEquals(
+        "Never",
+        blobInfo.getMetadata().get("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
+  }
+
+  @Test
+  void testApplyLifecycleExpiration_stampsCustomTimeOnlyForPositiveDayCount() {
+    // Positive day count -> stamps custom time ~10 days out
+    BlobInfo.Builder withTag = BlobInfo.newBuilder(TEST_BUCKET, TEST_KEY);
+    Map<String, String> present = new HashMap<>();
+    present.put("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "10");
+    OffsetDateTime before = OffsetDateTime.now(ZoneOffset.UTC);
+    transformer.applyLifecycleExpiration(withTag, present);
+    OffsetDateTime customTime = withTag.build().getCustomTimeOffsetDateTime();
+    assertNotNull(customTime);
+    assertFalse(customTime.isBefore(before.plusDays(10)));
+    assertFalse(customTime.isAfter(OffsetDateTime.now(ZoneOffset.UTC).plusDays(10)));
+
+    // Absent -> leaves custom time untouched (null)
+    BlobInfo.Builder withoutTag = BlobInfo.newBuilder(TEST_BUCKET, TEST_KEY);
+    Map<String, String> absent = new HashMap<>();
+    absent.put("gcp-tag-environment", "production");
+    transformer.applyLifecycleExpiration(withoutTag, absent);
+    assertNull(withoutTag.build().getCustomTimeOffsetDateTime());
+
+    // Non-positive / non-numeric value -> no marker
+    BlobInfo.Builder never = BlobInfo.newBuilder(TEST_BUCKET, TEST_KEY);
+    Map<String, String> sentinel = new HashMap<>();
+    sentinel.put("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "Never");
+    transformer.applyLifecycleExpiration(never, sentinel);
+    assertNull(never.build().getCustomTimeOffsetDateTime());
+  }
+
+  @Test
+  void testParseExpirationDays() {
+    assertEquals(30, GcpTransformer.parseExpirationDays("30"));
+    assertEquals(10, GcpTransformer.parseExpirationDays("  10 "));
+    assertNull(GcpTransformer.parseExpirationDays(null));
+    assertNull(GcpTransformer.parseExpirationDays(""));
+    assertNull(GcpTransformer.parseExpirationDays("Never"));
+    assertNull(GcpTransformer.parseExpirationDays("true"));
+    assertNull(GcpTransformer.parseExpirationDays("0"));
+    assertNull(GcpTransformer.parseExpirationDays("-5"));
+  }
+
+  @Test
   void testToBlobInfo_WithEmptyMetadataAndTags() {
     // Given
     UploadRequest uploadRequest =
@@ -230,6 +338,249 @@ class GcpTransformerTest {
     assertEquals(TEST_KEY, blobInfo.getName());
     assertNotNull(blobInfo.getMetadata());
     assertTrue(blobInfo.getMetadata().isEmpty());
+  }
+
+  @Test
+  void testToBlobInfo_correlationIdInjectedIntoMetadata() {
+    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        blobInfo.getMetadata().get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "transformer must persist the operation correlation_id under the well-known metadata key");
+  }
+
+  @Test
+  void testToBlobInfo_correlationIdNotInjectedWhenContextMissing() {
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
+    assertFalse(
+        blobInfo.getMetadata().containsKey(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "no injection when the request carries no OperationContext");
+  }
+
+  @Test
+  void testToBlobInfo_userSuppliedCorrelationIdNotOverwritten() {
+    OperationContext ctx = OperationContext.builder().correlationId("sdk-generated").build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of(GcpTransformer.CORRELATION_ID_METADATA_KEY, "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals(
+        "user-supplied",
+        blobInfo.getMetadata().get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "application's explicit sdk-logging-correlation-id metadata value must take precedence");
+  }
+
+  @Test
+  void testToBlobInfo_customCorrelationKeyUsed() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .correlationIdKey("x-custom-corr")
+            .build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        blobInfo.getMetadata().get("x-custom-corr"),
+        "custom correlation key must be used when specified");
+    assertFalse(
+        blobInfo.getMetadata().containsKey(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "default correlation key should not be present when custom key is used");
+  }
+
+  @Test
+  void testToBlobInfo_customCorrelationKeyNotOverwritten() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("sdk-generated")
+            .correlationIdKey("x-custom-corr")
+            .build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("x-custom-corr", "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals(
+        "user-supplied",
+        blobInfo.getMetadata().get("x-custom-corr"),
+        "application's explicit custom correlation key metadata value must take precedence");
+  }
+
+  @Test
+  void testToBlobInfo_serviceIdAndTenantIdInjectedIntoMetadata() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("keystone-boxoffice")
+            .tenantId("tenant-42")
+            .build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
+    assertEquals(
+        "keystone-boxoffice",
+        blobInfo.getMetadata().get(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "transformer must persist the operation service_id under the well-known metadata key");
+    assertEquals(
+        "tenant-42",
+        blobInfo.getMetadata().get(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "transformer must persist the operation tenant_id under the well-known metadata key");
+  }
+
+  @Test
+  void testToBlobInfo_serviceIdAndTenantIdNotInjectedWhenAbsent() {
+    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertFalse(
+        blobInfo.getMetadata().containsKey(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "no service_id injection when the context has no serviceId");
+    assertFalse(
+        blobInfo.getMetadata().containsKey(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "no tenant_id injection when the context has no tenantId");
+  }
+
+  @Test
+  void testToBlobInfo_blankServiceIdAndTenantIdNotInjected() {
+    // Empty / whitespace-only ids must be treated as absent, not stamped as blank metadata.
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .serviceId("")
+            .tenantId("   ")
+            .build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertFalse(
+        blobInfo.getMetadata().containsKey(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "blank serviceId must be skipped, not stamped as an empty metadata value");
+    assertFalse(
+        blobInfo.getMetadata().containsKey(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "blank tenantId must be skipped, not stamped as an empty metadata value");
+  }
+
+  @Test
+  void testToBlobInfo_userSuppliedServiceIdAndTenantIdNotOverwritten() {
+    OperationContext ctx =
+        OperationContext.builder().serviceId("sdk-service").tenantId("sdk-tenant").build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(
+                Map.of(
+                    GcpTransformer.SERVICE_ID_METADATA_KEY, "user-service",
+                    GcpTransformer.TENANT_ID_METADATA_KEY, "user-tenant"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals(
+        "user-service",
+        blobInfo.getMetadata().get(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "application's explicit service_id metadata value must take precedence");
+    assertEquals(
+        "user-tenant",
+        blobInfo.getMetadata().get(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "application's explicit tenant_id metadata value must take precedence");
+  }
+
+  @Test
+  void testToBlobInfo_serviceIdStampedWhenTenantIdAbsent() {
+    // Isolates the serviceId branch: serviceId present, tenantId absent.
+    OperationContext ctx = OperationContext.builder().serviceId("keystone-boxoffice").build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals(
+        "keystone-boxoffice",
+        blobInfo.getMetadata().get(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "serviceId must be stamped even when tenantId is absent");
+    assertFalse(
+        blobInfo.getMetadata().containsKey(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "no tenant_id injection when the context has no tenantId");
+  }
+
+  @Test
+  void testToBlobInfo_tenantIdStampedWhenServiceIdAbsent() {
+    // Isolates the tenantId branch: tenantId present, serviceId absent.
+    OperationContext ctx = OperationContext.builder().tenantId("tenant-42").build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals(
+        "tenant-42",
+        blobInfo.getMetadata().get(GcpTransformer.TENANT_ID_METADATA_KEY),
+        "tenantId must be stamped even when serviceId is absent");
+    assertFalse(
+        blobInfo.getMetadata().containsKey(GcpTransformer.SERVICE_ID_METADATA_KEY),
+        "no service_id injection when the context has no serviceId");
   }
 
   @Test
@@ -296,14 +647,14 @@ class GcpTransformerTest {
   }
 
   @Test
-  void testGetKmsWriteOptions_WithKmsKey() {
+  void testGetKmsWriteOptions_WithStorageKey() {
     // Given
     String kmsKeyId = "projects/my-project/locations/us-east1/keyRings/my-ring/cryptoKeys/my-key";
     UploadRequest uploadRequest =
         UploadRequest.builder().withKey(TEST_KEY).withKmsKeyId(kmsKeyId).build();
 
     // When
-    Storage.BlobWriteOption[] options = transformer.getKmsWriteOptions(uploadRequest);
+    Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(uploadRequest);
 
     // Then
     assertEquals(1, options.length);
@@ -311,27 +662,48 @@ class GcpTransformerTest {
   }
 
   @Test
-  void testGetKmsWriteOptions_WithoutKmsKey() {
+  void testGetKmsWriteOptions_WithoutStorageKey() {
     // Given
     UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
 
     // When
-    Storage.BlobWriteOption[] options = transformer.getKmsWriteOptions(uploadRequest);
+    Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(uploadRequest);
 
     // Then
     assertEquals(0, options.length);
   }
 
   @Test
-  void testGetKmsWriteOptions_WithEmptyKmsKey() {
+  void testGetKmsWriteOptions_WithEmptyStorageKey() {
     // Given
     UploadRequest uploadRequest =
         UploadRequest.builder().withKey(TEST_KEY).withKmsKeyId("").build();
 
     // When
-    Storage.BlobWriteOption[] options = transformer.getKmsWriteOptions(uploadRequest);
+    Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(uploadRequest);
 
     // Then
+    assertEquals(0, options.length);
+  }
+
+  @Test
+  void testGetBlobWriteOptions_CreateIfAbsentUsesGenerationMatchZero() {
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey(TEST_KEY).withCreateIfAbsent(true).build();
+
+    Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(uploadRequest);
+
+    assertEquals(1, options.length);
+    assertEquals(Storage.BlobWriteOption.generationMatch(0L), options[0]);
+  }
+
+  @Test
+  void testGetBlobWriteOptions_CreateIfAbsentDisabledDoesNotAddPrecondition() {
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey(TEST_KEY).withCreateIfAbsent(false).build();
+
+    Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(uploadRequest);
+
     assertEquals(0, options.length);
   }
 
@@ -600,6 +972,25 @@ class GcpTransformerTest {
     assertEquals(expectedMetadata, blobMetadata.getMetadata());
 
     assertEquals(updateTime.toInstant(), blobMetadata.getLastModified());
+  }
+
+  @Test
+  void testToBlobMetadata_populatesCrc32cChecksum() {
+    when(mockBlob.getName()).thenReturn(TEST_KEY);
+    when(mockBlob.getCrc32c()).thenReturn("abc123==");
+
+    Checksum checksum = transformer.toBlobMetadata(mockBlob).getChecksum();
+    assertNotNull(checksum);
+    assertEquals(ChecksumMethod.CRC32C, checksum.getAlgorithm());
+    assertEquals("abc123==", checksum.getValue());
+  }
+
+  @Test
+  void testToBlobMetadata_noCrc32cReturnsNullChecksum() {
+    when(mockBlob.getName()).thenReturn(TEST_KEY);
+    when(mockBlob.getCrc32c()).thenReturn(null);
+
+    assertNull(transformer.toBlobMetadata(mockBlob).getChecksum());
   }
 
   @Test
@@ -908,6 +1299,36 @@ class GcpTransformerTest {
   }
 
   @Test
+  public void testToBlobInfo_multipartUploadRequestWithObjectLock() {
+    Instant retainUntil = Instant.parse("2026-12-31T23:59:59Z");
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.COMPLIANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(true)
+            .useEventBasedHold(true)
+            .build();
+
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey(TEST_KEY).withObjectLock(objectLock).build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+    assertEquals(TEST_BUCKET, blobInfo.getBucket());
+    assertEquals(TEST_KEY, blobInfo.getName());
+    // Verify object lock - retention mode
+    assertNotNull(blobInfo.getRetention());
+    assertEquals(Retention.Mode.LOCKED, blobInfo.getRetention().getMode());
+    assertEquals(
+        OffsetDateTime.ofInstant(retainUntil, ZoneOffset.UTC),
+        blobInfo.getRetention().getRetainUntilTime());
+    // Verify event-based hold is set (not temporary hold)
+    assertTrue(blobInfo.getEventBasedHold());
+    // Temporary hold should not be set
+    assertNull(blobInfo.getTemporaryHold());
+  }
+
+  @Test
   public void testToBlobInfo_uploadRequestWithContentType() {
     UploadRequest request =
         UploadRequest.builder()
@@ -933,6 +1354,44 @@ class GcpTransformerTest {
     assertEquals(TEST_BUCKET, blobInfo.getBucket());
     assertEquals(TEST_KEY, blobInfo.getName());
     assertEquals("application/x-directory", blobInfo.getContentType());
+  }
+
+  @Test
+  public void testToBlobInfo_MultipartUploadRequestWithObjectLockEventBasedHold() {
+    ObjectLockConfiguration lockConfig =
+        ObjectLockConfiguration.builder().legalHold(true).useEventBasedHold(true).build();
+
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey(TEST_KEY).withObjectLock(lockConfig).build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+    assertEquals(TEST_BUCKET, blobInfo.getBucket());
+    assertEquals(TEST_KEY, blobInfo.getName());
+    Boolean tempHold = getTemporaryHold(blobInfo);
+    Boolean eventHold = getEventBasedHold(blobInfo);
+    assertTrue(tempHold == null || !tempHold, "Temporary hold should be false or null");
+    assertTrue(eventHold != null && eventHold, "Event-based hold should be set to true");
+  }
+
+  @Test
+  public void testToBlobInfo_MultipartUploadRequestWithObjectLockTemporaryHoldDefault() {
+    ObjectLockConfiguration lockConfig =
+        ObjectLockConfiguration.builder().legalHold(true).useEventBasedHold(null).build();
+
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey(TEST_KEY).withObjectLock(lockConfig).build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+    assertEquals(TEST_BUCKET, blobInfo.getBucket());
+    assertEquals(TEST_KEY, blobInfo.getName());
+    Boolean tempHold = getTemporaryHold(blobInfo);
+    Boolean eventHold = getEventBasedHold(blobInfo);
+    assertTrue(
+        tempHold != null && tempHold,
+        "Temporary hold should be set to true (default when useEventBasedHold is null)");
+    assertTrue(eventHold == null || !eventHold, "Event-based hold should be false or null");
   }
 
   @Test
@@ -2075,4 +2534,97 @@ class GcpTransformerTest {
           transformer.toGenerationId(invalidVersionId);
         });
   }
+
+  @Test
+  void testToBlobInfo_md5_setsMd5NotCrc32c() {
+    UploadRequest request = UploadRequest.builder()
+        .withKey(TEST_KEY)
+        .withChecksumValue("rL0Y20zC+Fzt72VPzMSk2A==")
+        .withChecksumAlgorithm(ChecksumMethod.MD5)
+        .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+    assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", blobInfo.getMd5());
+    assertNull(blobInfo.getCrc32c());
+  }
+
+  @Test
+  void testToBlobInfo_crc32c_setsCrc32cNotMd5() {
+    UploadRequest request = UploadRequest.builder()
+        .withKey(TEST_KEY)
+        .withChecksumValue("abc123==")
+        .withChecksumAlgorithm(ChecksumMethod.CRC32C)
+        .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+    assertEquals("abc123==", blobInfo.getCrc32c());
+    assertNull(blobInfo.getMd5());
+  }
+
+  @Test
+  void testGetBlobWriteOptions_md5_usesMd5Match() {
+    UploadRequest request = UploadRequest.builder()
+        .withKey(TEST_KEY)
+        .withChecksumValue("rL0Y20zC+Fzt72VPzMSk2A==")
+        .withChecksumAlgorithm(ChecksumMethod.MD5)
+        .build();
+
+    Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(request);
+
+    assertEquals(1, options.length);
+    assertEquals(Storage.BlobWriteOption.md5Match(), options[0]);
+  }
+
+  @Test
+  void testGetBlobWriteOptions_crc32c_usesCrc32cMatch() {
+    UploadRequest request = UploadRequest.builder()
+        .withKey(TEST_KEY)
+        .withChecksumValue("abc123==")
+        .withChecksumAlgorithm(ChecksumMethod.CRC32C)
+        .build();
+
+    Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(request);
+
+    assertEquals(1, options.length);
+    assertEquals(Storage.BlobWriteOption.crc32cMatch(), options[0]);
+  }
+
+  @Test
+  void testToPresignBlobInfo_md5_setsMd5OnBlobInfo() {
+    PresignedUrlRequest request = PresignedUrlRequest.builder()
+        .type(PresignedOperation.UPLOAD)
+        .key(TEST_KEY)
+        .duration(Duration.ofHours(1))
+        .checksumValue("rL0Y20zC+Fzt72VPzMSk2A==")
+        .checksumAlgorithm(ChecksumMethod.MD5)
+        .build();
+
+    BlobInfo blobInfo = transformer.toPresignBlobInfo(request);
+
+    assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", blobInfo.getMd5());
+  }
+
+  @Test
+  public void testToBucketVersioningConfiguration_enabled() {
+    BucketVersioningConfiguration config = transformer.toBucketVersioningConfiguration(true);
+    assertEquals(BucketVersioningStatus.ENABLED, config.getStatus());
+    assertEquals(BucketVersioningStatus.ENABLED, config.getStatus());
+  }
+
+  @Test
+  public void testToBucketVersioningConfiguration_falseMapsToUnversioned() {
+    BucketVersioningConfiguration config = transformer.toBucketVersioningConfiguration(false);
+    assertEquals(BucketVersioningStatus.UNVERSIONED, config.getStatus());
+    assertEquals(BucketVersioningStatus.UNVERSIONED, config.getStatus());
+  }
+
+  @Test
+  public void testToBucketVersioningConfiguration_nullMapsToUnversioned() {
+    // GCS reports no versioning flag for a bucket that has never had versioning configured.
+    BucketVersioningConfiguration config = transformer.toBucketVersioningConfiguration(null);
+    assertEquals(BucketVersioningStatus.UNVERSIONED, config.getStatus());
+  }
+
 }

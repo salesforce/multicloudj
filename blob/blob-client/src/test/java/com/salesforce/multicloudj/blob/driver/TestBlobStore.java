@@ -7,7 +7,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Path;
-import java.time.Instant;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -96,6 +95,11 @@ public class TestBlobStore extends AbstractBlobStore {
   }
 
   @Override
+  protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
+    return null;
+  }
+
+  @Override
   protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request) {
     return null;
   }
@@ -129,8 +133,15 @@ public class TestBlobStore extends AbstractBlobStore {
   protected void doSetTags(String key, Map<String, String> tags) {}
 
   @Override
-  protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
-    return null;
+  protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
+    try {
+      return PresignedUrlResponse.builder()
+          .url(new java.net.URL("http://localhost/test"))
+          .signedHeaders(Map.of())
+          .build();
+    } catch (java.net.MalformedURLException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
@@ -149,7 +160,7 @@ public class TestBlobStore extends AbstractBlobStore {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
+  public SubstrateSdkException mapException(Throwable t) {
     return null;
   }
 
@@ -162,11 +173,6 @@ public class TestBlobStore extends AbstractBlobStore {
   public ObjectLockInfo getObjectLock(String key, String versionId) {
     // Test implementation - return null
     return null;
-  }
-
-  @Override
-  public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {
-    // Test implementation - no-op
   }
 
   @Override

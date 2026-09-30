@@ -1,0 +1,34 @@
+{
+  "id" : "9dc917bb-94bd-4c65-9079-e9346a809ed7",
+  "name" : "AliBlobStoreIT_testUpload_createIfAbsent-PUT-3",
+  "request" : {
+    "url" : "/conformance-tests/upload/createIfAbsent/ByteArray",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "x-oss-forbid-overwrite" : {
+        "equalTo" : "true"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "cmVwbGFjZW1lbnQgY3JlYXRlLWlmLWFic2VudCBjb250ZW50IGZvciBCeXRlQXJyYXk="
+    } ]
+  },
+  "response" : {
+    "status" : 409,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>FileAlreadyExists</Code>\n  <Message>The object you specified already exists and can not be overwritten.</Message>\n  <RequestId>6A9A42D09E87C131386F3945</RequestId>\n  <HostId>chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com</HostId>\n  <EC>0026-00000002</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000002</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A9A42D09E87C131386F3945",
+      "x-oss-server-time" : "64",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0026-00000002",
+      "Date" : "Fri, 04 Sep 2026 04:02:24 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "9dc917bb-94bd-4c65-9079-e9346a809ed7",
+  "persistent" : true,
+  "insertionIndex" : 761
+}

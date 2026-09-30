@@ -1,0 +1,31 @@
+{
+  "id" : "65c0bf2f-6bd2-4d2d-a66e-307bb06d4651",
+  "name" : "AliBlobStoreIT_testCopyFrom-PUT-18",
+  "request" : {
+    "url" : "/conformance-tests/copied-from-blob",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "x-oss-copy-source" : {
+        "equalTo" : "/chameleon-multicloudj-test/blob-that-doesnt-exist"
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6A31BA0A57D51438341C1A1D</RequestId>\n  <HostId>chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>blob-that-doesnt-exist</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A31BA0A57D51438341C1A1D",
+      "x-oss-server-time" : "11",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0026-00000001",
+      "Date" : "Tue, 16 Jun 2026 21:03:06 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "65c0bf2f-6bd2-4d2d-a66e-307bb06d4651",
+  "persistent" : true,
+  "insertionIndex" : 81
+}

@@ -1,0 +1,47 @@
+{
+  "id" : "e9993f46-2548-41da-bb5d-523e95383099",
+  "name" : "AliBlobStoreIT_testListPage_NoDelimiter_CommonPrefixesEmpty-GET-3",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/common-prefix-no-delimiter/"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult>\n  <Name>chameleon-multicloudj-test</Name>\n  <Prefix>conformance-tests%2Fcommon-prefix-no-delimiter%2F</Prefix>\n  <MaxKeys>100</MaxKeys>\n  <Delimiter></Delimiter>\n  <EncodingType>url</EncodingType>\n  <IsTruncated>false</IsTruncated>\n  <Contents>\n    <Key>conformance-tests%2Fcommon-prefix-no-delimiter%2Fdir1%2Fa.txt</Key>\n    <LastModified>2026-05-22T21:38:04.000Z</LastModified>\n    <ETag>\"098F6BCD4621D373CADE4E832627B4F6\"</ETag>\n    <Type>Normal</Type>\n    <Size>4</Size>\n    <StorageClass>Standard</StorageClass>\n  </Contents>\n  <Contents>\n    <Key>conformance-tests%2Fcommon-prefix-no-delimiter%2Fdir2%2Fb.txt</Key>\n    <LastModified>2026-05-22T21:38:06.000Z</LastModified>\n    <ETag>\"098F6BCD4621D373CADE4E832627B4F6\"</ETag>\n    <Type>Normal</Type>\n    <Size>4</Size>\n    <StorageClass>Standard</StorageClass>\n  </Contents>\n  <Contents>\n    <Key>conformance-tests%2Fcommon-prefix-no-delimiter%2Froot.txt</Key>\n    <LastModified>2026-05-22T21:38:05.000Z</LastModified>\n    <ETag>\"098F6BCD4621D373CADE4E832627B4F6\"</ETag>\n    <Type>Normal</Type>\n    <Size>4</Size>\n    <StorageClass>Standard</StorageClass>\n  </Contents>\n  <KeyCount>3</KeyCount>\n</ListBucketResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A10CCBFF30B893936EFF180",
+      "x-oss-server-time" : "26",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 22 May 2026 21:38:07 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "e9993f46-2548-41da-bb5d-523e95383099",
+  "persistent" : true,
+  "insertionIndex" : 755
+}

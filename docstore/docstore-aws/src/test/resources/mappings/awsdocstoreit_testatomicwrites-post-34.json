@@ -1,0 +1,32 @@
+{
+  "id" : "bf7e140d-4747-4475-a69c-d9a034fb2b7f",
+  "name" : "AwsDocstoreIT_testAtomicWrites-POST-34",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.Scan"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Count\":2,\"Items\":[{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"FrankDelete\"}},{\"i\":{\"N\":\"121\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"ClarkMapDelete\"}}],\"ScannedCount\":2}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "M7LJ3DMLNBJ2APE70R7L0R5E2JVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "234815823",
+      "Date" : "Wed, 22 Jul 2026 23:39:34 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "bf7e140d-4747-4475-a69c-d9a034fb2b7f",
+  "persistent" : true,
+  "insertionIndex" : 379
+}

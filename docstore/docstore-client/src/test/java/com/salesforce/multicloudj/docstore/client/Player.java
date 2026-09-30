@@ -13,4 +13,5 @@ class Player {
   private float f;
   private boolean b;
   private String s;
+  private byte[] bytes;
 }

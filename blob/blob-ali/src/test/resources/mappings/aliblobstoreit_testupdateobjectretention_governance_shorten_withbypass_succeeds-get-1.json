@@ -1,0 +1,37 @@
+{
+  "id" : "3c27226a-f204-4e90-96dd-a778c745290e",
+  "name" : "AliBlobStoreIT_testUpdateObjectRetention_governance_shorten_withBypass_succeeds-GET-1",
+  "request" : {
+    "urlPath" : "/conformance-tests/objectlock/update/gov-shorten-bypass",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "legalHold" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchObjectLegalHoldConfiguration</Code>\n  <Message>The specified object does not have an object legal hold configuration.</Message>\n  <RequestId>6A221D0B46D8993735335EEE</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <ObjectName>conformance-tests/objectlock/update/gov-shorten-bypass</ObjectName>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A221D0B46D8993735335EEE",
+      "x-oss-server-time" : "37",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 05 Jun 2026 00:49:15 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "3c27226a-f204-4e90-96dd-a778c745290e",
+  "persistent" : true,
+  "insertionIndex" : 866
+}

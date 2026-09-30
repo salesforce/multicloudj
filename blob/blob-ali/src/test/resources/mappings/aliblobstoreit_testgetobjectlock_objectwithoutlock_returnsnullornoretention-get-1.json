@@ -1,0 +1,37 @@
+{
+  "id" : "b215e130-9ed5-4cfe-b10e-e0c8c1b83cfe",
+  "name" : "AliBlobStoreIT_testGetObjectLock_objectWithoutLock_returnsNullOrNoRetention-GET-1",
+  "request" : {
+    "urlPath" : "/conformance-tests/objectlock/no-lock",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "legalHold" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchObjectLegalHoldConfiguration</Code>\n  <Message>The specified object does not have an object legal hold configuration.</Message>\n  <RequestId>6A221C43BA04B93433CE378E</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <ObjectName>conformance-tests/objectlock/no-lock</ObjectName>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A221C43BA04B93433CE378E",
+      "x-oss-server-time" : "8",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 05 Jun 2026 00:45:55 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "b215e130-9ed5-4cfe-b10e-e0c8c1b83cfe",
+  "persistent" : true,
+  "insertionIndex" : 637
+}

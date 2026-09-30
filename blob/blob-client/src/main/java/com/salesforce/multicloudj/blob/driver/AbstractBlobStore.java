@@ -1,12 +1,17 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -159,6 +164,13 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   /** {@inheritDoc} */
   @Override
+  public Iterator<BlobMetadata> listBlobVersions(ListBlobVersionsRequest request) {
+    validator.validateKey(request.getKey());
+    return doListBlobVersions(request);
+  }
+
+  /** {@inheritDoc} */
+  @Override
   public MultipartUpload initiateMultipartUpload(MultipartUploadRequest request) {
     return doInitiateMultipartUpload(request);
   }
@@ -211,7 +223,19 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public URL generatePresignedUrl(PresignedUrlRequest request) {
     validator.validate(request);
-    return doGeneratePresignedUrl(request);
+    PresignedUrlResponse response = doPresign(request);
+    if (response == null || response.getUrl() == null) {
+      throw new SubstrateSdkException(
+          "doPresign must return a non-null response with a non-null URL");
+    }
+    return response.getUrl();
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public PresignedUrlResponse presign(PresignedUrlRequest request) {
+    validator.validate(request);
+    return doPresign(request);
   }
 
   /** {@inheritDoc} */
@@ -225,6 +249,12 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public boolean doesBucketExist() {
     return doDoesBucketExist();
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public BucketVersioningConfiguration getBucketVersioning() {
+    return doGetBucketVersioning();
   }
 
   /** {@inheritDoc} */
@@ -246,6 +276,38 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public void deleteDirectory(String prefix) {
     doDeleteDirectory(prefix);
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>Deprecated path: delegates to {@link #updateObjectRetention(String, String,
+   * ObjectRetentionConfig)} with {@code mode=null} (preserve current mode) and {@code
+   * bypassGovernanceRetention=false}. This delegation gives every provider a single retention-
+   * update code path and prevents AWS/GCP behavior from drifting.
+   *
+   * <p>Note: the historical AWS implementation rejected ANY update on COMPLIANCE objects
+   * (including extension), while GCP allows extending LOCKED. Each provider's existing
+   * override of this deprecated method takes precedence over this delegate, preserving its
+   * legacy semantics; the new overload introduces a uniform rules table across providers.
+   */
+  @Override
+  @Deprecated
+  public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {
+    updateObjectRetention(
+        key,
+        versionId,
+        ObjectRetentionConfig.builder()
+            .retainUntilDate(retainUntilDate)
+            .bypassGovernanceRetention(Boolean.FALSE)
+            .build());
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public void updateObjectRetention(String key, String versionId, ObjectRetentionConfig config) {
+    validator.validate(config);
+    doUpdateObjectRetention(key, versionId, config);
   }
 
   protected abstract UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream);
@@ -282,6 +344,17 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   protected abstract ListBlobsPageResponse doListPage(ListBlobsPageRequest request);
 
+  /**
+   * Provider hook for listing blob versions.
+   *
+   * <p>Default implementation throws {@link UnsupportedOperationException}; providers opt in by
+   * overriding this method.
+   */
+  protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
+    throw new UnsupportedOperationException(
+        "List object versions is not supported by this substrate implementation");
+  }
+
   protected abstract MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request);
 
   protected abstract UploadPartResponse doUploadMultipartPart(
@@ -298,11 +371,48 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   protected abstract void doSetTags(String key, Map<String, String> tags);
 
-  protected abstract URL doGeneratePresignedUrl(PresignedUrlRequest request);
+  protected abstract PresignedUrlResponse doPresign(PresignedUrlRequest request);
 
   protected abstract boolean doDoesObjectExist(String key, String versionId);
 
   protected abstract boolean doDoesBucketExist();
+
+  /**
+   * Provider hook for {@link #getBucketVersioning()}.
+   *
+   * <p>Default implementation throws {@link UnsupportedOperationException}; providers opt in
+   * by overriding this method. This is intentionally non-abstract (unlike
+   * {@link #doDoesBucketExist()}) because not every substrate supports bucket-level versioning
+   * configuration. An opt-in default avoids forcing those providers to implement a stub that
+   * merely throws, while still requiring a deliberate decision from any new provider that does
+   * support the feature.
+   *
+   * <p><strong>Error contract:</strong> When the bucket does not exist, implementations may
+   * propagate the substrate's native exception. The central exception mapper will normalize
+   * these to the appropriate MultiCloudJ exception type for callers.
+   */
+  protected BucketVersioningConfiguration doGetBucketVersioning() {
+    throw new UnsupportedOperationException(
+        "Bucket versioning configuration is not supported by this substrate implementation");
+  }
+
+  /**
+   * Provider hook for {@link #updateObjectRetention(String, String, ObjectRetentionConfig)}.
+   *
+   * <p>State-dependent validation (no-current-retention rejection, mode-transition rules,
+   * shorten-with-bypass rules) lives here per design §E so all providers surface uniform
+   * exception types and messages. Stateless validation has already been performed by the
+   * template before this hook is invoked.
+   *
+   * <p>Default implementation throws {@link UnsupportedOperationException} — provider
+   * implementations that do not support per-object retention (e.g. Alibaba OSS) inherit this
+   * behavior without further work.
+   */
+  protected void doUpdateObjectRetention(
+      String key, String versionId, ObjectRetentionConfig config) {
+    throw new UnsupportedOperationException(
+        "Per-object retention updates are not supported by this substrate implementation");
+  }
 
   protected DirectoryDownloadResponse doDownloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
@@ -319,6 +429,32 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   protected void doDeleteDirectory(String prefix) {
     throw new UnsupportedOperationException(
         "Directory delete is not supported by this substrate implementation");
+  }
+
+  /**
+   * Resolves the local download destination; when {@link DownloadRequest#isCreateParentPath()} is
+   * true, appends the object key and creates any missing parent directories. Subclasses may
+   * override to change the exception type thrown on directory-creation failure.
+   */
+  protected Path createDownloadDestinationPath(DownloadRequest request, Path destination) {
+    if (!request.isCreateParentPath()) {
+      return destination;
+    }
+    Path base = destination.normalize();
+    Path resolved = base.resolve(request.getKey()).normalize();
+    if (!resolved.startsWith(base)) {
+      throw new InvalidArgumentException(
+          "Object key resolves outside the download destination directory: " + request.getKey());
+    }
+    Path parent = resolved.getParent();
+    if (parent != null) {
+      try {
+        Files.createDirectories(parent);
+      } catch (IOException e) {
+        throw new SubstrateSdkException("Failed to create destination directories", e);
+      }
+    }
+    return resolved;
   }
 
   public abstract static class Builder<A extends AbstractBlobStore, T extends Builder<A, T>>

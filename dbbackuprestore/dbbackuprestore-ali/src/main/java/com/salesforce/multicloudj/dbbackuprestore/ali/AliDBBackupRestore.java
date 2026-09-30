@@ -10,8 +10,11 @@ import com.aliyun.hbr20170908.models.DescribeRestoreJobs2Request;
 import com.aliyun.hbr20170908.models.DescribeRestoreJobs2Response;
 import com.aliyun.hbr20170908.models.DescribeRestoreJobs2ResponseBody;
 import com.aliyun.hbr20170908.models.OtsTableRestoreDetail;
+import com.aliyun.tea.TeaException;
 import com.aliyun.teaopenapi.models.Config;
 import com.google.auto.service.AutoService;
+import com.salesforce.multicloudj.common.ali.AliRetryClassifier;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -60,8 +63,16 @@ public class AliDBBackupRestore extends AbstractDBBackupRestore {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    return ErrorCodeMapping.getException(t);
+  public SubstrateSdkException mapException(Throwable t) {
+    Boolean retryableHint = null;
+    if (t instanceof TeaException) {
+      retryableHint = AliRetryClassifier.classifyByStatusCode(((TeaException) t).getStatusCode());
+    } else if (t.getCause() instanceof TeaException) {
+      retryableHint =
+          AliRetryClassifier.classifyByStatusCode(
+              ((TeaException) t.getCause()).getStatusCode());
+    }
+    return ExceptionHandler.build(ErrorCodeMapping.getException(t), t, retryableHint);
   }
 
   @Override

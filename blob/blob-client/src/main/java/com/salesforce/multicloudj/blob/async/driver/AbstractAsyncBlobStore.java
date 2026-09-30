@@ -21,14 +21,19 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
@@ -221,7 +226,14 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<URL> generatePresignedUrl(PresignedUrlRequest request) {
     validator.validate(request);
-    return doGeneratePresignedUrl(request);
+    return doPresign(request).thenApply(PresignedUrlResponse::getUrl);
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public CompletableFuture<PresignedUrlResponse> presign(PresignedUrlRequest request) {
+    validator.validate(request);
+    return doPresign(request);
   }
 
   /** {@inheritDoc} */
@@ -315,7 +327,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
 
   protected abstract CompletableFuture<Void> doSetTags(String key, Map<String, String> tags);
 
-  protected abstract CompletableFuture<URL> doGeneratePresignedUrl(PresignedUrlRequest request);
+  protected abstract CompletableFuture<PresignedUrlResponse> doPresign(PresignedUrlRequest request);
 
   protected abstract CompletableFuture<Boolean> doDoesObjectExist(String key, String versionId);
 
@@ -328,4 +340,30 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
       DirectoryUploadRequest directoryUploadRequest);
 
   protected abstract CompletableFuture<Void> doDeleteDirectory(String prefix);
+
+  /**
+   * Resolves the local download destination; when {@link DownloadRequest#isCreateParentPath()} is
+   * true, appends the object key and creates any missing parent directories. Subclasses may
+   * override to change the exception type thrown on directory-creation failure.
+   */
+  protected Path createDownloadDestinationPath(DownloadRequest request, Path destination) {
+    if (!request.isCreateParentPath()) {
+      return destination;
+    }
+    Path base = destination.normalize();
+    Path resolved = base.resolve(request.getKey()).normalize();
+    if (!resolved.startsWith(base)) {
+      throw new InvalidArgumentException(
+          "Object key resolves outside the download destination directory: " + request.getKey());
+    }
+    Path parent = resolved.getParent();
+    if (parent != null) {
+      try {
+        Files.createDirectories(parent);
+      } catch (IOException e) {
+        throw new SubstrateSdkException("Failed to create destination directories", e);
+      }
+    }
+    return resolved;
+  }
 }

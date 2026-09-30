@@ -1,0 +1,42 @@
+{
+  "id" : "ee5d5784-9145-4deb-80c9-6484bd006d50",
+  "name" : "AliBlobStoreIT_testMultipartUpload_nonExistentParts-GET-3",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-nonExistentParts",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "73F26E07F6A94FEF92F438D34AFE2B3C"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult>\n  <EncodingType>url</EncodingType>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests%2Fmultipart-nonExistentParts</Key>\n  <UploadId>73F26E07F6A94FEF92F438D34AFE2B3C</UploadId>\n  <StorageClass>Standard</StorageClass>\n  <PartNumberMarker>0</PartNumberMarker>\n  <NextPartNumberMarker>2</NextPartNumberMarker>\n  <MaxParts>1000</MaxParts>\n  <IsTruncated>false</IsTruncated>\n  <Part>\n    <PartNumber>2</PartNumber>\n    <LastModified>2026-06-17T20:31:08.000Z</LastModified>\n    <ETag>\"2B5C91AD399409EC9B409B66F5BB00FB\"</ETag>\n    <HashCrc64ecma>14920568100270865136</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n</ListPartsResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A33040D9357953239C5EB34",
+      "x-oss-server-time" : "42",
+      "Server" : "AliyunOSS",
+      "Date" : "Wed, 17 Jun 2026 20:31:09 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "ee5d5784-9145-4deb-80c9-6484bd006d50",
+  "persistent" : true,
+  "insertionIndex" : 153
+}

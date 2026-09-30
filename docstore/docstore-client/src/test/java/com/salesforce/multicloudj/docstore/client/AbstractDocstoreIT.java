@@ -5,6 +5,7 @@ import com.google.protobuf.util.Timestamps;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.util.UUID;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
@@ -14,7 +15,9 @@ import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
 import com.salesforce.multicloudj.docstore.driver.PaginationToken;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +37,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.function.Executable;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractDocstoreIT {
@@ -77,7 +81,9 @@ public abstract class AbstractDocstoreIT {
     Random random = new Random(12345L);
     UUID.setUuidSupplier(() -> new java.util.UUID(random.nextLong(), random.nextLong()).toString());
     harness = createHarness();
-    TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
+    List<String> extensions = harness.getWiremockExtensions();
+    TestsUtil.startWireMockServer(
+        "src/test/resources", harness.getPort(), extensions.toArray(new String[0]));
   }
 
   /** Shuts down the WireMock server after all tests. */
@@ -151,28 +157,43 @@ public abstract class AbstractDocstoreIT {
 
     // Build doc from the user defined class
     List<TestCase> testCases = new ArrayList<>();
-    Player player = new Player("JohnMap", 121, 12.66f, true, "randomString");
+    Player player =
+        new Player(
+            "JohnMap", 121, 12.66f, true, "randomString",
+            "randomString".getBytes(StandardCharsets.UTF_8));
     testCases.add(new TestCase("CreateWithClass", player, null));
 
     // Key already exists for class
-    Player player2 = new Player("JohnMap", 111, 12.66f, true, "randomStringMap");
+    Player player2 =
+        new Player(
+            "JohnMap", 111, 12.66f, true, "randomStringMap",
+            "randomString".getBytes(StandardCharsets.UTF_8));
     testCases.add(
         new TestCase(
             "CreateAlreadyExistsWithClass", player2, ResourceAlreadyExistsException.class));
 
     // Key empty partition key not allowed
-    Player player3 = new Player("", 111, 12.66f, true, "randomStringMap");
+    Player player3 =
+        new Player(
+            "", 111, 12.66f, true, "randomStringMap",
+            "randomString".getBytes(StandardCharsets.UTF_8));
     testCases.add(
         new TestCase("CreateWithClassEmptyPartitionKey", player3, InvalidArgumentException.class));
 
     // Build doc from the map
-    Map m = Map.of("pName", "TaylorMap", "i", 121, "f", 12.66f, "b", true, "s", "randomString");
+    Map m =
+        Map.of(
+            "pName", "TaylorMap", "i", 121, "f", 12.66f, "b", true, "s", "randomString",
+            "bytes", "randomString".getBytes(StandardCharsets.UTF_8));
     m = new HashMap(m);
     m.put("DocstoreRevision", null);
     testCases.add(new TestCase("CreateWithMap", m, null));
 
     // Key already exists for map
-    Map m2 = Map.of("pName", "TaylorMap", "i", 111, "f", 12.66f, "b", true, "s", "randomString2");
+    Map m2 =
+        Map.of(
+            "pName", "TaylorMap", "i", 111, "f", 12.66f, "b", true, "s", "randomString2",
+            "bytes", "randomString2".getBytes(StandardCharsets.UTF_8));
     m2 = new HashMap(m2);
     m2.put("DocstoreRevision", null);
     testCases.add(
@@ -188,19 +209,24 @@ public abstract class AbstractDocstoreIT {
             12.66f,
             "b",
             true,
+            "bytes",
+            "randomString".getBytes(StandardCharsets.UTF_8),
             "DocstoreRevision",
             "someRevision");
     m3 = new HashMap(m3);
     testCases.add(new TestCase("CreateWithNonEmptyRevision", m3, InvalidArgumentException.class));
 
-    Map m4 = Map.of("pName", "LeoMap", "i", 121, "f", 12.66f, "b", true);
+    Map m4 =
+        Map.of(
+            "pName", "LeoMap", "i", 121, "f", 12.66f, "b", true,
+            "bytes", "randomString".getBytes(StandardCharsets.UTF_8));
     m4 = new HashMap(m4);
     m4.put("DocstoreRevision", null);
     testCases.add(new TestCase("CreateWithNullRevision", m4, null));
 
     for (TestCase testCase : testCases) {
       if (testCase.wantErr != null) {
-        Assertions.assertThrows(
+        assertThrowsAndNotRetryable(
             testCase.wantErr,
             () -> docStoreClient.create(new Document(testCase.doc)),
             String.format("Test %s failed", testCase.name));
@@ -253,6 +279,8 @@ public abstract class AbstractDocstoreIT {
 
       } else if (value1 instanceof Timestamp && value2 instanceof Timestamp) {
         return Timestamps.compare((Timestamp) value1, (Timestamp) value2) == 0;
+      } else if (value1 instanceof byte[] && value2 instanceof byte[]) {
+        return Arrays.equals((byte[]) value1, (byte[]) value2);
       } else if (!value1.equals(value2)) {
         return false;
       }
@@ -296,48 +324,71 @@ public abstract class AbstractDocstoreIT {
 
     List<TestCase> testCases = new ArrayList<>();
     // 1. Test case for getting a map with no field paths (full map is returned)
-    Map m = Map.of("pName", "PumaMap", "i", 121, "f", 12.66f, "b", true, "s", "random String");
+    Map m =
+        Map.of(
+            "pName", "PumaMap", "i", 121, "f", 12.66f, "b", true, "s", "random String",
+            "bytes", "randomString".getBytes(StandardCharsets.UTF_8));
     Object mGot = newDocument(m);
     Map mWant = m; // expect get full map if no fields are passed
     testCases.add(new TestCase("GetWithMap", m, null, mGot, mWant, null));
 
     // 2. Test case for getting a class object with no field paths (full object is returned)
-    Player player = new Player("BishopPlayer", 121, 12.66f, true, "random String");
+    Player player =
+        new Player(
+            "BishopPlayer", 121, 12.66f, true, "random String",
+            "randomString".getBytes(StandardCharsets.UTF_8));
     Object playerGot = newDocument(player);
     Player playerWant = player; // expect get full class if no fields are passed
     testCases.add(new TestCase("GetWithClass", player, null, playerGot, playerWant, null));
 
     // 3. Test case for getting a class with specific field paths (pass some fields)
-    Player player1 = new Player("PrincePlayer", 121, 12.66f, true, "random String");
+    Player player1 =
+        new Player(
+            "PrincePlayer", 121, 12.66f, true, "random String",
+            "randomString".getBytes(StandardCharsets.UTF_8));
     List<String> playerFields1 = List.of("i", "f");
     Object playerGot1 = newDocument(player1);
-    Player playerWant1 = new Player("PrincePlayer", 121, 12.66f, false, null);
+    Player playerWant1 = new Player("PrincePlayer", 121, 12.66f, false, null, null);
     testCases.add(
         new TestCase(
             "GetSomeFieldsWithClass", player1, playerFields1, playerGot1, playerWant1, null));
 
     // 4. Test case for getting a class with specific field paths (pass all fields)
-    Player player2 = new Player("EdwardPlayer", 95, 32.3f, true, "random String");
-    List<String> playerFields2 = List.of("i", "f", "b", "s");
+    Player player2 =
+        new Player(
+            "EdwardPlayer", 95, 32.3f, true, "random String",
+            "randomString".getBytes(StandardCharsets.UTF_8));
+    List<String> playerFields2 = List.of("i", "f", "b", "s", "bytes");
     Object playerGot2 = newDocument(player2);
-    Player playerWant2 = new Player("EdwardPlayer", 95, 32.3f, true, "random String");
+    Player playerWant2 =
+        new Player(
+            "EdwardPlayer", 95, 32.3f, true, "random String",
+            "randomString".getBytes(StandardCharsets.UTF_8));
     testCases.add(
         new TestCase(
             "GetAllFieldsWithClass", player2, playerFields2, playerGot2, playerWant2, null));
 
     // 5. Test case for getting a map with specific field paths (pass some fields)
-    Map m1 = Map.of("pName", "FrankMap", "i", 121, "f", 12.66f, "b", true, "s", "random String");
+    Map m1 =
+        Map.of(
+            "pName", "FrankMap", "i", 121, "f", 12.66f, "b", true, "s", "random String",
+            "bytes", "randomString".getBytes(StandardCharsets.UTF_8));
     List<String> mFields1 = List.of("i", "f", "s");
     Object mGot1 = newDocument(m1);
     Map mWant1 = Map.of("pName", "FrankMap", "i", 121, "f", 12.66f, "s", "random String");
     testCases.add(new TestCase("GetSomeFieldsWithMap", m1, mFields1, mGot1, mWant1, null));
 
     // 6. Test case for getting a map with specific field paths (pass aLL fields)
-    Map m2 = Map.of("pName", "DavidMap", "i", 121, "f", 12.66f, "b", true, "s", "random String");
-    List<String> mFields2 = List.of("i", "f", "b", "s");
+    Map m2 =
+        Map.of(
+            "pName", "DavidMap", "i", 121, "f", 12.66f, "b", true, "s", "random String",
+            "bytes", "randomString".getBytes(StandardCharsets.UTF_8));
+    List<String> mFields2 = List.of("i", "f", "b", "s", "bytes");
     Object mGot2 = newDocument(m2);
     Map mWant2 =
-        Map.of("pName", "DavidMap", "i", 121, "f", 12.66f, "b", true, "s", "random String");
+        Map.of(
+            "pName", "DavidMap", "i", 121, "f", 12.66f, "b", true, "s", "random String",
+            "bytes", "randomString".getBytes(StandardCharsets.UTF_8));
     testCases.add(new TestCase("GetAllFieldsWithMap", m2, mFields2, mGot2, mWant2, null));
 
     // TODO: re-enable once CAG supports embedded map
@@ -353,14 +404,20 @@ public abstract class AbstractDocstoreIT {
     // null));
 
     // 8. Test case for incorrect field path (wrong case - fields are case-sensitive)
-    Map m4 = Map.of("pName", "QueenMap", "i", 121, "f", 12.66f, "s", "randomString");
-    List<String> mFields4 = List.of("I", "f", "S");
+    Map m4 =
+        Map.of(
+            "pName", "QueenMap", "i", 121, "f", 12.66f, "s", "randomString",
+            "bytes", "randomString".getBytes(StandardCharsets.UTF_8));
+    List<String> mFields4 = List.of("I", "f", "S", "Bytes");
     Object mGot4 = newDocument(m4);
     Map mWant4 = Map.of("pName", "QueenMap", "f", 12.66f);
     testCases.add(new TestCase("GetWrongFieldsWithMap", m4, mFields4, mGot4, mWant4, null));
 
     // 9. Test case for invalid argument (call get with empty partition key)
-    Map m5 = Map.of("pName", "TigerMap", "i", 121, "f", 12.66f, "s", "randomString");
+    Map m5 =
+        Map.of(
+            "pName", "TigerMap", "i", 121, "f", 12.66f, "s", "randomString",
+            "bytes", "randomString".getBytes(StandardCharsets.UTF_8));
     List<String> mFields5 = List.of("i", "f");
     Map mGot5 = Map.of("pName", "");
     testCases.add(
@@ -373,7 +430,10 @@ public abstract class AbstractDocstoreIT {
             InvalidArgumentException.class));
 
     // 10. Test case for nonexistent document (not found - No Data)
-    Map m6 = Map.of("pName", "LionMap", "i", 121, "f", 12.66f, "b", true, "s", "random String");
+    Map m6 =
+        Map.of(
+            "pName", "LionMap", "i", 121, "f", 12.66f, "b", true, "s", "random String",
+            "bytes", "randomString".getBytes(StandardCharsets.UTF_8));
     List<String> mFields6 = List.of("i", "f");
     Map mGot6 = Map.of("pName", "NonExistent");
     Map mWant6 = Map.of("pName", "NonExistent");
@@ -381,7 +441,10 @@ public abstract class AbstractDocstoreIT {
         new TestCase("GetNonExistentWithMapReturnNoData", m6, mFields6, mGot6, mWant6, null));
 
     // 11. Test case for getting a map with specific field paths (created with null revision)
-    Map m7 = Map.of("pName", "SharkMap", "i", 121, "f", 12.66f, "b", true, "s", "random String");
+    Map m7 =
+        Map.of(
+            "pName", "SharkMap", "i", 121, "f", 12.66f, "b", true, "s", "random String",
+            "bytes", "randomString".getBytes(StandardCharsets.UTF_8));
     m7 = new HashMap(m7);
     m7.put("DocstoreRevision", null);
     List<String> mFields7 = List.of("i", "f", "s");
@@ -395,7 +458,7 @@ public abstract class AbstractDocstoreIT {
       Object got = testCase.got;
 
       if (testCase.wantErr != null) {
-        Assertions.assertThrows(
+        assertThrowsAndNotRetryable(
             testCase.wantErr,
             () -> docStoreClient.get(new Document(got), testCase.fieldPaths.toArray(new String[0])),
             String.format("Test %s failed", testCase.name));
@@ -416,6 +479,22 @@ public abstract class AbstractDocstoreIT {
     docStoreClient.close();
   }
 
+  /**
+   * Asserts that the executable throws {@code wantErr} AND that the thrown exception's {@code
+   * isRetryable()} matches the type-default classification (all {@code wantErr} types used in this
+   * suite — {@link InvalidArgumentException}, {@link ResourceAlreadyExistsException}, {@link
+   * ResourceNotFoundException}, {@link TransactionFailedException} — are non-retryable).
+   */
+  private static void assertThrowsAndNotRetryable(
+      Class<? extends Exception> wantErr,
+      Executable executable,
+      String message) {
+    Exception thrown = Assertions.assertThrows(wantErr, executable, message);
+    Assertions.assertFalse(
+        ((SubstrateSdkException) thrown).isRetryable(),
+        message + " (expected non-retryable but isRetryable()=true)");
+  }
+
   private void verifyNoRevisionField(Object doc, String revisionField) {
     if (doc instanceof Map) {
       String revision = (String) ((Map) doc).get(revisionField);
@@ -427,6 +506,25 @@ public abstract class AbstractDocstoreIT {
     if (doc instanceof Map) {
       Object revision = ((Map) doc).get(revisionField);
       Assertions.assertNotNull(revision);
+    }
+  }
+
+  // Best-effort deletion of the given two-key (Game/Player) docs, used to clear rows a prior
+  // interrupted run may have left behind (these tests use fixed keys, so a leftover row would make
+  // the next run's create fail with already-exists). Deleting a non-existent key is a no-op, and
+  // any error here must not fail the test proper, so it is swallowed.
+  private void deleteTwoKeyDocs(DocStoreClient docStoreClient, List<Map<String, Object>> docs) {
+    try {
+      ActionList cleanup = docStoreClient.getActions();
+      for (Map<String, Object> doc : docs) {
+        Map<String, Object> key = new HashMap<>();
+        key.put("Game", doc.get("Game"));
+        key.put("Player", doc.get("Player"));
+        cleanup.delete(new Document(key));
+      }
+      cleanup.run();
+    } catch (RuntimeException ignore) {
+      // Pre-test cleanup is best-effort; ignore failures (e.g. nothing to delete).
     }
   }
 
@@ -450,26 +548,41 @@ public abstract class AbstractDocstoreIT {
 
     // Build doc from the user defined class
     List<TestCase> testCases = new ArrayList<>();
-    Player player = new Player("JohnPut", 121, 12.66f, true, "randomString");
+    Player player =
+        new Player(
+            "JohnPut", 121, 12.66f, true, "randomString",
+            "randomString".getBytes(StandardCharsets.UTF_8));
     testCases.add(new TestCase("PutWithClass", player, null));
 
     // Key already exists for class
-    Player player2 = new Player("JohnPut", 111, 12.66f, true, "randomString2");
+    Player player2 =
+        new Player(
+            "JohnPut", 111, 12.66f, true, "randomString2",
+            "randomString2".getBytes(StandardCharsets.UTF_8));
     testCases.add(new TestCase("ReplaceAlreadyExistsWithClass", player2, null));
 
     // Key empty partition key not allowed
-    Player player3 = new Player("", 111, 12.66f, true, "randomString2");
+    Player player3 =
+        new Player(
+            "", 111, 12.66f, true, "randomString2",
+            "randomString2".getBytes(StandardCharsets.UTF_8));
     testCases.add(
         new TestCase("PutWithClassEmptyPartitionKey", player3, InvalidArgumentException.class));
 
     // Build doc from the map
-    Map m = Map.of("pName", "TaylorPut", "i", 121, "f", 12.66f, "b", true, "s", "randomString");
+    Map m =
+        Map.of(
+            "pName", "TaylorPut", "i", 121, "f", 12.66f, "b", true, "s", "randomString",
+            "bytes", "randomString".getBytes(StandardCharsets.UTF_8));
     m = new HashMap(m);
     m.put("DocstoreRevision", null);
     testCases.add(new TestCase("CreateWithMap", m, null));
 
     // Key already exists for map
-    Map m2 = Map.of("pName", "TaylorPut", "i", 121, "f", 12.66f, "b", true, "s", "randomStringMap");
+    Map m2 =
+        Map.of(
+            "pName", "TaylorPut", "i", 121, "f", 12.66f, "b", true, "s", "randomStringMap",
+            "bytes", "randomStringMap".getBytes(StandardCharsets.UTF_8));
     m2 = new HashMap(m2);
     m2.put("DocstoreRevision", null);
     testCases.add(new TestCase("ReplaceWithMapAlreadyExists", m2, null));
@@ -484,19 +597,24 @@ public abstract class AbstractDocstoreIT {
             12.66f,
             "b",
             true,
+            "bytes",
+            "randomString".getBytes(StandardCharsets.UTF_8),
             "DocstoreRevision",
             harness.getRevisionId());
     m3 = new HashMap(m3);
     testCases.add(new TestCase("PutWithNonEmptyRevision", m3, ResourceNotFoundException.class));
 
-    Map m4 = Map.of("pName", "LeoPut", "i", 121, "f", 12.66f, "b", true);
+    Map m4 =
+        Map.of(
+            "pName", "LeoPut", "i", 121, "f", 12.66f, "b", true,
+            "bytes", "randomStringMap".getBytes(StandardCharsets.UTF_8));
     m4 = new HashMap(m4);
     m4.put("DocstoreRevision", null);
     testCases.add(new TestCase("CreateWithNullRevision", m4, null));
 
     for (TestCase testCase : testCases) {
       if (testCase.wantErr != null) {
-        Assertions.assertThrows(
+        assertThrowsAndNotRetryable(
             testCase.wantErr,
             () -> docStoreClient.put(new Document(testCase.doc)),
             String.format("Test %s failed", testCase.name));
@@ -546,13 +664,16 @@ public abstract class AbstractDocstoreIT {
     List<TestCase> testCases = new ArrayList<>();
 
     // 1. delete doc of the user-defined class, pass in the complete object
-    Player player = new Player("JohnDelete", 121, 12.66f, true, "randomString");
+    Player player = new Player("JohnDelete", 121, 12.66f, true, "randomString", null);
     Player wantPlayer = new Player();
     wantPlayer.setPName("JohnDelete");
     testCases.add(new TestCase("DeleteWithClass", player, player, wantPlayer, null));
 
     // 2. delete doc of the user-defined class, pass in only partitionKey
-    Player player2 = new Player("EdwardDelete", 121, 12.66f, true, "randomString");
+    Player player2 =
+        new Player(
+            "EdwardDelete", 121, 12.66f, true, "randomString",
+            "randomString".getBytes(StandardCharsets.UTF_8));
     Object deleteDoc2 = newDocument(player2);
     Player wantPlayer2 = new Player();
     wantPlayer2.setPName("EdwardDelete");
@@ -560,7 +681,7 @@ public abstract class AbstractDocstoreIT {
         new TestCase("DeleteWithClassPartitionKey", player2, deleteDoc2, wantPlayer2, null));
 
     // 3. delete object without partition key, throw InvalidArgumentException
-    Player player3 = new Player("FrankDelete", 121, 12.66f, true, "randomString");
+    Player player3 = new Player("FrankDelete", 121, 12.66f, true, "randomString", null);
     Player deletePlayer3 = new Player();
     deletePlayer3.setPName("");
     testCases.add(
@@ -573,7 +694,9 @@ public abstract class AbstractDocstoreIT {
 
     // 4. delete a map pass in the complete map
     Map m1 =
-        Map.of("pName", "TigerMapDelete", "i", 121, "f", 12.66f, "b", true, "s", "random String");
+        Map.of(
+            "pName", "TigerMapDelete", "i", 121, "f", 12.66f, "b", true, "s", "random String",
+            "bytes", "randomString".getBytes(StandardCharsets.UTF_8));
     m1 = new HashMap(m1);
     m1.put("DocstoreRevision", null);
     Map mWant1 = Map.of("pName", "TigerMapDelete");
@@ -581,14 +704,18 @@ public abstract class AbstractDocstoreIT {
 
     // 5. delete a map pass in the partition key only
     Map m2 =
-        Map.of("pName", "LionMapDelete", "i", 121, "f", 12.66f, "b", true, "s", "random String");
+        Map.of(
+            "pName", "LionMapDelete", "i", 121, "f", 12.66f, "b", true, "s", "random String",
+            "bytes", "randomString".getBytes(StandardCharsets.UTF_8));
     Object deleteMap2 = Map.of("pName", "LionMapDelete");
     Map mWant2 = Map.of("pName", "LionMapDelete");
     testCases.add(new TestCase("DeleteMapWithOnlyPKey", m2, deleteMap2, mWant2, null));
 
     // 6. delete a map with revision, pass in the partition key only
     Map m3 =
-        Map.of("pName", "LouisMapDelete", "i", 121, "f", 12.66f, "b", true, "s", "random String");
+        Map.of(
+            "pName", "LouisMapDelete", "i", 121, "f", 12.66f, "b", true, "s", "random String",
+            "bytes", "randomString".getBytes(StandardCharsets.UTF_8));
     m3 = new HashMap(m3);
     m3.put("DocstoreRevision", null);
     Object deleteMap3 = Map.of("pName", "LouisMapDelete");
@@ -597,7 +724,9 @@ public abstract class AbstractDocstoreIT {
 
     // 7. delete a map pass in empty partition key, throw InvalidArgumentException
     Map m4 =
-        Map.of("pName", "ClarkMapDelete", "i", 121, "f", 12.66f, "b", true, "s", "random String");
+        Map.of(
+            "pName", "ClarkMapDelete", "i", 121, "f", 12.66f, "b", true, "s", "random String",
+            "bytes", "randomString".getBytes(StandardCharsets.UTF_8));
     Object deleteMap4 = Map.of("pName", "");
     testCases.add(
         new TestCase(
@@ -606,7 +735,7 @@ public abstract class AbstractDocstoreIT {
     for (TestCase testCase : testCases) {
       docStoreClient.create(new Document(testCase.doc));
       if (testCase.wantErr != null) {
-        Assertions.assertThrows(
+        assertThrowsAndNotRetryable(
             testCase.wantErr,
             () -> docStoreClient.delete(new Document(testCase.deleteDoc)),
             String.format("Test %s failed", testCase.name));
@@ -650,25 +779,41 @@ public abstract class AbstractDocstoreIT {
     List<TestCase> testCases = new ArrayList<>();
 
     // 1. Replace all fields for user-defined class
-    Player player1 = new Player("JohnReplace", 121, 12.66f, true, "originalString");
-    Player replacePlayer1 = new Player("JohnReplace", 95, 34.56f, false, "replacedString");
+    Player player1 =
+        new Player(
+            "JohnReplace", 121, 12.66f, true, "originalString",
+            "randomString".getBytes(StandardCharsets.UTF_8));
+    Player replacePlayer1 =
+        new Player(
+            "JohnReplace", 95, 34.56f, false, "replacedString",
+            "replacedString".getBytes(StandardCharsets.UTF_8));
     testCases.add(
         new TestCase("ReplaceAllFieldsWithClass", player1, replacePlayer1, replacePlayer1, null));
 
     // 2. Replace partial fields for user-defined class
-    Player player2 = new Player("DavidReplace", 999, 12.66f, true, "originalString");
+    Player player2 =
+        new Player(
+            "DavidReplace", 999, 12.66f, true, "originalString",
+            "originalString".getBytes(StandardCharsets.UTF_8));
     Player replacePlayer2 = new Player();
     replacePlayer2.setPName("DavidReplace");
     replacePlayer2.setI(95);
     replacePlayer2.setS("replacedString");
+    replacePlayer2.setBytes(null);
     testCases.add(
         new TestCase(
             "ReplacePartialFieldsWithClass", player2, replacePlayer2, replacePlayer2, null));
 
     // 3. Partition Key does not exist for class replacement (simulating replace with non-existing
     // key)
-    Player player3 = new Player("EdwardReplace", 999, 12.66f, true, "originalString");
-    Player replacePlayer3 = new Player("", 95, 34.56f, false, "replacedString");
+    Player player3 =
+        new Player(
+            "EdwardReplace", 999, 12.66f, true, "originalString",
+            "originalString".getBytes(StandardCharsets.UTF_8));
+    Player replacePlayer3 =
+        new Player(
+            "", 95, 34.56f, false, "replacedString",
+            "replacedString".getBytes(StandardCharsets.UTF_8));
     testCases.add(
         new TestCase(
             "ReplaceNonExistingPKeyWithClass",
@@ -678,7 +823,10 @@ public abstract class AbstractDocstoreIT {
             InvalidArgumentException.class));
 
     // 4. Replace non-existent class, should throw ResourceNotFoundException
-    Player replacePlayer4 = new Player("NonExistentReplace", 95, 34.56f, false, "replacedString");
+    Player replacePlayer4 =
+        new Player(
+            "NonExistentReplace", 95, 34.56f, false, "replacedString",
+            "replacedString".getBytes(StandardCharsets.UTF_8));
     testCases.add(
         new TestCase(
             "ReplaceNonExistentWithClass",
@@ -689,18 +837,24 @@ public abstract class AbstractDocstoreIT {
 
     // 5. Replace all fields for map
     Map m1 =
-        Map.of("pName", "TaylorReplace", "i", 121, "f", 12.66f, "b", true, "s", "originalString");
+        Map.of(
+            "pName", "TaylorReplace", "i", 121, "f", 12.66f, "b", true, "s", "originalString",
+            "bytes", "originalString".getBytes(StandardCharsets.UTF_8));
     m1 = new HashMap(m1);
     m1.put("DocstoreRevision", null);
     Map mReplace1 =
-        Map.of("pName", "TaylorReplace", "i", 99, "f", 34.56f, "b", false, "s", "replacedString");
+        Map.of(
+            "pName", "TaylorReplace", "i", 99, "f", 34.56f, "b", false, "s", "replacedString",
+            "bytes", "replacedString".getBytes(StandardCharsets.UTF_8));
     mReplace1 = new HashMap(mReplace1);
     mReplace1.put("DocstoreRevision", null);
     testCases.add(new TestCase("ReplaceAllFieldsWithMap", m1, mReplace1, mReplace1, null));
 
     // 6. Replace partial fields for map
     Map m2 =
-        Map.of("pName", "KingReplace", "i", 121, "f", 12.66f, "b", true, "s", "originalString");
+        Map.of(
+            "pName", "KingReplace", "i", 121, "f", 12.66f, "b", true, "s", "originalString",
+            "bytes", "originalString".getBytes(StandardCharsets.UTF_8));
     m2 = new HashMap(m2);
     m2.put("DocstoreRevision", null);
     Map mReplace2 = Map.of("pName", "KingReplace", "f", 34.56f, "s", "replacedString");
@@ -710,10 +864,16 @@ public abstract class AbstractDocstoreIT {
 
     // 7. Partition Key does not exist for map replacement (simulating replace with non-existing
     // key)
-    Map m3 = Map.of("pName", "LeoReplace", "i", 121, "f", 12.66f, "b", true, "s", "originalString");
+    Map m3 =
+        Map.of(
+            "pName", "LeoReplace", "i", 121, "f", 12.66f, "b", true, "s", "originalString",
+            "bytes", "originalString".getBytes(StandardCharsets.UTF_8));
     m3 = new HashMap(m3);
     m3.put("DocstoreRevision", null);
-    Map mReplace3 = Map.of("pName", "", "i", 99, "f", 12.34f, "b", false, "s", "replacedString");
+    Map mReplace3 =
+        Map.of(
+            "pName", "", "i", 99, "f", 12.34f, "b", false, "s", "replacedString",
+            "bytes", "replacedString".getBytes(StandardCharsets.UTF_8));
     mReplace3 = new HashMap(mReplace3);
     mReplace3.put("DocstoreRevision", null);
     testCases.add(
@@ -732,7 +892,9 @@ public abstract class AbstractDocstoreIT {
             "b",
             false,
             "s",
-            "replacedString");
+            "replacedString",
+            "bytes",
+            "replacedString".getBytes(StandardCharsets.UTF_8));
     mReplace4 = new HashMap(mReplace4);
     mReplace4.put("DocstoreRevision", null);
     testCases.add(
@@ -746,7 +908,7 @@ public abstract class AbstractDocstoreIT {
         verifyRevisionFieldExist(testCase.origDoc, "DocstoreRevision");
       }
       if (testCase.wantErr != null) {
-        Assertions.assertThrows(
+        assertThrowsAndNotRetryable(
             testCase.wantErr,
             () -> docStoreClient.replace(new Document(testCase.replaceDoc)),
             String.format("Test %s failed", testCase.name));
@@ -914,9 +1076,10 @@ public abstract class AbstractDocstoreIT {
     if (harness.supportOrderByInFullScan()) {
       Assertions.assertDoesNotThrow(() -> docStoreClient.query().orderBy("Player", true).get());
     } else {
-      Assertions.assertThrows(
+      assertThrowsAndNotRetryable(
           InvalidArgumentException.class,
-          () -> docStoreClient.query().orderBy("Player", true).get());
+          () -> docStoreClient.query().orderBy("Player", true).get(),
+          "orderBy in full scan should fail with non-retryable InvalidArgumentException");
     }
 
     // 14. query all order by player desc, should fail because full scans with order by are not
@@ -924,9 +1087,10 @@ public abstract class AbstractDocstoreIT {
     if (harness.supportOrderByInFullScan()) {
       Assertions.assertDoesNotThrow(() -> docStoreClient.query().orderBy("Player", false).get());
     } else {
-      Assertions.assertThrows(
+      assertThrowsAndNotRetryable(
           InvalidArgumentException.class,
-          () -> docStoreClient.query().orderBy("Player", false).get());
+          () -> docStoreClient.query().orderBy("Player", false).get(),
+          "orderBy desc in full scan should fail with non-retryable InvalidArgumentException");
     }
 
     // 15. Test for valid order by clause.
@@ -1092,22 +1256,27 @@ public abstract class AbstractDocstoreIT {
 
   @Test
   public void testAtomicWrites() {
-    AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.SINGLE_KEY);
+    // Atomic writes are scoped to a SINGLE partition key so the scenario is uniform across all
+    // substrates (some substrates' transactions only span a single partition key). Uses the two-key
+    // collection with the partition key (Game) held constant and only the sort key (Player) varied,
+    // so every write in the atomic block stays within one partition.
+    AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.TWO_KEYS);
     DocStoreClient docStoreClient = new DocStoreClient(docStore);
     String revField = "DocstoreRevision";
+    String partitionKeyValue = "testAtomicWrites";
 
-    // Create 9 test documents following the Go pattern
+    // Create 9 test documents, all within one partition (constant Game, varying Player).
     List<Map<String, Object>> docs = new ArrayList<>();
     for (int i = 0; i < 9; i++) {
       Map<String, Object> doc = new HashMap<>();
-      doc.put("pName", String.format("testAtomicWrites%d", i));
+      doc.put("Game", partitionKeyValue);
+      doc.put("Player", String.format("testAtomicWrites%d", i));
       doc.put("s", String.valueOf(i));
-      doc.put("i", i);
-      // doc.put("f", (float) (i+.10*i));
-      doc.put("b", i % 2 == 0);
       doc.put(revField, null);
       docs.add(doc);
     }
+
+    deleteTwoKeyDocs(docStoreClient, docs);
 
     // Put the nine docs
     ActionList actions = docStoreClient.getActions();
@@ -1126,7 +1295,8 @@ public abstract class AbstractDocstoreIT {
     List<Map<String, Object>> getDocs = new ArrayList<>();
     for (int i = 3; i < 6; i++) {
       Map<String, Object> getDoc = new HashMap<>();
-      getDoc.put("pName", docs.get(i).get("pName"));
+      getDoc.put("Game", docs.get(i).get("Game"));
+      getDoc.put("Player", docs.get(i).get("Player"));
       getDocs.add(getDoc);
     }
 
@@ -1158,51 +1328,64 @@ public abstract class AbstractDocstoreIT {
       Map<String, Object> expected = docs.get(i + 3);
       Map<String, Object> actual = getDocs.get(i);
       // The get operation should have populated these documents
-      Assertions.assertEquals(expected.get("pName"), actual.get("pName"));
+      Assertions.assertEquals(expected.get("Game"), actual.get("Game"));
+      Assertions.assertEquals(expected.get("Player"), actual.get("Player"));
       Assertions.assertEquals(expected.get("s"), actual.get("s"));
-      Assertions.assertEquals(expected.get("i"), actual.get("i"));
-      // Assertions.assertEquals(expected.get("f"), actual.get("f"));
-      Assertions.assertEquals(expected.get("b"), actual.get("b"));
       Assertions.assertNotNull(actual.get(revField));
     }
 
     // Get the docs updated as part of atomic writes and verify values were updated successfully
     Map<String, Object> doc6 = new HashMap<>();
-    doc6.put("pName", docs.get(6).get("pName"));
+    doc6.put("Game", docs.get(6).get("Game"));
+    doc6.put("Player", docs.get(6).get("Player"));
     docStoreClient.get(new Document(doc6));
     Assertions.assertEquals("66", doc6.get("s"));
 
     Map<String, Object> doc7 = new HashMap<>();
-    doc7.put("pName", docs.get(7).get("pName"));
+    doc7.put("Game", docs.get(7).get("Game"));
+    doc7.put("Player", docs.get(7).get("Player"));
     docStoreClient.get(new Document(doc7));
     Assertions.assertEquals("77", doc7.get("s"));
 
     Map<String, Object> doc8 = new HashMap<>();
-    doc8.put("pName", docs.get(8).get("pName"));
+    doc8.put("Game", docs.get(8).get("Game"));
+    doc8.put("Player", docs.get(8).get("Player"));
     docStoreClient.get(new Document(doc8));
     Assertions.assertEquals("88", doc8.get("s"));
+
+    // Clean up the docs this test created (docs 0-2 were already deleted above).
+    ActionList cleanup = docStoreClient.getActions();
+    for (int i = 3; i < 9; i++) {
+      cleanup.delete(new Document(docs.get(i)));
+    }
+    cleanup.run();
 
     docStoreClient.close();
   }
 
   @Test
   public void testAtomicWritesFail() {
-    AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.SINGLE_KEY);
+    // Single-partition atomic-writes failure + rollback scenario (see testAtomicWrites for why the
+    // partition key is held constant). The atomic block references a non-existent doc so the whole
+    // transaction must fail and roll back.
+    AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.TWO_KEYS);
     DocStoreClient docStoreClient = new DocStoreClient(docStore);
     String revField = "DocstoreRevision";
+    String partitionKeyValue = "testAtomicWritesFail";
 
-    // Create 9 test documents but only put the first 8 (doc8 won't exist)
+    // Create 9 test documents (constant Game, varying Player) but only put the first 8 so docs[8]
+    // does not exist.
     List<Map<String, Object>> docs = new ArrayList<>();
     for (int i = 0; i < 9; i++) {
       Map<String, Object> doc = new HashMap<>();
-      doc.put("pName", String.format("testAtomicWritesFail%d", i));
+      doc.put("Game", partitionKeyValue);
+      doc.put("Player", String.format("testAtomicWritesFail%d", i));
       doc.put("s", String.valueOf(i));
-      doc.put("i", i);
-      doc.put("f", (float) (i + .10 * i));
-      doc.put("b", i % 2 == 0);
       doc.put(revField, null);
       docs.add(doc);
     }
+
+    deleteTwoKeyDocs(docStoreClient, docs);
 
     // Put only the first eight docs (docs[8] doesn't exist)
     ActionList actions = docStoreClient.getActions();
@@ -1221,7 +1404,8 @@ public abstract class AbstractDocstoreIT {
     List<Map<String, Object>> getDocs = new ArrayList<>();
     for (int i = 3; i < 6; i++) {
       Map<String, Object> getDoc = new HashMap<>();
-      getDoc.put("pName", docs.get(i).get("pName"));
+      getDoc.put("Game", docs.get(i).get("Game"));
+      getDoc.put("Player", docs.get(i).get("Player"));
       getDocs.add(getDoc);
     }
 
@@ -1248,31 +1432,43 @@ public abstract class AbstractDocstoreIT {
     actions.put(new Document(t8));
 
     // The atomic transaction should fail
-    Assertions.assertThrows(TransactionFailedException.class, actions::run);
+    assertThrowsAndNotRetryable(
+        TransactionFailedException.class,
+        actions::run,
+        "atomic write referencing non-existent doc should fail with non-retryable "
+            + "TransactionFailedException");
 
     // Verify get documents still contain the expected data (from before the failed transaction)
     for (int i = 0; i < 3; i++) {
       Map<String, Object> expected = docs.get(i + 3);
       Map<String, Object> actual = getDocs.get(i);
       // The get operation should have populated these documents
-      Assertions.assertEquals(expected.get("pName"), actual.get("pName"));
+      Assertions.assertEquals(expected.get("Game"), actual.get("Game"));
+      Assertions.assertEquals(expected.get("Player"), actual.get("Player"));
       Assertions.assertEquals(expected.get("s"), actual.get("s"));
-      Assertions.assertEquals(expected.get("i"), actual.get("i"));
-      Assertions.assertEquals(expected.get("f"), actual.get("f"));
-      Assertions.assertEquals(expected.get("b"), actual.get("b"));
       Assertions.assertNotNull(actual.get(revField));
     }
 
     // Validate that the values still remain the original (atomic rollback)
     Map<String, Object> doc6 = new HashMap<>();
-    doc6.put("pName", docs.get(6).get("pName"));
+    doc6.put("Game", docs.get(6).get("Game"));
+    doc6.put("Player", docs.get(6).get("Player"));
     docStoreClient.get(new Document(doc6));
     Assertions.assertEquals("6", doc6.get("s")); // Should still be original value
 
     Map<String, Object> doc7 = new HashMap<>();
-    doc7.put("pName", docs.get(7).get("pName"));
+    doc7.put("Game", docs.get(7).get("Game"));
+    doc7.put("Player", docs.get(7).get("Player"));
     docStoreClient.get(new Document(doc7));
     Assertions.assertEquals("7", doc7.get("s")); // Should still be original value
+
+    // Clean up the docs this test created (docs 0-2 were already deleted above; docs[8] never
+    // existed).
+    ActionList cleanup = docStoreClient.getActions();
+    for (int i = 3; i < 8; i++) {
+      cleanup.delete(new Document(docs.get(i)));
+    }
+    cleanup.run();
 
     docStoreClient.close();
   }

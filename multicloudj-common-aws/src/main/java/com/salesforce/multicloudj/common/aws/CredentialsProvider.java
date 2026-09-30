@@ -2,7 +2,9 @@ package com.salesforce.multicloudj.common.aws;
 
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import org.apache.commons.lang3.StringUtils;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -22,6 +24,13 @@ public class CredentialsProvider {
       case SESSION:
         {
           StsCredentials stsCredentials = overrider.getSessionCredentials();
+          if (StringUtils.isBlank(stsCredentials.getSecurityToken())) {
+            return StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(
+                    stsCredentials.getAccessKeyId(),
+                    stsCredentials.getAccessKeySecret())
+            );
+          }
           AwsSessionCredentials sessionCredentials =
               AwsSessionCredentials.create(
                   stsCredentials.getAccessKeyId(),

@@ -1,0 +1,42 @@
+{
+  "id" : "a3a2c49e-e6aa-44d7-b324-7e00756a1308",
+  "name" : "AliBlobStoreIT_testMultipartUpload_unorderedMultipleParts-GET-4",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-unorderedMultipleParts",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "CD239A88289643BD9BDA0720102EB42A"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult>\n  <EncodingType>url</EncodingType>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests%2Fmultipart-unorderedMultipleParts</Key>\n  <UploadId>CD239A88289643BD9BDA0720102EB42A</UploadId>\n  <StorageClass>Standard</StorageClass>\n  <PartNumberMarker>0</PartNumberMarker>\n  <NextPartNumberMarker>2</NextPartNumberMarker>\n  <MaxParts>1000</MaxParts>\n  <IsTruncated>false</IsTruncated>\n  <Part>\n    <PartNumber>1</PartNumber>\n    <LastModified>2026-06-17T20:56:31.000Z</LastModified>\n    <ETag>\"2B5C91AD399409EC9B409B66F5BB00FB\"</ETag>\n    <HashCrc64ecma>14920568100270865136</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n  <Part>\n    <PartNumber>2</PartNumber>\n    <LastModified>2026-06-17T20:56:34.000Z</LastModified>\n    <ETag>\"267C038CC2EC32FFD0EE2512FF5DA5A5\"</ETag>\n    <HashCrc64ecma>9618452871104087932</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n</ListPartsResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A330A03A1E8F83333D51E4E",
+      "x-oss-server-time" : "26",
+      "Server" : "AliyunOSS",
+      "Date" : "Wed, 17 Jun 2026 20:56:35 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "a3a2c49e-e6aa-44d7-b324-7e00756a1308",
+  "persistent" : true,
+  "insertionIndex" : 143
+}

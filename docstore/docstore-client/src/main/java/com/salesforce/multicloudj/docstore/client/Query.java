@@ -327,9 +327,7 @@ public class Query {
       initGet(List.of(fieldPath));
       return docStore.runGetQuery(this);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = docStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw docStore.mapException(t);
     }
   }
 

@@ -2,6 +2,9 @@ package com.salesforce.multicloudj.blob.inmemory;
 
 import com.salesforce.multicloudj.blob.client.AbstractBlobStoreIT;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
@@ -44,7 +47,11 @@ public class InMemoryBlobStoreIT extends AbstractBlobStoreIT {
 
       // Create the bucket if it should exist
       if (useValidBucket) {
-        InMemoryBlobStore.createBucket(bucketNameToUse);
+        if (useVersionedBucket) {
+          InMemoryBlobStore.createBucket(bucketNameToUse, BucketVersioningStatus.ENABLED);
+        } else {
+          InMemoryBlobStore.createBucket(bucketNameToUse);
+        }
       }
 
       return new InMemoryBlobStore.Builder().withBucket(bucketNameToUse).withRegion(region).build();
@@ -82,8 +89,18 @@ public class InMemoryBlobStoreIT extends AbstractBlobStoreIT {
     }
 
     @Override
-    public boolean isObjectLockSupported() {
+    public boolean isDirectoryUploadSupported() {
       return false;
+    }
+
+    @Override
+    public Set<ChecksumMethod> getSupportedChecksumAlgorithmsForUpload() {
+      // The in-memory test double computes every algorithm locally, so it validates them all.
+      return Set.of(
+          ChecksumMethod.CRC32C,
+          ChecksumMethod.SHA256,
+          ChecksumMethod.CRC64,
+          ChecksumMethod.MD5);
     }
 
     @Override

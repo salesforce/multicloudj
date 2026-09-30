@@ -63,7 +63,7 @@ public class TestIam extends AbstractIam {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
+  public SubstrateSdkException mapException(Throwable t) {
     return null;
   }
 

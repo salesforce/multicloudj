@@ -1,0 +1,32 @@
+{
+  "id" : "38506e73-a4c0-46ec-9971-144fa263ed64",
+  "name" : "GcpBlobStoreIT_testUploadDirectory_withoutSubFolders-POST-0",
+  "request" : {
+    "url" : "/batch/storage/v1",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "matches" : "(?s)\\Q\\E--__END_OF_PART__[a-f0-9-]+__\\Q\r\nContent-Length: 1348\r\nContent-Type: application/http\r\ncontent-id: 1\r\ncontent-transfer-encoding: binary\r\n\r\nDELETE https://storage.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fupload-no-subfolder-v1%2Ftop-level.txt HTTP/1.1\r\nAuthorization: Bearer REDACTED_TOKEN.c0AZ4bNpZBcRUr_5-H0DYF3oz3lP1VhMKc3YS-e5-i5xKq_QV8FPYhTsSdFzJmcps7LHgj3nnEhz9_EDHGzuBSC4fPb5T4X--DCsvSpDcwJFMwddFnUxnGzXWH13dK614RQkprGRgV-PSOYbZwYqFGkVWjSE2j9j3ONMISQbEDKwjCd1NTBJ6iQ9PoXVcpPFCGlv9qHfSa-bnPve7Qn4obfEIwKvJn8hJ9jm9hHavrjL4KpBaGYrZ9ESNwkWigg6ACwVVJGxw42mje4cIa5KRcXvpVhKre4NF4lQsiyTRbOHK6IOpWXoCrvYWmzv7_qIzhV_GMcIUHM70BYzvKvC_uWL_cMV53GkJyfFB7MXUiiJv6I5AI1jaEnPa0-JHrYif8v54q2Esai4Fv0ew565p31goJ5yucDTzyKLqd8RjBDndB7lCZcR_kJffagpG1r2fehCOkzD5-yzvpmB8lRqz5rVgSRAgDfJuVmZP_Izjue4HZyMu9VT6Gt1vOFfV9QVUAaHJOcpkwp8k4Le27d5-ZrZ00dDj9Wqgx3bxZ6OdlxRoQ3K8WjC2O6TbtuvLS_ArK5O37Wrb7ztk5WMyfGiF4xxEzpgkGa43_zqYCZaeGajPyOGceYXY1ryuhLKEMh52PyS0T652A6lu4Wv0a6VQZZ0l3BOR816nqYkSk0WFlYw42Znv1UWVbZso1JM0kSIrBw9WkZjwlxkz2w_-fxX0S8ZV0OQuJ8f_uniq583b6RkVqcUn9azwQyuXf-janUfd1th82b8Y1k-q_fbZ3RYkU4R8ewQ-qxtQyugyq6tkMaBOfjdadZMkg0_4wzul4zollhUyVrFROakq6fet8WpbUBjxgiwusxI_c6Og1dzqrzxmI_960m3ifWq24aRu4osIqhUVp2arUvd-1cskvy1umfVgh3qvx_VhuOm9RxnlOJMzgbcbccqofRyQRcQcxIwd-04p8jaFRhxQ3k5cSewvQgX1M-jFkiFB9tb1gM1p22l9xWndcta6ilk0\r\nx-goog-api-client: gl-java/11.0.27 gdcl/2.7.2 mac-os-x/26.5\r\nx-goog-gcs-idempotency-token: 979821c9-377b-4b8f-b5f9-72bf04ac50d8\r\n\r\n\r\n\\E--__END_OF_PART__[a-f0-9-]+__\\Q--\r\n\\E"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "LS1iYXRjaF9wSEJHX2I2MnhjWmRWNWxaOG5vNDJxUVFhWXFlVnlObA0KQ29udGVudC1UeXBlOiBhcHBsaWNhdGlvbi9odHRwDQpDb250ZW50LUlEOiByZXNwb25zZS0xDQoNCkhUVFAvMS4xIDIwNCBObyBDb250ZW50DQpDb250ZW50LVR5cGU6IGFwcGxpY2F0aW9uL2pzb24NCkRhdGU6IFdlZCwgMjcgTWF5IDIwMjYgMTQ6NTM6MTMgR01UDQpDYWNoZS1Db250cm9sOiBuby1jYWNoZSwgbm8tc3RvcmUsIG1heC1hZ2U9MCwgbXVzdC1yZXZhbGlkYXRlDQpFeHBpcmVzOiBNb24sIDAxIEphbiAxOTkwIDAwOjAwOjAwIEdNVA0KQ29udGVudC1MZW5ndGg6IDANCg0KDQotLWJhdGNoX3BIQkdfYjYyeGNaZFY1bFo4bm80MnFRUWFZcWVWeU5sLS0NCg==",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "Upload Server",
+      "X-Content-Type-Options" : "nosniff",
+      "Pragma" : "no-cache",
+      "Date" : "Wed, 27 May 2026 14:53:13 GMT",
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AAVLpEhRuFRFeQZqPGYv4LayT1_5a-1oOTzQwdEXUiiWB1A8NS1z8QFRy6Gj9B4XROKAYnYm",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "X-XSS-Protection" : "1; mode=block",
+      "Content-Type" : "multipart/mixed; boundary=batch_pHBG_b62xcZdV5lZ8no42qQQaYqeVyNl"
+    }
+  },
+  "uuid" : "38506e73-a4c0-46ec-9971-144fa263ed64",
+  "persistent" : true,
+  "insertionIndex" : 1378
+}

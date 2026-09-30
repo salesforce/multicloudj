@@ -1,75 +1,115 @@
 package com.salesforce.multicloudj.blob.ali;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.aliyun.oss.ClientException;
-import com.aliyun.oss.HttpMethod;
-import com.aliyun.oss.OSS;
-import com.aliyun.oss.OSSClientBuilder;
-import com.aliyun.oss.OSSException;
-import com.aliyun.oss.internal.OSSHeaders;
-import com.aliyun.oss.model.AbortMultipartUploadRequest;
-import com.aliyun.oss.model.CompleteMultipartUploadRequest;
-import com.aliyun.oss.model.CompleteMultipartUploadResult;
-import com.aliyun.oss.model.CopyObjectRequest;
-import com.aliyun.oss.model.CopyObjectResult;
-import com.aliyun.oss.model.DeleteObjectsRequest;
-import com.aliyun.oss.model.DeleteVersionsRequest;
-import com.aliyun.oss.model.GeneratePresignedUrlRequest;
-import com.aliyun.oss.model.GenericRequest;
-import com.aliyun.oss.model.GetObjectRequest;
-import com.aliyun.oss.model.InitiateMultipartUploadRequest;
-import com.aliyun.oss.model.InitiateMultipartUploadResult;
-import com.aliyun.oss.model.ListObjectsRequest;
-import com.aliyun.oss.model.ListPartsRequest;
-import com.aliyun.oss.model.OSSObject;
-import com.aliyun.oss.model.OSSObjectSummary;
-import com.aliyun.oss.model.ObjectListing;
-import com.aliyun.oss.model.ObjectMetadata;
-import com.aliyun.oss.model.PartETag;
-import com.aliyun.oss.model.PartListing;
-import com.aliyun.oss.model.PutObjectRequest;
-import com.aliyun.oss.model.PutObjectResult;
-import com.aliyun.oss.model.TagSet;
-import com.aliyun.oss.model.UploadPartRequest;
-import com.aliyun.oss.model.UploadPartResult;
+import com.aliyun.sdk.service.oss2.OSSClient;
+import com.aliyun.sdk.service.oss2.OperationOptions;
+import com.aliyun.sdk.service.oss2.PresignOptions;
+import com.aliyun.sdk.service.oss2.exceptions.OperationException;
+import com.aliyun.sdk.service.oss2.exceptions.ServiceException;
+import com.aliyun.sdk.service.oss2.models.AbortMultipartUploadRequest;
+import com.aliyun.sdk.service.oss2.models.CommonPrefix;
+import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest;
+import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult;
+import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml;
+import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
+import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
+import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
+import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetBucketVersioningRequest;
+import com.aliyun.sdk.service.oss2.models.GetBucketVersioningResult;
+import com.aliyun.sdk.service.oss2.models.GetObjectLegalHoldResult;
+import com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectResult;
+import com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult;
+import com.aliyun.sdk.service.oss2.models.GetObjectTaggingRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectTaggingResult;
+import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
+import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
+import com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload;
+import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest;
+import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult;
+import com.aliyun.sdk.service.oss2.models.LegalHold;
+import com.aliyun.sdk.service.oss2.models.ListObjectVersionsRequest;
+import com.aliyun.sdk.service.oss2.models.ListObjectVersionsResult;
+import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
+import com.aliyun.sdk.service.oss2.models.ListObjectsV2Result;
+import com.aliyun.sdk.service.oss2.models.ListPartsRequest;
+import com.aliyun.sdk.service.oss2.models.ListPartsResult;
+import com.aliyun.sdk.service.oss2.models.ObjectIdentifier;
+import com.aliyun.sdk.service.oss2.models.ObjectLegalHoldStatusType;
+import com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType;
+import com.aliyun.sdk.service.oss2.models.ObjectSummary;
+import com.aliyun.sdk.service.oss2.models.ObjectVersion;
+import com.aliyun.sdk.service.oss2.models.Part;
+import com.aliyun.sdk.service.oss2.models.PresignResult;
+import com.aliyun.sdk.service.oss2.models.PutObjectLegalHoldResult;
+import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
+import com.aliyun.sdk.service.oss2.models.PutObjectResult;
+import com.aliyun.sdk.service.oss2.models.PutObjectRetentionResult;
+import com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest;
+import com.aliyun.sdk.service.oss2.models.Retention;
+import com.aliyun.sdk.service.oss2.models.Tag;
+import com.aliyun.sdk.service.oss2.models.TagSet;
+import com.aliyun.sdk.service.oss2.models.Tagging;
+import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
+import com.aliyun.sdk.service.oss2.models.UploadPartResult;
+import com.aliyun.sdk.service.oss2.models.VersioningConfiguration;
+import com.aliyun.sdk.service.oss2.paginator.ListObjectVersionsIterable;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
+import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -79,11 +119,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -91,33 +136,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.IntStream;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.MockedStatic;
 
 public class AliBlobStoreTest {
 
-  private MockedStatic<OSSClientBuilder> staticMockBuilder;
-
-  private OSS mockOssClient;
+  private OSSClient mockOssClient;
   private AliBlobStore ali;
 
   @BeforeEach
   void setup() {
-    mockOssClient = mock(OSS.class);
-    staticMockBuilder = mockStatic(OSSClientBuilder.class);
-    OSSClientBuilder.OSSClientBuilderImpl mockBuilder =
-        mock(OSSClientBuilder.OSSClientBuilderImpl.class);
-
-    staticMockBuilder.when(OSSClientBuilder::create).thenReturn(mockBuilder);
-    when(mockBuilder.region(any())).thenReturn(mockBuilder);
-    when(mockBuilder.endpoint(any())).thenReturn(mockBuilder);
-    when(mockBuilder.clientConfiguration(any())).thenReturn(mockBuilder);
-    when(mockBuilder.credentialsProvider(any())).thenReturn(mockBuilder);
-    when(mockBuilder.build()).thenReturn(mockOssClient);
+    mockOssClient = mock(OSSClient.class);
 
     StsCredentials creds = new StsCredentials("key-1", "secret-1", "token-1");
     CredentialsOverrider credsOverrider =
@@ -126,30 +157,19 @@ public class AliBlobStoreTest {
             .build();
     ali =
         new AliBlobStore.Builder()
+            .withClient(mockOssClient)
             .withBucket("bucket-1")
             .withRegion("cn-shanghai")
             .withEndpoint(URI.create("https://test.example.com"))
             .withProxyEndpoint(URI.create("http://proxy.example.com:80"))
             .withCredentialsOverrider(credsOverrider)
-            .withSocketTimeout(Duration.ofMinutes(1))
-            .withIdleConnectionTimeout(Duration.ofMinutes(5))
-            .withMaxConnections(100)
-            .build();
-    credsOverrider =
-        new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE).withRole("role").build();
-    ali =
-        new AliBlobStore.Builder()
-            .withBucket("bucket-1")
-            .withRegion("cn-shanghai")
-            .withCredentialsOverrider(credsOverrider)
             .build();
   }
 
-  @AfterEach
-  void teardown() {
-    if (staticMockBuilder != null) {
-      staticMockBuilder.close();
-    }
+  @Test
+  void testClose() throws Exception {
+    ali.close();
+    verify(mockOssClient, times(1)).close();
   }
 
   @Test
@@ -159,33 +179,49 @@ public class AliBlobStoreTest {
 
   @Test
   void testExceptionHandling() {
-    OSSException ossException = new OSSException("", "AccessDenied", "", "", "", "", "");
-    Class<?> cls = ali.getException(ossException);
-    assertEquals(cls, UnAuthorizedException.class);
+    ServiceException serviceException = mock(ServiceException.class);
+    when(serviceException.errorCode()).thenReturn("AccessDenied");
+    OperationException operationException = mock(OperationException.class);
+    when(operationException.getCause()).thenReturn(serviceException);
+    assertInstanceOf(
+        UnAuthorizedException.class, ali.mapException(operationException));
 
-    ClientException clientException = new ClientException();
-    cls = ali.getException(clientException);
-    assertEquals(cls, InvalidArgumentException.class);
+    assertInstanceOf(
+        UnAuthorizedException.class, ali.mapException(serviceException));
 
-    cls = ali.getException(new IOException("Channel is closed"));
-    assertEquals(cls, UnknownException.class);
+    assertInstanceOf(
+        InvalidArgumentException.class, ali.mapException(new IllegalArgumentException("bad arg")));
+
+    assertInstanceOf(
+        UnknownException.class, ali.mapException(new IOException("Channel is closed")));
+
+    ServiceException collision = mock(ServiceException.class);
+    when(collision.errorCode()).thenReturn("FileAlreadyExists");
+    when(collision.statusCode()).thenReturn(409);
+    assertInstanceOf(ResourceAlreadyExistsException.class, ali.mapException(collision));
   }
 
   @Test
   void testDoUploadInputStream() {
-    doReturn(buildTestPutObjectResult()).when(mockOssClient).putObject(any());
+    doReturn(buildTestPutObjectResult())
+        .when(mockOssClient).putObject(
+            any(PutObjectRequest.class), any());
     verifyUploadTestResults(ali.doUpload(getTestUploadRequest(), mock(InputStream.class)));
   }
 
   @Test
   void testDoUploadByteArray() {
-    doReturn(buildTestPutObjectResult()).when(mockOssClient).putObject(any());
+    doReturn(buildTestPutObjectResult())
+        .when(mockOssClient).putObject(
+            any(PutObjectRequest.class), any());
     verifyUploadTestResults(ali.doUpload(getTestUploadRequest(), new byte[1024]));
   }
 
   @Test
   void testDoUploadFile() throws IOException {
-    doReturn(buildTestPutObjectResult()).when(mockOssClient).putObject(any());
+    doReturn(buildTestPutObjectResult())
+        .when(mockOssClient).putObject(
+            any(PutObjectRequest.class), any());
     Path path = null;
     try {
       path = Files.createTempFile("tempFile", ".txt");
@@ -194,7 +230,6 @@ public class AliBlobStoreTest {
       }
       verifyUploadTestResults(ali.doUpload(getTestUploadRequest(), path.toFile()));
     } finally {
-      // Clean up temp file even if test fails
       if (path != null) {
         try {
           Files.deleteIfExists(path);
@@ -207,7 +242,9 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoUploadPath() throws IOException {
-    doReturn(buildTestPutObjectResult()).when(mockOssClient).putObject(any());
+    doReturn(buildTestPutObjectResult())
+        .when(mockOssClient).putObject(
+            any(PutObjectRequest.class), any());
     Path path = Files.createTempFile("tempFile", ".txt");
     try (BufferedWriter writer = Files.newBufferedWriter(path)) {
       writer.write(new char[1024]);
@@ -217,17 +254,16 @@ public class AliBlobStoreTest {
 
   void verifyUploadTestResults(UploadResponse uploadResponse) {
 
-    // Verify the parameters passed into the SDK
+    // Verify the parameters passed into the OSS SDK
     ArgumentCaptor<PutObjectRequest> putObjectRequestCaptor =
         ArgumentCaptor.forClass(PutObjectRequest.class);
-    verify(mockOssClient, times(1)).putObject(putObjectRequestCaptor.capture());
-    PutObjectRequest actualPutObjectRequest = putObjectRequestCaptor.getValue();
-    assertEquals("object-1", actualPutObjectRequest.getKey());
-    assertEquals("bucket-1", actualPutObjectRequest.getBucketName());
-    assertEquals(
-        "tag-1=tag-value-1",
-        actualPutObjectRequest.getMetadata().getRawMetadata().get(OSSHeaders.OSS_TAGGING));
-    assertEquals("value-1", actualPutObjectRequest.getMetadata().getUserMetadata().get("key-1"));
+    verify(mockOssClient, times(1)).putObject(putObjectRequestCaptor.capture(), any());
+    PutObjectRequest actualRequest =
+        putObjectRequestCaptor.getValue();
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("tag-1=tag-value-1", actualRequest.tagging());
+    assertEquals("value-1", actualRequest.metadata().get("key-1"));
 
     // Verify the mapping of the response into the UploadResponse object
     assertEquals("object-1", uploadResponse.getKey());
@@ -237,23 +273,29 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoDownloadOutputStream() {
-    Instant now = Instant.now();
-    doReturn(buildTestGetObjectResult(now)).when(mockOssClient).getObject(any());
+    Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+    doReturn(buildTestGetObjectResult(now))
+        .when(mockOssClient).getObject(
+            any(GetObjectRequest.class), any());
     verifyDownloadTestResults(
         ali.doDownload(getTestDownloadRequest(), mock(OutputStream.class)), now);
   }
 
   @Test
   void testDoDownloadInputStream() {
-    Instant now = Instant.now();
-    doReturn(buildTestGetObjectResult(now)).when(mockOssClient).getObject(any());
+    Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+    doReturn(buildTestGetObjectResult(now))
+        .when(mockOssClient).getObject(
+            any(GetObjectRequest.class), any());
     verifyDownloadTestResults(ali.doDownload(getTestDownloadRequest()), now);
   }
 
   @Test
   void testDoDownloadByteArrayWrapper() {
-    Instant now = Instant.now();
-    doReturn(buildTestGetObjectResult(now)).when(mockOssClient).getObject(any());
+    Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+    doReturn(buildTestGetObjectResult(now))
+        .when(mockOssClient).getObject(
+            any(GetObjectRequest.class), any());
     ByteArray byteArray = new ByteArray();
     verifyDownloadTestResults(ali.doDownload(getTestDownloadRequest(), byteArray), now);
     assertEquals("downloadedData", new String(byteArray.getBytes()));
@@ -261,8 +303,10 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoDownloadFile() {
-    Instant now = Instant.now();
-    doReturn(buildTestGetObjectResult(now)).when(mockOssClient).getObject(any());
+    Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+    doReturn(buildTestGetObjectResult(now))
+        .when(mockOssClient).getObject(
+            any(GetObjectRequest.class), any());
     Path path = Path.of("tempFile.txt");
     try {
       Files.deleteIfExists(path);
@@ -280,8 +324,10 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoDownloadPath() {
-    Instant now = Instant.now();
-    doReturn(buildTestGetObjectResult(now)).when(mockOssClient).getObject(any());
+    Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+    doReturn(buildTestGetObjectResult(now))
+        .when(mockOssClient).getObject(
+            any(GetObjectRequest.class), any());
     Path path = Path.of("tempPath.txt");
     try {
       Files.deleteIfExists(path);
@@ -297,17 +343,98 @@ public class AliBlobStoreTest {
     }
   }
 
+  @Test
+  void testDoDownloadByteArray_exactContentLength() {
+    String content = "downloadedData";
+    doReturn(buildByteArrayGetObjectResult(content, content.length()))
+        .when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(content.length(), byteArray.getBytes().length);
+    assertEquals(content, new String(byteArray.getBytes(), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void testDoDownloadByteArray_contentLengthLargerThanStream_trimsToActualBytes() {
+    String content = "downloadedData";
+    // Reported length intentionally larger than the actual stream; result must be trimmed.
+    doReturn(buildByteArrayGetObjectResult(content, 100L))
+        .when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(content.length(), byteArray.getBytes().length);
+    assertEquals(content, new String(byteArray.getBytes(), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void testDoDownloadByteArray_zeroContentLength_drainsEntireStream() {
+    String content = "downloadedData";
+    // A zero content length (e.g. a missing Content-Length header) must fall back to draining the
+    // full stream rather than returning an empty array.
+    doReturn(buildByteArrayGetObjectResult(content, 0L))
+        .when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(content, new String(byteArray.getBytes(), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void testDoDownloadByteArray_nullContentLength_drainsEntireStream() {
+    String content = "downloadedData";
+    // A null content length (e.g. the SDK omits it) must fall back to draining the full stream.
+    GetObjectResult result = buildByteArrayGetObjectResult(content, 0L);
+    doReturn(null).when(result).contentLength();
+    doReturn(result).when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(content, new String(byteArray.getBytes(), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void testDoDownloadByteArray_emptyObject() {
+    doReturn(buildByteArrayGetObjectResult("", 0L))
+        .when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(0, byteArray.getBytes().length);
+  }
+
+  @Test
+  void testDoDownloadByteArray_contentLengthSmallerThanStream_throws() {
+    String content = "muchLongerThanReported";
+    // Reported length (5) under-reports the actual 22-byte stream: the read must NOT silently
+    // truncate the payload, it must fail loudly instead.
+    doReturn(buildByteArrayGetObjectResult(content, 5L))
+        .when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    assertThrows(
+        RuntimeException.class,
+        () -> ali.doDownload(getTestDownloadRequestNoRange(), byteArray));
+  }
+
   void verifyDownloadTestResults(DownloadResponse response, Instant now) {
 
-    // Verify the parameters passed into the SDK
+    // Verify the parameters passed into the OSS SDK
     ArgumentCaptor<GetObjectRequest> getObjectRequestCaptor =
         ArgumentCaptor.forClass(GetObjectRequest.class);
-    verify(mockOssClient, times(1)).getObject(getObjectRequestCaptor.capture());
-    GetObjectRequest actualGetObjectRequest = getObjectRequestCaptor.getValue();
-    assertEquals("object-1", actualGetObjectRequest.getKey());
-    assertEquals("bucket-1", actualGetObjectRequest.getBucketName());
-    assertEquals(10, actualGetObjectRequest.getRange()[0]);
-    assertEquals(110, actualGetObjectRequest.getRange()[1]);
+    verify(mockOssClient, times(1)).getObject(getObjectRequestCaptor.capture(), any());
+    GetObjectRequest actualGetObjectRequest =
+        getObjectRequestCaptor.getValue();
+    assertEquals("object-1", actualGetObjectRequest.key());
+    assertEquals("bucket-1", actualGetObjectRequest.bucket());
+    assertEquals("version-1", actualGetObjectRequest.versionId());
+    assertEquals("bytes=10-110", actualGetObjectRequest.range());
 
     // Verify the response data is properly mapped into the DownloadResponse object
     assertEquals("object-1", response.getKey());
@@ -323,21 +450,22 @@ public class AliBlobStoreTest {
   void testDoDelete() {
     ali.doDelete("object-1", "version-1");
 
-    ArgumentCaptor<String> bucketCaptor = ArgumentCaptor.forClass(String.class);
-    ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
-    ArgumentCaptor<String> versionCaptor = ArgumentCaptor.forClass(String.class);
-    verify(mockOssClient, times(1))
-        .deleteVersion(bucketCaptor.capture(), keyCaptor.capture(), versionCaptor.capture());
-    assertEquals("bucket-1", bucketCaptor.getValue());
-    assertEquals("object-1", keyCaptor.getValue());
-    assertEquals("version-1", versionCaptor.getValue());
+    ArgumentCaptor<DeleteObjectRequest> captor =
+        ArgumentCaptor.forClass(DeleteObjectRequest.class);
+    verify(mockOssClient, times(1)).deleteObject(captor.capture(),
+        any(OperationOptions.class));
+    DeleteObjectRequest actual = captor.getValue();
+    assertEquals("bucket-1", actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertEquals("version-1", actual.versionId());
 
     ali.doDelete("object-1", null);
-    bucketCaptor = ArgumentCaptor.forClass(String.class);
-    keyCaptor = ArgumentCaptor.forClass(String.class);
-    verify(mockOssClient, times(1)).deleteObject(bucketCaptor.capture(), keyCaptor.capture());
-    assertEquals("bucket-1", bucketCaptor.getValue());
-    assertEquals("object-1", keyCaptor.getValue());
+    verify(mockOssClient, times(2)).deleteObject(captor.capture(),
+        any(OperationOptions.class));
+    actual = captor.getValue();
+    assertEquals("bucket-1", actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertNull(actual.versionId());
   }
 
   @Test
@@ -350,43 +478,59 @@ public class AliBlobStoreTest {
             new BlobIdentifier("object-4", null));
     ali.doDelete(objects);
 
-    // Verify it sends a delete request for the objects that have versionIds
-    ArgumentCaptor<DeleteVersionsRequest> deleteVersionsRequestCaptor =
-        ArgumentCaptor.forClass(DeleteVersionsRequest.class);
-    verify(mockOssClient, times(1)).deleteVersions(deleteVersionsRequestCaptor.capture());
-    DeleteVersionsRequest actualDeleteVersionsRequest = deleteVersionsRequestCaptor.getValue();
-    assertEquals("bucket-1", actualDeleteVersionsRequest.getBucketName());
-    List<DeleteVersionsRequest.KeyVersion> keyVersions = actualDeleteVersionsRequest.getKeys();
-    assertEquals(2, keyVersions.size());
-    assertEquals("object-1", keyVersions.get(0).getKey());
-    assertEquals("version-1", keyVersions.get(0).getVersion());
-    assertEquals("object-3", keyVersions.get(1).getKey());
-    assertEquals("version-3", keyVersions.get(1).getVersion());
+    ArgumentCaptor<DeleteMultipleObjectsRequest> captor =
+        ArgumentCaptor.forClass(
+            DeleteMultipleObjectsRequest.class);
+    verify(mockOssClient, times(1)).deleteMultipleObjects(captor.capture(),
+        any(OperationOptions.class));
+    DeleteMultipleObjectsRequest actual = captor.getValue();
+    assertEquals("bucket-1", actual.bucket());
+    List<ObjectIdentifier> ids = actual.delete().objects();
+    assertEquals(4, ids.size());
+    assertEquals("object-1", ids.get(0).key());
+    assertEquals("version-1", ids.get(0).versionId());
+    assertEquals("object-2", ids.get(1).key());
+    assertNull(ids.get(1).versionId());
+    assertEquals("object-3", ids.get(2).key());
+    assertEquals("version-3", ids.get(2).versionId());
+    assertEquals("object-4", ids.get(3).key());
+    assertNull(ids.get(3).versionId());
 
-    // Verify it sends a delete request for the objects that don't have versionIds
-    ArgumentCaptor<DeleteObjectsRequest> deleteObjectsRequestCaptor =
-        ArgumentCaptor.forClass(DeleteObjectsRequest.class);
-    verify(mockOssClient, times(1)).deleteObjects(deleteObjectsRequestCaptor.capture());
-    DeleteObjectsRequest actualDeleteObjectsRequest = deleteObjectsRequestCaptor.getValue();
-    List<String> keys = actualDeleteObjectsRequest.getKeys();
-    assertEquals(2, keys.size());
-    assertEquals("object-2", keys.get(0));
-    assertEquals("object-4", keys.get(1));
-
-    // Test that edge cases are properly processed
+    // Test edge cases
     ali.doDelete(List.of(new BlobIdentifier("object-1", "version-1")));
     ali.doDelete(List.of(new BlobIdentifier("object-1", null)));
+
+    // Empty list should not call deleteMultipleObjects
     ali.doDelete(List.of());
+    verify(mockOssClient, times(3)).deleteMultipleObjects(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class));
   }
 
   @Test
   void testDoCopy() {
-    Instant now = Instant.now();
-    CopyObjectResult mockResult = mock(CopyObjectResult.class);
-    doReturn("copyVersion-1").when(mockResult).getVersionId();
-    doReturn("eTag-1").when(mockResult).getETag();
-    doReturn(Date.from(now)).when(mockResult).getLastModified();
-    when(mockOssClient.copyObject(any())).thenReturn(mockResult);
+    Instant now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+    String lastModifiedRfc =
+        java.time.ZonedDateTime.ofInstant(now, java.time.ZoneOffset.UTC)
+            .format(java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME);
+
+    CopyObjectResult mockCopyResult =
+        mock(CopyObjectResult.class);
+    when(mockCopyResult.versionId()).thenReturn("copyVersion-1");
+    when(mockCopyResult.eTag()).thenReturn("\"eTag-1\"");
+    when(mockCopyResult.lastModified()).thenReturn(null);
+    when(mockOssClient.copyObject(
+        any(CopyObjectRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(mockCopyResult);
+
+    HeadObjectResult mockHeadResult =
+        mock(HeadObjectResult.class);
+    when(mockHeadResult.lastModified()).thenReturn(lastModifiedRfc);
+    when(mockOssClient.headObject(
+        any(HeadObjectRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(mockHeadResult);
 
     CopyRequest copyRequest =
         CopyRequest.builder()
@@ -401,27 +545,43 @@ public class AliBlobStoreTest {
     assertEquals("dest-object-1", copyResponse.getKey());
     assertEquals("copyVersion-1", copyResponse.getVersionId());
     assertEquals("eTag-1", copyResponse.getETag());
-    assertEquals(Date.from(now).toInstant(), copyResponse.getLastModified());
+    assertEquals(now, copyResponse.getLastModified());
 
-    ArgumentCaptor<CopyObjectRequest> copyObjectRequestCaptor =
+    ArgumentCaptor<CopyObjectRequest> captor =
         ArgumentCaptor.forClass(CopyObjectRequest.class);
-    verify(mockOssClient, times(1)).copyObject(copyObjectRequestCaptor.capture());
-    CopyObjectRequest actualCopyObjectRequest = copyObjectRequestCaptor.getValue();
-    assertEquals("bucket-1", actualCopyObjectRequest.getSourceBucketName());
-    assertEquals("src-object-1", actualCopyObjectRequest.getSourceKey());
-    assertEquals("version-1", actualCopyObjectRequest.getSourceVersionId());
-    assertEquals("dest-bucket-1", actualCopyObjectRequest.getDestinationBucketName());
-    assertEquals("dest-object-1", actualCopyObjectRequest.getDestinationKey());
+    verify(mockOssClient, times(1)).copyObject(captor.capture(), any());
+    CopyObjectRequest actual = captor.getValue();
+    assertEquals("bucket-1", actual.sourceBucket());
+    assertEquals("src-object-1", actual.sourceKey());
+    assertEquals("version-1", actual.sourceVersionId());
+    assertEquals("dest-bucket-1", actual.bucket());
+    assertEquals("dest-object-1", actual.key());
   }
 
   @Test
   void testDoCopyFrom() {
-    Instant now = Instant.now();
-    CopyObjectResult mockResult = mock(CopyObjectResult.class);
-    doReturn("copyVersion-1").when(mockResult).getVersionId();
-    doReturn("eTag-1").when(mockResult).getETag();
-    doReturn(Date.from(now)).when(mockResult).getLastModified();
-    when(mockOssClient.copyObject(any())).thenReturn(mockResult);
+    Instant now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+    String lastModifiedRfc =
+        java.time.ZonedDateTime.ofInstant(now, java.time.ZoneOffset.UTC)
+            .format(java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME);
+
+    CopyObjectResult mockCopyResult =
+        mock(CopyObjectResult.class);
+    when(mockCopyResult.versionId()).thenReturn("copyVersion-1");
+    when(mockCopyResult.eTag()).thenReturn("\"eTag-1\"");
+    when(mockCopyResult.lastModified()).thenReturn(null);
+    when(mockOssClient.copyObject(
+        any(CopyObjectRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(mockCopyResult);
+
+    HeadObjectResult mockHeadResult =
+        mock(HeadObjectResult.class);
+    when(mockHeadResult.lastModified()).thenReturn(lastModifiedRfc);
+    when(mockOssClient.headObject(
+        any(HeadObjectRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(mockHeadResult);
 
     CopyFromRequest copyFromRequest =
         CopyFromRequest.builder()
@@ -436,57 +596,61 @@ public class AliBlobStoreTest {
     assertEquals("dest-object-1", copyResponse.getKey());
     assertEquals("copyVersion-1", copyResponse.getVersionId());
     assertEquals("eTag-1", copyResponse.getETag());
-    assertEquals(Date.from(now).toInstant(), copyResponse.getLastModified());
+    assertEquals(now, copyResponse.getLastModified());
 
-    ArgumentCaptor<CopyObjectRequest> copyObjectRequestCaptor =
+    ArgumentCaptor<CopyObjectRequest> captor =
         ArgumentCaptor.forClass(CopyObjectRequest.class);
-    verify(mockOssClient, times(1)).copyObject(copyObjectRequestCaptor.capture());
-    CopyObjectRequest actualCopyObjectRequest = copyObjectRequestCaptor.getValue();
-    assertEquals("src-bucket-1", actualCopyObjectRequest.getSourceBucketName());
-    assertEquals("src-object-1", actualCopyObjectRequest.getSourceKey());
-    assertEquals("version-1", actualCopyObjectRequest.getSourceVersionId());
-    assertEquals("bucket-1", actualCopyObjectRequest.getDestinationBucketName());
-    assertEquals("dest-object-1", actualCopyObjectRequest.getDestinationKey());
+    verify(mockOssClient, times(1)).copyObject(captor.capture(), any());
+    CopyObjectRequest actual = captor.getValue();
+    assertEquals("src-bucket-1", actual.sourceBucket());
+    assertEquals("src-object-1", actual.sourceKey());
+    assertEquals("version-1", actual.sourceVersionId());
+    assertEquals("bucket-1", actual.bucket());
+    assertEquals("dest-object-1", actual.key());
   }
 
   @Test
   void testDoGetMetadata() {
-    Instant now = Instant.now();
     Map<String, String> metadataMap = Map.of("key1", "value1", "key2", "value2");
-    ObjectMetadata mockResponse = mock(ObjectMetadata.class);
-    when(mockResponse.getVersionId()).thenReturn("v1");
-    when(mockResponse.getETag()).thenReturn("etag");
-    when(mockResponse.getContentLength()).thenReturn(1024L);
-    when(mockResponse.getUserMetadata()).thenReturn(metadataMap);
-    when(mockResponse.getLastModified()).thenReturn(Date.from(now));
-    when(mockOssClient.getObjectMetadata(any())).thenReturn(mockResponse);
+    HeadObjectResult mockResult = mock(HeadObjectResult.class);
+    when(mockResult.versionId()).thenReturn("v1");
+    when(mockResult.eTag()).thenReturn("etag");
+    when(mockResult.contentLength()).thenReturn(1024L);
+    when(mockResult.metadata()).thenReturn(metadataMap);
+    when(mockResult.lastModified()).thenReturn("Sun, 18 May 2025 12:00:00 GMT");
+    when(mockResult.contentType()).thenReturn("application/octet-stream");
+    when(mockOssClient.headObject(any(HeadObjectRequest.class), any())).thenReturn(mockResult);
 
     BlobMetadata metadata = ali.doGetMetadata("object-1", "v1");
 
-    ArgumentCaptor<GenericRequest> genericRequestCaptor =
-        ArgumentCaptor.forClass(GenericRequest.class);
-    verify(mockOssClient, times(1)).getObjectMetadata(genericRequestCaptor.capture());
+    ArgumentCaptor<HeadObjectRequest> requestCaptor =
+        ArgumentCaptor.forClass(HeadObjectRequest.class);
+    verify(mockOssClient, times(1)).headObject(requestCaptor.capture(), any());
 
-    GenericRequest genericRequest = genericRequestCaptor.getValue();
-    assertEquals("bucket-1", genericRequest.getBucketName());
-    assertEquals("object-1", genericRequest.getKey());
-    assertEquals("v1", genericRequest.getVersionId());
+    HeadObjectRequest capturedRequest = requestCaptor.getValue();
+    assertEquals("bucket-1", capturedRequest.bucket());
+    assertEquals("object-1", capturedRequest.key());
+    assertEquals("v1", capturedRequest.versionId());
 
     assertEquals("object-1", metadata.getKey());
     assertEquals("v1", metadata.getVersionId());
     assertEquals("etag", metadata.getETag());
     assertEquals(1024L, metadata.getObjectSize());
     assertEquals(metadataMap, metadata.getMetadata());
-    assertEquals(Date.from(now), Date.from(metadata.getLastModified()));
+    assertNotNull(metadata.getLastModified());
+    assertEquals("application/octet-stream", metadata.getContentType());
   }
 
   @Test
   void testDoListEmpty() {
     ListBlobsRequest request = new ListBlobsRequest.Builder().build();
-    List<OSSObjectSummary> list = List.of();
-    ObjectListing mockObjectListing = mock(ObjectListing.class);
-    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
-    when(mockObjectListing.getObjectSummaries()).thenReturn(list);
+    ListObjectsV2Result mockResult =
+        mock(ListObjectsV2Result.class);
+    when(mockOssClient.listObjectsV2(
+        any(ListObjectsV2Request.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
+    when(mockResult.contents()).thenReturn(List.of());
+    when(mockResult.nextContinuationToken()).thenReturn(null);
 
     Iterator<BlobInfo> iterator = ali.doList(request);
     assertThrows(
@@ -500,10 +664,14 @@ public class AliBlobStoreTest {
   void testDoList() {
     ListBlobsRequest request =
         new ListBlobsRequest.Builder().withPrefix("abc").withDelimiter("/").build();
-    ObjectListing mockObjectListing = mock(ObjectListing.class);
-    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
-    List<OSSObjectSummary> list = getList();
-    when(mockObjectListing.getObjectSummaries()).thenReturn(list);
+    ListObjectsV2Result mockResult =
+        mock(ListObjectsV2Result.class);
+    when(mockOssClient.listObjectsV2(
+        any(ListObjectsV2Request.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
+    List<ObjectSummary> list = getObjectSummaryList();
+    when(mockResult.contents()).thenReturn(list);
+    when(mockResult.nextContinuationToken()).thenReturn(null);
 
     Iterator<BlobInfo> iterator = ali.doList(request);
     assertNotNull(iterator);
@@ -514,18 +682,121 @@ public class AliBlobStoreTest {
       int current = count++;
       assertEquals("key-" + current, blobInfo.getKey());
       assertEquals(current, blobInfo.getObjectSize());
+      assertEquals(
+          BASE_LAST_MODIFIED.plusSeconds(current), blobInfo.getLastModified(),
+          "doList should propagate the OSS ObjectSummary lastModified timestamp");
     }
   }
 
-  private List<OSSObjectSummary> getList() {
-    List<OSSObjectSummary> list = new ArrayList<>();
+  @Test
+  void testDoList_IncludesMarkedCommonPrefixesWhenRequested() {
+    ListBlobsRequest request =
+        ListBlobsRequest.builder()
+            .withPrefix("base/")
+            .withDelimiter("/")
+            .withIncludeCommonPrefixes(true)
+            .build();
+    ObjectSummary object = ObjectSummary.newBuilder().key("base/root.txt").size(4L).build();
+    ListObjectsV2Result mockResult = mock(ListObjectsV2Result.class);
+    when(mockOssClient.listObjectsV2(
+            any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(mockResult);
+    when(mockResult.contents()).thenReturn(List.of(object));
+    when(mockResult.commonPrefixes())
+        .thenReturn(List.of(CommonPrefix.newBuilder().prefix("base/directory/").build()));
+    when(mockResult.nextContinuationToken()).thenReturn(null);
+
+    Iterator<BlobInfo> iterator = ali.doList(request);
+    List<BlobInfo> entries = new ArrayList<>();
+    iterator.forEachRemaining(entries::add);
+
+    assertEquals(2, entries.size());
+    assertEquals("base/directory/", entries.get(0).getKey());
+    assertTrue(entries.get(0).isCommonPrefix());
+    assertEquals("base/root.txt", entries.get(1).getKey());
+    assertFalse(entries.get(1).isCommonPrefix());
+  }
+
+  @Test
+  void testDoList_SkipsEmptyIntermediatePage() {
+    ObjectSummary firstObject = ObjectSummary.newBuilder().key("first.txt").size(1L).build();
+    ObjectSummary lastObject = ObjectSummary.newBuilder().key("last.txt").size(1L).build();
+    ListObjectsV2Result firstPage = mock(ListObjectsV2Result.class);
+    ListObjectsV2Result emptyIntermediatePage = mock(ListObjectsV2Result.class);
+    ListObjectsV2Result lastPage = mock(ListObjectsV2Result.class);
+    when(firstPage.contents()).thenReturn(List.of(firstObject));
+    when(firstPage.nextContinuationToken()).thenReturn("page-2");
+    when(emptyIntermediatePage.contents()).thenReturn(List.of());
+    when(emptyIntermediatePage.nextContinuationToken()).thenReturn("page-3");
+    when(lastPage.contents()).thenReturn(List.of(lastObject));
+    when(lastPage.nextContinuationToken()).thenReturn(null);
+    when(mockOssClient.listObjectsV2(
+            any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(firstPage, emptyIntermediatePage, lastPage);
+
+    Iterator<BlobInfo> iterator =
+        ali.doList(ListBlobsRequest.builder().withDelimiter("/").build());
+    List<BlobInfo> entries = new ArrayList<>();
+    iterator.forEachRemaining(entries::add);
+
+    assertEquals(
+        List.of("first.txt", "last.txt"),
+        entries.stream().map(BlobInfo::getKey).toList());
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  void testDoList_IncludesCommonPrefixesAcrossPages() {
+    ObjectSummary firstObject = ObjectSummary.newBuilder().key("b.txt").size(1L).build();
+    ObjectSummary lastObject = ObjectSummary.newBuilder().key("d.txt").size(1L).build();
+    ListObjectsV2Result firstPage = mock(ListObjectsV2Result.class);
+    ListObjectsV2Result lastPage = mock(ListObjectsV2Result.class);
+    when(firstPage.contents()).thenReturn(List.of(firstObject));
+    when(firstPage.commonPrefixes())
+        .thenReturn(List.of(CommonPrefix.newBuilder().prefix("a/").build()));
+    when(firstPage.nextContinuationToken()).thenReturn("page-2");
+    when(lastPage.contents()).thenReturn(List.of(lastObject));
+    when(lastPage.commonPrefixes())
+        .thenReturn(List.of(CommonPrefix.newBuilder().prefix("c/").build()));
+    when(lastPage.nextContinuationToken()).thenReturn(null);
+    when(mockOssClient.listObjectsV2(
+            any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(firstPage, lastPage);
+
+    Iterator<BlobInfo> iterator =
+        ali.doList(
+            ListBlobsRequest.builder()
+                .withDelimiter("/")
+                .withIncludeCommonPrefixes(true)
+                .build());
+    List<BlobInfo> entries = new ArrayList<>();
+    iterator.forEachRemaining(entries::add);
+
+    assertEquals(
+        List.of("a/", "b.txt", "c/", "d.txt"),
+        entries.stream().map(BlobInfo::getKey).toList());
+    assertEquals(
+        List.of(true, false, true, false),
+        entries.stream().map(BlobInfo::isCommonPrefix).toList());
+  }
+
+  // Base instant for deterministic lastModified values in the object-summary fixtures;
+  // each summary i gets BASE_LAST_MODIFIED + i seconds so tests can assert exact timestamps.
+  private static final java.time.Instant BASE_LAST_MODIFIED =
+      java.time.Instant.parse("2026-01-01T00:00:00Z");
+
+  private List<ObjectSummary> getObjectSummaryList() {
+    List<ObjectSummary> list = new ArrayList<>();
     IntStream.range(1, 100)
         .forEach(
             (i) -> {
-              OSSObjectSummary mockObjectSummary = mock(OSSObjectSummary.class);
-              when(mockObjectSummary.getKey()).thenReturn("key-" + i);
-              when(mockObjectSummary.getSize()).thenReturn((long) i);
-              list.add(mockObjectSummary);
+              ObjectSummary summary =
+                  ObjectSummary.newBuilder()
+                      .key("key-" + i)
+                      .size((long) i)
+                      .lastModified(BASE_LAST_MODIFIED.plusSeconds(i))
+                      .build();
+              list.add(summary);
             });
     return list;
   }
@@ -540,30 +811,35 @@ public class AliBlobStoreTest {
             .withMaxResults(50)
             .build();
 
-    ObjectListing mockObjectListing = mock(ObjectListing.class);
-    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
-    List<OSSObjectSummary> list = getList();
-    when(mockObjectListing.getObjectSummaries()).thenReturn(list);
-    when(mockObjectListing.getCommonPrefixes()).thenReturn(List.of());
-    when(mockObjectListing.isTruncated()).thenReturn(true);
-    when(mockObjectListing.getNextMarker()).thenReturn("next-page-token");
+    ListObjectsV2Result mockResult =
+        mock(ListObjectsV2Result.class);
+    when(mockOssClient.listObjectsV2(
+        any(ListObjectsV2Request.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
+    List<ObjectSummary> list = getObjectSummaryList();
+    when(mockResult.contents()).thenReturn(list);
+    when(mockResult.commonPrefixes()).thenReturn(List.of());
+    when(mockResult.isTruncated()).thenReturn(true);
+    when(mockResult.nextContinuationToken()).thenReturn("next-page-token");
 
     ListBlobsPageResponse response = ali.listPage(request);
 
     // Verify the request is mapped to the SDK
-    ArgumentCaptor<ListObjectsRequest> requestCaptor =
-        ArgumentCaptor.forClass(ListObjectsRequest.class);
-    verify(mockOssClient, times(1)).listObjects(requestCaptor.capture());
-    ListObjectsRequest actualRequest = requestCaptor.getValue();
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals("abc", actualRequest.getPrefix());
-    assertEquals("/", actualRequest.getDelimiter());
-    assertEquals("next-token", actualRequest.getMarker());
-    assertEquals(50, actualRequest.getMaxKeys());
+    ArgumentCaptor<ListObjectsV2Request> requestCaptor =
+        ArgumentCaptor.forClass(ListObjectsV2Request.class);
+    verify(mockOssClient, times(1)).listObjectsV2(requestCaptor.capture(),
+        any(OperationOptions.class));
+    ListObjectsV2Request actualRequest =
+        requestCaptor.getValue();
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("abc", actualRequest.prefix());
+    assertEquals("/", actualRequest.delimiter());
+    assertEquals("next-token", actualRequest.continuationToken());
+    assertEquals(50L, actualRequest.maxKeys());
 
     // Verify the response is mapped back properly
     assertNotNull(response);
-    assertEquals(99, response.getBlobs().size()); // 1 to 99
+    assertEquals(99, response.getBlobs().size());
     assertEquals(List.of(), response.getCommonPrefixes());
     assertEquals(true, response.isTruncated());
     assertEquals("next-page-token", response.getNextPageToken());
@@ -571,19 +847,24 @@ public class AliBlobStoreTest {
     // Verify first and last blob
     assertEquals("key-1", response.getBlobs().get(0).getKey());
     assertEquals(1, response.getBlobs().get(0).getObjectSize());
+    assertEquals(BASE_LAST_MODIFIED.plusSeconds(1), response.getBlobs().get(0).getLastModified());
     assertEquals("key-99", response.getBlobs().get(98).getKey());
     assertEquals(99, response.getBlobs().get(98).getObjectSize());
+    assertEquals(BASE_LAST_MODIFIED.plusSeconds(99), response.getBlobs().get(98).getLastModified());
   }
 
   @Test
   void testDoListPageEmpty() {
     ListBlobsPageRequest request = ListBlobsPageRequest.builder().build();
-    ObjectListing mockObjectListing = mock(ObjectListing.class);
-    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
-    when(mockObjectListing.getObjectSummaries()).thenReturn(List.of());
-    when(mockObjectListing.getCommonPrefixes()).thenReturn(List.of());
-    when(mockObjectListing.isTruncated()).thenReturn(false);
-    when(mockObjectListing.getNextMarker()).thenReturn(null);
+    ListObjectsV2Result mockResult =
+        mock(ListObjectsV2Result.class);
+    when(mockOssClient.listObjectsV2(
+        any(ListObjectsV2Request.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
+    when(mockResult.contents()).thenReturn(List.of());
+    when(mockResult.commonPrefixes()).thenReturn(List.of());
+    when(mockResult.isTruncated()).thenReturn(false);
+    when(mockResult.nextContinuationToken()).thenReturn(null);
 
     ListBlobsPageResponse response = ali.listPage(request);
 
@@ -599,12 +880,17 @@ public class AliBlobStoreTest {
     ListBlobsPageRequest request =
         ListBlobsPageRequest.builder().withDelimiter("/").build();
 
-    ObjectListing mockObjectListing = mock(ObjectListing.class);
-    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
-    when(mockObjectListing.getObjectSummaries()).thenReturn(List.of());
-    when(mockObjectListing.getCommonPrefixes()).thenReturn(List.of("dir1/", "dir2/"));
-    when(mockObjectListing.isTruncated()).thenReturn(false);
-    when(mockObjectListing.getNextMarker()).thenReturn(null);
+    ListObjectsV2Result mockResult =
+        mock(ListObjectsV2Result.class);
+    when(mockOssClient.listObjectsV2(
+        any(ListObjectsV2Request.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
+    when(mockResult.contents()).thenReturn(List.of());
+    when(mockResult.commonPrefixes()).thenReturn(List.of(
+        CommonPrefix.newBuilder().prefix("dir1/").build(),
+        CommonPrefix.newBuilder().prefix("dir2/").build()));
+    when(mockResult.isTruncated()).thenReturn(false);
+    when(mockResult.nextContinuationToken()).thenReturn(null);
 
     ListBlobsPageResponse response = ali.listPage(request);
 
@@ -619,16 +905,22 @@ public class AliBlobStoreTest {
     ListBlobsPageRequest request =
         ListBlobsPageRequest.builder().withDelimiter("/").build();
 
-    OSSObjectSummary summary = new OSSObjectSummary();
-    summary.setKey("root.txt");
-    summary.setSize(100L);
+    ObjectSummary summary =
+        ObjectSummary.newBuilder()
+            .key("root.txt")
+            .size(100L)
+            .build();
 
-    ObjectListing mockObjectListing = mock(ObjectListing.class);
-    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
-    when(mockObjectListing.getObjectSummaries()).thenReturn(List.of(summary));
-    when(mockObjectListing.getCommonPrefixes()).thenReturn(List.of("dir1/"));
-    when(mockObjectListing.isTruncated()).thenReturn(false);
-    when(mockObjectListing.getNextMarker()).thenReturn(null);
+    ListObjectsV2Result mockResult =
+        mock(ListObjectsV2Result.class);
+    when(mockOssClient.listObjectsV2(
+        any(ListObjectsV2Request.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
+    when(mockResult.contents()).thenReturn(List.of(summary));
+    when(mockResult.commonPrefixes()).thenReturn(List.of(
+        CommonPrefix.newBuilder().prefix("dir1/").build()));
+    when(mockResult.isTruncated()).thenReturn(false);
+    when(mockResult.nextContinuationToken()).thenReturn(null);
 
     ListBlobsPageResponse response = ali.listPage(request);
 
@@ -643,12 +935,18 @@ public class AliBlobStoreTest {
     ListBlobsPageRequest request =
         ListBlobsPageRequest.builder().withDelimiter("/").withMaxResults(5).build();
 
-    ObjectListing mockObjectListing = mock(ObjectListing.class);
-    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
-    when(mockObjectListing.getObjectSummaries()).thenReturn(List.of());
-    when(mockObjectListing.getCommonPrefixes()).thenReturn(List.of("a/", "b/", "c/"));
-    when(mockObjectListing.isTruncated()).thenReturn(false);
-    when(mockObjectListing.getNextMarker()).thenReturn(null);
+    ListObjectsV2Result mockResult =
+        mock(ListObjectsV2Result.class);
+    when(mockOssClient.listObjectsV2(
+        any(ListObjectsV2Request.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
+    when(mockResult.contents()).thenReturn(List.of());
+    when(mockResult.commonPrefixes()).thenReturn(List.of(
+        CommonPrefix.newBuilder().prefix("a/").build(),
+        CommonPrefix.newBuilder().prefix("b/").build(),
+        CommonPrefix.newBuilder().prefix("c/").build()));
+    when(mockResult.isTruncated()).thenReturn(false);
+    when(mockResult.nextContinuationToken()).thenReturn(null);
 
     ListBlobsPageResponse response = ali.listPage(request);
 
@@ -660,57 +958,76 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoListPage_NullCommonPrefixes() {
-    // OSS SDK may return null for getCommonPrefixes() in some cases — verify no NPE
     ListBlobsPageRequest request =
         ListBlobsPageRequest.builder().withDelimiter("/").build();
 
-    OSSObjectSummary summary = new OSSObjectSummary();
-    summary.setKey("file.txt");
-    summary.setSize(50L);
+    ObjectSummary summary =
+        ObjectSummary.newBuilder()
+            .key("file.txt")
+            .size(50L)
+            .build();
 
-    ObjectListing mockObjectListing = mock(ObjectListing.class);
-    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
-    when(mockObjectListing.getObjectSummaries()).thenReturn(List.of(summary));
-    when(mockObjectListing.getCommonPrefixes()).thenReturn(null);
-    when(mockObjectListing.isTruncated()).thenReturn(false);
-    when(mockObjectListing.getNextMarker()).thenReturn(null);
+    ListObjectsV2Result mockResult =
+        mock(ListObjectsV2Result.class);
+    when(mockOssClient.listObjectsV2(
+        any(ListObjectsV2Request.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
+    when(mockResult.contents()).thenReturn(List.of(summary));
+    when(mockResult.commonPrefixes()).thenReturn(null);
+    when(mockResult.isTruncated()).thenReturn(false);
+    when(mockResult.nextContinuationToken()).thenReturn(null);
 
-    // Should not throw; null from SDK handled gracefully
     ListBlobsPageResponse response = ali.listPage(request);
 
     assertNotNull(response);
     assertEquals(1, response.getBlobs().size());
-    // commonPrefixes may be null or empty — must not cause NPE
+    assertEquals(List.of(), response.getCommonPrefixes());
   }
 
   @Test
   void testDoInitiateMultipartUpload() {
-    InitiateMultipartUploadResult mockResponse = mock(InitiateMultipartUploadResult.class);
-    when(mockOssClient.initiateMultipartUpload((InitiateMultipartUploadRequest) any()))
-        .thenReturn(mockResponse);
+    InitiateMultipartUploadResult mockResult =
+        mock(InitiateMultipartUploadResult.class);
+    InitiateMultipartUpload mockUpload =
+        mock(InitiateMultipartUpload.class);
+    when(mockResult.initiateMultipartUpload()).thenReturn(mockUpload);
+    when(mockUpload.bucket()).thenReturn("bucket-1");
+    when(mockUpload.key()).thenReturn("object-1");
+    when(mockUpload.uploadId()).thenReturn("mpu-id");
+    when(mockOssClient.initiateMultipartUpload(
+        any(InitiateMultipartUploadRequest.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
     Map<String, String> metadata = Map.of("key-1", "value-1");
     MultipartUploadRequest request =
         new MultipartUploadRequest.Builder().withKey("object-1").withMetadata(metadata).build();
 
     ali.initiateMultipartUpload(request);
 
-    ArgumentCaptor<InitiateMultipartUploadRequest> requestCaptor =
-        ArgumentCaptor.forClass(InitiateMultipartUploadRequest.class);
-    verify(mockOssClient, times(1)).initiateMultipartUpload(requestCaptor.capture());
-    InitiateMultipartUploadRequest actualRequest = requestCaptor.getValue();
-    assertEquals("object-1", actualRequest.getKey());
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals(metadata, actualRequest.getObjectMetadata().getUserMetadata());
+    ArgumentCaptor<InitiateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(
+            InitiateMultipartUploadRequest.class);
+    verify(mockOssClient, times(1)).initiateMultipartUpload(captor.capture(),
+        any(OperationOptions.class));
+    InitiateMultipartUploadRequest actualRequest =
+        captor.getValue();
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals(metadata, actualRequest.metadata());
   }
 
   @Test
   void testDoInitiateMultipartUploadWithKms() {
-    InitiateMultipartUploadResult mockResponse = mock(InitiateMultipartUploadResult.class);
-    doReturn("bucket-1").when(mockResponse).getBucketName();
-    doReturn("object-1").when(mockResponse).getKey();
-    doReturn("mpu-id").when(mockResponse).getUploadId();
-    when(mockOssClient.initiateMultipartUpload((InitiateMultipartUploadRequest) any()))
-        .thenReturn(mockResponse);
+    InitiateMultipartUploadResult mockResult =
+        mock(InitiateMultipartUploadResult.class);
+    InitiateMultipartUpload mockUpload =
+        mock(InitiateMultipartUpload.class);
+    when(mockResult.initiateMultipartUpload()).thenReturn(mockUpload);
+    when(mockUpload.bucket()).thenReturn("bucket-1");
+    when(mockUpload.key()).thenReturn("object-1");
+    when(mockUpload.uploadId()).thenReturn("mpu-id");
+    when(mockOssClient.initiateMultipartUpload(
+        any(InitiateMultipartUploadRequest.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
     Map<String, String> metadata = Map.of("key-1", "value-1");
     String kmsKeyId = "test-kms-key-id";
     MultipartUploadRequest request =
@@ -722,22 +1039,18 @@ public class AliBlobStoreTest {
 
     MultipartUpload response = ali.initiateMultipartUpload(request);
 
-    ArgumentCaptor<InitiateMultipartUploadRequest> requestCaptor =
-        ArgumentCaptor.forClass(InitiateMultipartUploadRequest.class);
-    verify(mockOssClient, times(1)).initiateMultipartUpload(requestCaptor.capture());
-    InitiateMultipartUploadRequest actualRequest = requestCaptor.getValue();
-    assertEquals("object-1", actualRequest.getKey());
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals(metadata, actualRequest.getObjectMetadata().getUserMetadata());
-    assertEquals(
-        ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION,
-        actualRequest.getObjectMetadata().getServerSideEncryption());
-    assertEquals(
-        kmsKeyId,
-        actualRequest
-            .getObjectMetadata()
-            .getRawMetadata()
-            .get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID));
+    ArgumentCaptor<InitiateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(
+            InitiateMultipartUploadRequest.class);
+    verify(mockOssClient, times(1)).initiateMultipartUpload(captor.capture(),
+        any(OperationOptions.class));
+    InitiateMultipartUploadRequest actualRequest =
+        captor.getValue();
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals(metadata, actualRequest.metadata());
+    assertEquals("KMS", actualRequest.serverSideEncryption());
+    assertEquals(kmsKeyId, actualRequest.serverSideEncryptionKeyId());
 
     // Verify the response has KMS key
     assertEquals(kmsKeyId, response.getKmsKeyId());
@@ -745,9 +1058,12 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoUploadMultipartPart() {
-    UploadPartResult mockResponse = mock(UploadPartResult.class);
-    doReturn(new PartETag(1, "etag")).when(mockResponse).getPartETag();
-    when(mockOssClient.uploadPart(any())).thenReturn(mockResponse);
+    UploadPartResult mockResult =
+        mock(UploadPartResult.class);
+    when(mockResult.eTag()).thenReturn("\"etag\"");
+    when(mockOssClient.uploadPart(
+        any(UploadPartRequest.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
     MultipartUpload multipartUpload =
         MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
     byte[] content = "This is test data".getBytes(StandardCharsets.UTF_8);
@@ -755,56 +1071,128 @@ public class AliBlobStoreTest {
 
     ali.uploadMultipartPart(multipartUpload, multipartPart);
 
-    ArgumentCaptor<UploadPartRequest> requestCaptor =
+    ArgumentCaptor<UploadPartRequest> captor =
         ArgumentCaptor.forClass(UploadPartRequest.class);
-    verify(mockOssClient, times(1)).uploadPart(requestCaptor.capture());
-    UploadPartRequest actualRequest = requestCaptor.getValue();
-    assertEquals("object-1", actualRequest.getKey());
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals("mpu-id", actualRequest.getUploadId());
-    assertEquals(1, actualRequest.getPartNumber());
+    verify(mockOssClient, times(1)).uploadPart(captor.capture(),
+        any(OperationOptions.class));
+    UploadPartRequest actualRequest = captor.getValue();
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("mpu-id", actualRequest.uploadId());
+    assertEquals(1L, actualRequest.partNumber());
   }
 
   @Test
   void testDoCompleteMultipartUpload() {
-    CompleteMultipartUploadResult mockResponse = mock(CompleteMultipartUploadResult.class);
-    when(mockOssClient.completeMultipartUpload(any())).thenReturn(mockResponse);
+    CompleteMultipartUploadResult mockResult =
+        mock(CompleteMultipartUploadResult.class);
+    CompleteMultipartUploadResultXml mockXml =
+        mock(CompleteMultipartUploadResultXml.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(mockXml);
+    when(mockXml.eTag()).thenReturn("\"result-etag\"");
+    when(mockOssClient.completeMultipartUpload(
+        any(CompleteMultipartUploadRequest.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
     MultipartUpload multipartUpload =
         MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
-    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> listOfParts =
-        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag", 0));
+    List<UploadPartResponse> listOfParts =
+        List.of(new UploadPartResponse(1, "etag", 0));
 
     ali.completeMultipartUpload(multipartUpload, listOfParts);
 
-    ArgumentCaptor<CompleteMultipartUploadRequest> requestCaptor =
-        ArgumentCaptor.forClass(CompleteMultipartUploadRequest.class);
-    verify(mockOssClient, times(1)).completeMultipartUpload(requestCaptor.capture());
-    CompleteMultipartUploadRequest actualRequest = requestCaptor.getValue();
-    assertEquals("object-1", actualRequest.getKey());
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals("mpu-id", actualRequest.getUploadId());
-    List<PartETag> parts = actualRequest.getPartETags();
+    ArgumentCaptor<CompleteMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(
+            CompleteMultipartUploadRequest.class);
+    verify(mockOssClient, times(1)).completeMultipartUpload(captor.capture(),
+        any(OperationOptions.class));
+    CompleteMultipartUploadRequest actualRequest =
+        captor.getValue();
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("mpu-id", actualRequest.uploadId());
+    List<Part> parts =
+        actualRequest.completeMultipartUpload().parts();
     assertEquals(1, parts.size());
-    assertEquals(1, parts.get(0).getPartNumber());
-    assertEquals("etag", parts.get(0).getETag());
+    assertEquals(1L, parts.get(0).partNumber());
+    assertEquals("etag", parts.get(0).eTag());
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_surfacesHashCRC64AsChecksumValue() {
+    // OSS computes a CRC64 over the assembled object on completeMultipartUpload and returns it
+    // on CompleteMultipartUploadResult.hashCRC64(). That should flow through to
+    // MultipartUploadResponse.checksumValue so callers receive a composite checksum, matching
+    // the cross-cloud contract (AWS surfaces SHA256/CRC32C; GCP surfaces CRC32C).
+    CompleteMultipartUploadResult mockResult =
+        mock(CompleteMultipartUploadResult.class);
+    CompleteMultipartUploadResultXml mockXml =
+        mock(CompleteMultipartUploadResultXml.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(mockXml);
+    when(mockXml.eTag()).thenReturn("\"result-etag\"");
+    when(mockResult.hashCRC64()).thenReturn("14870085893817539781");
+    when(mockOssClient.completeMultipartUpload(
+        any(CompleteMultipartUploadRequest.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
+    MultipartUpload multipartUpload =
+        MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
+    List<UploadPartResponse> listOfParts =
+        List.of(new UploadPartResponse(1, "etag", 0));
+
+    MultipartUploadResponse response =
+        ali.completeMultipartUpload(multipartUpload, listOfParts);
+
+    assertEquals("result-etag", response.getEtag());
+    assertEquals("14870085893817539781", response.getChecksumValue(),
+        "Ali should surface OSS's hashCRC64() as MultipartUploadResponse.checksumValue");
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_nullHashCRC64_leavesChecksumValueNull() {
+    // Best-effort: when OSS doesn't return a hashCRC64 (null), checksumValue stays null rather
+    // than being set to the literal string "null".
+    CompleteMultipartUploadResult mockResult =
+        mock(CompleteMultipartUploadResult.class);
+    CompleteMultipartUploadResultXml mockXml =
+        mock(CompleteMultipartUploadResultXml.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(mockXml);
+    when(mockXml.eTag()).thenReturn("\"result-etag\"");
+    when(mockResult.hashCRC64()).thenReturn(null);
+    when(mockOssClient.completeMultipartUpload(
+        any(CompleteMultipartUploadRequest.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
+    MultipartUpload multipartUpload =
+        MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
+    List<UploadPartResponse> listOfParts =
+        List.of(new UploadPartResponse(1, "etag", 0));
+
+    MultipartUploadResponse response =
+        ali.completeMultipartUpload(multipartUpload, listOfParts);
+
+    assertEquals("result-etag", response.getEtag());
+    assertNull(response.getChecksumValue());
   }
 
   @Test
   void testDoListMultipartUpload() {
-    PartListing mockResponse = mock(PartListing.class);
-    when(mockOssClient.listParts(any())).thenReturn(mockResponse);
+    ListPartsResult mockResult =
+        mock(ListPartsResult.class);
+    when(mockResult.parts()).thenReturn(List.of());
+    when(mockOssClient.listParts(
+        any(ListPartsRequest.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
     MultipartUpload multipartUpload =
         MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
 
     ali.listMultipartUpload(multipartUpload);
 
-    ArgumentCaptor<ListPartsRequest> requestCaptor =
+    ArgumentCaptor<ListPartsRequest> captor =
         ArgumentCaptor.forClass(ListPartsRequest.class);
-    verify(mockOssClient, times(1)).listParts(requestCaptor.capture());
-    ListPartsRequest actualRequest = requestCaptor.getValue();
-    assertEquals("object-1", actualRequest.getKey());
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals("mpu-id", actualRequest.getUploadId());
+    verify(mockOssClient, times(1)).listParts(captor.capture(),
+        any(OperationOptions.class));
+    ListPartsRequest actualRequest = captor.getValue();
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("mpu-id", actualRequest.uploadId());
   }
 
   @Test
@@ -814,25 +1202,39 @@ public class AliBlobStoreTest {
 
     ali.abortMultipartUpload(multipartUpload);
 
-    ArgumentCaptor<AbortMultipartUploadRequest> requestCaptor =
-        ArgumentCaptor.forClass(AbortMultipartUploadRequest.class);
-    verify(mockOssClient, times(1)).abortMultipartUpload(requestCaptor.capture());
-    AbortMultipartUploadRequest actualRequest = requestCaptor.getValue();
-    assertEquals("object-1", actualRequest.getKey());
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals("mpu-id", actualRequest.getUploadId());
+    ArgumentCaptor<AbortMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(
+            AbortMultipartUploadRequest.class);
+    verify(mockOssClient, times(1)).abortMultipartUpload(captor.capture(),
+        any(OperationOptions.class));
+    AbortMultipartUploadRequest actualRequest =
+        captor.getValue();
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("mpu-id", actualRequest.uploadId());
   }
 
   @Test
   void testDoGetTags() {
-    TagSet mockResponse = mock(TagSet.class);
-    Map<String, String> tags = Map.of("key1", "value1", "key2", "value2");
-    doReturn(tags).when(mockResponse).getAllTags();
-    when(mockOssClient.getObjectTagging(any(), any())).thenReturn(mockResponse);
+    Tag tag1 =
+        Tag.newBuilder().key("key1").value("value1").build();
+    Tag tag2 =
+        Tag.newBuilder().key("key2").value("value2").build();
+    TagSet tagSet =
+        TagSet.newBuilder()
+            .tags(List.of(tag1, tag2)).build();
+    Tagging tagging =
+        Tagging.newBuilder().tagSet(tagSet).build();
+    GetObjectTaggingResult mockResult =
+        mock(GetObjectTaggingResult.class);
+    when(mockResult.tagging()).thenReturn(tagging);
+    when(mockOssClient.getObjectTagging(
+        any(GetObjectTaggingRequest.class), any()))
+        .thenReturn(mockResult);
 
     Map<String, String> tagsResult = ali.getTags("object-1");
 
-    assertEquals(tags, tagsResult);
+    assertEquals(Map.of("key1", "value1", "key2", "value2"), tagsResult);
   }
 
   @Test
@@ -840,25 +1242,34 @@ public class AliBlobStoreTest {
     Map<String, String> tags = Map.of("key1", "value1", "key2", "value2");
     ali.setTags("object-1", tags);
 
-    ArgumentCaptor<TagSet> tagSetRequestCaptor = ArgumentCaptor.forClass(TagSet.class);
-    ArgumentCaptor<String> bucketNameRequestCaptor = ArgumentCaptor.forClass(String.class);
-    ArgumentCaptor<String> keyRequestCaptor = ArgumentCaptor.forClass(String.class);
-    verify(mockOssClient, times(1))
-        .setObjectTagging(
-            bucketNameRequestCaptor.capture(),
-            keyRequestCaptor.capture(),
-            tagSetRequestCaptor.capture());
+    ArgumentCaptor<PutObjectTaggingRequest> requestCaptor =
+        ArgumentCaptor.forClass(
+            PutObjectTaggingRequest.class);
+    verify(mockOssClient, times(1)).putObjectTagging(requestCaptor.capture(), any());
 
-    String actualBucketNameRequestCaptor = bucketNameRequestCaptor.getValue();
-    String actualKeyRequestCaptor = keyRequestCaptor.getValue();
-    TagSet actualTagSetRequestCaptor = tagSetRequestCaptor.getValue();
-    assertEquals("bucket-1", actualBucketNameRequestCaptor);
-    assertEquals("object-1", actualKeyRequestCaptor);
-    assertEquals(tags, actualTagSetRequestCaptor.getAllTags());
+    PutObjectTaggingRequest actualRequest =
+        requestCaptor.getValue();
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("object-1", actualRequest.key());
+    List<Tag> actualTags =
+        actualRequest.tagging().tagSet().tags();
+    Map<String, String> actualTagMap = actualTags.stream()
+        .collect(java.util.stream.Collectors.toMap(
+            Tag::key,
+            Tag::value));
+    assertEquals(tags, actualTagMap);
   }
 
   @Test
   void testDoGeneratePresignedUploadUrl() {
+    PresignResult mockResult =
+        mock(PresignResult.class);
+    doReturn("https://bucket-1.oss-cn-shanghai.aliyuncs.com/object-1?signed=true")
+        .when(mockResult).url();
+    doReturn(mockResult).when(mockOssClient).presign(
+        any(PutObjectRequest.class),
+        any(PresignOptions.class));
+
     UploadRequest uploadRequest = getTestUploadRequest();
     Duration duration = Duration.ofHours(12);
     PresignedUrlRequest presignedUploadRequest =
@@ -870,24 +1281,30 @@ public class AliBlobStoreTest {
             .duration(duration)
             .build();
 
-    ali.doGeneratePresignedUrl(presignedUploadRequest);
+    PresignedUrlResponse result = ali.doPresign(presignedUploadRequest);
 
-    ArgumentCaptor<GeneratePresignedUrlRequest> generatePresignedUrlRequestCaptor =
-        ArgumentCaptor.forClass(GeneratePresignedUrlRequest.class);
-    verify(mockOssClient, times(1))
-        .generatePresignedUrl(generatePresignedUrlRequestCaptor.capture());
-    GeneratePresignedUrlRequest actualRequest = generatePresignedUrlRequestCaptor.getValue();
-    assertEquals(HttpMethod.PUT, actualRequest.getMethod());
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals("object-1", actualRequest.getKey());
-    Map<String, String> headers = actualRequest.getHeaders();
-    assertEquals("tag-1=tag-value-1", headers.get(OSSHeaders.OSS_TAGGING));
-    assertEquals("value-1", actualRequest.getUserMetadata().get("key-1"));
-    assertNotNull(actualRequest.getExpiration());
+    assertNotNull(result);
+    ArgumentCaptor<PutObjectRequest> requestCaptor =
+        ArgumentCaptor.forClass(PutObjectRequest.class);
+    verify(mockOssClient, times(1)).presign(requestCaptor.capture(),
+        any(PresignOptions.class));
+    PutObjectRequest actualRequest = requestCaptor.getValue();
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("tag-1=tag-value-1", actualRequest.tagging());
+    assertEquals("value-1", actualRequest.metadata().get("key-1"));
   }
 
   @Test
   void testDoGeneratePresignedDownloadUrl() {
+    PresignResult mockResult =
+        mock(PresignResult.class);
+    doReturn("https://bucket-1.oss-cn-shanghai.aliyuncs.com/object-1?signed=true")
+        .when(mockResult).url();
+    doReturn(mockResult).when(mockOssClient).presign(
+        any(GetObjectRequest.class),
+        any(PresignOptions.class));
+
     Duration duration = Duration.ofHours(12);
     PresignedUrlRequest presignedDownloadRequest =
         PresignedUrlRequest.builder()
@@ -896,30 +1313,34 @@ public class AliBlobStoreTest {
             .duration(duration)
             .build();
 
-    ali.doGeneratePresignedUrl(presignedDownloadRequest);
+    PresignedUrlResponse result = ali.doPresign(presignedDownloadRequest);
 
-    ArgumentCaptor<GeneratePresignedUrlRequest> generatePresignedUrlRequestCaptor =
-        ArgumentCaptor.forClass(GeneratePresignedUrlRequest.class);
-    verify(mockOssClient, times(1))
-        .generatePresignedUrl(generatePresignedUrlRequestCaptor.capture());
-    GeneratePresignedUrlRequest actualRequest = generatePresignedUrlRequestCaptor.getValue();
-    assertEquals(HttpMethod.GET, actualRequest.getMethod());
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals("object-1", actualRequest.getKey());
+    assertNotNull(result);
+    ArgumentCaptor<GetObjectRequest> requestCaptor =
+        ArgumentCaptor.forClass(GetObjectRequest.class);
+    verify(mockOssClient, times(1)).presign(requestCaptor.capture(),
+        any(PresignOptions.class));
+    GetObjectRequest actualRequest = requestCaptor.getValue();
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("object-1", actualRequest.key());
   }
 
   @Test
   void testDoDoesObjectExist() {
-    doReturn(true).when(mockOssClient).doesObjectExist(any(GenericRequest.class));
+    doReturn(true).when(mockOssClient).doesObjectExist(
+        any(GetObjectMetaRequest.class));
 
     boolean result = ali.doDoesObjectExist("object-1", "version-1");
 
-    ArgumentCaptor<GenericRequest> requestCaptor = ArgumentCaptor.forClass(GenericRequest.class);
+    ArgumentCaptor<GetObjectMetaRequest> requestCaptor =
+        ArgumentCaptor.forClass(
+            GetObjectMetaRequest.class);
     verify(mockOssClient, times(1)).doesObjectExist(requestCaptor.capture());
-    GenericRequest actualRequest = requestCaptor.getValue();
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals("object-1", actualRequest.getKey());
-    assertEquals("version-1", actualRequest.getVersionId());
+    GetObjectMetaRequest actualRequest =
+        requestCaptor.getValue();
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("version-1", actualRequest.versionId());
     assertTrue(result);
   }
 
@@ -944,38 +1365,91 @@ public class AliBlobStoreTest {
   }
 
   @Test
-  void testDoDoesBucketExist_ThrowsNoSuchBucketException() {
-    com.aliyun.oss.ServiceException serviceException = mock(com.aliyun.oss.ServiceException.class);
-    doReturn("NoSuchBucket").when(serviceException).getErrorCode();
-    doThrow(serviceException).when(mockOssClient).doesBucketExist("bucket-1");
+  void testDoGetBucketVersioning_enabled() {
+    VersioningConfiguration config =
+        VersioningConfiguration.newBuilder().status("Enabled").build();
+    GetBucketVersioningResult result = mock(GetBucketVersioningResult.class);
+    when(result.versioningConfiguration()).thenReturn(config);
+    doReturn(result)
+        .when(mockOssClient)
+        .getBucketVersioning(any(GetBucketVersioningRequest.class), any(OperationOptions.class));
 
-    boolean result = ali.doDoesBucketExist();
+    BucketVersioningConfiguration versioning = ali.doGetBucketVersioning();
 
-    verify(mockOssClient, times(1)).doesBucketExist("bucket-1");
-    assertFalse(result);
+    ArgumentCaptor<GetBucketVersioningRequest> captor =
+        ArgumentCaptor.forClass(GetBucketVersioningRequest.class);
+    verify(mockOssClient, times(1)).getBucketVersioning(captor.capture(), any());
+    assertEquals("bucket-1", captor.getValue().bucket());
+    assertEquals(BucketVersioningStatus.ENABLED, versioning.getStatus());
   }
 
   @Test
-  void testDoDoesBucketExist_ThrowsOtherServiceException() {
-    com.aliyun.oss.ServiceException serviceException = mock(com.aliyun.oss.ServiceException.class);
-    doReturn("AccessDenied").when(serviceException).getErrorCode();
-    doThrow(serviceException).when(mockOssClient).doesBucketExist("bucket-1");
+  void testDoGetBucketVersioning_suspended() {
+    VersioningConfiguration config =
+        VersioningConfiguration.newBuilder().status("Suspended").build();
+    GetBucketVersioningResult result = mock(GetBucketVersioningResult.class);
+    when(result.versioningConfiguration()).thenReturn(config);
+    doReturn(result)
+        .when(mockOssClient)
+        .getBucketVersioning(any(GetBucketVersioningRequest.class), any(OperationOptions.class));
 
-    assertThrows(
-        com.salesforce.multicloudj.common.exceptions.SubstrateSdkException.class,
-        () -> ali.doDoesBucketExist());
-    verify(mockOssClient, times(1)).doesBucketExist("bucket-1");
+    BucketVersioningConfiguration versioning = ali.doGetBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.SUSPENDED, versioning.getStatus());
   }
 
   @Test
-  void testDoDoesBucketExist_ThrowsClientException() {
-    ClientException clientException = mock(ClientException.class);
-    doThrow(clientException).when(mockOssClient).doesBucketExist("bucket-1");
+  void testDoGetBucketVersioning_neverConfigured_mapsToUnversioned() {
+    // A bucket that has never had versioning configured carries no status element; OSS surfaces
+    // this as a null VersioningConfiguration. It must map to UNVERSIONED, not an error.
+    GetBucketVersioningResult result = mock(GetBucketVersioningResult.class);
+    when(result.versioningConfiguration()).thenReturn(null);
+    doReturn(result)
+        .when(mockOssClient)
+        .getBucketVersioning(any(GetBucketVersioningRequest.class), any(OperationOptions.class));
 
-    assertThrows(
-        com.salesforce.multicloudj.common.exceptions.SubstrateSdkException.class,
-        () -> ali.doDoesBucketExist());
-    verify(mockOssClient, times(1)).doesBucketExist("bucket-1");
+    BucketVersioningConfiguration versioning = ali.doGetBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.UNVERSIONED, versioning.getStatus());
+  }
+
+  @Test
+  void testDoGetBucketVersioning_nonexistentBucket_propagatesException() {
+    // OSS returns 404 NoSuchBucket when the bucket does not exist. The provider no longer
+    // translates this exception; it propagates to the central exception mapper. A mocked
+    // OperationException is used rather than `new OperationException(...)` because that
+    // constructor performs a String.format on the cause, which interacts poorly with the JaCoCo
+    // agent on Mockito-spun ServiceException instances in this build environment.
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchBucket");
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getBucketVersioning(
+            any(GetBucketVersioningRequest.class), any(OperationOptions.class)))
+        .thenThrow(op);
+
+    OperationException thrown =
+        assertThrows(OperationException.class, () -> ali.doGetBucketVersioning());
+    assertEquals(op, thrown);
+  }
+
+  @Test
+  void testDoGetBucketVersioning_otherError_propagates() {
+    // A non-404 failure (e.g. 403 AccessDenied) is not the missing-bucket case; the original
+    // exception must propagate unchanged so the framework's exception-translation layer maps it.
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(403);
+    when(service.errorCode()).thenReturn("AccessDenied");
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getBucketVersioning(
+            any(GetBucketVersioningRequest.class), any(OperationOptions.class)))
+        .thenThrow(op);
+
+    OperationException thrown =
+        assertThrows(OperationException.class, () -> ali.doGetBucketVersioning());
+    assertEquals(op, thrown);
   }
 
   private UploadRequest getTestUploadRequest() {
@@ -990,10 +1464,11 @@ public class AliBlobStoreTest {
   }
 
   private PutObjectResult buildTestPutObjectResult() {
-    PutObjectResult putObjectResult = mock(PutObjectResult.class);
-    doReturn("version-1").when(putObjectResult).getVersionId();
-    doReturn("etag").when(putObjectResult).getETag();
-    return putObjectResult;
+    PutObjectResult result =
+        mock(PutObjectResult.class);
+    doReturn("version-1").when(result).versionId();
+    doReturn("\"etag\"").when(result).eTag();
+    return result;
   }
 
   private DownloadRequest getTestDownloadRequest() {
@@ -1004,62 +1479,990 @@ public class AliBlobStoreTest {
         .build();
   }
 
-  private OSSObject buildTestGetObjectResult(Instant now) {
+  private DownloadRequest getTestDownloadRequestNoRange() {
+    return new DownloadRequest.Builder()
+        .withKey("object-1")
+        .withVersionId("version-1")
+        .build();
+  }
+
+  // Builds a minimal GetObjectResult for the byte-array read path with a caller-controlled
+  // reported content length, so tests can exercise exact/over-reported/zero-length behavior.
+  private GetObjectResult buildByteArrayGetObjectResult(String content, long reportedLength) {
+    InputStream inputStream =
+        new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+    GetObjectResult result = mock(GetObjectResult.class);
+    doReturn("version-1").when(result).versionId();
+    doReturn("etag1").when(result).eTag();
+    doReturn(reportedLength).when(result).contentLength();
+    doReturn(inputStream).when(result).body();
+    return result;
+  }
+
+  private GetObjectResult buildTestGetObjectResult(
+      Instant now) {
     Map<String, String> metadataMap = Map.of("key1", "value1", "key2", "value2");
     InputStream inputStream = new ByteArrayInputStream("downloadedData".getBytes());
-    OSSObject ossObject = mock(OSSObject.class);
-    ObjectMetadata objectMetadata = mock(ObjectMetadata.class);
-    doReturn(objectMetadata).when(ossObject).getObjectMetadata();
-    doReturn("object-1").when(ossObject).getKey();
-    doReturn("version-1").when(objectMetadata).getVersionId();
-    doReturn("etag1").when(objectMetadata).getETag();
-    doReturn(Date.from(now)).when(objectMetadata).getLastModified();
-    doReturn(metadataMap).when(objectMetadata).getUserMetadata();
-    doReturn(100L).when(objectMetadata).getContentLength();
-    doReturn(inputStream).when(ossObject).getObjectContent();
-    return ossObject;
+    String lastModifiedStr = ZonedDateTime.ofInstant(now, ZoneOffset.UTC)
+        .format(DateTimeFormatter.RFC_1123_DATE_TIME);
+    GetObjectResult result =
+        mock(GetObjectResult.class);
+    doReturn("version-1").when(result).versionId();
+    doReturn("etag1").when(result).eTag();
+    doReturn(lastModifiedStr).when(result).lastModified();
+    doReturn(metadataMap).when(result).metadata();
+    doReturn(100L).when(result).contentLength();
+    doReturn(inputStream).when(result).body();
+    doReturn("bytes=10-110").when(result).contentRange();
+    doReturn("application/octet-stream").when(result).contentType();
+    return result;
   }
 
   @Test
-  void testGetObjectLock_ThrowsUnsupportedException() {
-    // Given
+  void testGetObjectLock() {
     String key = "test-key";
     String versionId = "version-1";
 
-    // When/Then
-    assertThrows(
-        UnSupportedOperationException.class,
-        () -> {
-          ali.getObjectLock(key, versionId);
-        });
+    GetObjectRetentionResult retentionResult =
+        GetObjectRetentionResult.newBuilder()
+            .retention(Retention.newBuilder()
+                .mode(ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    GetObjectLegalHoldResult legalHoldResult =
+        GetObjectLegalHoldResult.newBuilder()
+            .legalHold(LegalHold.newBuilder()
+                .status(ObjectLegalHoldStatusType.ON)
+                .build())
+            .build();
+
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(retentionResult);
+    when(mockOssClient.getObjectLegalHold(any(), any())).thenReturn(legalHoldResult);
+
+    ObjectLockInfo info =
+        ali.getObjectLock(key, versionId);
+
+    assertEquals(
+        RetentionMode.GOVERNANCE, info.getMode());
+    assertEquals(Instant.parse("2030-01-01T00:00:00Z"), info.getRetainUntilDate());
+    assertTrue(info.isLegalHold());
   }
 
   @Test
-  void testUpdateObjectRetention_ThrowsUnsupportedException() {
-    // Given
+  void testGetObjectLockWithRetentionButNoLegalHold() {
     String key = "test-key";
     String versionId = "version-1";
-    Instant retainUntil = Instant.now().plusSeconds(3600);
 
-    // When/Then
-    assertThrows(
-        UnSupportedOperationException.class,
-        () -> {
-          ali.updateObjectRetention(key, versionId, retainUntil);
-        });
+    GetObjectRetentionResult retentionResult =
+        GetObjectRetentionResult.newBuilder()
+            .retention(Retention.newBuilder()
+                .mode(ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(retentionResult);
+
+    // OSS returns 404 NoSuchObjectLegalHoldConfiguration when an object has retention
+    // but no legal hold set. getObjectLock must treat this as "no legal hold", not fail.
+    ServiceException serviceException = mock(ServiceException.class);
+    when(serviceException.statusCode()).thenReturn(404);
+    when(serviceException.errorCode()).thenReturn("NoSuchObjectLegalHoldConfiguration");
+    OperationException operationException =
+        new OperationException("GetObjectLegalHold", serviceException);
+    when(mockOssClient.getObjectLegalHold(any(), any())).thenThrow(operationException);
+
+    ObjectLockInfo info =
+        ali.getObjectLock(key, versionId);
+
+    assertEquals(
+        RetentionMode.GOVERNANCE, info.getMode());
+    assertEquals(Instant.parse("2030-01-01T00:00:00Z"), info.getRetainUntilDate());
+    assertFalse(info.isLegalHold());
   }
 
   @Test
-  void testUpdateLegalHold_ThrowsUnsupportedException() {
-    // Given
+  void testUpdateLegalHold() {
     String key = "test-key";
     String versionId = "version-1";
 
-    // When/Then
+    when(mockOssClient.putObjectLegalHold(any(), any()))
+        .thenReturn(
+            PutObjectLegalHoldResult.newBuilder().build());
+
+    ali.updateLegalHold(key, versionId, true);
+
+    verify(mockOssClient).putObjectLegalHold(any(), any());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention() {
+    String key = "test-key";
+    String versionId = "version-1";
+
+    GetObjectRetentionResult currentResult =
+        GetObjectRetentionResult.newBuilder()
+            .retention(Retention.newBuilder()
+                .mode(ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+    when(mockOssClient.putObjectRetention(any(), any()))
+        .thenReturn(
+            PutObjectRetentionResult.newBuilder().build());
+
+    ObjectRetentionConfig config =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(false)
+            .build();
+
+    ali.updateObjectRetention(key, versionId, config);
+
+    verify(mockOssClient).putObjectRetention(any(), any());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_governanceToComplianceUpgrade_throwsUnsupported() {
+    // OSS cannot upgrade an object's retention mode GOVERNANCE -> COMPLIANCE. Even with
+    // bypass=true (which the shared ObjectRetentionRules allows for AWS/GCP), the Ali driver
+    // must fail fast with a typed UnSupportedOperationException instead of issuing the
+    // PutObjectRetention call and leaking OSS's 409 FileImmutable.
+    String key = "test-key";
+    String versionId = "version-1";
+
+    GetObjectRetentionResult currentResult =
+        GetObjectRetentionResult.newBuilder()
+            .retention(Retention.newBuilder()
+                .mode(ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+
+    ObjectRetentionConfig config =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.COMPLIANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(true)
+            .build();
+
+    assertThrows(UnSupportedOperationException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+
+    // The upgrade is rejected before any PutObjectRetention call is made.
+    verify(mockOssClient, never()).putObjectRetention(any(), any());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_governanceSameModeExtend_isUnaffectedByUpgradeGuard() {
+    // Regression safeguard: the GOVERNANCE -> COMPLIANCE upgrade guard must NOT interfere with a
+    // same-mode GOVERNANCE update (extending the retain-until date). This path should proceed
+    // normally and issue the PutObjectRetention call.
+    String key = "test-key";
+    String versionId = "version-1";
+
+    GetObjectRetentionResult currentResult =
+        GetObjectRetentionResult.newBuilder()
+            .retention(Retention.newBuilder()
+                .mode(ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+    when(mockOssClient.putObjectRetention(any(), any()))
+        .thenReturn(
+            PutObjectRetentionResult.newBuilder().build());
+
+    ObjectRetentionConfig config =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .build();
+
+    ali.updateObjectRetention(key, versionId, config);
+
+    // Guard does not fire for same-mode updates; the retention update is issued to OSS.
+    verify(mockOssClient).putObjectRetention(any(), any());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_complianceToGovernanceDowngrade_isUnaffectedByUpgradeGuard() {
+    // Regression safeguard: a COMPLIANCE -> GOVERNANCE downgrade is rejected by the shared
+    // ObjectRetentionRules (FailedPreconditionException), NOT by the OSS upgrade guard, and must
+    // never reach OSS. Documents that the upgrade guard is scoped to the opposite direction only.
+    String key = "test-key";
+    String versionId = "version-1";
+
+    GetObjectRetentionResult currentResult =
+        GetObjectRetentionResult.newBuilder()
+            .retention(Retention.newBuilder()
+                .mode(ObjectRetentionModeType.COMPLIANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+
+    ObjectRetentionConfig config =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(true)
+            .build();
+
     assertThrows(
-        UnSupportedOperationException.class,
-        () -> {
-          ali.updateLegalHold(key, versionId, true);
-        });
+        FailedPreconditionException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+
+    // Rejected by the shared rules before reaching OSS — not via the upgrade guard.
+    verify(mockOssClient, never()).putObjectRetention(any(), any());
+  }
+
+  @Test
+  void testGetObjectLock_nonexistentKey_throws() {
+    String key = "no-such-key";
+    String versionId = null;
+
+    // OSS returns 404 with error code "NoSuchKey" when the object does not exist.
+    // This must NOT be swallowed as "no configuration" — it should propagate as an error.
+    ServiceException serviceException = mock(ServiceException.class);
+    when(serviceException.statusCode()).thenReturn(404);
+    when(serviceException.errorCode()).thenReturn("NoSuchKey");
+    OperationException operationException =
+        new OperationException("GetObjectRetention", serviceException);
+    when(mockOssClient.getObjectRetention(any(), any())).thenThrow(operationException);
+
+    assertThrows(OperationException.class, () -> ali.getObjectLock(key, versionId));
+  }
+
+  @Test
+  void testGetObjectLock_noRetentionNoLegalHold_returnsDefaults() {
+    String key = "test-key";
+    String versionId = "version-1";
+
+    // Both retention and legal hold return 404 NoSuchConfiguration — object exists but
+    // has no lock configuration. Should return an ObjectLockInfo with null mode and false hold.
+    ServiceException retentionException = mock(ServiceException.class);
+    when(retentionException.statusCode()).thenReturn(404);
+    when(retentionException.errorCode()).thenReturn("NoSuchObjectRetentionConfiguration");
+    OperationException retentionOpException =
+        new OperationException("GetObjectRetention", retentionException);
+    when(mockOssClient.getObjectRetention(any(), any())).thenThrow(retentionOpException);
+
+    ServiceException legalHoldException = mock(ServiceException.class);
+    when(legalHoldException.statusCode()).thenReturn(404);
+    when(legalHoldException.errorCode()).thenReturn("NoSuchObjectLegalHoldConfiguration");
+    OperationException legalHoldOpException =
+        new OperationException("GetObjectLegalHold", legalHoldException);
+    when(mockOssClient.getObjectLegalHold(any(), any())).thenThrow(legalHoldOpException);
+
+    ObjectLockInfo info =
+        ali.getObjectLock(key, versionId);
+
+    assertNull(info.getMode());
+    assertNull(info.getRetainUntilDate());
+    assertFalse(info.isLegalHold());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_noCurrentRetention_throwsFailedPrecondition() {
+    String key = "test-key";
+    String versionId = "version-1";
+
+    // OSS returns 404 NoSuchObjectRetentionConfiguration for an object with no retention.
+    // doUpdateObjectRetention catches this and passes null currentMode to ObjectRetentionRules,
+    // which throws FailedPreconditionException.
+    ServiceException serviceException = mock(ServiceException.class);
+    when(serviceException.statusCode()).thenReturn(404);
+    when(serviceException.errorCode()).thenReturn("NoSuchObjectRetentionConfiguration");
+    OperationException operationException =
+        new OperationException("GetObjectRetention", serviceException);
+    when(mockOssClient.getObjectRetention(any(), any())).thenThrow(operationException);
+
+    ObjectRetentionConfig config =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(false)
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_complianceMode_shortenDate_throwsFailedPrecondition() {
+    String key = "test-key";
+    String versionId = "version-1";
+
+    // Object currently has COMPLIANCE mode with retain-until 2035. Attempting to shorten
+    // the date should throw FailedPreconditionException regardless of bypass flag.
+    GetObjectRetentionResult currentResult =
+        GetObjectRetentionResult.newBuilder()
+            .retention(Retention.newBuilder()
+                .mode(ObjectRetentionModeType.COMPLIANCE)
+                .retainUntilDate("2035-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+
+    ObjectRetentionConfig config =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.COMPLIANCE)
+            .retainUntilDate(Instant.parse("2030-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(true)
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_governanceMode_shortenWithoutBypass_throwsFailedPrecondition() {
+    String key = "test-key";
+    String versionId = "version-1";
+
+    // Object currently has GOVERNANCE mode with retain-until 2035. Attempting to shorten
+    // without bypass=true should throw FailedPreconditionException.
+    GetObjectRetentionResult currentResult =
+        GetObjectRetentionResult.newBuilder()
+            .retention(Retention.newBuilder()
+                .mode(ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2035-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+
+    ObjectRetentionConfig config =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2030-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(false)
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_withObjectLock_appliesRetentionAndLegalHold() {
+    // Verify that completing a multipart upload with an ObjectLockConfiguration
+    // triggers putObjectRetention and putObjectLegalHold calls.
+    CompleteMultipartUploadResult mockResult =
+        mock(CompleteMultipartUploadResult.class);
+    CompleteMultipartUploadResultXml mockXml =
+        mock(CompleteMultipartUploadResultXml.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(mockXml);
+    when(mockResult.versionId()).thenReturn("ver-123");
+    when(mockXml.eTag()).thenReturn("\"result-etag\"");
+    when(mockOssClient.completeMultipartUpload(
+        any(CompleteMultipartUploadRequest.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
+    when(mockOssClient.putObjectRetention(any(), any()))
+        .thenReturn(
+            PutObjectRetentionResult.newBuilder().build());
+    when(mockOssClient.putObjectLegalHold(any(), any()))
+        .thenReturn(
+            PutObjectLegalHoldResult.newBuilder().build());
+
+    ObjectLockConfiguration lockConfig =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2100-01-01T00:00:00Z"))
+            .legalHold(true)
+            .build();
+
+    MultipartUpload multipartUpload = MultipartUpload.builder()
+        .bucket("bucket-1").key("object-1").id("mpu-id")
+        .objectLock(lockConfig)
+        .build();
+    List<UploadPartResponse> listOfParts =
+        List.of(new UploadPartResponse(1, "etag", 0));
+
+    ali.completeMultipartUpload(multipartUpload, listOfParts);
+
+    verify(mockOssClient).completeMultipartUpload(any(), any());
+    verify(mockOssClient).putObjectRetention(any(), any());
+    verify(mockOssClient).putObjectLegalHold(any(), any());
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_withoutObjectLock_doesNotApplyRetention() {
+    // Verify that completing a multipart upload WITHOUT ObjectLockConfiguration
+    // does NOT call putObjectRetention or putObjectLegalHold.
+    CompleteMultipartUploadResult mockResult =
+        mock(CompleteMultipartUploadResult.class);
+    CompleteMultipartUploadResultXml mockXml =
+        mock(CompleteMultipartUploadResultXml.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(mockXml);
+    when(mockXml.eTag()).thenReturn("\"result-etag\"");
+    when(mockOssClient.completeMultipartUpload(
+        any(CompleteMultipartUploadRequest.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
+
+    MultipartUpload multipartUpload = MultipartUpload.builder()
+        .bucket("bucket-1").key("object-1").id("mpu-id")
+        .build();
+    List<UploadPartResponse> listOfParts =
+        List.of(new UploadPartResponse(1, "etag", 0));
+
+    ali.completeMultipartUpload(multipartUpload, listOfParts);
+
+    verify(mockOssClient).completeMultipartUpload(any(), any());
+    verify(mockOssClient, org.mockito.Mockito.never()).putObjectRetention(any(), any());
+    verify(mockOssClient, org.mockito.Mockito.never()).putObjectLegalHold(any(), any());
+  }
+
+  @Test
+  void testListBlobVersions() {
+    String key = "my-object";
+    // OSS returns versions newest-first, so v1 is the newer of the two.
+    ObjectVersion v1 = ObjectVersion.newBuilder()
+        .key(key).versionId("v1").eTag("etag1").size(100L)
+        .lastModified(Instant.ofEpochSecond(200)).build();
+    ObjectVersion v2 = ObjectVersion.newBuilder()
+        .key(key).versionId("v2").eTag("etag2").size(200L)
+        .lastModified(Instant.ofEpochSecond(100)).build();
+
+    ListObjectVersionsResult result = mock(ListObjectVersionsResult.class);
+    when(result.versions()).thenReturn(List.of(v1, v2));
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(result).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(
+        any(ListObjectVersionsRequest.class))).thenReturn(iterable);
+
+    Iterator<BlobMetadata> iter = ali.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+
+    assertTrue(iter.hasNext());
+    BlobMetadata first = iter.next();
+    assertEquals(key, first.getKey());
+    assertEquals("v1", first.getVersionId());
+    assertEquals("etag1", first.getETag());
+    assertEquals(100L, first.getObjectSize());
+
+    assertTrue(iter.hasNext());
+    BlobMetadata second = iter.next();
+    assertEquals("v2", second.getVersionId());
+    assertEquals(200L, second.getObjectSize());
+
+    assertFalse(iter.hasNext());
+  }
+
+  @Test
+  void testListBlobVersionsFiltersPrefixMatches() {
+    String key = "obj-1";
+    ObjectVersion matching = ObjectVersion.newBuilder()
+        .key(key).versionId("v1").eTag("e1").size(10L)
+        .lastModified(Instant.now()).build();
+    ObjectVersion nonMatching = ObjectVersion.newBuilder()
+        .key("obj-1-extra").versionId("v2").eTag("e2").size(20L)
+        .lastModified(Instant.now()).build();
+
+    ListObjectVersionsResult result = mock(ListObjectVersionsResult.class);
+    when(result.versions()).thenReturn(List.of(matching, nonMatching));
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(result).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(
+        any(ListObjectVersionsRequest.class))).thenReturn(iterable);
+
+    Iterator<BlobMetadata> iter = ali.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+
+    assertTrue(iter.hasNext());
+    BlobMetadata metadata = iter.next();
+    assertEquals(key, metadata.getKey());
+    assertEquals("v1", metadata.getVersionId());
+    assertFalse(iter.hasNext());
+  }
+
+  @Test
+  void testListBlobVersionsMultiplePages() {
+    String key = "paged-obj";
+    ObjectVersion v1 = ObjectVersion.newBuilder()
+        .key(key).versionId("v1").eTag("e1").size(10L)
+        .lastModified(Instant.now()).build();
+    ObjectVersion v2 = ObjectVersion.newBuilder()
+        .key(key).versionId("v2").eTag("e2").size(20L)
+        .lastModified(Instant.now()).build();
+
+    ListObjectVersionsResult page1 = mock(ListObjectVersionsResult.class);
+    when(page1.versions()).thenReturn(List.of(v1));
+    ListObjectVersionsResult page2 = mock(ListObjectVersionsResult.class);
+    when(page2.versions()).thenReturn(List.of(v2));
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(page1, page2).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(
+        any(ListObjectVersionsRequest.class))).thenReturn(iterable);
+
+    Iterator<BlobMetadata> iter = ali.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+    List<BlobMetadata> all = new ArrayList<>();
+    iter.forEachRemaining(all::add);
+
+    assertEquals(2, all.size());
+    assertEquals("v1", all.get(0).getVersionId());
+    assertEquals("v2", all.get(1).getVersionId());
+  }
+
+  @Test
+  void testListBlobVersionsEmpty() {
+    String key = "no-versions";
+
+    ListObjectVersionsResult result = mock(ListObjectVersionsResult.class);
+    when(result.versions()).thenReturn(List.of());
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(result).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(
+        any(ListObjectVersionsRequest.class))).thenReturn(iterable);
+
+    Iterator<BlobMetadata> iter = ali.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+    assertFalse(iter.hasNext());
+    assertThrows(NoSuchElementException.class, iter::next);
+  }
+
+  // ---------- checkArchived (delete-marker / prior-version detection) ----------
+
+  @Test
+  void testDoDownload_checkArchived_deletedOnVersionedBucket_throwsWithArchiveInfo() {
+    // OSS returns 404 NoSuchKey on a GET of a deleted versioned object, with the
+    // x-oss-delete-marker:true header on the ServiceException. Behavior verified live
+    // against a real versioned bucket. With checkArchived=true, the driver must call
+    // ListObjectVersions, capture the prior ObjectVersion's id, and throw
+    // ResourceNotFoundException with ArchiveInfo populated.
+    String key = "deleted-key";
+    String priorVersionId = "v-prior-1";
+
+    // 1. The OSS GET fails with 404 + the delete-marker header. Use a mocked OperationException
+    //    rather than `new OperationException(...)` because that constructor performs a
+    //    String.format on the cause, which interacts poorly with the JaCoCo agent on Mockito-spun
+    //    ServiceException instances in this build environment.
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("x-oss-delete-marker", "true");
+    when(service.headers()).thenReturn(headers);
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(GetObjectRequest.class),
+        any(OperationOptions.class)))
+        .thenThrow(op);
+
+    // 2. ListObjectVersions (paginated) returns one prior ObjectVersion. Use the prior version's
+    //    id (NOT the delete marker's id), since the conformance test re-downloads it for the bytes.
+    ObjectVersion priorVersion = mock(ObjectVersion.class);
+    when(priorVersion.versionId()).thenReturn(priorVersionId);
+    when(priorVersion.key()).thenReturn(key);
+    ListObjectVersionsResult listResult = mock(ListObjectVersionsResult.class);
+    when(listResult.versions()).thenReturn(List.of(priorVersion));
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(listResult).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    ResourceNotFoundException ex = assertThrows(
+        ResourceNotFoundException.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+
+    ArchiveInfo info = ex.getArchiveInfo();
+    assertNotNull(info, "ArchiveInfo should be populated when a delete marker is detected");
+    assertTrue(info.isArchived());
+    assertEquals(priorVersionId, info.getVersionId());
+  }
+
+  @Test
+  void testDoDownloadByteArray_checkArchived_deletedOnVersionedBucket_throwsWithArchiveInfo() {
+    // The ByteArray download path must preserve the same archived-object contract as the
+    // OutputStream path: a 404 + x-oss-delete-marker GET resolves the prior version and throws
+    // ResourceNotFoundException with ArchiveInfo populated. This guards the shared download()
+    // helper so the byte[] overload cannot silently diverge from the streaming overload.
+    String key = "deleted-key";
+    String priorVersionId = "v-prior-1";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    when(service.headers()).thenReturn(Map.of("x-oss-delete-marker", "true"));
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(GetObjectRequest.class), any(OperationOptions.class)))
+        .thenThrow(op);
+
+    ObjectVersion priorVersion = mock(ObjectVersion.class);
+    when(priorVersion.versionId()).thenReturn(priorVersionId);
+    when(priorVersion.key()).thenReturn(key);
+    ListObjectVersionsResult listResult = mock(ListObjectVersionsResult.class);
+    when(listResult.versions()).thenReturn(List.of(priorVersion));
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(listResult).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    ResourceNotFoundException ex = assertThrows(
+        ResourceNotFoundException.class,
+        () -> ali.doDownload(request, new ByteArray()));
+
+    ArchiveInfo info = ex.getArchiveInfo();
+    assertNotNull(info, "ArchiveInfo should be populated when a delete marker is detected");
+    assertTrue(info.isArchived());
+    assertEquals(priorVersionId, info.getVersionId());
+  }
+
+  @Test
+  void testDoDownload_checkArchivedFalse_doesNotListVersionsOrChangeException() {
+    // When checkArchived is OFF, the guard must be a complete no-op: no ListObjectVersions
+    // call, and the original OSS exception type must propagate unchanged. This protects the
+    // single-file download path from any regression introduced by the guard.
+    String key = "deleted-key";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("x-oss-delete-marker", "true");
+    when(service.headers()).thenReturn(headers);
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(GetObjectRequest.class),
+        any(OperationOptions.class)))
+        .thenThrow(op);
+
+    // checkArchived defaults to false on DownloadRequest.
+    DownloadRequest request = DownloadRequest.builder().withKey(key).build();
+
+    // The original OSS-side failure surfaces (the existing path wraps it in RuntimeException);
+    // the assertion is that the driver does NOT enrich it with ArchiveInfo and does NOT call
+    // listObjectVersions.
+    assertThrows(RuntimeException.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+    verify(mockOssClient, never())
+        .listObjectVersionsPaginator(any(ListObjectVersionsRequest.class));
+  }
+
+  @Test
+  void testDoDownload_checkArchived_neverExisted_doesNotPopulateArchiveInfo() {
+    // 404 with NO x-oss-delete-marker header -> the key never existed (vs. was deleted on a
+    // versioned bucket). The driver must NOT call ListObjectVersions and must NOT throw a
+    // ResourceNotFoundException with archived=true. The conformance test
+    // testDownload_checkArchived_neverExisted accepts either a null ArchiveInfo or
+    // archived=false; we satisfy it by simply propagating the original exception unchanged.
+    String key = "never-existed-key";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    when(service.headers()).thenReturn(new java.util.HashMap<>()); // no delete-marker header
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(GetObjectRequest.class),
+        any(OperationOptions.class)))
+        .thenThrow(op);
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    // No ResourceNotFoundException with archive info — guard short-circuits and the original
+    // 404-driven RuntimeException propagates.
+    assertThrows(RuntimeException.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+    verify(mockOssClient, never())
+        .listObjectVersionsPaginator(any(ListObjectVersionsRequest.class));
+  }
+
+  @Test
+  void testDoDownload_checkArchived_listVersionsFails_propagatesOriginalException() {
+    // Best-effort contract: if the delete marker is detected but the follow-up
+    // ListObjectVersions call itself fails (network error, permission denied, versioning
+    // disabled, throttling), the guard must NOT mask the caller's original download failure
+    // with the secondary listing error. The original 404-driven exception must propagate and
+    // NO ResourceNotFoundException/ArchiveInfo is produced.
+    String key = "deleted-key";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("x-oss-delete-marker", "true");
+    when(service.headers()).thenReturn(headers);
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(GetObjectRequest.class),
+        any(OperationOptions.class)))
+        .thenThrow(op);
+
+    // ListObjectVersions paging blows up.
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenThrow(new RuntimeException("listObjectVersions failed: permission denied"));
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    // The guard swallows the listing failure and re-throws the ORIGINAL exception (the mocked
+    // OperationException), not a ResourceNotFoundException.
+    Exception thrown = assertThrows(Exception.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+    assertFalse(
+        thrown instanceof ResourceNotFoundException,
+        "listObjectVersions failure must not be reported as an archived ResourceNotFoundException");
+  }
+
+  @Test
+  void testDoDownload_checkArchived_emptyVersionsPage_propagatesOriginalException() {
+    // Delete marker detected, but the paginated listing yields a page with a null versions list
+    // (e.g. only delete markers, which live in a separate list). The guard must fall through
+    // (no archived=true with a null versionId) and let the original exception propagate.
+    String key = "deleted-key";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("x-oss-delete-marker", "true");
+    when(service.headers()).thenReturn(headers);
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(GetObjectRequest.class),
+        any(OperationOptions.class)))
+        .thenThrow(op);
+
+    ListObjectVersionsResult emptyPage = mock(ListObjectVersionsResult.class);
+    when(emptyPage.versions()).thenReturn(null);
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(emptyPage).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    Exception thrown = assertThrows(Exception.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+    assertFalse(
+        thrown instanceof ResourceNotFoundException,
+        "An empty versions page must not produce an archived ResourceNotFoundException");
+  }
+
+  @Test
+  void testDoDownload_checkArchived_noMatchingVersion_propagatesOriginalException() {
+    // Delete marker detected, paging returns versions but none whose key matches (e.g. only
+    // sibling keys). versionId stays null across all pages, so the guard must fall through
+    // rather than throw archived=true with a null versionId.
+    String key = "deleted-key";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("x-oss-delete-marker", "true");
+    when(service.headers()).thenReturn(headers);
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(GetObjectRequest.class),
+        any(OperationOptions.class)))
+        .thenThrow(op);
+
+    // A version for a DIFFERENT (sibling) key — the exact-key match must skip it.
+    ObjectVersion sibling = mock(ObjectVersion.class);
+    when(sibling.key()).thenReturn("deleted-key-sibling");
+    ListObjectVersionsResult listResult = mock(ListObjectVersionsResult.class);
+    when(listResult.versions()).thenReturn(List.of(sibling));
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(listResult).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    Exception thrown = assertThrows(Exception.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+    assertFalse(
+        thrown instanceof ResourceNotFoundException,
+        "An unresolved versionId must not produce an archived ResourceNotFoundException");
+  }
+
+  @Test
+  void testDoDownload_checkArchived_versionOnLaterPage_resolvesAcrossPages() {
+    // Determinism check: the matching version is on the SECOND page (the first page contains only
+    // a sibling key, simulating delete markers / unrelated keys consuming the first page). The
+    // paginated walk must cross pages and still resolve the correct prior versionId.
+    String key = "deleted-key";
+    String priorVersionId = "v-on-page-2";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("x-oss-delete-marker", "true");
+    when(service.headers()).thenReturn(headers);
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(GetObjectRequest.class),
+        any(OperationOptions.class)))
+        .thenThrow(op);
+
+    ObjectVersion sibling = mock(ObjectVersion.class);
+    when(sibling.key()).thenReturn("deleted-key-sibling");
+    ListObjectVersionsResult page1 = mock(ListObjectVersionsResult.class);
+    when(page1.versions()).thenReturn(List.of(sibling));
+
+    ObjectVersion match = mock(ObjectVersion.class);
+    when(match.key()).thenReturn(key);
+    when(match.versionId()).thenReturn(priorVersionId);
+    ListObjectVersionsResult page2 = mock(ListObjectVersionsResult.class);
+    when(page2.versions()).thenReturn(List.of(match));
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(page1, page2).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    ResourceNotFoundException ex = assertThrows(
+        ResourceNotFoundException.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+    ArchiveInfo info = ex.getArchiveInfo();
+    assertNotNull(info);
+    assertTrue(info.isArchived());
+    assertEquals(priorVersionId, info.getVersionId());
+  }
+
+  @Test
+  void testResolveReadWriteTimeout_socketTimeoutOnly() {
+    Duration socketTimeout = Duration.ofSeconds(30);
+    assertEquals(
+        socketTimeout, OssClientFactory.resolveReadWriteTimeout(null, socketTimeout));
+  }
+
+  @Test
+  void testResolveReadWriteTimeout_attemptTimeoutTakesPrecedence() {
+    RetryConfig retryConfig = RetryConfig.builder().attemptTimeout(3000L).build();
+    Duration socketTimeout = Duration.ofSeconds(30);
+    assertEquals(
+        Duration.ofMillis(3000L),
+        OssClientFactory.resolveReadWriteTimeout(retryConfig, socketTimeout));
+  }
+
+  @Test
+  void testResolveReadWriteTimeout_attemptTimeoutOnly() {
+    RetryConfig retryConfig = RetryConfig.builder().attemptTimeout(3000L).build();
+    assertEquals(
+        Duration.ofMillis(3000L),
+        OssClientFactory.resolveReadWriteTimeout(retryConfig, null));
+  }
+
+  @Test
+  void testResolveReadWriteTimeout_neitherSet_returnsNull() {
+    assertNull(OssClientFactory.resolveReadWriteTimeout(null, null));
+  }
+
+  @Test
+  void testResolveReadWriteTimeout_retryConfigWithoutAttemptTimeout_fallsBackToSocketTimeout() {
+    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(5).build();
+    Duration socketTimeout = Duration.ofSeconds(30);
+    assertEquals(
+        socketTimeout,
+        OssClientFactory.resolveReadWriteTimeout(retryConfig, socketTimeout));
+  }
+
+  // No withClient() — exercises the real buildOSSClient path. Setters are called as statements
+  // (not chained) because the base BlobStoreBuilder setters return BlobStoreBuilder, not the Ali
+  // subtype.
+  private AliBlobStore.Builder newRealClientBuilder() {
+    StsCredentials creds = new StsCredentials("key-1", "secret-1", "token-1");
+    CredentialsOverrider credsOverrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(creds)
+            .build();
+    AliBlobStore.Builder builder = new AliBlobStore.Builder();
+    builder.withBucket("bucket-1");
+    builder.withRegion("cn-shanghai");
+    builder.withEndpoint(URI.create("https://test.example.com"));
+    builder.withProxyEndpoint(URI.create("http://proxy.example.com:80"));
+    builder.withCredentialsOverrider(credsOverrider);
+    return builder;
+  }
+
+  @Test
+  void testBuildOSSClient_withConnectionPoolConfig_buildsSuccessfully() {
+    // Setting maxConnections/idleConnectionTimeout routes through the explicit-HttpClient path
+    // (Apache5HttpClientBuilder.options(...)). Verify the client and store build without error.
+    AliBlobStore.Builder builder = newRealClientBuilder();
+    builder.withMaxConnections(64);
+    builder.withIdleConnectionTimeout(Duration.ofSeconds(45));
+    assertNotNull(builder.build());
+  }
+
+  @Test
+  void testBuildOSSClient_withOnlyMaxConnections_buildsSuccessfully() {
+    AliBlobStore.Builder builder = newRealClientBuilder();
+    builder.withMaxConnections(64);
+    assertNotNull(builder.build());
+  }
+
+  @Test
+  void testBuildOSSClient_withOnlyIdleConnectionTimeout_buildsSuccessfully() {
+    AliBlobStore.Builder builder = newRealClientBuilder();
+    builder.withIdleConnectionTimeout(Duration.ofSeconds(45));
+    assertNotNull(builder.build());
+  }
+
+  @Test
+  void testBuildOSSClient_withoutConnectionPoolConfig_buildsSuccessfully() {
+    // Neither knob set — the SDK builds its own default client (no behavior change). Building
+    // must still succeed; combined with the toHttpClientOptions defaults test this guards the
+    // no-op path.
+    assertDoesNotThrow(() -> newRealClientBuilder().build());
+  }
+
+  @Test
+  void testBuildOSSClient_withConnectionPoolConfigAndNoProxy_buildsSuccessfully() {
+    // Covers the proxyHost==null branch of the explicit-HttpClient path (no proxy endpoint set).
+    StsCredentials creds = new StsCredentials("key-1", "secret-1", "token-1");
+    CredentialsOverrider credsOverrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(creds)
+            .build();
+    AliBlobStore.Builder builder = new AliBlobStore.Builder();
+    builder.withBucket("bucket-1");
+    builder.withRegion("cn-shanghai");
+    builder.withEndpoint(URI.create("https://test.example.com"));
+    builder.withCredentialsOverrider(credsOverrider);
+    builder.withMaxConnections(64);
+    builder.withIdleConnectionTimeout(Duration.ofSeconds(45));
+    assertNotNull(builder.build());
+  }
+
+  @Test
+  void testBuildOSSClient_withSocketTimeoutOnly_usesReadWriteTimeoutBranch() {
+    // No connection-pool knobs but a socketTimeout set — exercises the
+    // else-if readWriteTimeout fallback (default-client path with an explicit timeout).
+    AliBlobStore.Builder builder = newRealClientBuilder();
+    builder.withSocketTimeout(Duration.ofSeconds(30));
+    assertNotNull(builder.build());
   }
 }

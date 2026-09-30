@@ -175,6 +175,15 @@ public interface BlobStore extends SdkService, Provider {
   ListBlobsPageResponse listPage(ListBlobsPageRequest request);
 
   /**
+   * Lists all available versions for a given blob key
+   *
+   * @param request The request containing the target blob key and optional parameters
+   * @return Iterator object of BlobMetadata for each version
+   * @throws UnsupportedOperationException if the provider does not implement version listing
+   */
+  Iterator<BlobMetadata> listBlobVersions(ListBlobVersionsRequest request);
+
+  /**
    * Initiates a multipart upload
    *
    * @param request the multipart request
@@ -241,6 +250,17 @@ public interface BlobStore extends SdkService, Provider {
   URL generatePresignedUrl(PresignedUrlRequest request);
 
   /**
+   * Generates a presigned URL with full response including signed headers and expiration. The
+   * signed headers must be replayed verbatim by the uploader for the substrate to accept the
+   * request.
+   *
+   * @param request The presigned request (supports constraint fields: contentLength, contentType,
+   *     checksumValue, checksumAlgorithm)
+   * @return Response containing the URL, signed headers map, and expiration
+   */
+  PresignedUrlResponse presign(PresignedUrlRequest request);
+
+  /**
    * Determines if an object exists for a given key/versionId
    *
    * @param key Name of the blob to check
@@ -256,6 +276,25 @@ public interface BlobStore extends SdkService, Provider {
    * @return Returns true if the bucket exists. Returns false if it doesn't exist.
    */
   boolean doesBucketExist();
+
+  /**
+   * Retrieves the bucket's versioning configuration.
+   *
+   * <p>The returned status is normalized across substrates onto {@link BucketVersioningStatus}:
+   *
+   * <ul>
+   *   <li>{@link BucketVersioningStatus#ENABLED} when versioning is active.
+   *   <li>{@link BucketVersioningStatus#SUSPENDED} when versioning was enabled and is now paused.
+   *       Substrates with no distinct suspended state never return this value.
+   *   <li>{@link BucketVersioningStatus#UNVERSIONED} when versioning has never been configured or
+   *       has been turned off.
+   * </ul>
+   *
+   * @return the bucket's versioning configuration
+   * @throws UnsupportedOperationException if the provider does not support bucket versioning
+   *     configuration
+   */
+  BucketVersioningConfiguration getBucketVersioning();
 
   /**
    * Downloads a directory from the blob store
@@ -283,20 +322,72 @@ public interface BlobStore extends SdkService, Provider {
   /**
    * Gets object lock configuration for a blob.
    *
+   * <p>Retention and legal hold are independent sub-resources on an object version; a version may
+   * have neither, only a legal hold, only retention, or both. Implementations return {@code null}
+   * only when the object has <em>neither</em>. If either is present the result is non-null: a
+   * legal-hold-only object surfaces with {@code legalHold=true} and null {@code mode} /
+   * {@code retainUntilDate}, and a retention-only object surfaces with {@code legalHold=false} and
+   * non-null mode / date.
+   *
    * @param key Object key
    * @param versionId Optional version ID. For versioned buckets, null means latest version.
-   * @return ObjectLockInfo containing lock configuration, or null if object lock is not configured
+   * @return ObjectLockInfo describing the object's lock state, or null if the object has neither
+   *     retention nor legal hold configured
    */
   ObjectLockInfo getObjectLock(String key, String versionId);
 
   /**
-   * Updates object retention date.
+   * Updates object retention date, preserving the object's current retention mode.
+   *
+   * <p><strong>Deprecated.</strong> Use {@link #updateObjectRetention(String, String,
+   * ObjectRetentionConfig)} which can set the mode and request a governance bypass. This method
+   * delegates to the new overload with {@code mode=null} (preserve current) and {@code
+   * bypassGovernanceRetention=false}.
+   *
+   * <p><strong>Existing non-uniform behavior:</strong> Today's AWS implementation throws
+   * {@code FailedPreconditionException} for any update on a COMPLIANCE-mode object — even
+   * extension. GCP allows extension on LOCKED. The new overload introduces a uniform rules
+   * table; this deprecated method preserves each provider's existing semantics.
    *
    * @param key Object key
    * @param versionId Optional version ID. For versioned buckets, null means latest version.
    * @param retainUntilDate New retention expiration date
    */
+  @Deprecated
   void updateObjectRetention(String key, String versionId, java.time.Instant retainUntilDate);
+
+  /**
+   * Updates per-object retention with explicit mode and bypass control.
+   *
+   * <p>Backward-compatible companion to {@link #updateObjectRetention(String, String,
+   * java.time.Instant)} which only takes a date and preserves the current mode.
+   *
+   * <h3>Rules table</h3>
+   *
+   * Outcome for each combination of {@code (config.mode, config.bypassGovernanceRetention,
+   * current state, new date vs current)} is identical across AWS, GCP, and the in-memory provider.
+   * Key invariants:
+   *
+   * <ul>
+   *   <li>If the object has no current retention → {@code FailedPreconditionException}.
+   *   <li>{@code config.mode == null} means "preserve the current mode."
+   *   <li>Mode downgrade COMPLIANCE→GOVERNANCE / LOCKED→UNLOCKED is rejected by every provider.
+   *   <li>Mode upgrade GOVERNANCE→COMPLIANCE / UNLOCKED→LOCKED requires {@code
+   *       bypassGovernanceRetention=true} — both AWS and GCP treat a lock-mode change as a
+   *       modification of the existing lock and reject it server-side without the bypass flag.
+   *   <li>Shortening retention on COMPLIANCE/LOCKED is rejected regardless of {@code
+   *       bypassGovernanceRetention} — the flag has no effect on the immutable mode (mirrors
+   *       AWS and GCP server semantics).
+   *   <li>Shortening retention on GOVERNANCE/UNLOCKED requires {@code
+   *       bypassGovernanceRetention=true}; otherwise rejected.
+   * </ul>
+   *
+   * @param key Object key
+   * @param versionId Optional version ID. For versioned buckets, null means latest version.
+   * @param config retention configuration (mode, retain-until date, bypass flag)
+   * @throws IllegalArgumentException if {@code config} or {@code config.retainUntilDate} is null
+   */
+  void updateObjectRetention(String key, String versionId, ObjectRetentionConfig config);
 
   /**
    * Updates legal hold status on an object.

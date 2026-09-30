@@ -6,12 +6,17 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.Checksum;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -19,26 +24,41 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
+import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -48,10 +68,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 
 /** InMemory implementation of BlobStore for testing purposes */
 @AutoService(AbstractBlobStore.class)
@@ -59,16 +81,55 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
   private static final String PROVIDER_ID = "memory";
 
+  /**
+   * Object-metadata key under which the SDK persists the operation correlation id during upload, so
+   * the value is stored on the blob alongside the user's metadata.
+   */
+  public static final String CORRELATION_ID_METADATA_KEY = SdkLoggingMetadataKeys.CORRELATION_ID;
+
+  /**
+   * Object-metadata key under which the SDK persists the operation service id during upload, so the
+   * value is stored on the blob alongside the user's metadata.
+   */
+  public static final String SERVICE_ID_METADATA_KEY = SdkLoggingMetadataKeys.SERVICE_ID;
+
+  /**
+   * Object-metadata key under which the SDK persists the operation tenant id during upload, so the
+   * value is stored on the blob alongside the user's metadata.
+   */
+  public static final String TENANT_ID_METADATA_KEY = SdkLoggingMetadataKeys.TENANT_ID;
+
   // Shared storage across all instances - key is "bucket:key:versionId"
   private static final Map<String, StoredBlob> STORAGE = new ConcurrentHashMap<>();
   // Track latest version for each key - key is "bucket:key", value is versionId
   private static final Map<String, String> LATEST_VERSIONS = new ConcurrentHashMap<>();
   // Tags are per version - key is "bucket:key:versionId"
   private static final Map<String, Map<String, String>> TAGS = new ConcurrentHashMap<>();
+  // Object lock info per version - key is "bucket:key:versionId"
+  private static final Map<String, ObjectLockInfo> OBJECT_LOCKS = new ConcurrentHashMap<>();
   private static final Map<String, MultipartUploadState> MULTIPART_UPLOADS =
       new ConcurrentHashMap<>();
   // Track bucket metadata - key is bucket name
   static final Map<String, BucketMetadata> BUCKETS = new ConcurrentHashMap<>();
+  // Persisted delete markers per key - key is "bucket:key", value is the ordered history of markers
+  private static final Map<String, List<DeleteMarker>> DELETE_MARKERS = new ConcurrentHashMap<>();
+
+  /**
+   * Monotonic clock source shared across all instances. Version and delete-marker creation times
+   * must be strictly increasing so a version listing has a total, deterministic order even when
+   * operations happen within the same wall-clock millisecond. Each call returns an instant strictly
+   * greater than the previous one while still tracking real time when it advances.
+   */
+  private static final java.util.concurrent.atomic.AtomicReference<Instant> CLOCK =
+      new java.util.concurrent.atomic.AtomicReference<>(Instant.EPOCH);
+
+  private static Instant nextInstant() {
+    return CLOCK.updateAndGet(
+        previous -> {
+          Instant now = Instant.now();
+          return now.isAfter(previous) ? now : previous.plusNanos(1);
+        });
+  }
 
   public InMemoryBlobStore() {
     this(new Builder());
@@ -85,13 +146,12 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    if (t instanceof SubstrateSdkException) {
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (t instanceof IllegalArgumentException) {
-      return InvalidArgumentException.class;
-    }
-    return UnknownException.class;
+  public SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass =
+        t instanceof IllegalArgumentException
+            ? InvalidArgumentException.class
+            : UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, null);
   }
 
   @Override
@@ -105,31 +165,86 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         baos.write(buffer, 0, bytesRead);
       }
       return doUpload(uploadRequest, baos.toByteArray());
+    } catch (SubstrateSdkException e) {
+      throw e;
     } catch (Exception e) {
       throw new UnknownException("Failed to upload blob", e);
     }
   }
 
+  /**
+   * Returns a mutable copy of the supplied metadata with the operation context's correlation id,
+   * service id and tenant id stamped onto it. Each key is skipped when the context is absent, when
+   * that context value is blank, or when the caller has already supplied the same key. The
+   * correlation id is stamped under the caller-customizable key resolved from the context; the
+   * service id and tenant id keys are fixed.
+   */
+  private static Map<String, String> stampContextMetadata(
+      Map<String, String> source, OperationContext operationContext) {
+    Map<String, String> metadata = source != null ? new HashMap<>(source) : new HashMap<>();
+    if (operationContext != null) {
+      String correlationIdKey = operationContext.getEffectiveCorrelationIdMetadataKey();
+      if (StringUtils.isNotBlank(operationContext.getCorrelationId())
+          && !metadata.containsKey(correlationIdKey)) {
+        metadata.put(correlationIdKey, operationContext.getCorrelationId());
+      }
+      if (StringUtils.isNotBlank(operationContext.getServiceId())
+          && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {
+        metadata.put(SERVICE_ID_METADATA_KEY, operationContext.getServiceId());
+      }
+      if (StringUtils.isNotBlank(operationContext.getTenantId())
+          && !metadata.containsKey(TENANT_ID_METADATA_KEY)) {
+        metadata.put(TENANT_ID_METADATA_KEY, operationContext.getTenantId());
+      }
+    }
+    return metadata;
+  }
+
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
     validateBucketExists();
+    validateChecksum(uploadRequest, content);
     String baseKey = getStorageKey(uploadRequest.getKey());
     String etag = generateEtag(content);
     String versionId = UUID.randomUUID().toString();
     String versionedKey = baseKey + ":" + versionId;
 
+    // Copy the application-supplied metadata and stamp the SDK's correlation id, service id and
+    // tenant id on it so the values persist with the stored blob alongside the user's metadata.
+    Map<String, String> metadata =
+        stampContextMetadata(uploadRequest.getMetadata(), uploadRequest.getOperationContext());
+
     StoredBlob blob =
         new StoredBlob(
-            content, etag, versionId, Instant.now(), uploadRequest.getMetadata(),
-            uploadRequest.getContentType());
+            content, etag, versionId, nextInstant(), metadata, uploadRequest.getContentType());
 
-    STORAGE.put(versionedKey, blob);
-    LATEST_VERSIONS.put(baseKey, versionId);
+    LATEST_VERSIONS.compute(
+        baseKey,
+        (ignored, currentVersion) -> {
+          if (uploadRequest.isCreateIfAbsent() && currentVersion != null) {
+            throw new ResourceAlreadyExistsException("Blob already exists");
+          }
 
-    // Store tags if provided
-    if (uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
-      TAGS.put(versionedKey, new HashMap<>(uploadRequest.getTags()));
-    }
+          STORAGE.put(versionedKey, blob);
+
+          if (uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
+            TAGS.put(versionedKey, new HashMap<>(uploadRequest.getTags()));
+          }
+
+          if (uploadRequest.getObjectLock() != null) {
+            ObjectLockConfiguration lockConfig = uploadRequest.getObjectLock();
+            OBJECT_LOCKS.put(
+                versionedKey,
+                ObjectLockInfo.builder()
+                    .mode(lockConfig.getMode())
+                    .retainUntilDate(lockConfig.getRetainUntilDate())
+                    .legalHold(lockConfig.isLegalHold())
+                    .useEventBasedHold(lockConfig.getUseEventBasedHold())
+                    .build());
+          }
+
+          return versionId;
+        });
 
     return UploadResponse.builder()
         .key(uploadRequest.getKey())
@@ -144,6 +259,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     try {
       byte[] content = Files.readAllBytes(file.toPath());
       return doUpload(uploadRequest, content);
+    } catch (SubstrateSdkException e) {
+      throw e;
     } catch (Exception e) {
       throw new UnknownException("Failed to upload blob from file", e);
     }
@@ -154,6 +271,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     try {
       byte[] content = Files.readAllBytes(path);
       return doUpload(uploadRequest, content);
+    } catch (SubstrateSdkException e) {
+      throw e;
     } catch (Exception e) {
       throw new UnknownException("Failed to upload blob from path", e);
     }
@@ -172,6 +291,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
 
     if (versionId == null) {
+      checkIfArchived(downloadRequest);
       throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
     }
 
@@ -205,6 +325,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
 
     if (versionId == null) {
+      checkIfArchived(downloadRequest);
       throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
     }
 
@@ -243,6 +364,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
 
     if (versionId == null) {
+      checkIfArchived(downloadRequest);
       throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
     }
 
@@ -257,11 +379,34 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     try {
       byte[] data =
           extractRange(blob.getData(), downloadRequest.getStart(), downloadRequest.getEnd());
-      Files.write(path, data);
+      Path destinationPath = createDownloadDestinationPath(downloadRequest, path);
+      Files.write(destinationPath, data);
       return buildDownloadResponse(downloadRequest.getKey(), blob, data.length);
     } catch (Exception e) {
       throw new UnknownException("Failed to download blob to path", e);
     }
+  }
+
+  @Override
+  protected Path createDownloadDestinationPath(DownloadRequest request, Path destination) {
+    if (!request.isCreateParentPath()) {
+      return destination;
+    }
+    Path base = destination.normalize();
+    Path resolved = base.resolve(request.getKey()).normalize();
+    if (!resolved.startsWith(base)) {
+      throw new InvalidArgumentException(
+          "Object key resolves outside the download destination directory: " + request.getKey());
+    }
+    Path parent = resolved.getParent();
+    if (parent != null) {
+      try {
+        Files.createDirectories(parent);
+      } catch (IOException e) {
+        throw new UnknownException("Failed to create destination directories", e);
+      }
+    }
+    return resolved;
   }
 
   @Override
@@ -276,6 +421,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
 
     if (versionId == null) {
+      checkIfArchived(downloadRequest);
       throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
     }
 
@@ -303,6 +449,17 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       String versionedKey = baseKey + ":" + versionId;
       STORAGE.remove(versionedKey);
       TAGS.remove(versionedKey);
+      OBJECT_LOCKS.remove(versionedKey);
+
+      // A version-specific delete can also target a delete marker; remove it from the history so
+      // callers can clean up markers surfaced by listBlobVersions.
+      List<DeleteMarker> markers = DELETE_MARKERS.get(baseKey);
+      if (markers != null) {
+        markers.removeIf(marker -> versionId.equals(marker.getVersionId()));
+        if (markers.isEmpty()) {
+          DELETE_MARKERS.remove(baseKey);
+        }
+      }
 
       // If deleting the latest version, clear the latest version tracker
       String latestVersion = LATEST_VERSIONS.get(baseKey);
@@ -310,26 +467,14 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         LATEST_VERSIONS.remove(baseKey);
       }
     } else {
-      // Delete all versions of this key
-      String latestVersion = LATEST_VERSIONS.get(baseKey);
-      if (latestVersion != null) {
-        String versionedKey = baseKey + ":" + latestVersion;
-        STORAGE.remove(versionedKey);
-        TAGS.remove(versionedKey);
-        LATEST_VERSIONS.remove(baseKey);
-      }
-
-      // Also delete any other versions
-      List<String> keysToDelete = new ArrayList<>();
-      for (String storageKey : STORAGE.keySet()) {
-        if (storageKey.startsWith(baseKey + ":")) {
-          keysToDelete.add(storageKey);
-        }
-      }
-      for (String storageKey : keysToDelete) {
-        STORAGE.remove(storageKey);
-        TAGS.remove(storageKey);
-      }
+      // Unqualified delete: record a delete marker that becomes the newest entry for this key and
+      // clear the current-version tracker so the object reads as absent. Prior content versions are
+      // retained in STORAGE and remain listable.
+      String markerVersionId = UUID.randomUUID().toString();
+      DELETE_MARKERS
+          .computeIfAbsent(baseKey, ignored -> new java.util.concurrent.CopyOnWriteArrayList<>())
+          .add(new DeleteMarker(markerVersionId, nextInstant()));
+      LATEST_VERSIONS.remove(baseKey);
     }
   }
 
@@ -377,7 +522,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
             sourceBlob.getData().clone(),
             sourceBlob.getEtag(),
             newVersionId,
-            Instant.now(),
+            nextInstant(),
             sourceBlob.getMetadata(),
             sourceBlob.getContentType());
 
@@ -425,7 +570,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
             sourceBlob.getData().clone(),
             sourceBlob.getEtag(),
             newVersionId,
-            Instant.now(),
+            nextInstant(),
             sourceBlob.getMetadata(),
             sourceBlob.getContentType());
 
@@ -469,7 +614,106 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .objectSize((long) blob.getData().length)
         .metadata(blob.getMetadata())
         .lastModified(blob.getLastModified())
+        .createdTime(blob.getLastModified())
         .contentType(blob.getContentType())
+        .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
+        .checksum(toDriverChecksum(blob.getData()))
+        .build();
+  }
+
+  /**
+   * Lists every version of an exact key on a single newest-first timeline. By default only content
+   * versions are returned and no {@code archivedAt} supersession instant is derived, matching the
+   * backward-compatible contract. When {@code includeArchived} is set the timeline also includes
+   * delete markers and each entry reports the cloud-neutral {@code archivedAt} it stopped being
+   * current, which may be the creation time of a superseding delete marker.
+   */
+  @Override
+  protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
+    validateBucketExists();
+    boolean includeArchived = request.isIncludeArchived();
+    String key = request.getKey();
+    String baseKey = getStorageKey(key);
+    String versionPrefix = baseKey + ":";
+
+    List<TimelineEntry> entries = new ArrayList<>();
+    for (Map.Entry<String, StoredBlob> stored : STORAGE.entrySet()) {
+      String storageKey = stored.getKey();
+      if (!storageKey.startsWith(versionPrefix)) {
+        continue;
+      }
+      // Exact-key guard: keys may contain ':', so require the remainder to be a bare versionId
+      // (UUIDs contain no ':'). This excludes sibling keys such as "key:child".
+      String remainder = storageKey.substring(versionPrefix.length());
+      if (remainder.indexOf(':') >= 0) {
+        continue;
+      }
+      StoredBlob blob = stored.getValue();
+      entries.add(new TimelineEntry(blob.getLastModified(), false, blob.getVersionId(), blob));
+    }
+
+    // Delete markers only participate in the opt-in delete-history view; the default listing
+    // streams content versions and never derives archivedAt from a marker.
+    if (includeArchived) {
+      List<DeleteMarker> markers = DELETE_MARKERS.get(baseKey);
+      if (markers != null) {
+        for (DeleteMarker marker : markers) {
+          entries.add(
+              new TimelineEntry(marker.getCreatedTime(), true, marker.getVersionId(), null));
+        }
+      }
+    }
+
+    // Newest-first so each entry's supersession time is its immediate predecessor's creation time.
+    entries.sort(Comparator.comparing((TimelineEntry entry) -> entry.createdTime).reversed());
+
+    List<BlobMetadata> result = new ArrayList<>(entries.size());
+    for (int i = 0; i < entries.size(); i++) {
+      TimelineEntry entry = entries.get(i);
+      // archivedAt only exists to serve the opt-in delete-history view; the default listing streams
+      // content versions without deriving a supersession instant.
+      Instant archivedAt =
+          includeArchived && i > 0 ? entries.get(i - 1).createdTime : null;
+      if (entry.deleteMarker) {
+        // Delete-marker entries only enter the timeline when the caller opted into the
+        // delete-history view, so reaching here already implies includeArchived is set.
+        result.add(
+            BlobMetadata.builder()
+                .key(key)
+                .versionId(entry.versionId)
+                .archived(true)
+                .lastModified(entry.createdTime)
+                .createdTime(entry.createdTime)
+                .archivedAt(archivedAt)
+                .build());
+      } else {
+        StoredBlob blob = entry.blob;
+        String versionedKey = versionPrefix + blob.getVersionId();
+        // Checksum is intentionally omitted here: it is not part of the version-listing contract,
+        // and computing it is O(size) per version, which turns listing into O(versions x size).
+        // Callers that need a checksum fetch it via getMetadata/download for a specific version.
+        result.add(
+            BlobMetadata.builder()
+                .key(key)
+                .versionId(blob.getVersionId())
+                .eTag(blob.getEtag())
+                .objectSize((long) blob.getData().length)
+                .metadata(blob.getMetadata())
+                .lastModified(blob.getLastModified())
+                .createdTime(blob.getLastModified())
+                .contentType(blob.getContentType())
+                .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
+                .archivedAt(archivedAt)
+                .build());
+      }
+    }
+    return result.iterator();
+  }
+
+  private Checksum toDriverChecksum(byte[] data) {
+    return Checksum.builder()
+        .algorithm(ChecksumMethod.CRC32C)
+        .value(computeCrc32cChecksum(data))
         .build();
   }
 
@@ -478,45 +722,50 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     validateBucketExists();
     String prefix = request.getPrefix() != null ? request.getPrefix() : "";
     String delimiter = request.getDelimiter();
+    TreeMap<String, StoredBlob> matchingBlobs = new TreeMap<>();
+    for (Map.Entry<String, String> entry : LATEST_VERSIONS.entrySet()) {
+      if (!entry.getKey().startsWith(bucket + ":")) {
+        continue;
+      }
+      String key = entry.getKey().substring((bucket + ":").length());
+      if (!key.startsWith(prefix)) {
+        continue;
+      }
+      StoredBlob blob = STORAGE.get(entry.getKey() + ":" + entry.getValue());
+      if (blob != null) {
+        matchingBlobs.put(key, blob);
+      }
+    }
 
-    // List only latest versions
-    List<BlobInfo> blobs =
-        LATEST_VERSIONS.entrySet().stream()
-            .filter(entry -> entry.getKey().startsWith(bucket + ":"))
-            .filter(
-                entry -> {
-                  String key = entry.getKey().substring((bucket + ":").length());
-                  if (!key.startsWith(prefix)) {
-                    return false;
-                  }
-                  // If delimiter is specified, filter out keys containing the delimiter after the
-                  // prefix
-                  if (delimiter != null && !delimiter.isEmpty()) {
-                    String keyAfterPrefix = key.substring(prefix.length());
-                    return !keyAfterPrefix.contains(delimiter);
-                  }
-                  return true;
-                })
-            .map(
-                entry -> {
-                  String key = entry.getKey().substring((bucket + ":").length());
-                  String versionId = entry.getValue();
-                  String versionedKey = entry.getKey() + ":" + versionId;
-                  StoredBlob blob = STORAGE.get(versionedKey);
-                  if (blob == null) {
-                    return null;
-                  }
-                  return new BlobInfo.Builder()
-                      .withKey(key)
-                      .withObjectSize((long) blob.getData().length)
-                      .withLastModified(blob.getLastModified())
-                      .build();
-                })
-            .filter(blobInfo -> blobInfo != null)
-            .sorted(Comparator.comparing(BlobInfo::getKey))
-            .collect(Collectors.toList());
-
-    return blobs.iterator();
+    List<BlobInfo> entries = new ArrayList<>();
+    Set<String> commonPrefixes = new TreeSet<>();
+    boolean includeCommonPrefixes =
+        request.isIncludeCommonPrefixes() && StringUtils.isNotEmpty(delimiter);
+    for (Map.Entry<String, StoredBlob> entry : matchingBlobs.entrySet()) {
+      String key = entry.getKey();
+      String keyAfterPrefix = key.substring(prefix.length());
+      int delimiterIndex =
+          StringUtils.isNotEmpty(delimiter) ? keyAfterPrefix.indexOf(delimiter) : -1;
+      if (delimiterIndex < 0) {
+        StoredBlob blob = entry.getValue();
+        entries.add(new BlobInfo.Builder()
+            .withKey(key)
+            .withObjectSize((long) blob.getData().length)
+            .withLastModified(blob.getLastModified())
+            .build());
+      }
+      if (delimiterIndex >= 0) {
+        commonPrefixes.add(
+            prefix + keyAfterPrefix.substring(0, delimiterIndex + delimiter.length()));
+      }
+    }
+    if (includeCommonPrefixes) {
+      commonPrefixes.forEach(
+          commonPrefix -> entries.add(new BlobInfo.Builder()
+              .withKey(commonPrefix).withCommonPrefix(true).build()));
+    }
+    entries.sort(Comparator.comparing(BlobInfo::getKey).thenComparing(BlobInfo::isCommonPrefix));
+    return entries.iterator();
   }
 
   @Override
@@ -615,8 +864,15 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     validateBucketExists();
     String uploadId = UUID.randomUUID().toString();
 
+    // Stamp the SDK's correlation id, service id and tenant id onto the metadata so they persist
+    // with the object that this multipart upload eventually creates, matching single-shot upload.
+    // Both the persisted upload state and the returned handle carry the stamped map so the handle
+    // reflects what actually lands on the multipart object.
+    Map<String, String> stampedMetadata =
+        stampContextMetadata(request.getMetadata(), request.getOperationContext());
+
     MultipartUploadState state =
-        new MultipartUploadState(request.getKey(), request.getMetadata(), request.getContentType());
+        new MultipartUploadState(request.getKey(), stampedMetadata, request.getContentType());
 
     MULTIPART_UPLOADS.put(uploadId, state);
 
@@ -624,10 +880,12 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .id(uploadId)
         .bucket(bucket)
         .key(request.getKey())
-        .metadata(request.getMetadata())
+        .metadata(stampedMetadata)
         .tags(request.getTags())
         .checksumEnabled(request.isChecksumEnabled())
         .kmsKeyId(request.getKmsKeyId())
+        .contentType(request.getContentType())
+        .objectLock(request.getObjectLock())
         .build();
   }
 
@@ -708,11 +966,25 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       String versionedKey = baseKey + ":" + versionId;
       StoredBlob blob =
           new StoredBlob(
-              finalData, etag, versionId, Instant.now(), state.getMetadata(),
+              finalData, etag, versionId, nextInstant(), state.getMetadata(),
               state.getContentType());
 
       STORAGE.put(versionedKey, blob);
       LATEST_VERSIONS.put(baseKey, versionId);
+
+      // Store object lock configuration if provided on the multipart upload
+      if (mpu.getObjectLock() != null) {
+        ObjectLockConfiguration lockConfig = mpu.getObjectLock();
+        OBJECT_LOCKS.put(
+            versionedKey,
+            ObjectLockInfo.builder()
+                .mode(lockConfig.getMode())
+                .retainUntilDate(lockConfig.getRetainUntilDate())
+                .legalHold(lockConfig.isLegalHold())
+                .useEventBasedHold(lockConfig.getUseEventBasedHold())
+                .build());
+      }
+
       MULTIPART_UPLOADS.remove(mpu.getId());
       String checksumValue = computeCrc32cChecksum(finalData);
 
@@ -775,11 +1047,28 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   @Override
-  protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
-    // Don't validate bucket existence - presigned URLs are client-side operations
+  protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
     try {
-      // For in-memory implementation, just return a fake URL
-      return new URL("http://localhost:8080/" + bucket + "/" + request.getKey());
+      URL url = new URL("http://localhost:8080/" + bucket + "/" + request.getKey());
+      Map<String, String> signedHeaders = new HashMap<>();
+      if (request.getType() == PresignedOperation.UPLOAD) {
+        if (request.getContentLength() > 0) {
+          signedHeaders.put("Content-Length", String.valueOf(request.getContentLength()));
+        }
+        if (request.getContentType() != null) {
+          signedHeaders.put("Content-Type", request.getContentType());
+        }
+        if (request.getChecksumValue() != null) {
+          String algo = request.getChecksumAlgorithm() != null
+              ? request.getChecksumAlgorithm().name() : "CRC32C";
+          signedHeaders.put("x-checksum", algo + "=" + request.getChecksumValue());
+        }
+      }
+      return PresignedUrlResponse.builder()
+          .url(url)
+          .signedHeaders(signedHeaders)
+          .expiration(Instant.now().plus(request.getDuration()))
+          .build();
     } catch (MalformedURLException e) {
       throw new UnknownException("Failed to generate presigned URL", e);
     }
@@ -806,15 +1095,65 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   @Override
+  protected BucketVersioningConfiguration doGetBucketVersioning() {
+    BucketMetadata metadata = BUCKETS.get(bucket);
+    if (metadata == null) {
+      throw new ResourceNotFoundException("Bucket does not exist: " + bucket);
+    }
+    return BucketVersioningConfiguration.of(metadata.getVersioningStatus());
+  }
+
+  @Override
   public void close() {
     // Nothing to close for in-memory implementation
   }
 
   // Helper methods
 
+  private void checkIfArchived(DownloadRequest downloadRequest) {
+    if (!downloadRequest.isCheckArchived()) {
+      return;
+    }
+    String baseKey = getStorageKey(downloadRequest.getKey());
+    for (String storageKey : STORAGE.keySet()) {
+      if (storageKey.startsWith(baseKey + ":")) {
+        String versionId = storageKey.substring((baseKey + ":").length());
+        throw new ResourceNotFoundException(
+            "Object is archived (delete marker): " + downloadRequest.getKey(),
+            null,
+            ArchiveInfo.builder().archived(true).versionId(versionId).build());
+      }
+    }
+  }
+
   private void validateBucketExists() {
     if (!BUCKETS.containsKey(bucket)) {
       throw new ResourceNotFoundException("Bucket not found: " + bucket);
+    }
+  }
+
+  private void validateChecksum(UploadRequest uploadRequest, byte[] content) {
+    if (uploadRequest.getChecksumValue() == null || uploadRequest.getChecksumValue().isEmpty()) {
+      return;
+    }
+    ChecksumMethod algorithm = uploadRequest.getChecksumAlgorithm();
+    String actual;
+    if (algorithm == ChecksumMethod.MD5) {
+      actual = computeMd5Checksum(content);
+    } else if (algorithm == ChecksumMethod.SHA256) {
+      actual = computeSha256Checksum(content);
+    } else if (algorithm == ChecksumMethod.CRC64) {
+      actual = computeCrc64Checksum(content);
+    } else {
+      // CRC32C is the in-memory provider's default, and the cloud-agnostic default when no
+      // algorithm is set. The in-memory provider validates every algorithm because it computes
+      // them locally and depends on no cloud SDK.
+      actual = computeCrc32cChecksum(content);
+    }
+    if (!actual.equals(uploadRequest.getChecksumValue())) {
+      throw new InvalidArgumentException(
+          "Checksum mismatch: expected " + uploadRequest.getChecksumValue()
+              + " but computed " + actual);
     }
   }
 
@@ -835,7 +1174,36 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     checksumBytes[1] = (byte) (value >> 16);
     checksumBytes[2] = (byte) (value >> 8);
     checksumBytes[3] = (byte) value;
-    return java.util.Base64.getEncoder().encodeToString(checksumBytes);
+    return Base64.getEncoder().encodeToString(checksumBytes);
+  }
+
+  private String computeMd5Checksum(byte[] data) {
+    try {
+      byte[] digest = MessageDigest.getInstance("MD5").digest(data);
+      return Base64.getEncoder().encodeToString(digest);
+    } catch (NoSuchAlgorithmException e) {
+      // MD5 is a standard algorithm guaranteed by the JDK; this should never happen.
+      throw new IllegalStateException("MD5 algorithm not available", e);
+    }
+  }
+
+  private String computeSha256Checksum(byte[] data) {
+    try {
+      byte[] digest = MessageDigest.getInstance("SHA-256").digest(data);
+      return Base64.getEncoder().encodeToString(digest);
+    } catch (NoSuchAlgorithmException e) {
+      // SHA-256 is a standard algorithm guaranteed by the JDK; this should never happen.
+      throw new IllegalStateException("SHA-256 algorithm not available", e);
+    }
+  }
+
+  private String computeCrc64Checksum(byte[] data) {
+    long value = Crc64.compute(data);
+    byte[] checksumBytes = new byte[8];
+    for (int i = 0; i < 8; i++) {
+      checksumBytes[i] = (byte) (value >>> (56 - 8 * i));
+    }
+    return Base64.getEncoder().encodeToString(checksumBytes);
   }
 
   private byte[] extractRange(byte[] data, Long start, Long end) {
@@ -896,6 +1264,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   private DownloadResponse buildDownloadResponse(String key, StoredBlob blob, int contentLength) {
+    String versionedKey = getStorageKey(key) + ":" + blob.getVersionId();
     return DownloadResponse.builder()
         .key(key)
         .metadata(
@@ -906,13 +1275,17 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .objectSize((long) contentLength)
                 .metadata(blob.getMetadata())
                 .lastModified(blob.getLastModified())
+                .createdTime(blob.getLastModified())
                 .contentType(blob.getContentType())
+                .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
+                .checksum(toDriverChecksum(blob.getData()))
                 .build())
         .build();
   }
 
   private DownloadResponse buildDownloadResponse(
       String key, StoredBlob blob, int contentLength, InputStream inputStream) {
+    String versionedKey = getStorageKey(key) + ":" + blob.getVersionId();
     return DownloadResponse.builder()
         .key(key)
         .metadata(
@@ -923,31 +1296,145 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .objectSize((long) contentLength)
                 .metadata(blob.getMetadata())
                 .lastModified(blob.getLastModified())
+                .createdTime(blob.getLastModified())
                 .contentType(blob.getContentType())
+                .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
+                .checksum(toDriverChecksum(blob.getData()))
                 .build())
         .inputStream(inputStream)
         .build();
   }
 
-  @Override
-  public ObjectLockInfo getObjectLock(String key, String versionId) {
-    return null;
+  /**
+   * Resolves the versioned storage key for a blob, validating that the bucket and blob exist.
+   * If versionId is null, resolves to the latest version.
+   */
+  private String resolveVersionedKey(String key, String versionId) {
+    validateBucketExists();
+    String baseKey = getStorageKey(key);
+
+    String resolvedVersionId = versionId;
+    if (resolvedVersionId == null) {
+      resolvedVersionId = LATEST_VERSIONS.get(baseKey);
+    }
+
+    if (resolvedVersionId == null) {
+      throw new ResourceNotFoundException("Blob not found: " + key);
+    }
+
+    String versionedKey = baseKey + ":" + resolvedVersionId;
+    if (!STORAGE.containsKey(versionedKey)) {
+      throw new ResourceNotFoundException(
+          "Blob version not found: " + key + " version: " + resolvedVersionId);
+    }
+
+    return versionedKey;
   }
 
   @Override
-  public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {}
+  public ObjectLockInfo getObjectLock(String key, String versionId) {
+    return OBJECT_LOCKS.get(resolveVersionedKey(key, versionId));
+  }
 
   @Override
-  public void updateLegalHold(String key, String versionId, boolean legalHold) {}
+  public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {
+    String versionedKey = resolveVersionedKey(key, versionId);
+    ObjectLockInfo existing = OBJECT_LOCKS.get(versionedKey);
+
+    OBJECT_LOCKS.put(
+        versionedKey,
+        ObjectLockInfo.builder()
+            .mode(existing != null ? existing.getMode() : null)
+            .retainUntilDate(retainUntilDate)
+            .legalHold(existing != null && existing.isLegalHold())
+            .useEventBasedHold(existing != null ? existing.getUseEventBasedHold() : null)
+            .build());
+  }
+
+  @Override
+  protected void doUpdateObjectRetention(
+      String key, String versionId, ObjectRetentionConfig config) {
+    String versionedKey = resolveVersionedKey(key, versionId);
+    ObjectLockInfo existing = OBJECT_LOCKS.get(versionedKey);
+
+    RetentionMode currentMode = existing != null ? existing.getMode() : null;
+    Instant currentRetainUntil = existing != null ? existing.getRetainUntilDate() : null;
+
+    RetentionMode resolvedMode =
+        ObjectRetentionRules.resolveAndValidate(currentMode, currentRetainUntil, config);
+
+    // Legal hold and useEventBasedHold are preserved across retention updates — they have their
+    // own dedicated APIs and must not be cleared by this call.
+    OBJECT_LOCKS.put(
+        versionedKey,
+        ObjectLockInfo.builder()
+            .mode(resolvedMode)
+            .retainUntilDate(config.getRetainUntilDate())
+            .legalHold(existing != null && existing.isLegalHold())
+            .useEventBasedHold(existing != null ? existing.getUseEventBasedHold() : null)
+            .build());
+  }
+
+  @Override
+  public void updateLegalHold(String key, String versionId, boolean legalHold) {
+    String versionedKey = resolveVersionedKey(key, versionId);
+    ObjectLockInfo existing = OBJECT_LOCKS.get(versionedKey);
+
+    OBJECT_LOCKS.put(
+        versionedKey,
+        ObjectLockInfo.builder()
+            .mode(existing != null ? existing.getMode() : null)
+            .retainUntilDate(existing != null ? existing.getRetainUntilDate() : null)
+            .legalHold(legalHold)
+            .useEventBasedHold(existing != null ? existing.getUseEventBasedHold() : null)
+            .build());
+  }
 
   // Inner classes for storage
 
   @Getter
   static class BucketMetadata {
     private final Instant creationDate;
+    private final BucketVersioningStatus versioningStatus;
 
     public BucketMetadata(Instant creationDate) {
+      this(creationDate, BucketVersioningStatus.UNVERSIONED);
+    }
+
+    public BucketMetadata(Instant creationDate, BucketVersioningStatus versioningStatus) {
       this.creationDate = creationDate;
+      this.versioningStatus = versioningStatus;
+    }
+  }
+
+  /** A persisted delete marker: its own version id and the instant it was created. */
+  @Getter
+  private static class DeleteMarker {
+    private final String versionId;
+    private final Instant createdTime;
+
+    DeleteMarker(String versionId, Instant createdTime) {
+      this.versionId = versionId;
+      this.createdTime = createdTime;
+    }
+  }
+
+  /**
+   * A single point on a key's version timeline used only while resolving {@code
+   * doListBlobVersions}. Holds a content version's stored blob, or a delete marker when {@code
+   * deleteMarker} is set (in which case {@code blob} is {@code null}).
+   */
+  private static final class TimelineEntry {
+    private final Instant createdTime;
+    private final boolean deleteMarker;
+    private final String versionId;
+    private final StoredBlob blob;
+
+    TimelineEntry(Instant createdTime, boolean deleteMarker, String versionId, StoredBlob blob) {
+      this.createdTime = createdTime;
+      this.deleteMarker = deleteMarker;
+      this.versionId = versionId;
+      this.blob = blob;
     }
   }
 
@@ -1041,12 +1528,24 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     BUCKETS.putIfAbsent(bucketName, new BucketMetadata(Instant.now()));
   }
 
+  /**
+   * Creates a bucket with the specified versioning status for testing purposes.
+   *
+   * @param bucketName the name of the bucket to create
+   * @param versioningStatus the initial versioning status for the bucket
+   */
+  public static void createBucket(String bucketName, BucketVersioningStatus versioningStatus) {
+    BUCKETS.putIfAbsent(bucketName, new BucketMetadata(Instant.now(), versioningStatus));
+  }
+
   /** Clears all in-memory storage including buckets, blobs, tags, and multipart uploads. */
   public static void clearStorage() {
     STORAGE.clear();
     LATEST_VERSIONS.clear();
     TAGS.clear();
+    OBJECT_LOCKS.clear();
     MULTIPART_UPLOADS.clear();
     BUCKETS.clear();
+    DELETE_MARKERS.clear();
   }
 }

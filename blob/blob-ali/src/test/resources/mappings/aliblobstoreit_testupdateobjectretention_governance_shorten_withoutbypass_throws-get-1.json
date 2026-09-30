@@ -1,0 +1,38 @@
+{
+  "id" : "f035c383-f5ea-4851-a9dc-31bc54763b64",
+  "name" : "AliBlobStoreIT_testUpdateObjectRetention_governance_shorten_withoutBypass_throws-GET-1",
+  "request" : {
+    "urlPath" : "/conformance-tests/objectlock/update/gov-shorten-no-bypass",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "retention" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Retention>\n  <Mode>GOVERNANCE</Mode>\n  <RetainUntilDate>2030-06-01T00:00:00.000Z</RetainUntilDate>\n</Retention>\n",
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkY4sanurmD1fQZIiA1MjliZWViMjc3ZWM0ZTkzYjA3ZTkxZWNmMjk3M2M3Yw--",
+      "x-oss-request-id" : "6A221D1E6BF28E3135D9007E",
+      "x-oss-server-time" : "23",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 05 Jun 2026 00:49:34 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "f035c383-f5ea-4851-a9dc-31bc54763b64",
+  "persistent" : true,
+  "insertionIndex" : 893
+}

@@ -114,7 +114,7 @@ public class IamClientTest {
 
   @Test
   void testCreateIdentityThrowsException() {
-    doReturn(UnAuthorizedException.class).when(mockIam).getException(any());
+    doReturn(new UnAuthorizedException()).when(mockIam).mapException(any());
     doThrow(RuntimeException.class)
         .when(mockIam)
         .createIdentity(anyString(), anyString(), anyString(), anyString(), any(), any());
@@ -159,7 +159,7 @@ public class IamClientTest {
 
   @Test
   void testAttachInlinePolicyThrowsException() {
-    doReturn(UnAuthorizedException.class).when(mockIam).getException(any());
+    doReturn(new UnAuthorizedException()).when(mockIam).mapException(any());
     PolicyDocument policy =
         PolicyDocument.builder()
             .name("TestPolicy")
@@ -206,7 +206,7 @@ public class IamClientTest {
 
   @Test
   void testGetInlinePolicyDetailsThrowsException() {
-    doReturn(UnAuthorizedException.class).when(mockIam).getException(any());
+    doReturn(new UnAuthorizedException()).when(mockIam).mapException(any());
     doThrow(RuntimeException.class)
         .when(mockIam)
         .getInlinePolicyDetails(any(GetInlinePolicyDetailsRequest.class));
@@ -245,7 +245,7 @@ public class IamClientTest {
 
   @Test
   void testGetAttachedPoliciesThrowsException() {
-    doReturn(UnAuthorizedException.class).when(mockIam).getException(any());
+    doReturn(new UnAuthorizedException()).when(mockIam).mapException(any());
     doThrow(RuntimeException.class)
         .when(mockIam)
         .getAttachedPolicies(any(GetAttachedPoliciesRequest.class));
@@ -272,7 +272,7 @@ public class IamClientTest {
 
   @Test
   void testRemovePolicyThrowsException() {
-    doReturn(UnAuthorizedException.class).when(mockIam).getException(any());
+    doReturn(new UnAuthorizedException()).when(mockIam).mapException(any());
     doThrow(RuntimeException.class)
         .when(mockIam)
         .removePolicy(anyString(), anyString(), anyString(), anyString());
@@ -291,7 +291,7 @@ public class IamClientTest {
 
   @Test
   void testDeleteIdentityThrowsException() {
-    doReturn(UnAuthorizedException.class).when(mockIam).getException(any());
+    doReturn(new UnAuthorizedException()).when(mockIam).mapException(any());
     doThrow(RuntimeException.class)
         .when(mockIam)
         .deleteIdentity(anyString(), anyString(), anyString());
@@ -313,7 +313,7 @@ public class IamClientTest {
 
   @Test
   void testGetIdentityThrowsException() {
-    doReturn(UnAuthorizedException.class).when(mockIam).getException(any());
+    doReturn(new UnAuthorizedException()).when(mockIam).mapException(any());
     doThrow(RuntimeException.class)
         .when(mockIam)
         .getIdentity(anyString(), anyString(), anyString());

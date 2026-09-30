@@ -5,7 +5,7 @@
     <artifactId>multicloudj-parent</artifactId>
     <packaging>pom</packaging>
     <description>Salesforce Multi-substrate Java SDK</description>
-    <version>0.3.1-SNAPSHOT</version>
+    <version>0.4.8-SNAPSHOT</version>
     <name>multicloudj</name>
     <url>https://github.com/salesforce/multicloudj</url>
 
@@ -48,33 +48,36 @@
     </modules>
     <properties>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <compileSource>11</compileSource>
-        <releaseTarget>11</releaseTarget>
+        <compileSource>17</compileSource>
+        <releaseTarget>17</releaseTarget>
         <maven.min.version>3.5.0</maven.min.version>
         <java.min.version>${compileSource}</java.min.version>
         <slf4j.version>2.0.15</slf4j.version>
         <commons-logging.version>1.3.4</commons-logging.version>
         <guava.version>33.2.1-jre</guava.version>
-        <guice.version>4.2.3</guice.version>
+        <guice.version>7.0.0</guice.version>
         <junit.version>5.12.1</junit.version>
-        <mockito.version>5.16.1</mockito.version>
-        <mockito-inline.version>5.2.0</mockito-inline.version>
-        <wiremock.version>3.12.1</wiremock.version>
-        <lombok.version>1.18.36</lombok.version>
-        <commons-lang3.version>3.18.0</commons-lang3.version>
+        <mockito.version>5.18.0</mockito.version>
+        <wiremock.version>3.13.2</wiremock.version>
+        <lombok.version>1.18.46</lombok.version>
+        <auto-service.version>1.1.1</auto-service.version>
+        <commons-lang3.version>3.20.0</commons-lang3.version>
         <httpclient.version>4.5.14</httpclient.version>
         <httpcore.version>4.4.16</httpcore.version>
         <httpasyncclient.version>4.1.5</httpasyncclient.version>
         <reactive-streams.version>1.0.4</reactive-streams.version>
         <eventstream.version>1.0.1</eventstream.version>
         <jmh.version>1.37</jmh.version>
-        <netty.version>4.1.132.Final</netty.version>
-        <jackson.version>2.18.6</jackson.version>
-        <aws-sdk.version>2.35.0</aws-sdk.version>
+        <netty.version>4.1.136.Final</netty.version>
+        <jackson.version>2.19.0</jackson.version>
+        <aws-sdk.version>2.42.40</aws-sdk.version>
         <commons-codec.version>1.16.0</commons-codec.version>
         <wiremock-grpc.version>0.11.0</wiremock-grpc.version>
+        <opentelemetry.version>1.62.0</opentelemetry.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <revision>0.2.5-SNAPSHOT</revision>
+        <!-- benchmarks jar off by default: 'none' leaves the inherited jar execution unbound from the lifecycle (intentional disable, not a typo). A benchmark-bearing module opts in by overriding this to 'package'. -->
+        <benchmarks.jar.phase>none</benchmarks.jar.phase>
     </properties>
     
     <repositories>
@@ -147,12 +150,6 @@
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
-                <artifactId>mockito-inline</artifactId>
-                <version>${mockito-inline.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.mockito</groupId>
                 <artifactId>mockito-junit-jupiter</artifactId>
                 <version>${mockito.version}</version>
                 <scope>test</scope>
@@ -176,6 +173,16 @@
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
                 <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.google.auto.service</groupId>
+                <artifactId>auto-service</artifactId>
+                <version>${auto-service.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.auto.service</groupId>
+                <artifactId>auto-service-annotations</artifactId>
+                <version>${auto-service.version}</version>
             </dependency>
 
             <!-- Commons Libraries -->
@@ -229,6 +236,24 @@
                 <groupId>software.amazon.eventstream</groupId>
                 <artifactId>eventstream</artifactId>
                 <version>${eventstream.version}</version>
+            </dependency>
+
+            <!-- OpenTelemetry (observability: spans + context propagation) -->
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-api</artifactId>
+                <version>${opentelemetry.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-context</artifactId>
+                <version>${opentelemetry.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-sdk-testing</artifactId>
+                <version>${opentelemetry.version}</version>
+                <scope>test</scope>
             </dependency>
 
             <!-- Performance Benchmarking -->
@@ -514,19 +539,180 @@
                         <dependency>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                            <version>1.18.34</version>
+                            <version>${lombok.version}</version>
                         </dependency>
                     </dependencies>
+                </plugin>
+                <!-- benchmark-only artifact: benchmark classes + JMH-generated classes + JMH metadata (BenchmarkList, CompilerHints), no test infra. A module opts in by setting benchmarks.jar.phase to package. -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <!-- pin to the version main already resolves by default (3.5.0), NOT #604's inline 3.4.2 which would downgrade the plugin repo-wide. One plugin builds both the main jar and the benchmarks classifier, so they necessarily share this version; pinning here also supplies it to the bare provider declarations. -->
+                    <version>3.5.0</version>
+                    <executions>
+                        <execution>
+                            <id>benchmarks-classifier-jar</id>
+                            <phase>${benchmarks.jar.phase}</phase>
+                            <goals>
+                                <goal>test-jar</goal>
+                            </goals>
+                            <configuration>
+                                <classifier>benchmarks</classifier>
+                                <includes>
+                                    <include>**/*Benchmark*.class</include>
+                                    <include>**/jmh_generated/**</include>
+                                    <include>META-INF/BenchmarkList</include>
+                                    <include>META-INF/CompilerHints</include>
+                                </includes>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!-- version pinning only; the benchmarks-jar guard execution lives in the root build/plugins so it applies to every module automatically -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-antrun-plugin</artifactId>
+                    <version>3.1.0</version>
                 </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
+            <!-- benchmarks-jar guard: runs for every module. Enforces on providers (benchmarks.expected.package set), and also fails any module that builds a jar of runnable benchmarks without declaring that property. A no-op on modules that build no benchmarks jar. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>verify-benchmarks-jar</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target xmlns:if="ant:if" xmlns:unless="ant:unless">
+                                <!-- tests (and thus the benchmarks jar) are skipped entirely under -Dmaven.test.skip=true; there is nothing to verify, so the whole guard no-ops -->
+                                <condition property="benchmarksGuardSkip">
+                                    <istrue value="${maven.test.skip}"/>
+                                </condition>
+                                <property name="benchmarksJar" value="${project.build.directory}/${project.build.finalName}-benchmarks.jar"/>
+                                <available file="${benchmarksJar}" property="benchmarksJarPresent"/>
+                                <!-- fresh = jar exists and is newer than the compiled test-classes, i.e. built this run (a stale jar from an earlier build does not count) -->
+                                <uptodate property="benchmarksJarFresh" targetfile="${benchmarksJar}">
+                                    <srcfiles dir="${project.build.testOutputDirectory}" includes="**/*" erroronmissingdir="false"/>
+                                </uptodate>
+                                <!-- read the index only when a jar is present, so modules that build none never hard-error here -->
+                                <loadresource property="benchmarkList" quiet="true" if:set="benchmarksJarPresent">
+                                    <zipentry zipfile="${benchmarksJar}" name="META-INF/BenchmarkList"/>
+                                </loadresource>
+                                <!-- allowlist: the jar must contain ONLY our own classes + JMH/Maven metadata. Count any file entry outside that set; a third-party lib (org/**, io/**, ...) would land here. zipfileset yields only file entries, so bare directory entries never false-positive. -->
+                                <resourcecount property="forbiddenEntryCount" if:set="benchmarksJarPresent">
+                                    <zipfileset src="${benchmarksJar}">
+                                        <exclude name="com/salesforce/multicloudj/**"/>
+                                        <exclude name="META-INF/**"/>
+                                    </zipfileset>
+                                </resourcecount>
+                                <fail message="${project.artifactId}: benchmarks jar contains ${forbiddenEntryCount} entries outside com/salesforce/multicloudj and META-INF - refusing to publish non-benchmark content" unless:set="benchmarksGuardSkip">
+                                    <condition>
+                                        <and>
+                                            <isset property="forbiddenEntryCount"/>
+                                            <not><equals arg1="${forbiddenEntryCount}" arg2="0"/></not>
+                                        </and>
+                                    </condition>
+                                </fail>
+                                <!-- completeness: every benchmark-pattern class compiled for this module must survive into the jar. If the include filter regresses (a class pattern dropped), compiled count exceeds jar count and we refuse to publish an incomplete bundle - this covers abstract bases that runnable benchmarks extend, so a filter regression cannot ship an unrunnable jar. Only class-bearing patterns are compared here; META-INF metadata is checked by the BenchmarkList guards below. Gated on Fresh so the counts reflect this run, and the jar (built from testOutputDirectory via the filter) is always a subset, making equality the correctness condition. -->
+                                <resourcecount property="compiledBenchmarkClassCount" if:set="benchmarksJarFresh">
+                                    <fileset dir="${project.build.testOutputDirectory}" erroronmissingdir="false">
+                                        <include name="**/*Benchmark*.class"/>
+                                        <include name="**/jmh_generated/**"/>
+                                    </fileset>
+                                </resourcecount>
+                                <resourcecount property="jarBenchmarkClassCount" if:set="benchmarksJarFresh">
+                                    <zipfileset src="${benchmarksJar}">
+                                        <include name="**/*Benchmark*.class"/>
+                                        <include name="**/jmh_generated/**"/>
+                                    </zipfileset>
+                                </resourcecount>
+                                <fail message="${project.artifactId}: benchmarks jar has ${jarBenchmarkClassCount} benchmark classes but ${compiledBenchmarkClassCount} were compiled - the include filter dropped classes; refusing to publish an incomplete bundle" unless:set="benchmarksGuardSkip">
+                                    <condition>
+                                        <and>
+                                            <isset property="benchmarksJarFresh"/>
+                                            <not><equals arg1="${compiledBenchmarkClassCount}" arg2="${jarBenchmarkClassCount}"/></not>
+                                        </and>
+                                    </condition>
+                                </fail>
+                                <!-- provider declared intent but no fresh jar was built (phase not set to package, or bare maven-jar-plugin not declared) -->
+                                <fail message="${project.artifactId}: benchmarks.expected.package is set but no fresh benchmarks jar was built - set benchmarks.jar.phase to package and declare a bare maven-jar-plugin" unless:set="benchmarksGuardSkip">
+                                    <condition>
+                                        <and>
+                                            <isset property="benchmarks.expected.package"/>
+                                            <not><isset property="benchmarksJarFresh"/></not>
+                                        </and>
+                                    </condition>
+                                </fail>
+                                <!-- provider jar built but its BenchmarkList is missing/empty (zero runnable benchmarks) -->
+                                <fail message="${project.artifactId}: benchmarks jar has a missing or empty BenchmarkList - zero benchmarks" unless:set="benchmarksGuardSkip">
+                                    <condition>
+                                        <and>
+                                            <isset property="benchmarks.expected.package"/>
+                                            <not><isset property="benchmarkList"/></not>
+                                        </and>
+                                    </condition>
+                                </fail>
+                                <!-- provider jar built but does not contain this module's own benchmarks -->
+                                <fail message="${project.artifactId}: benchmarks jar is missing ${benchmarks.expected.package} benchmarks" unless:set="benchmarksGuardSkip">
+                                    <condition>
+                                        <and>
+                                            <isset property="benchmarks.expected.package"/>
+                                            <isset property="benchmarkList"/>
+                                            <not><contains string="${benchmarkList}" substring="${benchmarks.expected.package}"/></not>
+                                        </and>
+                                    </condition>
+                                </fail>
+                                <!-- a module shipped runnable benchmarks but never declared benchmarks.expected.package, so the guard could not verify it -->
+                                <fail message="${project.artifactId}: benchmarks jar contains runnable benchmarks but benchmarks.expected.package is not set - declare it so the guard verifies this module" unless:set="benchmarksGuardSkip">
+                                    <condition>
+                                        <and>
+                                            <not><isset property="benchmarks.expected.package"/></not>
+                                            <isset property="benchmarkList"/>
+                                        </and>
+                                    </condition>
+                                </fail>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.11.0</version>
                 <configuration>
                     <release>${releaseTarget}</release>
+                    <!--
+                      JDK 23+ no longer runs annotation processors discovered
+                      only on the classpath by default, so every processor the
+                      build relies on must be listed explicitly here. lombok
+                      generates boilerplate; google auto-service generates the
+                      META-INF/services entries that ServiceLoader uses for
+                      provider discovery.
+                    -->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>com.google.auto.service</groupId>
+                            <artifactId>auto-service</artifactId>
+                            <version>${auto-service.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.openjdk.jmh</groupId>
+                            <artifactId>jmh-generator-annprocess</artifactId>
+                            <version>${jmh.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>
@@ -731,6 +917,25 @@
                     </plugin>
                 </plugins>
             </build>
+        </profile>
+
+        <!--
+          Benchmarks run under -DrunBenchmarks=true. The JaCoCo agent instruments every class in
+          the forked JMH JVM, which distorts throughput/latency measurements (observed ~40% lower).
+          Auto-activate on that property to skip coverage instrumentation, so a benchmark run is
+          never silently measured with the agent attached. No effect on normal test/verify runs.
+        -->
+        <profile>
+            <id>benchmark</id>
+            <activation>
+                <property>
+                    <name>runBenchmarks</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <properties>
+                <jacoco.skip>true</jacoco.skip>
+            </properties>
         </profile>
     </profiles>
 

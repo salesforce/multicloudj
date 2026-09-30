@@ -366,8 +366,8 @@ class AbstractRegistryTest {
     }
 
     @Override
-    public Class<? extends SubstrateSdkException> getException(Throwable t) {
-      return UnknownException.class;
+    public SubstrateSdkException mapException(Throwable t) {
+      return new UnknownException(t);
     }
 
     @Override

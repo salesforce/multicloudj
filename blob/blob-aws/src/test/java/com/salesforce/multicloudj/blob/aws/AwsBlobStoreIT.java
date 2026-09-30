@@ -2,11 +2,15 @@ package com.salesforce.multicloudj.blob.aws;
 
 import com.salesforce.multicloudj.blob.client.AbstractBlobStoreIT;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.common.aws.util.TestsUtilAws;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -39,10 +43,10 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
     public AbstractBlobStore createBlobStore(
         boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket) {
 
-      String accessKeyId = System.getenv().getOrDefault("ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
+      String accessKeyId = System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
       String secretAccessKey =
-          System.getenv().getOrDefault("SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
-      String sessionToken = System.getenv().getOrDefault("SESSION_TOKEN", "FAKE_SESSION_TOKEN");
+          System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
+      String sessionToken = System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN");
 
       if (!useValidCredentials) {
         accessKeyId = "invalidAccessKey";
@@ -113,6 +117,22 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
       return "x-amz-meta-" + key;
     }
 
+    /**
+     * Records the {@code x-amz-meta-sdk-logging-*} request headers as stub match conditions so the
+     * replay-mode upload IT verifies the SDK actually sends the service/tenant/correlation ids on
+     * the PUT (not just that a recorded HEAD response echoes them back). The create-if-absent
+     * precondition header is captured for the same reason. If the SDK stops sending one of these
+     * headers, the recorded PUT stub no longer matches and the IT fails.
+     */
+    @Override
+    public List<String> getRecordingCaptureHeaders() {
+      return List.of(
+          getMetadataHeader(SdkLoggingMetadataKeys.SERVICE_ID),
+          getMetadataHeader(SdkLoggingMetadataKeys.TENANT_ID),
+          getMetadataHeader(SdkLoggingMetadataKeys.CORRELATION_ID),
+          "If-None-Match");
+    }
+
     @Override
     public String getTaggingHeader() {
       return "x-amz-tagging";
@@ -126,6 +146,16 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
     @Override
     public String getKmsKeyId() {
       return "arn:aws:kms:us-west-2:654654370895:key/faa140af-8195-49c0-9f8a-f03e9fd47d89";
+    }
+
+    @Override
+    public Set<ChecksumMethod> getSupportedChecksumAlgorithmsForUpload() {
+      return Set.of(ChecksumMethod.CRC32C, ChecksumMethod.SHA256, ChecksumMethod.MD5);
+    }
+
+    @Override
+    public boolean isDirectoryUploadSupported() {
+      return false;
     }
 
     @Override

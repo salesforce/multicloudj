@@ -1,0 +1,25 @@
+{
+  "id" : "6abfbe98-0ee7-4d72-ba6d-cada02bb9e30",
+  "name" : "AliBlobStoreIT_testUpload_emptyContent-DELETE-15",
+  "request" : {
+    "url" : "/conformance-tests/upload/emptyContent_File",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A0F7FD3A38F1A3337063EAC",
+      "x-oss-server-time" : "53",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 21 May 2026 21:57:39 GMT"
+    }
+  },
+  "uuid" : "6abfbe98-0ee7-4d72-ba6d-cada02bb9e30",
+  "persistent" : true,
+  "insertionIndex" : 525
+}

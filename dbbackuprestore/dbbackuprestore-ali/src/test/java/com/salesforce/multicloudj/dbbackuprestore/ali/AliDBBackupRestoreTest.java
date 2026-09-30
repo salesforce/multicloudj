@@ -330,9 +330,8 @@ public class AliDBBackupRestoreTest {
   }
 
   @Test
-  void testGetException() {
-    Class<? extends SubstrateSdkException> result =
-        dbBackupRestore.getException(new RuntimeException("test"));
+  void testMapException() {
+    SubstrateSdkException result = dbBackupRestore.mapException(new RuntimeException("test"));
     assertNotNull(result);
   }
 

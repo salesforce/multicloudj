@@ -1,0 +1,33 @@
+{
+  "id" : "52b167bd-2bdd-4145-bb21-c903abfc1eb6",
+  "name" : "AwsBlobStoreIT_testUpdateObjectRetention_compliance_shorten_evenWithBypass_throws-GET-1",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/update/comp-shorten-bypass",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "retention" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPFJldGVudGlvbiB4bWxucz0iaHR0cDovL3MzLmFtYXpvbmF3cy5jb20vZG9jLzIwMDYtMDMtMDEvIj48TW9kZT5DT01QTElBTkNFPC9Nb2RlPjxSZXRhaW5VbnRpbERhdGU+MjAzMC0wNi0wMVQwMDowMDowMC4wMDBaPC9SZXRhaW5VbnRpbERhdGU+PC9SZXRlbnRpb24+",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "85GXV62KKD2J3FR5",
+      "x-amz-id-2" : "BzOXC2v9pIJtEEx6VufFbN6D5zvU3+J3ZjgOe5HoIQG5V7e6GgN5eZ+jW2ywxzcxkQheJn9uyjg=",
+      "Date" : "Mon, 11 May 2026 10:39:25 GMT"
+    }
+  },
+  "uuid" : "52b167bd-2bdd-4145-bb21-c903abfc1eb6",
+  "persistent" : true,
+  "insertionIndex" : 735
+}

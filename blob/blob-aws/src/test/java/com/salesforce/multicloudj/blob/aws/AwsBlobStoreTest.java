@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.blob.aws;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -21,12 +22,15 @@ import static org.mockito.Mockito.when;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -35,13 +39,18 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
@@ -49,6 +58,7 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -60,10 +70,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -82,6 +94,8 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
+import software.amazon.awssdk.http.SdkHttpResponse;
+import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
@@ -98,6 +112,8 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketVersioningRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketVersioningResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -110,6 +126,8 @@ import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectVersionsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectVersionsResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.ListPartsRequest;
@@ -120,6 +138,7 @@ import software.amazon.awssdk.services.s3.model.ObjectLockLegalHold;
 import software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetention;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
+import software.amazon.awssdk.services.s3.model.ObjectVersion;
 import software.amazon.awssdk.services.s3.model.Part;
 import software.amazon.awssdk.services.s3.model.PutObjectLegalHoldRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectLegalHoldResponse;
@@ -135,6 +154,7 @@ import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.model.UploadPartResponse;
+import software.amazon.awssdk.services.s3.paginators.ListObjectVersionsIterable;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
@@ -160,7 +180,7 @@ public class AwsBlobStoreTest {
               ClientOverrideConfiguration.Builder configBuilder =
                   mock(ClientOverrideConfiguration.Builder.class);
               when(configBuilder.retryStrategy(
-                      any(software.amazon.awssdk.retries.api.RetryStrategy.class)))
+                      any(RetryStrategy.class)))
                   .thenReturn(configBuilder);
               when(configBuilder.apiCallAttemptTimeout(any(Duration.class)))
                   .thenReturn(configBuilder);
@@ -183,27 +203,25 @@ public class AwsBlobStoreTest {
             .withSessionCredentials(sessionCreds)
             .build();
 
-    aws =
-        new AwsBlobStore.Builder()
-            .withTransformerSupplier(transformerSupplier)
-            .withCredentialsOverrider(credsOverrider)
-            .withBucket("bucket-1")
-            .withRegion("us-east-2")
-            .withEndpoint(URI.create("https://blob.endpoint.com"))
-            .withProxyEndpoint(URI.create("https://proxy.endpoint.com:443"))
-            .withSocketTimeout(Duration.ofMinutes(1))
-            .withIdleConnectionTimeout(Duration.ofMinutes(5))
-            .withMaxConnections(100)
-            .build();
+    AwsBlobStore.Builder builder1 = new AwsBlobStore.Builder();
+    builder1.withTransformerSupplier(transformerSupplier);
+    builder1.withCredentialsOverrider(credsOverrider);
+    builder1.withBucket("bucket-1");
+    builder1.withRegion("us-east-2");
+    builder1.withEndpoint(URI.create("https://blob.endpoint.com"));
+    builder1.withProxyEndpoint(URI.create("https://proxy.endpoint.com:443"));
+    builder1.withSocketTimeout(Duration.ofMinutes(1));
+    builder1.withIdleConnectionTimeout(Duration.ofMinutes(5));
+    builder1.withMaxConnections(100);
+    aws = builder1.build();
     credsOverrider =
         new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE).withRole("some-role").build();
-    aws =
-        new AwsBlobStore.Builder()
-            .withTransformerSupplier(transformerSupplier)
-            .withCredentialsOverrider(credsOverrider)
-            .withBucket("bucket-1")
-            .withRegion("us-east-2")
-            .build();
+    AwsBlobStore.Builder builder2 = new AwsBlobStore.Builder();
+    builder2.withTransformerSupplier(transformerSupplier);
+    builder2.withCredentialsOverrider(credsOverrider);
+    builder2.withBucket("bucket-1");
+    builder2.withRegion("us-east-2");
+    aws = builder2.build();
   }
 
   @AfterEach
@@ -291,8 +309,28 @@ public class AwsBlobStoreTest {
         AwsServiceException.builder()
             .awsErrorDetails(AwsErrorDetails.builder().errorCode("IncompleteSignature").build())
             .build();
-    Class<?> cls = aws.getException(awsServiceException);
-    assertEquals(cls, UnAuthorizedException.class);
+    assertInstanceOf(
+        UnAuthorizedException.class, aws.mapException(awsServiceException));
+
+    // An expired temporary/STS credential surfaces from S3 as HTTP 400 with error code
+    // "ExpiredToken" (and as "ExpiredTokenException" from other AWS services). It must be
+    // classified as an auth failure so callers can re-initialize their credential, not a
+    // generic UnknownException.
+    AwsServiceException expiredToken =
+        AwsServiceException.builder()
+            .statusCode(400)
+            .requestId("req-id")
+            .awsErrorDetails(AwsErrorDetails.builder().errorCode("ExpiredToken").build())
+            .build();
+    assertInstanceOf(UnAuthorizedException.class, aws.mapException(expiredToken));
+
+    AwsServiceException expiredTokenException =
+        AwsServiceException.builder()
+            .statusCode(400)
+            .requestId("req-id")
+            .awsErrorDetails(AwsErrorDetails.builder().errorCode("ExpiredTokenException").build())
+            .build();
+    assertInstanceOf(UnAuthorizedException.class, aws.mapException(expiredTokenException));
 
     AwsServiceException awsServiceException403NoRequestId =
         AwsServiceException.builder()
@@ -300,15 +338,21 @@ public class AwsBlobStoreTest {
             .requestId(null)
             .awsErrorDetails(AwsErrorDetails.builder().errorCode("AccessDenied").build())
             .build();
-    cls = aws.getException(awsServiceException403NoRequestId);
-    assertEquals(cls, UnAuthorizedException.class);
+    assertInstanceOf(
+        UnAuthorizedException.class, aws.mapException(awsServiceException403NoRequestId));
 
     SdkClientException sdkClientException = SdkClientException.builder().build();
-    cls = aws.getException(sdkClientException);
-    assertEquals(cls, InvalidArgumentException.class);
+    assertInstanceOf(
+        InvalidArgumentException.class, aws.mapException(sdkClientException));
 
-    cls = aws.getException(new IOException("Channel is closed"));
-    assertEquals(cls, UnknownException.class);
+    assertInstanceOf(
+        UnknownException.class, aws.mapException(new IOException("Channel is closed")));
+    assertInstanceOf(
+        FailedPreconditionException.class,
+        aws.mapException(buildS3Exception(412, "PreconditionFailed")));
+    assertInstanceOf(
+        ResourceConflictException.class,
+        aws.mapException(buildS3Exception(409, "ConditionalRequestConflict")));
   }
 
   private UploadRequest buildTestUploadRequest() {
@@ -330,6 +374,15 @@ public class AwsBlobStoreTest {
     return mockResponse;
   }
 
+  private S3Exception buildS3Exception(int statusCode, String errorCode) {
+    return (S3Exception)
+        S3Exception.builder()
+            .statusCode(statusCode)
+            .message(errorCode)
+            .awsErrorDetails(AwsErrorDetails.builder().errorCode(errorCode).build())
+            .build();
+  }
+
   @Test
   void testDoUploadInputStream() {
     doReturn(buildMockPutObjectResponse())
@@ -339,11 +392,55 @@ public class AwsBlobStoreTest {
   }
 
   @Test
+  void testDoUploadInputStreamWithoutContentLength() throws java.io.IOException {
+    // contentLength is optional on UploadRequest; when omitted, the request body handed to the
+    // S3 client must be an unknown-length stream, not a zero-length body.
+    doReturn(buildMockPutObjectResponse())
+        .when(mockS3Client)
+        .putObject((PutObjectRequest) any(), (RequestBody) any());
+
+    byte[] content = "payload-without-content-length".getBytes();
+    UploadRequest uploadRequest = new UploadRequest.Builder().withKey("object-1").build();
+
+    UploadResponse response =
+        aws.doUpload(uploadRequest, new java.io.ByteArrayInputStream(content));
+    assertEquals("object-1", response.getKey());
+
+    org.mockito.ArgumentCaptor<RequestBody> captor =
+        org.mockito.ArgumentCaptor.forClass(RequestBody.class);
+    verify(mockS3Client).putObject((PutObjectRequest) any(), captor.capture());
+    RequestBody captured = captor.getValue();
+    assertFalse(
+        captured.optionalContentLength().isPresent(),
+        "RequestBody must report unknown length when contentLength is not supplied");
+    try (InputStream streamed = captured.contentStreamProvider().newStream()) {
+      assertArrayEquals(content, streamed.readAllBytes());
+    }
+  }
+
+  @Test
   void testDoUploadByteArray() {
     doReturn(buildMockPutObjectResponse())
         .when(mockS3Client)
         .putObject((PutObjectRequest) any(), (RequestBody) any());
     verifyUploadTestResults(aws.doUpload(buildTestUploadRequest(), new byte[1024]));
+  }
+
+  @Test
+  void testDoUploadCreateIfAbsentCollisionPropagatesNativeException() {
+    S3Exception collision = buildS3Exception(412, "PreconditionFailed");
+    doThrow(collision)
+        .when(mockS3Client)
+        .putObject(any(PutObjectRequest.class), any(RequestBody.class));
+    UploadRequest request =
+        buildTestUploadRequest().toBuilder().withCreateIfAbsent(true).build();
+
+    S3Exception thrown =
+        assertThrows(
+            S3Exception.class,
+            () -> aws.doUpload(request, new byte[1024]));
+
+    assertEquals(collision, thrown);
   }
 
   @Test
@@ -422,7 +519,7 @@ public class AwsBlobStoreTest {
     verify(mockS3Client, times(1)).putObject(requestCaptor.capture(), (RequestBody) any());
     PutObjectRequest actualRequest = requestCaptor.getValue();
     assertEquals(
-        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C,
+        ChecksumAlgorithm.CRC32_C,
         actualRequest.checksumAlgorithm());
     assertEquals("AAAAAA==", actualRequest.checksumCRC32C());
 
@@ -554,6 +651,33 @@ public class AwsBlobStoreTest {
       } catch (IOException e) {
         Assertions.fail();
       }
+    }
+  }
+
+  @Test
+  void testDoDownloadPath_WithCreateParentPath() throws IOException {
+    Instant now = Instant.now();
+    setupMockGetObjectResponse(now, false);
+
+    Path rootPath = Path.of("tempCreateParentRoot");
+    try {
+      Files.createDirectories(rootPath);
+      DownloadRequest request =
+          DownloadRequest.builder()
+              .withKey("prefix-a/prefix-b/object-1")
+              .withVersionId("version-1")
+              .withRange(10L, 110L)
+              .withCreateParentPath(true)
+              .build();
+      DownloadResponse response = aws.doDownload(request, rootPath);
+      assertEquals("prefix-a/prefix-b/object-1", response.getKey());
+      // Verify the intermediate parent directories were created.
+      assertTrue(Files.exists(rootPath.resolve("prefix-a/prefix-b")));
+    } finally {
+      Files.deleteIfExists(rootPath.resolve("prefix-a/prefix-b/object-1"));
+      Files.deleteIfExists(rootPath.resolve("prefix-a/prefix-b"));
+      Files.deleteIfExists(rootPath.resolve("prefix-a"));
+      Files.deleteIfExists(rootPath);
     }
   }
 
@@ -1330,8 +1454,8 @@ public class AwsBlobStoreTest {
             .duration(Duration.ofHours(4))
             .build();
 
-    URL actualUrl = spyAws.doGeneratePresignedUrl(presignedUrlRequest);
-    assertEquals(url, actualUrl);
+    PresignedUrlResponse presignedResponse = spyAws.doPresign(presignedUrlRequest);
+    assertEquals(url, presignedResponse.getUrl());
   }
 
   @Test
@@ -1354,8 +1478,8 @@ public class AwsBlobStoreTest {
             .duration(Duration.ofHours(4))
             .build();
 
-    URL actualUrl = spyAws.doGeneratePresignedUrl(presignedUrlRequest);
-    assertEquals(url, actualUrl);
+    PresignedUrlResponse presignedResponse = spyAws.doPresign(presignedUrlRequest);
+    assertEquals(url, presignedResponse.getUrl());
   }
 
   @Test
@@ -1384,13 +1508,13 @@ public class AwsBlobStoreTest {
   void testDoDoesBucketExist() {
     HeadBucketResponse mockResponse = mock(HeadBucketResponse.class);
     when(mockS3Client.headBucket(
-        ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any()))
+        ArgumentMatchers.<Consumer<HeadBucketRequest.Builder>>any()))
         .thenReturn(mockResponse);
 
     boolean result = aws.doDoesBucketExist();
 
     verify(mockS3Client, times(1))
-        .headBucket(ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any());
+        .headBucket(ArgumentMatchers.<Consumer<HeadBucketRequest.Builder>>any());
     assertTrue(result);
 
     // Verify the error state - bucket doesn't exist (404)
@@ -1398,7 +1522,7 @@ public class AwsBlobStoreTest {
     doReturn(404).when(mockException).statusCode();
     doThrow(mockException)
         .when(mockS3Client)
-        .headBucket(ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any());
+        .headBucket(ArgumentMatchers.<Consumer<HeadBucketRequest.Builder>>any());
 
     result = aws.doDoesBucketExist();
     assertFalse(result);
@@ -1706,6 +1830,71 @@ public class AwsBlobStoreTest {
   }
 
   @Test
+  void testGetObjectLock_RetentionAbsent_LegalHoldPresent() {
+    String key = "test-key";
+    S3Exception noRetention =
+        (S3Exception)
+            S3Exception.builder()
+                .statusCode(404)
+                .awsErrorDetails(
+                    AwsErrorDetails.builder().errorCode("NoSuchObjectLockConfiguration").build())
+                .build();
+    GetObjectLegalHoldResponse legalHoldResponse =
+        GetObjectLegalHoldResponse.builder()
+            .legalHold(ObjectLockLegalHold.builder().status(ObjectLockLegalHoldStatus.ON).build())
+            .build();
+
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenThrow(noRetention);
+    when(mockS3Client.getObjectLegalHold(any(GetObjectLegalHoldRequest.class)))
+        .thenReturn(legalHoldResponse);
+
+    ObjectLockInfo result = aws.getObjectLock(key, null);
+
+    assertNotNull(result);
+    assertTrue(result.isLegalHold());
+    assertNull(result.getMode());
+    assertNull(result.getRetainUntilDate());
+  }
+
+  @Test
+  void testGetObjectLock_BothAbsent() {
+    String key = "test-key";
+    S3Exception noSuchLock =
+        (S3Exception)
+            S3Exception.builder()
+                .statusCode(404)
+                .awsErrorDetails(
+                    AwsErrorDetails.builder().errorCode("NoSuchObjectLockConfiguration").build())
+                .build();
+
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenThrow(noSuchLock);
+    when(mockS3Client.getObjectLegalHold(any(GetObjectLegalHoldRequest.class)))
+        .thenThrow(noSuchLock);
+
+    ObjectLockInfo result = aws.getObjectLock(key, null);
+
+    assertNull(result);
+  }
+
+  @Test
+  void testGetObjectLock_RetentionOtherS3Error_Propagates() {
+    String key = "test-key";
+    S3Exception accessDenied =
+        (S3Exception)
+            S3Exception.builder()
+                .statusCode(403)
+                .awsErrorDetails(AwsErrorDetails.builder().errorCode("AccessDenied").build())
+                .build();
+
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenThrow(accessDenied);
+
+    assertThrows(S3Exception.class, () -> aws.getObjectLock(key, null));
+  }
+
+  @Test
   void testUpdateObjectRetention_Success() {
     // Given
     String key = "test-key";
@@ -1862,6 +2051,103 @@ public class AwsBlobStoreTest {
   }
 
   @Test
+  void testHandleArchivedObjects_archivedObject() {
+    DownloadRequest request = new DownloadRequest.Builder()
+        .withKey("archived-key")
+        .withCheckArchived(true)
+        .build();
+
+    S3Exception s3Exception = mockS3ExceptionWithDeleteMarkerHeader(true);
+
+    ObjectVersion objectVersion = mock(ObjectVersion.class);
+    when(objectVersion.key()).thenReturn("archived-key");
+    when(objectVersion.versionId()).thenReturn("v123");
+
+    ListObjectVersionsResponse versionsResponse = mock(ListObjectVersionsResponse.class);
+    when(versionsResponse.versions()).thenReturn(List.of(objectVersion));
+    when(mockS3Client.listObjectVersions(any(ListObjectVersionsRequest.class)))
+        .thenReturn(versionsResponse);
+
+    when(mockS3Client.getObject(
+        any(GetObjectRequest.class),
+        ArgumentMatchers.<ResponseTransformer<GetObjectResponse, ?>>any()))
+        .thenThrow(s3Exception);
+
+    OutputStream out = new ByteArrayOutputStream();
+    ResourceNotFoundException thrown = assertThrows(
+        ResourceNotFoundException.class,
+        () -> aws.doDownload(request, out));
+
+    ArchiveInfo archiveInfo = thrown.getArchiveInfo();
+    assertNotNull(archiveInfo);
+    assertTrue(archiveInfo.isArchived());
+    assertEquals("v123", archiveInfo.getVersionId());
+  }
+
+  @Test
+  void testHandleArchivedObjectsHeader() {
+    DownloadRequest request = new DownloadRequest.Builder()
+        .withKey("missing-key")
+        .withCheckArchived(true)
+        .build();
+
+    S3Exception s3Exception = mockS3ExceptionWithDeleteMarkerHeader(false);
+
+    when(mockS3Client.getObject(
+        any(GetObjectRequest.class),
+        ArgumentMatchers.<ResponseTransformer<GetObjectResponse, ?>>any()))
+        .thenThrow(s3Exception);
+
+    OutputStream out = new ByteArrayOutputStream();
+    S3Exception thrown = assertThrows(
+        S3Exception.class,
+        () -> aws.doDownload(request, out));
+
+    assertEquals(404, thrown.statusCode());
+  }
+
+  @Test
+  void testHandleArchivedObjects_checkArchivedFalse() {
+    DownloadRequest request = new DownloadRequest.Builder()
+        .withKey("archived-key")
+        .withCheckArchived(false)
+        .build();
+
+    S3Exception s3Exception = mockS3ExceptionWithDeleteMarkerHeader(true);
+
+    when(mockS3Client.getObject(
+        any(GetObjectRequest.class),
+        ArgumentMatchers.<ResponseTransformer<GetObjectResponse, ?>>any()))
+        .thenThrow(s3Exception);
+
+    OutputStream out = new ByteArrayOutputStream();
+    S3Exception thrown = assertThrows(
+        S3Exception.class,
+        () -> aws.doDownload(request, out));
+
+    assertEquals(404, thrown.statusCode());
+  }
+
+  private S3Exception mockS3ExceptionWithDeleteMarkerHeader(boolean includeHeader) {
+    SdkHttpResponse sdkHttpResponse = mock(SdkHttpResponse.class);
+    if (includeHeader) {
+      when(sdkHttpResponse.firstMatchingHeader("x-amz-delete-marker"))
+          .thenReturn(Optional.of("true"));
+    } else {
+      when(sdkHttpResponse.firstMatchingHeader("x-amz-delete-marker"))
+          .thenReturn(Optional.empty());
+    }
+
+    AwsErrorDetails errorDetails = mock(AwsErrorDetails.class);
+    when(errorDetails.sdkHttpResponse()).thenReturn(sdkHttpResponse);
+
+    S3Exception s3Exception = mock(S3Exception.class);
+    when(s3Exception.statusCode()).thenReturn(404);
+    when(s3Exception.awsErrorDetails()).thenReturn(errorDetails);
+    return s3Exception;
+  }
+
+  @Test
   void testClose() {
     // When
     aws.close();
@@ -1869,4 +2155,386 @@ public class AwsBlobStoreTest {
     // Then
     verify(mockS3Client, times(1)).close();
   }
+
+  // ---- New overload: updateObjectRetention(String, String, ObjectRetentionConfig) ----
+
+  private GetObjectRetentionResponse currentRetention(
+      ObjectLockRetentionMode mode, Instant retainUntil) {
+    return GetObjectRetentionResponse.builder()
+        .retention(
+            ObjectLockRetention.builder().mode(mode).retainUntilDate(retainUntil).build())
+        .build();
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_governanceExtend_setsRetentionWithoutBypass() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(3600);
+    Instant later = current.plusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.GOVERNANCE, current));
+    when(mockS3Client.putObjectRetention(any(PutObjectRetentionRequest.class)))
+        .thenReturn(PutObjectRetentionResponse.builder().build());
+
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(later)
+            .build();
+
+    aws.updateObjectRetention(key, null, cfg);
+
+    ArgumentCaptor<PutObjectRetentionRequest> captor =
+        ArgumentCaptor.forClass(PutObjectRetentionRequest.class);
+    verify(mockS3Client).putObjectRetention(captor.capture());
+    PutObjectRetentionRequest sent = captor.getValue();
+    assertEquals(ObjectLockRetentionMode.GOVERNANCE, sent.retention().mode());
+    assertEquals(later, sent.retention().retainUntilDate());
+    org.junit.jupiter.api.Assertions.assertNull(sent.bypassGovernanceRetention());
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_governanceShortenWithBypass_setsBypassTrue() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(7200);
+    Instant earlier = current.minusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.GOVERNANCE, current));
+    when(mockS3Client.putObjectRetention(any(PutObjectRetentionRequest.class)))
+        .thenReturn(PutObjectRetentionResponse.builder().build());
+
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(earlier)
+            .bypassGovernanceRetention(Boolean.TRUE)
+            .build();
+
+    aws.updateObjectRetention(key, null, cfg);
+
+    ArgumentCaptor<PutObjectRetentionRequest> captor =
+        ArgumentCaptor.forClass(PutObjectRetentionRequest.class);
+    verify(mockS3Client).putObjectRetention(captor.capture());
+    assertEquals(Boolean.TRUE, captor.getValue().bypassGovernanceRetention());
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_governanceShortenNoBypass_throws() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(7200);
+    Instant earlier = current.minusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.GOVERNANCE, current));
+
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(earlier)
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class, () -> aws.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_complianceShortenEvenWithBypass_throws() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(7200);
+    Instant earlier = current.minusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.COMPLIANCE, current));
+
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.COMPLIANCE)
+            .retainUntilDate(earlier)
+            .bypassGovernanceRetention(Boolean.TRUE)
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class, () -> aws.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_modeDowngrade_throws() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(3600);
+    Instant later = current.plusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.COMPLIANCE, current));
+
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(later)
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class, () -> aws.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_modeUpgrade_withoutBypass_throws() {
+    // GOVERNANCE → COMPLIANCE upgrade requires bypassGovernanceRetention=true; rules helper
+    // rejects without it for uniform error reporting across providers.
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(3600);
+    Instant later = current.plusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.GOVERNANCE, current));
+
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.COMPLIANCE)
+            .retainUntilDate(later)
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class, () -> aws.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_modeUpgrade_withBypass_setsBypassTrue() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(3600);
+    Instant later = current.plusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.GOVERNANCE, current));
+    when(mockS3Client.putObjectRetention(any(PutObjectRetentionRequest.class)))
+        .thenReturn(PutObjectRetentionResponse.builder().build());
+
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.COMPLIANCE)
+            .retainUntilDate(later)
+            .bypassGovernanceRetention(Boolean.TRUE)
+            .build();
+
+    aws.updateObjectRetention(key, null, cfg);
+
+    ArgumentCaptor<PutObjectRetentionRequest> captor =
+        ArgumentCaptor.forClass(PutObjectRetentionRequest.class);
+    verify(mockS3Client).putObjectRetention(captor.capture());
+    assertEquals(ObjectLockRetentionMode.COMPLIANCE, captor.getValue().retention().mode());
+    assertEquals(Boolean.TRUE, captor.getValue().bypassGovernanceRetention());
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_noCurrentRetention_throws() {
+    String key = "test-key";
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(GetObjectRetentionResponse.builder().build());
+
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.now().plusSeconds(3600))
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class, () -> aws.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testDoListBlobVersions() {
+    String key = "obj-1";
+
+    ObjectVersion matchingVersion =
+        ObjectVersion.builder()
+            .key("obj-1")
+            .versionId("v1")
+            .eTag("etag-v1")
+            .size(123L)
+            .lastModified(Instant.now())
+            .build();
+    ObjectVersion nonMatchingVersion =
+        ObjectVersion.builder()
+            .key("obj-1-extra")
+            .versionId("v2")
+            .eTag("etag-v2")
+            .size(456L)
+            .lastModified(Instant.now())
+            .build();
+    ListObjectVersionsResponse versionsResponse =
+        ListObjectVersionsResponse.builder().versions(matchingVersion, nonMatchingVersion).build();
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(versionsResponse).iterator());
+    when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest request =
+        ListBlobVersionsRequest.builder()
+            .withKey(key)
+            .build();
+    Iterator<BlobMetadata> versions = aws.listBlobVersions(request);
+
+    assertTrue(versions.hasNext());
+    BlobMetadata metadata = versions.next();
+    assertEquals("obj-1", metadata.getKey());
+    assertEquals("v1", metadata.getVersionId());
+    assertEquals("etag-v1", metadata.getETag());
+    assertEquals(123L, metadata.getObjectSize());
+    assertFalse(versions.hasNext());
+  }
+
+  @Test
+  void testDoListBlobVersions_multiplePages() {
+    String key = "obj-1";
+
+    // Newest-first across pages, matching S3's ordering: page1 holds the newest version.
+    Instant t1 = Instant.parse("2024-01-01T00:00:00Z");
+    Instant t2 = Instant.parse("2024-01-02T00:00:00Z");
+    Instant t3 = Instant.parse("2024-01-03T00:00:00Z");
+    ObjectVersion version1 =
+        ObjectVersion.builder()
+            .key("obj-1")
+            .versionId("v1")
+            .eTag("etag-v1")
+            .size(100L)
+            .lastModified(t1)
+            .build();
+    ObjectVersion version2 =
+        ObjectVersion.builder()
+            .key("obj-1")
+            .versionId("v2")
+            .eTag("etag-v2")
+            .size(200L)
+            .lastModified(t2)
+            .build();
+    ObjectVersion version3 =
+        ObjectVersion.builder()
+            .key("obj-1")
+            .versionId("v3")
+            .eTag("etag-v3")
+            .size(300L)
+            .lastModified(t3)
+            .build();
+
+    ListObjectVersionsResponse page1 =
+        ListObjectVersionsResponse.builder().versions(version3).build();
+    ListObjectVersionsResponse page2 =
+        ListObjectVersionsResponse.builder().versions(version2, version1).build();
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(page1, page2).iterator());
+    when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    Iterator<BlobMetadata> versions = aws.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+
+    List<BlobMetadata> allVersions = new ArrayList<>();
+    versions.forEachRemaining(allVersions::add);
+
+    assertEquals(3, allVersions.size());
+    assertEquals("v3", allVersions.get(0).getVersionId());
+    assertEquals("v2", allVersions.get(1).getVersionId());
+    assertEquals("v1", allVersions.get(2).getVersionId());
+  }
+
+  @Test
+  void testDoListBlobVersions_emptyResult() {
+    String key = "obj-1";
+
+    ListObjectVersionsResponse emptyResponse =
+        ListObjectVersionsResponse.builder().versions(List.of()).build();
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(emptyResponse).iterator());
+    when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    Iterator<BlobMetadata> versions = aws.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+
+    assertFalse(versions.hasNext());
+  }
+
+  @Test
+  void testDoListBlobVersions_noSuchElementException() {
+    String key = "obj-1";
+
+    ListObjectVersionsResponse emptyResponse =
+        ListObjectVersionsResponse.builder().versions(List.of()).build();
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(emptyResponse).iterator());
+    when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    Iterator<BlobMetadata> versions = aws.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+
+    assertThrows(NoSuchElementException.class, versions::next);
+  }
+
+  @Test
+  void testGetBucketVersioning_enabled() {
+    when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
+        .thenReturn(
+            GetBucketVersioningResponse.builder()
+                .status(software.amazon.awssdk.services.s3.model.BucketVersioningStatus.ENABLED)
+                .build());
+
+    BucketVersioningConfiguration result = aws.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.ENABLED, result.getStatus());
+
+    ArgumentCaptor<GetBucketVersioningRequest> captor =
+        ArgumentCaptor.forClass(GetBucketVersioningRequest.class);
+    verify(mockS3Client, times(1)).getBucketVersioning(captor.capture());
+    assertEquals("bucket-1", captor.getValue().bucket());
+  }
+
+  @Test
+  void testGetBucketVersioning_suspended() {
+    when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
+        .thenReturn(
+            GetBucketVersioningResponse.builder()
+                .status(software.amazon.awssdk.services.s3.model.BucketVersioningStatus.SUSPENDED)
+                .build());
+
+    BucketVersioningConfiguration result = aws.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.SUSPENDED, result.getStatus());
+  }
+
+  @Test
+  void testGetBucketVersioning_neverConfiguredMapsToUnversioned() {
+    // S3 returns a response with no status element for a bucket that has never had versioning
+    // configured; the SDK surfaces this as a null status.
+    when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
+        .thenReturn(GetBucketVersioningResponse.builder().build());
+
+    BucketVersioningConfiguration result = aws.getBucketVersioning();
+
+    assertEquals(BucketVersioningStatus.UNVERSIONED, result.getStatus());
+  }
+
+  @Test
+  void testGetBucketVersioning_nonexistentBucketThrowsS3Exception() {
+    S3Exception noSuchBucket =
+        (S3Exception)
+            S3Exception.builder().message("NoSuchBucket").statusCode(404).build();
+    when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
+        .thenThrow(noSuchBucket);
+
+    assertThrows(S3Exception.class, () -> aws.getBucketVersioning());
+  }
+
+  @Test
+  void testGetBucketVersioning_serviceExceptionPropagates() {
+    AwsServiceException exception =
+        (AwsServiceException)
+            AwsServiceException.builder().message("boom").statusCode(500).build();
+    when(mockS3Client.getBucketVersioning(any(GetBucketVersioningRequest.class)))
+        .thenThrow(exception);
+
+    assertThrows(AwsServiceException.class, () -> aws.getBucketVersioning());
+  }
+
 }

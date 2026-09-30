@@ -1,0 +1,25 @@
+{
+  "id" : "c9bcfc3e-1676-42d2-af8c-270472e5efa5",
+  "name" : "AliBlobStoreIT_testList-DELETE-3",
+  "request" : {
+    "url" : "/conformance-tests/blob-for-list",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A0F7EF8B37E8133363188DF",
+      "x-oss-server-time" : "47",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 21 May 2026 21:54:00 GMT"
+    }
+  },
+  "uuid" : "c9bcfc3e-1676-42d2-af8c-270472e5efa5",
+  "persistent" : true,
+  "insertionIndex" : 152
+}

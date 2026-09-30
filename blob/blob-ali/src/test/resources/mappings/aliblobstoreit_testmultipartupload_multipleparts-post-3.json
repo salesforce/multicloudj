@@ -1,0 +1,47 @@
+{
+  "id" : "980069e2-7c76-4e7c-9720-59212065171a",
+  "name" : "AliBlobStoreIT_testMultipartUpload_multipleParts-POST-3",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-multipleParts",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "1193F808DD6D40DFAE9259A34AE86870"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>2B5C91AD399409EC9B409B66F5BB00FB</ETag></Part><Part><PartNumber>2</PartNumber><ETag>267C038CC2EC32FFD0EE2512FF5DA5A5</ETag></Part><Part><PartNumber>3</PartNumber><ETag>FE9E522B589EF23E2C49B65C0522CE97</ETag></Part><Part><PartNumber>4</PartNumber><ETag>00AD619297CCD041956FE69BE4251D30</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CompleteMultipartUploadResult>\n  <EncodingType>url</EncodingType>\n  <Location>https://chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com/conformance-tests/multipart-multipleParts</Location>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests%2Fmultipart-multipleParts</Key>\n  <ETag>\"BFA040D81294131557D89349E5E51658-4\"</ETag>\n</CompleteMultipartUploadResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A330427B899983130962D57",
+      "x-oss-server-time" : "73",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "11036478350852953674",
+      "ETag" : "\"BFA040D81294131557D89349E5E51658-4\"",
+      "Date" : "Wed, 17 Jun 2026 20:31:35 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "980069e2-7c76-4e7c-9720-59212065171a",
+  "persistent" : true,
+  "insertionIndex" : 169
+}

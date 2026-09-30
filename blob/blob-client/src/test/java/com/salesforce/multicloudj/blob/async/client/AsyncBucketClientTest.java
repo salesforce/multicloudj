@@ -4,12 +4,16 @@ import static com.salesforce.multicloudj.blob.async.driver.TestAsyncBlobStore.PR
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -22,6 +26,8 @@ import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.Checksum;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
@@ -32,18 +38,27 @@ import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
-import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -57,17 +72,21 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
+import org.slf4j.MDC;
 
 public class AsyncBucketClientTest {
 
@@ -76,16 +95,11 @@ public class AsyncBucketClientTest {
   private AsyncBucketClient client;
 
   private MockedStatic<ProviderSupplier> providerSupplier;
-  private MockedStatic<ExceptionHandler> mockedExceptionHandler;
 
   @BeforeEach
   void setup() {
-    mockedExceptionHandler = mockStatic(ExceptionHandler.class);
-    mockedExceptionHandler
-        .when(() -> ExceptionHandler.handleAndPropagate(any(), any()))
-        .thenThrow(UnAuthorizedException.class);
-
     mockBlobStore = mock(AsyncBlobStore.class);
+    doReturn(new UnAuthorizedException()).when(mockBlobStore).mapException(any());
     providerSupplier = mockStatic(ProviderSupplier.class);
     AsyncBlobStoreProvider.Builder mockBuilder = mock(AsyncBlobStoreProvider.Builder.class);
     when(mockBuilder.build()).thenReturn(mockBlobStore);
@@ -121,10 +135,6 @@ public class AsyncBucketClientTest {
     if (providerSupplier != null) {
       providerSupplier.close();
     }
-
-    if (mockedExceptionHandler != null) {
-      mockedExceptionHandler.close();
-    }
   }
 
   // Shorthand method to clean up verbose code:
@@ -146,6 +156,28 @@ public class AsyncBucketClientTest {
     assertInstanceOf(expectedType, error.getCause());
   }
 
+  private static OperationContext fullContext() {
+    return OperationContext.builder()
+        .correlationId("req-abc-123")
+        .serviceId("svc-42")
+        .tenantId("tenant-7")
+        .build();
+  }
+
+  private static Map<String, String> snapshotObservabilityMdc() {
+    Map<String, String> snapshot = new HashMap<>();
+    snapshot.put("correlation_id", MDC.get("correlation_id"));
+    snapshot.put("service_id", MDC.get("service_id"));
+    snapshot.put("tenant_id", MDC.get("tenant_id"));
+    return snapshot;
+  }
+
+  private static void assertContextPropagated(Map<String, String> capturedMdc) {
+    assertEquals("req-abc-123", capturedMdc.get("correlation_id"));
+    assertEquals("svc-42", capturedMdc.get("service_id"));
+    assertEquals("tenant-7", capturedMdc.get("tenant_id"));
+  }
+
   @Test
   void testUploadInputStream() throws ExecutionException, InterruptedException {
     UploadResponse expectedResponse = UploadResponse.builder().eTag("eTag-1").build();
@@ -157,7 +189,8 @@ public class AsyncBucketClientTest {
         UploadRequest.builder().withKey("object-1").withContentLength(content.length).build();
 
     UploadResponse actualResponse = client.upload(request, inputStream).get();
-    verify(mockBlobStore, times(1)).upload(eq(request), eq(inputStream));
+    verify(mockBlobStore, times(1))
+        .upload(argThat(uploadRequestEnrichedWith("object-1")), eq(inputStream));
     assertEquals(expectedResponse, actualResponse);
   }
 
@@ -171,7 +204,8 @@ public class AsyncBucketClientTest {
         UploadRequest.builder().withKey("object-1").withContentLength(content.length).build();
 
     UploadResponse actualResponse = client.upload(request, content).get();
-    verify(mockBlobStore, times(1)).upload(eq(request), eq(content));
+    verify(mockBlobStore, times(1))
+        .upload(argThat(uploadRequestEnrichedWith("object-1")), eq(content));
     assertEquals(expectedResponse, actualResponse);
   }
 
@@ -185,7 +219,8 @@ public class AsyncBucketClientTest {
         UploadRequest.builder().withKey("object-1").withContentLength(1024L).build();
 
     UploadResponse actualResponse = client.upload(request, file).get();
-    verify(mockBlobStore, times(1)).upload(eq(request), eq(file));
+    verify(mockBlobStore, times(1))
+        .upload(argThat(uploadRequestEnrichedWith("object-1")), eq(file));
     assertEquals(expectedResponse, actualResponse);
   }
 
@@ -199,8 +234,23 @@ public class AsyncBucketClientTest {
         UploadRequest.builder().withKey("object-1").withContentLength(1024L).build();
 
     UploadResponse actualResponse = client.upload(request, path).get();
-    verify(mockBlobStore, times(1)).upload(eq(request), eq(path));
+    verify(mockBlobStore, times(1))
+        .upload(argThat(uploadRequestEnrichedWith("object-1")), eq(path));
     assertEquals(expectedResponse, actualResponse);
+  }
+
+  /**
+   * Matches an {@link UploadRequest} whose key matches and whose {@link
+   * com.salesforce.multicloudj.common.observability.OperationContext} has been populated by the
+   * SDK with a non-null correlation id (so the provider's transformer can persist it on the
+   * blob's stored metadata under {@code BlobMetadataKeys.CORRELATION_ID}).
+   */
+  private static org.mockito.ArgumentMatcher<UploadRequest> uploadRequestEnrichedWith(String key) {
+    return req ->
+        req != null
+            && key.equals(req.getKey())
+            && req.getOperationContext() != null
+            && req.getOperationContext().getCorrelationId() != null;
   }
 
   @Test
@@ -211,22 +261,106 @@ public class AsyncBucketClientTest {
     when(mockBlobStore.upload(any(), any(byte[].class))).thenReturn(failure);
     when(mockBlobStore.upload(any(), any(File.class))).thenReturn(failure);
     when(mockBlobStore.upload(any(), any(Path.class))).thenReturn(failure);
+    UploadRequest request = UploadRequest.builder().withKey("object-1").build();
 
-    var result = client.upload(mock(UploadRequest.class), mock(InputStream.class));
+    var result = client.upload(request, mock(InputStream.class));
     assertFailed(result, UnAuthorizedException.class);
-    result = client.upload(mock(UploadRequest.class), "Test data".getBytes());
+    result = client.upload(request, "Test data".getBytes());
     assertFailed(result, UnAuthorizedException.class);
-    result = client.upload(mock(UploadRequest.class), new File("test.txt"));
+    result = client.upload(request, new File("test.txt"));
     assertFailed(result, UnAuthorizedException.class);
-    result = client.upload(mock(UploadRequest.class), Paths.get("test.txt"));
+    result = client.upload(request, Paths.get("test.txt"));
     assertFailed(result, UnAuthorizedException.class);
+  }
+
+  @Test
+  void testHandleExceptionPreservesCommonExceptionMappingBehavior() {
+    RuntimeException cause = new RuntimeException("conditional upload failed");
+    CompletionException wrapper = new CompletionException(cause);
+    doAnswer(invocation -> new SubstrateSdkException(invocation.getArgument(0, Throwable.class)))
+        .when(mockBlobStore)
+        .mapException(any());
+
+    SubstrateSdkException mapped =
+        assertThrows(
+            SubstrateSdkException.class,
+            () -> client.handleException(wrapper));
+
+    assertSame(wrapper, mapped.getCause());
+    verify(mockBlobStore).mapException(wrapper);
+  }
+
+  @Test
+  void testRegularUploadPreservesCommonExceptionMappingBehavior() {
+    RuntimeException nativeFailure = new RuntimeException("upload failed");
+    CompletionException wrapper = new CompletionException(nativeFailure);
+    SubstrateSdkException expectedMapping = new SubstrateSdkException(wrapper);
+    when(mockBlobStore.upload(any(), any(byte[].class)))
+        .thenReturn(CompletableFuture.failedFuture(wrapper));
+    doReturn(expectedMapping).when(mockBlobStore).mapException(wrapper);
+    UploadRequest request = UploadRequest.builder().withKey("object-1").build();
+
+    ExecutionException outer =
+        assertThrows(
+            ExecutionException.class,
+            () -> client.upload(request, "content".getBytes()).get());
+
+    assertSame(expectedMapping, outer.getCause());
+    verify(mockBlobStore).mapException(wrapper);
+    verify(mockBlobStore, times(0)).mapException(nativeFailure);
+  }
+
+  @Test
+  void testCreateIfAbsentMapsWrappedFailedPreconditionAtUploadBoundary() {
+    RuntimeException nativeFailure = new RuntimeException("precondition failed");
+    CompletionException wrapper = new CompletionException(nativeFailure);
+    when(mockBlobStore.upload(any(), any(byte[].class)))
+        .thenReturn(CompletableFuture.failedFuture(wrapper));
+    doReturn(new FailedPreconditionException(nativeFailure))
+        .when(mockBlobStore)
+        .mapException(nativeFailure);
+    UploadRequest request =
+        UploadRequest.builder().withKey("object-1").withCreateIfAbsent(true).build();
+
+    ExecutionException outer =
+        assertThrows(
+            ExecutionException.class,
+            () -> client.upload(request, "content".getBytes()).get());
+    ResourceAlreadyExistsException exception =
+        assertInstanceOf(ResourceAlreadyExistsException.class, outer.getCause());
+
+    assertSame(nativeFailure, exception.getCause());
+    assertFalse(exception.isRetryable());
+  }
+
+  @Test
+  void testCreateIfAbsentMakesWrappedConditionalConflictRetryableAtUploadBoundary() {
+    RuntimeException nativeFailure = new RuntimeException("conditional request conflict");
+    CompletionException wrapper = new CompletionException(nativeFailure);
+    when(mockBlobStore.upload(any(), any(byte[].class)))
+        .thenReturn(CompletableFuture.failedFuture(wrapper));
+    doReturn(new ResourceConflictException(nativeFailure))
+        .when(mockBlobStore)
+        .mapException(nativeFailure);
+    UploadRequest request =
+        UploadRequest.builder().withKey("object-1").withCreateIfAbsent(true).build();
+
+    ExecutionException outer =
+        assertThrows(
+            ExecutionException.class,
+            () -> client.upload(request, "content".getBytes()).get());
+    ResourceConflictException exception =
+        assertInstanceOf(ResourceConflictException.class, outer.getCause());
+
+    assertSame(nativeFailure, exception.getCause());
+    assertTrue(exception.isRetryable());
   }
 
   @Test
   void testDownloadOutputStream() throws ExecutionException, InterruptedException {
     OutputStream outputStream = mock(OutputStream.class);
     DownloadRequest request = new DownloadRequest.Builder().withKey("object-1").build();
-    DownloadResponse response = mock(DownloadResponse.class);
+    DownloadResponse response = DownloadResponse.builder().key("object-1").build();
     when(mockBlobStore.download(any(), any(OutputStream.class))).thenReturn(future(response));
     client.download(request, outputStream).get();
     verify(mockBlobStore, times(1)).download(eq(request), eq(outputStream));
@@ -236,7 +370,7 @@ public class AsyncBucketClientTest {
   void testDownloadByteArrayWrapper() throws ExecutionException, InterruptedException {
     ByteArray byteArray = new ByteArray();
     DownloadRequest request = new DownloadRequest.Builder().withKey("object-1").build();
-    DownloadResponse response = mock(DownloadResponse.class);
+    DownloadResponse response = DownloadResponse.builder().key("object-1").build();
     when(mockBlobStore.download(any(), any(ByteArray.class))).thenReturn(future(response));
     client.download(request, byteArray).get();
     verify(mockBlobStore, times(1)).download(eq(request), eq(byteArray));
@@ -246,7 +380,7 @@ public class AsyncBucketClientTest {
   void testDownloadFile() throws ExecutionException, InterruptedException {
     File file = new File("testFile.txt");
     DownloadRequest request = new DownloadRequest.Builder().withKey("object-1").build();
-    DownloadResponse response = mock(DownloadResponse.class);
+    DownloadResponse response = DownloadResponse.builder().key("object-1").build();
     when(mockBlobStore.download(any(), any(File.class))).thenReturn(future(response));
     client.download(request, file).get();
     verify(mockBlobStore, times(1)).download(eq(request), eq(file));
@@ -256,7 +390,7 @@ public class AsyncBucketClientTest {
   void testDownloadPath() throws ExecutionException, InterruptedException {
     Path output = mock(Path.class);
     DownloadRequest request = new DownloadRequest.Builder().withKey("object-1").build();
-    DownloadResponse response = mock(DownloadResponse.class);
+    DownloadResponse response = DownloadResponse.builder().key("object-1").build();
     when(mockBlobStore.download(any(), any(Path.class))).thenReturn(future(response));
     client.download(request, output).get();
     verify(mockBlobStore, times(1)).download(eq(request), eq(output));
@@ -414,9 +548,13 @@ public class AsyncBucketClientTest {
         new MultipartUploadRequest.Builder().withKey("object-1").build();
     doReturn(future(mock(MultipartUpload.class)))
         .when(mockBlobStore)
-        .initiateMultipartUpload(request);
+        .initiateMultipartUpload(any(MultipartUploadRequest.class));
     client.initiateMultipartUpload(request);
-    verify(mockBlobStore, times(1)).initiateMultipartUpload(request);
+    // The client forwards a request enriched with the resolved OperationContext, so match by key
+    // rather than by object identity.
+    verify(mockBlobStore, times(1))
+        .initiateMultipartUpload(
+            argThat((MultipartUploadRequest req) -> "object-1".equals(req.getKey())));
   }
 
   @Test
@@ -424,7 +562,9 @@ public class AsyncBucketClientTest {
     MultipartUploadRequest request =
         new MultipartUploadRequest.Builder().withKey("object-1").build();
     CompletableFuture<Void> failure = CompletableFuture.failedFuture(new RuntimeException());
-    doReturn(failure).when(mockBlobStore).initiateMultipartUpload(request);
+    doReturn(failure)
+        .when(mockBlobStore)
+        .initiateMultipartUpload(any(MultipartUploadRequest.class));
     assertFailed(client.initiateMultipartUpload(request), UnAuthorizedException.class);
   }
 
@@ -524,6 +664,492 @@ public class AsyncBucketClientTest {
     CompletableFuture<Void> failure = CompletableFuture.failedFuture(new RuntimeException());
     doReturn(failure).when(mockBlobStore).getTags("object-1");
     assertFailed(client.getTags("object-1"), UnAuthorizedException.class);
+  }
+
+  // ---- OperationContext propagation tests --------------------------------
+  // Each captures the observability MDC at the moment the driver is invoked (when the tracer has
+  // set it) and asserts every id in the supplied OperationContext reached the MDC. Passing null
+  // for the context in the client overload would regress these to an empty correlation id.
+
+  @Test
+  void testDeleteWithOperationContext() throws ExecutionException, InterruptedException {
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(
+            invocation -> {
+              captured.putAll(snapshotObservabilityMdc());
+              return futureVoid();
+            })
+        .when(mockBlobStore)
+        .delete(eq("object-1"), eq("version-1"));
+    client.delete("object-1", "version-1", fullContext()).get();
+    verify(mockBlobStore, times(1)).delete(eq("object-1"), eq("version-1"));
+    assertContextPropagated(captured);
+  }
+
+  @Test
+  void testBulkDeleteWithOperationContext() throws ExecutionException, InterruptedException {
+    List<BlobIdentifier> objects = List.of(new BlobIdentifier("object-1", "version-1"));
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(
+            invocation -> {
+              captured.putAll(snapshotObservabilityMdc());
+              return futureVoid();
+            })
+        .when(mockBlobStore)
+        .delete(eq(objects));
+    client.delete(objects, fullContext()).get();
+    verify(mockBlobStore, times(1)).delete(eq(objects));
+    assertContextPropagated(captured);
+  }
+
+  @Test
+  void testGetMetadataWithOperationContext() throws ExecutionException, InterruptedException {
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(
+            invocation -> {
+              captured.putAll(snapshotObservabilityMdc());
+              return future(BlobMetadata.builder().key("object-1").build());
+            })
+        .when(mockBlobStore)
+        .getMetadata(eq("object-1"), eq("version-1"));
+    client.getMetadata("object-1", "version-1", fullContext()).get();
+    verify(mockBlobStore, times(1)).getMetadata(eq("object-1"), eq("version-1"));
+    assertContextPropagated(captured);
+  }
+
+  /**
+   * The client stamps the resolved correlationId onto the {@link BlobMetadata} returned by the
+   * driver by rebuilding via {@code toBuilder()}. Populate every field to a distinct non-default
+   * value and assert that every field survives the rebuild — the only field that should differ is
+   * {@code correlationId}, which is overwritten with the caller's OperationContext value. Guards
+   * against a field being silently dropped from the rebuild path.
+   */
+  @Test
+  void testGetMetadataPreservesAllFieldsWhenStampingCorrelationId()
+      throws ExecutionException, InterruptedException {
+    Instant lastModified = Instant.parse("2026-01-15T10:30:00Z");
+    Instant createdTime = Instant.parse("2026-01-10T08:00:00Z");
+    Instant retainUntil = Instant.parse("2027-01-01T00:00:00Z");
+    byte[] md5 = new byte[] {1, 2, 3, 4};
+    Map<String, String> userMetadata = Map.of("meta-a", "value-a", "meta-b", "value-b");
+    ObjectLockInfo lockInfo =
+        ObjectLockInfo.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(true)
+            .useEventBasedHold(true)
+            .build();
+    Checksum checksum =
+        Checksum.builder().algorithm(ChecksumMethod.CRC32C).value("chk-value").build();
+    BlobMetadata fromDriver =
+        BlobMetadata.builder()
+            .key("object-1")
+            .versionId("v1")
+            .eTag("etag-1")
+            .objectSize(42L)
+            .metadata(userMetadata)
+            .lastModified(lastModified)
+            .createdTime(createdTime)
+            .md5(md5)
+            .contentType("application/octet-stream")
+            .objectLockInfo(lockInfo)
+            .checksum(checksum)
+            .correlationId("driver-supplied-id")
+            .build();
+    when(mockBlobStore.getMetadata("object-1", "v1")).thenReturn(future(fromDriver));
+
+    BlobMetadata actual = client.getMetadata("object-1", "v1", fullContext()).get();
+
+    assertEquals(fromDriver.getKey(), actual.getKey());
+    assertEquals(fromDriver.getVersionId(), actual.getVersionId());
+    assertEquals(fromDriver.getETag(), actual.getETag());
+    assertEquals(fromDriver.getObjectSize(), actual.getObjectSize());
+    assertEquals(fromDriver.getMetadata(), actual.getMetadata());
+    assertEquals(fromDriver.getLastModified(), actual.getLastModified());
+    assertEquals(fromDriver.getCreatedTime(), actual.getCreatedTime());
+    assertEquals(fromDriver.getMd5(), actual.getMd5());
+    assertEquals(fromDriver.getContentType(), actual.getContentType());
+    assertEquals(fromDriver.getObjectLockInfo(), actual.getObjectLockInfo());
+    assertEquals(fromDriver.getChecksum(), actual.getChecksum());
+    assertEquals("req-abc-123", actual.getCorrelationId());
+  }
+
+  /**
+   * The client stamps the resolved correlationId onto the {@link UploadResponse} returned by the
+   * driver by rebuilding via {@code toBuilder()}. Populate every field to a distinct non-default
+   * value and assert that every field survives the rebuild — the only field that should differ is
+   * {@code correlationId}, which is overwritten with the caller's OperationContext value. Guards
+   * against a field being silently dropped from the rebuild path.
+   */
+  @Test
+  void testUploadPreservesAllFieldsWhenStampingCorrelationId()
+      throws ExecutionException, InterruptedException {
+    UploadResponse fromDriver =
+        UploadResponse.builder()
+            .key("object-1")
+            .versionId("v1")
+            .eTag("etag-1")
+            .checksumValue("chk-value")
+            .correlationId("driver-supplied-id")
+            .build();
+    when(mockBlobStore.upload(any(UploadRequest.class), any(byte[].class)))
+        .thenReturn(future(fromDriver));
+    UploadRequest request =
+        UploadRequest.builder().withKey("object-1").withOperationContext(fullContext()).build();
+
+    UploadResponse actual = client.upload(request, "test data".getBytes()).get();
+
+    assertEquals(fromDriver.getKey(), actual.getKey());
+    assertEquals(fromDriver.getVersionId(), actual.getVersionId());
+    assertEquals(fromDriver.getETag(), actual.getETag());
+    assertEquals(fromDriver.getChecksumValue(), actual.getChecksumValue());
+    assertEquals("req-abc-123", actual.getCorrelationId());
+  }
+
+  /**
+   * The client stamps the resolved correlationId onto the {@link DownloadResponse} returned by
+   * the driver — both at the top level and on the nested {@link BlobMetadata}. Populate every
+   * field to a distinct non-default value and assert that every field survives the rebuild, that
+   * the top-level correlationId is overwritten with the caller's OperationContext value, and that
+   * the nested metadata's correlationId is also stamped. The nested rebuild is intentional — a
+   * plain {@code toBuilder().correlationId(...)} would shallow-copy the driver's original
+   * (unstamped) metadata. Guards against a field being silently dropped from the rebuild path.
+   */
+  @Test
+  void testDownloadPreservesAllFieldsWhenStampingCorrelationId()
+      throws ExecutionException, InterruptedException {
+    BlobMetadata nestedMetadata =
+        BlobMetadata.builder()
+            .key("object-1")
+            .versionId("v1")
+            .eTag("etag-1")
+            .correlationId("driver-supplied-md-id")
+            .build();
+    InputStream inputStream = mock(InputStream.class);
+    DownloadResponse fromDriver =
+        DownloadResponse.builder()
+            .key("object-1")
+            .metadata(nestedMetadata)
+            .inputStream(inputStream)
+            .correlationId("driver-supplied-dl-id")
+            .build();
+    when(mockBlobStore.download(any(DownloadRequest.class))).thenReturn(future(fromDriver));
+    DownloadRequest request =
+        new DownloadRequest.Builder()
+            .withKey("object-1")
+            .withOperationContext(fullContext())
+            .build();
+
+    DownloadResponse actual = client.download(request).get();
+
+    assertEquals(fromDriver.getKey(), actual.getKey());
+    assertNotNull(actual.getMetadata());
+    assertEquals(nestedMetadata.getKey(), actual.getMetadata().getKey());
+    assertEquals(nestedMetadata.getVersionId(), actual.getMetadata().getVersionId());
+    assertEquals(nestedMetadata.getETag(), actual.getMetadata().getETag());
+    assertEquals("req-abc-123", actual.getMetadata().getCorrelationId());
+    assertEquals(inputStream, actual.getInputStream());
+    assertEquals("req-abc-123", actual.getCorrelationId());
+  }
+
+  @Test
+  void testGetTagsWithOperationContext() throws ExecutionException, InterruptedException {
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(
+            invocation -> {
+              captured.putAll(snapshotObservabilityMdc());
+              return future(Map.of("key1", "value1"));
+            })
+        .when(mockBlobStore)
+        .getTags(eq("object-1"));
+    client.getTags("object-1", fullContext()).get();
+    verify(mockBlobStore, times(1)).getTags(eq("object-1"));
+    assertContextPropagated(captured);
+  }
+
+  @Test
+  void testUploadMultipartPartWithOperationContext()
+      throws ExecutionException, InterruptedException {
+    MultipartUpload mpu =
+        MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
+    MultipartPart mpp = new MultipartPart(1, null, 0);
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(
+            invocation -> {
+              captured.putAll(snapshotObservabilityMdc());
+              return future(mock(UploadPartResponse.class));
+            })
+        .when(mockBlobStore)
+        .uploadMultipartPart(eq(mpu), eq(mpp));
+    client.uploadMultipartPart(mpu, mpp, fullContext()).get();
+    verify(mockBlobStore, times(1)).uploadMultipartPart(eq(mpu), eq(mpp));
+    assertContextPropagated(captured);
+  }
+
+  @Test
+  void testCompleteMultipartUploadWithOperationContext()
+      throws ExecutionException, InterruptedException {
+    MultipartUpload mpu =
+        MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
+    List<UploadPartResponse> parts = List.of(new UploadPartResponse(1, "etag", 0));
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(
+            invocation -> {
+              captured.putAll(snapshotObservabilityMdc());
+              return future(mock(MultipartUploadResponse.class));
+            })
+        .when(mockBlobStore)
+        .completeMultipartUpload(eq(mpu), eq(parts));
+    client.completeMultipartUpload(mpu, parts, fullContext()).get();
+    verify(mockBlobStore, times(1)).completeMultipartUpload(eq(mpu), eq(parts));
+    assertContextPropagated(captured);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testListMultipartUploadWithOperationContext()
+      throws ExecutionException, InterruptedException {
+    MultipartUpload mpu =
+        MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(
+            invocation -> {
+              captured.putAll(snapshotObservabilityMdc());
+              return future(mock(List.class));
+            })
+        .when(mockBlobStore)
+        .listMultipartUpload(eq(mpu));
+    client.listMultipartUpload(mpu, fullContext()).get();
+    verify(mockBlobStore, times(1)).listMultipartUpload(eq(mpu));
+    assertContextPropagated(captured);
+  }
+
+  @Test
+  void testAbortMultipartUploadWithOperationContext()
+      throws ExecutionException, InterruptedException {
+    MultipartUpload mpu =
+        MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(
+            invocation -> {
+              captured.putAll(snapshotObservabilityMdc());
+              return futureVoid();
+            })
+        .when(mockBlobStore)
+        .abortMultipartUpload(eq(mpu));
+    client.abortMultipartUpload(mpu, fullContext()).get();
+    verify(mockBlobStore, times(1)).abortMultipartUpload(eq(mpu));
+    assertContextPropagated(captured);
+  }
+
+  @Test
+  void testListPageWithOperationContext() throws ExecutionException, InterruptedException {
+    ListBlobsPageRequest request =
+        new ListBlobsPageRequest.Builder().withOperationContext(fullContext()).build();
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(
+            invocation -> {
+              captured.putAll(snapshotObservabilityMdc());
+              return future(new ListBlobsPageResponse(List.of(), false, null));
+            })
+        .when(mockBlobStore)
+        .listPage(eq(request));
+    client.listPage(request).get();
+    verify(mockBlobStore, times(1)).listPage(eq(request));
+    assertContextPropagated(captured);
+  }
+
+  @Test
+  void testInitiateMultipartUploadWithOperationContext()
+      throws ExecutionException, InterruptedException {
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withOperationContext(fullContext())
+            .build();
+    Map<String, String> captured = new HashMap<>();
+    doAnswer(
+            invocation -> {
+              captured.putAll(snapshotObservabilityMdc());
+              return future(mock(MultipartUpload.class));
+            })
+        .when(mockBlobStore)
+        .initiateMultipartUpload(any(MultipartUploadRequest.class));
+    client.initiateMultipartUpload(request).get();
+    verify(mockBlobStore, times(1)).initiateMultipartUpload(any(MultipartUploadRequest.class));
+    assertContextPropagated(captured);
+  }
+
+  /**
+   * The initiateMultipartUpload path carries the resolved OperationContext into the request
+   * forwarded to the driver, so the driver's transformer can stamp the correlation id onto the
+   * multipart object's metadata (matching the upload path).
+   */
+  @Test
+  void testInitiateMultipartUploadEnrichesRequestWithResolvedContext()
+      throws ExecutionException, InterruptedException {
+    // Populate every field the client's withResolvedContext copies so we can assert none is
+    // silently dropped while the request is rebuilt to swap in the resolved OperationContext.
+    // A dropped field (e.g. metadata or tags) would defeat the metadata stamping this path adds.
+    Map<String, String> metadata = Map.of("meta-1", "meta-value-1");
+    Map<String, String> tags = Map.of("tag-1", "tag-value-1");
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2030-01-01T00:00:00Z"))
+            .legalHold(true)
+            .build();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(metadata)
+            .withTags(tags)
+            .withKmsKeyId("kms-key-1")
+            .withUseKmsManagedKey(true)
+            .withChecksumEnabled(true)
+            .withChecksumAlgorithm(ChecksumMethod.SHA256)
+            .withObjectLock(objectLock)
+            .withContentType("application/json")
+            .withOperationContext(fullContext())
+            .build();
+    doReturn(future(mock(MultipartUpload.class)))
+        .when(mockBlobStore)
+        .initiateMultipartUpload(any(MultipartUploadRequest.class));
+
+    client.initiateMultipartUpload(request).get();
+
+    ArgumentCaptor<MultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(MultipartUploadRequest.class);
+    verify(mockBlobStore, times(1)).initiateMultipartUpload(captor.capture());
+    MultipartUploadRequest forwarded = captor.getValue();
+
+    // The resolved context is swapped in.
+    assertEquals("req-abc-123", forwarded.getOperationContext().getCorrelationId());
+    // Every other field must survive the rebuild unchanged.
+    assertEquals("object-1", forwarded.getKey());
+    assertEquals(metadata, forwarded.getMetadata());
+    assertEquals(tags, forwarded.getTags());
+    assertEquals("kms-key-1", forwarded.getKmsKeyId());
+    assertTrue(forwarded.isUseKmsManagedKey());
+    assertTrue(forwarded.isChecksumEnabled());
+    assertEquals(ChecksumMethod.SHA256, forwarded.getChecksumAlgorithm());
+    assertSame(objectLock, forwarded.getObjectLock());
+    assertEquals("application/json", forwarded.getContentType());
+  }
+
+  /**
+   * Directly exercises the multipart rebuild branch of {@code withResolvedContext}: when the
+   * resolved context differs from the request's own context, the request is rebuilt from scratch.
+   * Every field the builder copies must be preserved — a dropped field (e.g. metadata or tags)
+   * would silently defeat the metadata stamping this path adds. The higher-level client test can
+   * short-circuit past this branch, so it is asserted here explicitly.
+   */
+  @Test
+  void testWithResolvedContextMultipartRebuildPreservesAllFields() {
+    Map<String, String> metadata = Map.of("meta-1", "meta-value-1");
+    Map<String, String> tags = Map.of("tag-1", "tag-value-1");
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2030-01-01T00:00:00Z"))
+            .legalHold(true)
+            .build();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(metadata)
+            .withTags(tags)
+            .withKmsKeyId("kms-key-1")
+            .withUseKmsManagedKey(true)
+            .withChecksumEnabled(true)
+            .withChecksumAlgorithm(ChecksumMethod.SHA256)
+            .withObjectLock(objectLock)
+            .withContentType("application/json")
+            .withOperationContext(OperationContext.builder().correlationId("original").build())
+            .build();
+
+    // A distinct context instance forces the rebuild branch (not the identity short-circuit).
+    OperationContext resolved = fullContext();
+    MultipartUploadRequest rebuilt = AsyncBucketClient.withResolvedContext(request, resolved);
+
+    assertSame(resolved, rebuilt.getOperationContext());
+    assertEquals("object-1", rebuilt.getKey());
+    assertEquals(metadata, rebuilt.getMetadata());
+    assertEquals(tags, rebuilt.getTags());
+    assertEquals("kms-key-1", rebuilt.getKmsKeyId());
+    assertTrue(rebuilt.isUseKmsManagedKey());
+    assertTrue(rebuilt.isChecksumEnabled());
+    assertEquals(ChecksumMethod.SHA256, rebuilt.getChecksumAlgorithm());
+    assertSame(objectLock, rebuilt.getObjectLock());
+    assertEquals("application/json", rebuilt.getContentType());
+  }
+
+  /**
+   * Direct rebuild test for {@link AsyncBucketClient#withResolvedContext(UploadRequest,
+   * OperationContext)} — companion to
+   * {@link #testWithResolvedContextMultipartRebuildPreservesAllFields}. Populates every
+   * {@link UploadRequest} field to a distinct non-default value and asserts each survives
+   * {@link UploadRequest#toBuilder()}. A dropped field in the hand-written {@code toBuilder} would
+   * silently lose upload configuration (KMS keys, checksum, object-lock retention) on every
+   * enriched upload call.
+   */
+  @Test
+  void testWithResolvedContextUploadRebuildPreservesAllFields() {
+    Map<String, String> metadata = Map.of("meta-1", "meta-value-1");
+    Map<String, String> tags = Map.of("tag-1", "tag-value-1");
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2030-01-01T00:00:00Z"))
+            .legalHold(true)
+            .build();
+    UploadRequest request =
+        UploadRequest.builder()
+            .withKey("object-1")
+            .withContentLength(1024L)
+            .withMetadata(metadata)
+            .withTags(tags)
+            .withStorageClass("NEARLINE")
+            .withKmsKeyId("kms-key-1")
+            .withUseKmsManagedKey(true)
+            .withCreateIfAbsent(true)
+            .withObjectLock(objectLock)
+            .withChecksumValue("chk-value")
+            .withChecksumAlgorithm(ChecksumMethod.SHA256)
+            .withContentType("application/json")
+            .withOperationContext(OperationContext.builder().correlationId("original").build())
+            .build();
+
+    // A distinct context instance forces the rebuild branch (not the identity short-circuit).
+    OperationContext resolved = fullContext();
+    UploadRequest rebuilt = AsyncBucketClient.withResolvedContext(request, resolved);
+
+    assertSame(resolved, rebuilt.getOperationContext());
+    assertEquals("object-1", rebuilt.getKey());
+    assertEquals(1024L, rebuilt.getContentLength());
+    assertEquals(metadata, rebuilt.getMetadata());
+    assertEquals(tags, rebuilt.getTags());
+    assertEquals("NEARLINE", rebuilt.getStorageClass());
+    assertEquals("kms-key-1", rebuilt.getKmsKeyId());
+    assertTrue(rebuilt.isUseKmsManagedKey());
+    assertTrue(rebuilt.isCreateIfAbsent());
+    assertSame(objectLock, rebuilt.getObjectLock());
+    assertEquals("chk-value", rebuilt.getChecksumValue());
+    assertEquals(ChecksumMethod.SHA256, rebuilt.getChecksumAlgorithm());
+    assertEquals("application/json", rebuilt.getContentType());
+  }
+
+  /**
+   * When the resolved context is the very same instance already on the request, {@code
+   * withResolvedContext} returns the request unchanged rather than rebuilding it.
+   */
+  @Test
+  void testWithResolvedContextMultipartReturnsSameInstanceWhenContextUnchanged() {
+    OperationContext ctx = fullContext();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey("object-1").withOperationContext(ctx).build();
+
+    assertSame(request, AsyncBucketClient.withResolvedContext(request, ctx));
   }
 
   @Test
@@ -836,6 +1462,29 @@ public class AsyncBucketClientTest {
             .build();
 
     verify(mockBuilder2, times(1)).withUseEnvironmentVariableProxyValues(false);
+    assertInstanceOf(AsyncBucketClient.class, testClient);
+  }
+
+  @Test
+  void testAsyncBucketClientBuilderWithGrpcEnabled() {
+    AsyncBlobStoreProvider.Builder mockBuilder2 = mock(AsyncBlobStoreProvider.Builder.class);
+    when(mockBuilder2.withBucket(any())).thenReturn(mockBuilder2);
+    when(mockBuilder2.withRegion(any())).thenReturn(mockBuilder2);
+    when(mockBuilder2.withGrpcEnabled(any())).thenReturn(mockBuilder2);
+    when(mockBuilder2.build()).thenReturn(mockBlobStore);
+
+    providerSupplier
+        .when(() -> ProviderSupplier.findAsyncBuilder("test-grpc"))
+        .thenReturn(mockBuilder2);
+
+    AsyncBucketClient testClient =
+        AsyncBucketClient.builder("test-grpc")
+            .withBucket("test-bucket")
+            .withRegion("us-east-1")
+            .withGrpcEnabled(true)
+            .build();
+
+    verify(mockBuilder2, times(1)).withGrpcEnabled(true);
     assertInstanceOf(AsyncBucketClient.class, testClient);
   }
 

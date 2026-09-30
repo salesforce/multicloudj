@@ -1,0 +1,25 @@
+{
+  "id" : "fd8c503d-c61a-4b75-bdc7-7d01c9952c25",
+  "name" : "AliBlobStoreIT_testListPage_WithDelimiter_ReturnsCommonPrefixes-DELETE-2",
+  "request" : {
+    "url" : "/conformance-tests/common-prefix-basic/dir1/b.txt",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A10CD29B6DF4E3139D036CA",
+      "x-oss-server-time" : "57",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 22 May 2026 21:39:53 GMT"
+    }
+  },
+  "uuid" : "fd8c503d-c61a-4b75-bdc7-7d01c9952c25",
+  "persistent" : true,
+  "insertionIndex" : 931
+}

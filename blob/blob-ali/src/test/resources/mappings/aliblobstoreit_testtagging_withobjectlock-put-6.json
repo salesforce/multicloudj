@@ -1,0 +1,32 @@
+{
+  "id" : "9ee7742e-6222-4b62-b206-36c0990745ff",
+  "name" : "AliBlobStoreIT_testTagging_withObjectLock-PUT-6",
+  "request" : {
+    "url" : "/conformance-tests/blob-for-tagging-objectlock",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGFnZ2luZyB3aXRoIG9iamVjdCBsb2NrIHRlc3QgZGF0YQ=="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkYzYzJ0Iz81PQZIiBhYzZjMWMyNWI1OTk0ZDg5OWRkNmM2Y2Q1ZGM4ZTIxNg--",
+      "x-oss-request-id" : "6A221C2C5E372634302568E1",
+      "x-oss-server-time" : "36",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "1121081735445369706",
+      "ETag" : "\"7E1A180EDDE38BEB3774924B70DCBFC7\"",
+      "Date" : "Fri, 05 Jun 2026 00:45:32 GMT",
+      "Content-MD5" : "fhoYDt3ji+s3dJJLcNy/xw=="
+    }
+  },
+  "uuid" : "9ee7742e-6222-4b62-b206-36c0990745ff",
+  "persistent" : true,
+  "insertionIndex" : 619
+}

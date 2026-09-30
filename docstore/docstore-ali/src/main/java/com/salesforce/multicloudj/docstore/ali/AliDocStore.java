@@ -8,6 +8,7 @@ import com.alicloud.openservices.tablestore.SyncClient;
 import com.alicloud.openservices.tablestore.TableStoreException;
 import com.alicloud.openservices.tablestore.core.ResourceManager;
 import com.alicloud.openservices.tablestore.core.auth.CredentialsProvider;
+import com.alicloud.openservices.tablestore.model.AbortTransactionRequest;
 import com.alicloud.openservices.tablestore.model.BatchGetRowRequest;
 import com.alicloud.openservices.tablestore.model.BatchGetRowResponse;
 import com.alicloud.openservices.tablestore.model.ColumnValue;
@@ -24,18 +25,22 @@ import com.alicloud.openservices.tablestore.model.PrimaryKeyBuilder;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyColumn;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyValue;
 import com.alicloud.openservices.tablestore.model.PutRowRequest;
+import com.alicloud.openservices.tablestore.model.RowChange;
 import com.alicloud.openservices.tablestore.model.RowDeleteChange;
 import com.alicloud.openservices.tablestore.model.RowExistenceExpectation;
 import com.alicloud.openservices.tablestore.model.RowPutChange;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionRequest;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionResponse;
 import com.alicloud.openservices.tablestore.model.condition.SingleColumnValueCondition;
-import com.alicloud.openservices.tablestore.model.sql.SQLQueryRequest;
 import com.google.auto.service.AutoService;
+import com.salesforce.multicloudj.common.ali.AliRetryClassifier;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.util.UUID;
 import com.salesforce.multicloudj.docstore.client.Query;
@@ -64,6 +69,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
@@ -72,6 +78,10 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 public class AliDocStore extends AbstractDocStore {
   private SyncClient tableStoreClient;
   private final int batchSize = 50;
+
+  // Tablestore caps a single GetRange page at 5000 rows / 4 MB regardless of any client-set limit.
+  private static final int MAX_GETRANGE_ROWS = 5000;
+
   DescribeTableResponse tableDescription;
 
   public AliDocStore(Builder builder) {
@@ -89,25 +99,27 @@ public class AliDocStore extends AbstractDocStore {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    // It's best to scan the stack list to some reasonable depth to find exceptions
-    // we look for in certain order.
-    // First check, if the exception being thrown is SubstrateSdkException, this means
-    // the exception has already been converted to our Sdk exception.
-    // Secondly, check the SdkClient exception and finally the exceptions from the server.
-    Set<Throwable> exceptions =
-        ExceptionUtils.getThrowableList(t).stream().limit(5).collect(Collectors.toSet());
-    if (exceptions.stream().anyMatch(SubstrateSdkException.class::isInstance)) {
-      // the exception is already mapped to internal, just let it flow
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (exceptions.stream().anyMatch(TableStoreException.class::isInstance)) {
-      String errorCode = ((TableStoreException) t).getErrorCode();
-      return ErrorCodeMapping.getException(errorCode);
-    } else if (exceptions.stream().anyMatch(ClientException.class::isInstance)
-        || exceptions.stream().anyMatch(IllegalArgumentException.class::isInstance)) {
-      return InvalidArgumentException.class;
+  public SubstrateSdkException mapException(Throwable t) {
+    List<Throwable> causeChain =
+        ExceptionUtils.getThrowableList(t).stream().limit(5).collect(Collectors.toList());
+    Class<? extends SubstrateSdkException> exceptionClass;
+    Boolean retryableHint = null;
+    TableStoreException tableStoreException =
+        causeChain.stream()
+            .filter(TableStoreException.class::isInstance)
+            .map(TableStoreException.class::cast)
+            .findFirst()
+            .orElse(null);
+    if (tableStoreException != null) {
+      exceptionClass = ErrorCodeMapping.getException(tableStoreException.getErrorCode());
+      retryableHint = AliRetryClassifier.classifyByStatusCode(tableStoreException.getHttpStatus());
+    } else if (causeChain.stream().anyMatch(ClientException.class::isInstance)
+        || causeChain.stream().anyMatch(IllegalArgumentException.class::isInstance)) {
+      exceptionClass = InvalidArgumentException.class;
+    } else {
+      exceptionClass = UnknownException.class;
     }
-    return UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, retryableHint);
   }
 
   public static class Builder extends AbstractDocStore.Builder<AliDocStore, Builder> {
@@ -193,15 +205,26 @@ public class AliDocStore extends AbstractDocStore {
       // Run preliminary get actions
       runGets(preActions, beforeDo, batchSize);
 
-      // Run write actions asynchronously while proceeding with read actions in parallel
       CompletableFuture<Void> writeTask =
           CompletableFuture.runAsync(() -> runWrites(writeActions, beforeDo));
+
+      // When the action list contains an atomic transaction, the non-atomic writes must COMPLETE
+      // before the transaction starts. A Tablestore local transaction takes an exclusive lock on
+      // its partition; if a non-atomic write targets the same partition (e.g. a delete and an
+      // atomic put under one partition key) running it concurrently with the transaction races that
+      // lock and fails with OTSRowOperationConflict. Reads do not take the write lock, so the
+      // transaction still overlaps the read actions below. When there is no atomic transaction, the
+      // writes and reads run concurrently as before (the barrier is unnecessary).
+      if (!atomicWriteActions.isEmpty()) {
+        writeTask.get();
+      }
+
       CompletableFuture<Void> txWriteTask =
           CompletableFuture.runAsync(() -> runTxWrites(atomicWriteActions, beforeDo));
 
       runGets(readActions, beforeDo, batchSize);
 
-      // Await completion of write actions
+      // Await completion of the write actions and the atomic transaction
       writeTask.get();
       txWriteTask.get();
 
@@ -263,8 +286,12 @@ public class AliDocStore extends AbstractDocStore {
 
     PrimaryKey primaryKey = pkBuilder.build();
     RowDeleteChange rowChange = new RowDeleteChange(collectionOptions.getTableName(), primaryKey);
+    // Enforce the optimistic-concurrency revision precondition on delete: when the document carries
+    // a revision, the delete only succeeds if the stored row still carries that revision. No
+    // revision on the document means an unconditional delete.
+    buildPreCondition(action, rowChange);
     return new WriteOperation(
-        action, new PutRowRequest(), null, null, () -> runDelete(rowChange, action, beforeDo));
+        action, rowChange, null, null, () -> runDelete(rowChange, action, beforeDo));
   }
 
   protected WriteOperation newPut(Action action, Consumer<Predicate<Object>> beforeDo) {
@@ -315,7 +342,7 @@ public class AliDocStore extends AbstractDocStore {
 
     return new WriteOperation(
         action,
-        new PutRowRequest(rowChange),
+        rowChange,
         newPartitionKey,
         rev,
         () -> runPut(rowChange, action, beforeDo));
@@ -341,26 +368,31 @@ public class AliDocStore extends AbstractDocStore {
     SingleColumnValueCondition singleColumnValueCondition =
         new SingleColumnValueCondition(
             revField, SingleColumnValueCondition.CompareOperator.EQUAL, ColumnValue.fromString(v));
+    // Fail the precondition if revision column is not present in the row
+    singleColumnValueCondition.setPassIfMissing(false);
     condition.setColumnCondition(singleColumnValueCondition);
     return condition;
   }
 
-  private void buildPreCondition(Action a, RowPutChange rowPutChange) {
+  private void buildPreCondition(Action a, RowChange rowChange) {
     switch (a.getKind()) {
       case ACTION_KIND_CREATE:
-        rowPutChange.setCondition(new Condition(RowExistenceExpectation.EXPECT_NOT_EXIST));
+        rowChange.setCondition(new Condition(RowExistenceExpectation.EXPECT_NOT_EXIST));
         return;
       case ACTION_KIND_UPDATE:
       case ACTION_KIND_REPLACE:
         Condition condition = buildRevisionPrecondition(a.getDocument(), getRevisionField());
-        rowPutChange.setCondition(
+        rowChange.setCondition(
             Objects.requireNonNullElseGet(
-                condition, () -> new Condition(RowExistenceExpectation.EXPECT_NOT_EXIST)));
+                condition, () -> new Condition(RowExistenceExpectation.EXPECT_EXIST)));
         return;
       case ACTION_KIND_DELETE:
       case ACTION_KIND_PUT:
-        // Precondition: the revision matches, if any.
-        rowPutChange.setCondition(buildRevisionPrecondition(a.getDocument(), getRevisionField()));
+        Condition revisionCondition =
+            buildRevisionPrecondition(a.getDocument(), getRevisionField());
+        if (revisionCondition != null) {
+          rowChange.setCondition(revisionCondition);
+        }
         return;
       case ACTION_KIND_GET:
         // No preconditions on a Get.
@@ -383,12 +415,18 @@ public class AliDocStore extends AbstractDocStore {
           throw new ResourceNotFoundException(exception);
         }
       }
+      // Any other Tablestore failure (throttling, quota, server error, invalid request, timeout,
+      // etc.) leaves the write unconfirmed. Re-throw and let mapException classify it, rather than
+      // report an unconfirmed write as success and stamp a revision for it.
+      throw exception;
     }
   }
 
   protected void runDelete(
       RowDeleteChange delete, Action action, Consumer<Predicate<Object>> beforeDo) {
     DeleteRowRequest deleteRowRequest = new DeleteRowRequest(delete);
+    // A delete's only conditional-check failure is a revision mismatch (it sets no existence
+    // expectation), so let it propagate and map to FailedPreconditionException.
     tableStoreClient.deleteRow(deleteRowRequest);
   }
 
@@ -513,7 +551,18 @@ public class AliDocStore extends AbstractDocStore {
       return;
     }
 
+    // Build the write operations BEFORE opening the transaction. newWriteOperation validates the
+    // document shape and can throw InvalidArgumentException (e.g. a missing key field) — a caller
+    // error that must surface as-is, not be remapped to TransactionFailedException. Doing this
+    // first also means a malformed request never starts (or leaks) a transaction.
     List<WriteOperation> operations = new ArrayList<>();
+    for (Action w : writes) {
+      WriteOperation op = newWriteOperation(w, beforeDo);
+      if (op != null) {
+        operations.add(op);
+      }
+    }
+
     // Extract the partition key from any of the action which is supposed to be same.
     // If the partition key is not same in all writes, the transaction is anyway going to fail.
     PrimaryKey transactionPK =
@@ -530,17 +579,48 @@ public class AliDocStore extends AbstractDocStore {
         tableStoreClient.startLocalTransaction(startTransactionRequest);
     final String transactionId = startTransactionResponse.getTransactionID();
 
-    for (Action w : writes) {
-      WriteOperation op = newWriteOperation(w, beforeDo);
-      if (op != null) {
-        operations.add(op);
-        PutRowRequest putRowRequest = op.getPutRowRequest();
-        putRowRequest.setTransactionId(transactionId);
-        tableStoreClient.putRow(putRowRequest);
+    try {
+      for (WriteOperation op : operations) {
+        // Tablestore has no single generic "apply this RowChange" call, so dispatch each op to the
+        // request type its change requires: deletes go through deleteRow, puts through putRow.
+        // Reject any other unsupported RowChange subtype with a clear error rather than blindly
+        // casting it to a put and failing with an opaque ClassCastException mid-transaction.
+        RowChange change = op.getRowChange();
+        if (change instanceof RowDeleteChange) {
+          DeleteRowRequest deleteRowRequest = new DeleteRowRequest((RowDeleteChange) change);
+          deleteRowRequest.setTransactionId(transactionId);
+          tableStoreClient.deleteRow(deleteRowRequest);
+        } else if (change instanceof RowPutChange) {
+          PutRowRequest putRowRequest = new PutRowRequest((RowPutChange) change);
+          putRowRequest.setTransactionId(transactionId);
+          tableStoreClient.putRow(putRowRequest);
+        } else {
+          throw new UnSupportedOperationException(
+              "Unsupported RowChange type in atomic write: "
+                  + (change == null ? "null" : change.getClass().getName()));
+        }
       }
+      tableStoreClient.commitTransaction(new CommitTransactionRequest(transactionId));
+    } catch (RuntimeException e) {
+      // Any failure of the transactional TableStore calls — a rejected write/commit
+      // (TableStoreException, e.g. OTSConditionCheckFail on a non-existent row) or a transport
+      // failure (ClientException, e.g. a network timeout), both RuntimeExceptions — must fail the
+      // whole block: atomic writes are all-or-nothing. Abort so the transaction is not left
+      // dangling, then surface a uniform TransactionFailedException regardless of the underlying
+      // cause. (Document-shape validation happens above, before the transaction opens, so caller
+      // errors are not remapped here.)
+      TransactionFailedException failure =
+          new TransactionFailedException("Atomic write failed - all operations rolled back", e);
+      try {
+        tableStoreClient.abortTransaction(new AbortTransactionRequest(transactionId));
+      } catch (RuntimeException abortFailure) {
+        // Best-effort rollback. If the abort itself fails, the server-side transaction and its
+        // exclusive partition lock dangle until Tablestore's TTL; attach the abort failure as a
+        // suppressed exception so the diagnostic is not lost, then surface the original cause.
+        failure.addSuppressed(abortFailure);
+      }
+      throw failure;
     }
-
-    tableStoreClient.commitTransaction(new CommitTransactionRequest(transactionId));
     updateRevision(operations);
   }
 
@@ -558,13 +638,163 @@ public class AliDocStore extends AbstractDocStore {
 
   @Override
   public DocumentIterator runGetQuery(Query query) {
-    QueryRunner qr = planQuery(query);
-    if (qr == null) {
-      throw new SubstrateSdkException("Failed to get a query runner.");
+    Queryable queryable = getBestQueryable(query);
+    checkPlan(query, queryable);
+
+    QueryRunner runner = planGetRangeQuery(query, queryable);
+
+    PrimaryKey resumeAfterKey = null;
+    if (query.getPaginationToken() instanceof AliPaginationToken) {
+      resumeAfterKey = ((AliPaginationToken) query.getPaginationToken()).getNextStartPrimaryKey();
     }
-    AliDocumentIterator iter = new AliDocumentIterator(qr, query.getOffset(), query.getLimit());
-    iter.run(AliDocumentIterator.INIT_TOKEN);
-    return iter;
+    return new AliDocumentIterator(runner, query.getOffset(), query.getLimit(), resumeAfterKey);
+  }
+
+  // Rejects query plans that cannot be served: a full-table scan when ordering is requested (a scan
+  // yields primary-key order only), or a scan when Options.AllowScans is disabled.
+  private void checkPlan(Query query, Queryable queryable) {
+    boolean isScan = queryable.getIndexName() == null && queryable.getKey() == null;
+    if (!isScan) {
+      return;
+    }
+    if (StringUtils.isNotEmpty(query.getOrderByField())) {
+      throw new InvalidArgumentException(
+          "query requires a table scan, but has an ordering requirement; add a secondary index"
+              + " whose key matches the order-by field");
+    }
+    if (!collectionOptions.isAllowScans()) {
+      throw new InvalidArgumentException(
+          "query requires a table scan; set Options.AllowScans to true to enable");
+    }
+  }
+
+  // Translates the query into a GetRange runner over the resolved base table or secondary index.
+  private QueryRunner planGetRangeQuery(Query query, Queryable queryable) {
+    List<String> pkColumns = getPrimaryKeyColumns(queryable);
+    String targetTable =
+        queryable.getIndexName() != null
+            ? queryable.getIndexName()
+            : collectionOptions.getTableName();
+
+    List<Filter> filters = query.getFilters() != null ? query.getFilters() : List.of();
+    QueryPlanner.Plan plan =
+        QueryPlanner.plan(pkColumns, filters, query.isOrderAscending());
+
+    // An unprojected query served from a secondary index must hydrate each row from the base table:
+    // the index physically carries only its own columns, so it cannot return a row's schema-less
+    // attributes. A projected index query and any base-table/scan query never hydrate. See
+    // QueryRunner for why hydration is needed and its global-index eventual-consistency behavior.
+    boolean hydrateFromBase =
+        queryable.getIndexName() != null && ObjectUtils.isEmpty(query.getFieldPaths());
+    List<String> baseKeyColumns = getPrimaryKeyColumns(createBaseTableQueryable());
+
+    // Apply the fixed per-page GetRange row cap only when the key range is tight (the range
+    // captures the whole predicate set, so the column filter drops at most an O(1) boundary group).
+    // When it is NOT tight, the column filter drops a non-trivial number of scanned rows, so a
+    // small per-page cap would make each capped page yield few (or zero) matches and force the
+    // iterator to re-scan page after page; leave the request unbounded (0) so Tablestore's natural
+    // 5000-row/4 MB page does the server-side filtering in one round trip. See QueryPlanner.
+    int perRequestLimit =
+        plan.isKeyRangeTight() ? computePerRequestLimit(query.getOffset(), query.getLimit()) : 0;
+
+    return new QueryRunner(
+        tableStoreClient,
+        targetTable,
+        plan.getInclusiveStartPrimaryKey(),
+        plan.getExclusiveEndPrimaryKey(),
+        plan.getDirection(),
+        plan.getColumnFilter(),
+        buildColumnsToGet(query.getFieldPaths(), pkColumns, filters),
+        buildVisibleColumns(query.getFieldPaths(), pkColumns),
+        hydrateFromBase ? collectionOptions.getTableName() : null,
+        baseKeyColumns,
+        batchSize,
+        perRequestLimit,
+        this::mapException);
+  }
+
+  // Per-page GetRange row cap = offset + limit, or 0 to leave Tablestore's natural page cap
+  // (MAX_GETRANGE_ROWS): returns 0 when there is no limit, when offset + limit already meets that
+  // cap (a larger limit would not tighten anything), or on overflow. long arithmetic keeps a
+  // pathological offset + limit from wrapping int negative, which setLimit would reject.
+  // Selected only for a tight key range; see planGetRangeQuery (why) and QueryRunner (per-page
+  // application).
+  static int computePerRequestLimit(int offset, int limit) {
+    if (limit <= 0) {
+      return 0;
+    }
+    long budget = (long) Math.max(offset, 0) + (long) limit;
+    return budget < MAX_GETRANGE_ROWS ? (int) budget : 0;
+  }
+
+  // Builds the columns_to_get list to FETCH for a projected query: the projection, plus the
+  // target's primary-key columns, plus every predicate field. An empty field-path list means "all
+  // columns", which Tablestore expresses as an empty columns_to_get, so it is returned unchanged.
+  //
+  // Primary-key columns are force-added if absent: Tablestore's GetRange omits a row from the
+  // response when none of its requested columns are present, and both row decoding and the
+  // pagination cursor read the primary key, so a missing key would drop matching rows and break
+  // continuation. Uses the resolved target's key columns (base-table keys, or a secondary index's
+  // own key list) so index queries stay correct.
+  //
+  // Predicate fields are force-added because Tablestore applies the server-side column filter AFTER
+  // columns_to_get: a filter on a field that was not fetched reads as missing and, under
+  // passIfMissing(false), drops every matching row. So a projected query with a predicate on a
+  // non-projected field must still fetch that field. The extra columns are then trimmed back out of
+  // the returned rows (see buildVisibleColumns and QueryRunner) so the caller still sees only the
+  // projection plus the primary key.
+  private List<String> buildColumnsToGet(
+      List<String> fieldPaths, List<String> pkColumns, List<Filter> filters) {
+    if (ObjectUtils.isEmpty(fieldPaths)) {
+      return fieldPaths;
+    }
+    List<String> columnsToGet = new ArrayList<>(fieldPaths);
+    for (String pkColumn : pkColumns) {
+      if (!columnsToGet.contains(pkColumn)) {
+        columnsToGet.add(pkColumn);
+      }
+    }
+    for (Filter filter : filters) {
+      if (!columnsToGet.contains(filter.getFieldPath())) {
+        columnsToGet.add(filter.getFieldPath());
+      }
+    }
+    return columnsToGet;
+  }
+
+  // The columns a projected query's caller is allowed to SEE: the projection plus the target's
+  // primary-key columns. Returns null when the query is unprojected (empty field paths); null means
+  // "all columns visible", so QueryRunner performs no trimming. When a subset is projected,
+  // buildColumnsToGet may fetch extra predicate fields the caller did not ask for, and the fetched
+  // rows are trimmed back to this set so a non-projected predicate field never leaks to the caller.
+  private Set<String> buildVisibleColumns(List<String> fieldPaths, List<String> pkColumns) {
+    if (ObjectUtils.isEmpty(fieldPaths)) {
+      return null;
+    }
+    Set<String> visible = new HashSet<>(fieldPaths);
+    visible.addAll(pkColumns);
+    return visible;
+  }
+
+  // Full ordered primary-key column list of the resolved target: the base table's keys from
+  // CollectionOptions, or a secondary index's keys from its IndexMeta. A scan (no resolved
+  // queryable) ranges over the base table, so it also uses the base table's keys.
+  private List<String> getPrimaryKeyColumns(Queryable queryable) {
+    if (queryable.getIndexName() == null) {
+      List<String> cols = new ArrayList<>();
+      cols.add(collectionOptions.getPartitionKey());
+      if (collectionOptions.getSortKey() != null) {
+        cols.add(collectionOptions.getSortKey());
+      }
+      return cols;
+    }
+    for (IndexMeta index : getTableDescription().getIndexMeta()) {
+      if (index.getIndexName().equals(queryable.getIndexName())) {
+        return index.getPrimaryKeyList();
+      }
+    }
+    throw new InvalidArgumentException(
+        "Resolved index not found in table description: " + queryable.getIndexName());
   }
 
   @NoArgsConstructor
@@ -590,30 +820,14 @@ public class AliDocStore extends AbstractDocStore {
 
   @Override
   public String queryPlan(Query query) {
-    QueryRunner qr = planQuery(query);
-    return qr.queryPlan();
-  }
-
-  public QueryRunner planQuery(Query query) {
     Queryable queryable = getBestQueryable(query);
-    boolean isScan = false;
-    if (queryable.indexName == null && queryable.key == null) {
-      // No query can be done: fall back to scanning.
-      if (query.getOrderByField() != null && !query.getOrderByField().isEmpty()) {
-        throw new InvalidArgumentException(
-            "query requires a table scan, but has an ordering requirement; add an index or provide"
-                + " Options.RunQueryFallback");
-      }
-
-      isScan = true;
+    if (queryable.getIndexName() != null) {
+      return "Index: " + queryable.getIndexName();
     }
-
-    // Build the SQL statement
-    String sqlStatement = buildSQLStatement(query, queryable);
-
-    // Execute the SQL query
-    SQLQueryRequest sqlQueryRequest = new SQLQueryRequest(sqlStatement);
-    return new QueryRunner(tableStoreClient, sqlQueryRequest, isScan, query.getBeforeQuery());
+    if (queryable.getKey() != null) {
+      return "Table: " + collectionOptions.getTableName();
+    }
+    return "Scan: " + collectionOptions.getTableName();
   }
 
   // Reports whether query has a filter that checks if the top-level field is equal to something.
@@ -651,27 +865,31 @@ public class AliDocStore extends AbstractDocStore {
   }
 
   protected boolean globalFieldIncluded(Query query, IndexMeta gi) {
-    if (query.getFieldPaths().isEmpty()) {
-      // The query wants all the fields of the table
-      return false;
-    }
+    // The set of columns physically available from the index: its own primary-key columns (which
+    // include the base table's primary key, folded in by Tablestore) plus its defined columns.
+    Set<String> indexFields = new HashSet<>(gi.getPrimaryKeyList());
+    indexFields.addAll(gi.getDefinedColumnsList());
+    return indexUsableForQuery(query, indexFields);
+  }
 
-    Key key = keyAttributes(gi.getPrimaryKeyList());
-    Map<String, Boolean> indexFields = new HashMap<>();
-    indexFields.put(key.getPartitionKey(), true);
-    if (key.getSortKey() != null) {
-      indexFields.put(key.getSortKey(), true);
-    }
-    for (String nka : gi.getDefinedColumnsList()) {
-      indexFields.put(nka, true);
-    }
-    // Check every field path in the query must be in the index.
-    for (String fp : query.getFieldPaths()) {
-      if (!indexFields.containsKey(fp)) {
-        return false;
+  // An index can serve a query when its columns can evaluate every predicate (the server-side
+  // filter runs on the index read) and return every projected field. An unprojected query names no
+  // fields: the projection requirement is vacuous and any column the index lacks -- including
+  // schema-less attributes -- is recovered by hydrating the row from the base table.
+  private boolean indexUsableForQuery(Query query, Set<String> indexFields) {
+    Set<String> required = new HashSet<>();
+    if (query.getFilters() != null) {
+      for (Filter filter : query.getFilters()) {
+        required.add(filter.getFieldPath());
       }
     }
-    return true;
+    // Null/empty field paths mean an unprojected query: nothing to add to the projection
+    // requirement. setFieldPaths(null) is reachable via the public Lombok setter, so guard it the
+    // way the rest of the planner does rather than NPE on addAll(null).
+    if (!ObjectUtils.isEmpty(query.getFieldPaths())) {
+      required.addAll(query.getFieldPaths());
+    }
+    return indexFields.containsAll(required);
   }
 
   protected DescribeTableResponse getTableDescription() {
@@ -774,7 +992,7 @@ public class AliDocStore extends AbstractDocStore {
     fields.addAll(index.getDefinedColumnsList());
     fields.addAll(index.getPrimaryKeyList());
     return key != null
-        && fields.containsAll(query.getFieldPaths())
+        && indexUsableForQuery(query, fields)
         && isValidSortKey(query, key.getSortKey());
   }
 
@@ -826,72 +1044,6 @@ public class AliDocStore extends AbstractDocStore {
     return key != null
         && hasEqualityFilter(query, key.getPartitionKey())
         && globalFieldIncluded(query, index);
-  }
-
-  private String buildSQLStatement(Query query, Queryable queryable) {
-    StringBuilder sql = new StringBuilder();
-    List<String> fields = query.getFieldPaths();
-    if (fields == null || fields.isEmpty()) {
-      fields = List.of("*");
-    }
-
-    sql.append("SELECT ").append(String.join(",", fields));
-    if (queryable.indexName != null) {
-      sql.append(" FROM ").append(queryable.indexName);
-    } else {
-      sql.append(" FROM ").append(collectionOptions.getTableName());
-    }
-    if (query.getFilters() != null && !query.getFilters().isEmpty()) {
-      sql.append(" WHERE ").append(conditionBuilder(query.getFilters()));
-    }
-
-    if (query.getOrderByField() != null) {
-      sql.append(" ORDER BY ").append(query.getOrderByField());
-      // the default ORDER is ASC we don't need to add it explicitly.
-      if (!query.isOrderAscending()) {
-        sql.append(" DESC");
-      }
-    }
-
-    if (query.getLimit() > 0) {
-      sql.append(" LIMIT ").append(query.getLimit());
-    }
-
-    if (query.getOffset() > 0) {
-      sql.append(" OFFSET ").append(query.getOffset());
-    }
-
-    sql.append(";");
-    return sql.toString();
-  }
-
-  private String conditionBuilder(List<Filter> filters) {
-    final Map<FilterOperation, String> filterOperationMapping =
-        Map.of(
-            FilterOperation.EQUAL, "=",
-            FilterOperation.GREATER_THAN, ">",
-            FilterOperation.GREATER_THAN_OR_EQUAL_TO, ">=",
-            FilterOperation.LESS_THAN, "<",
-            FilterOperation.LESS_THAN_OR_EQUAL_TO, "<=",
-            FilterOperation.NOT_IN, "NOT IN",
-            FilterOperation.IN, "IN");
-
-    StringBuilder condition = new StringBuilder();
-    for (int i = 0; i < filters.size(); i++) {
-      Filter filter = filters.get(i);
-      if (i > 0) {
-        condition.append(" AND ");
-      }
-      condition
-          .append(filter.getFieldPath())
-          .append(" ")
-          .append(filterOperationMapping.get(filter.getOp()))
-          .append(" ")
-          .append("'")
-          .append(filter.getValue())
-          .append("'");
-    }
-    return condition.toString();
   }
 
   // Close cleans up any resources used by the Collection.

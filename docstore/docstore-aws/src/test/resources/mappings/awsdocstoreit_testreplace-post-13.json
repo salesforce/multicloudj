@@ -1,5 +1,5 @@
 {
-  "id" : "36126a74-7c9e-4f4b-adad-963e698ff97c",
+  "id" : "5570065d-f64e-48cb-a114-c6dc6950a2b8",
   "name" : "AwsDocstoreIT_testReplace-POST-13",
   "request" : {
     "url" : "/",
@@ -17,16 +17,16 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"95\"},\"b\":{\"BOOL\":false},\"s\":{\"S\":\"replacedString\"},\"f\":{\"N\":\"34.560001373291016\"},\"pName\":{\"S\":\"JohnReplace\"}}]},\"UnprocessedKeys\":{}}",
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"95\"},\"bytes\":{\"B\":\"cmVwbGFjZWRTdHJpbmc=\"},\"b\":{\"BOOL\":false},\"s\":{\"S\":\"replacedString\"},\"f\":{\"N\":\"34.560001373291016\"},\"pName\":{\"S\":\"JohnReplace\"}}]},\"UnprocessedKeys\":{}}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-requestid" : "0MEOM644QDAD9B75FEUA9094SBVV4KQNSO5AEMVJF66Q9ASUAAJG",
-      "x-amz-crc32" : "864195395",
-      "Date" : "Wed, 04 Mar 2026 21:12:56 GMT",
+      "x-amzn-requestid" : "INDKB09GPSQ1HPAE47JDTMNCJVVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "3486615376",
+      "Date" : "Wed, 22 Apr 2026 22:58:03 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "36126a74-7c9e-4f4b-adad-963e698ff97c",
+  "uuid" : "5570065d-f64e-48cb-a114-c6dc6950a2b8",
   "persistent" : true,
-  "insertionIndex" : 100
+  "insertionIndex" : 281
 }

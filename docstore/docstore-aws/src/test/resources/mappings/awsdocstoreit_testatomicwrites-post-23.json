@@ -1,0 +1,32 @@
+{
+  "id" : "0539824e-504d-406f-81a4-850d920d3f4f",
+  "name" : "AwsDocstoreIT_testAtomicWrites-POST-23",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.DeleteItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"Key\":{\"Player\":{\"S\":\"testAtomicWrites0\"},\"Game\":{\"S\":\"testAtomicWrites\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "IF0G5E2S0CLJHNE8Q9EFMPP1QVVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Wed, 22 Jul 2026 23:39:35 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "0539824e-504d-406f-81a4-850d920d3f4f",
+  "persistent" : true,
+  "insertionIndex" : 368
+}

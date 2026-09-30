@@ -1,8 +1,8 @@
 {
-  "id" : "3d59a4aa-120c-4867-a69a-4fb8e4ab2bf2",
+  "id" : "a2fa407e-3853-4a04-8886-a5bab2e7e638",
   "name" : "FSDocstoreIT_testAtomicWrites-POST-8",
   "request" : {
-    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:runQuery",
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
     "method" : "POST",
     "headers" : {
       "X-Query-Param-Count" : {
@@ -17,27 +17,27 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"structuredQuery\":{\"from\":[{\"collectionId\":\"docstore-test-1\"}]}}",
+      "equalToJson" : "{\"writes\":[{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWrites:testAtomicWrites0\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWrites:testAtomicWrites1\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWrites:testAtomicWrites2\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWrites:testAtomicWrites3\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWrites:testAtomicWrites4\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWrites:testAtomicWrites5\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWrites:testAtomicWrites6\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWrites:testAtomicWrites7\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/testAtomicWrites:testAtomicWrites8\"}]}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "[{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/ClarkMapDelete\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": true\n      },\n      \"s\": {\n        \"stringValue\": \"random String\"\n      },\n      \"pName\": {\n        \"stringValue\": \"ClarkMapDelete\"\n      },\n      \"f\": {\n        \"doubleValue\": 12.659999847412109\n      },\n      \"i\": {\n        \"integerValue\": \"121\"\n      }\n    },\n    \"createTime\": \"2026-03-04T21:20:09.088034Z\",\n    \"updateTime\": \"2026-03-04T21:20:09.088034Z\"\n  },\n  \"readTime\": \"2026-03-04T21:20:09.585382Z\"\n}\n,\r\n{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/FrankDelete\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": true\n      },\n      \"s\": {\n        \"stringValue\": \"randomString\"\n      },\n      \"pName\": {\n        \"stringValue\": \"FrankDelete\"\n      },\n      \"f\": {\n        \"doubleValue\": 12.659999847412109\n      },\n      \"i\": {\n        \"integerValue\": \"121\"\n      }\n    },\n    \"createTime\": \"2026-03-04T21:20:05.231051Z\",\n    \"updateTime\": \"2026-03-04T21:20:05.231051Z\"\n  },\n  \"readTime\": \"2026-03-04T21:20:09.585382Z\"\n}\n]",
+    "body" : "{\n  \"writeResults\": [\n    {},\n    {},\n    {},\n    {},\n    {},\n    {},\n    {},\n    {},\n    {}\n  ],\n  \"commitTime\": \"2026-07-22T23:47:09.586713Z\"\n}\n",
     "headers" : {
       "X-Frame-Options" : "SAMEORIGIN",
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "ESF",
-      "X-Debug-Tracking-ID" : "18087021990000055656;o=1",
+      "X-Debug-Tracking-ID" : "4240344628898175014;o=1",
       "X-Content-Type-Options" : "nosniff",
       "Vary" : [ "Origin", "X-Origin", "Referer" ],
       "X-XSS-Protection" : "0",
-      "Date" : "Wed, 04 Mar 2026 21:20:09 GMT",
+      "Date" : "Wed, 22 Jul 2026 23:47:09 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "3d59a4aa-120c-4867-a69a-4fb8e4ab2bf2",
+  "uuid" : "a2fa407e-3853-4a04-8886-a5bab2e7e638",
   "persistent" : true,
-  "insertionIndex" : 136
+  "insertionIndex" : 241
 }

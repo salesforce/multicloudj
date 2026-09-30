@@ -1,0 +1,25 @@
+{
+  "id" : "9243f324-07bf-4050-9297-d74f9ff5ddfa",
+  "name" : "AliBlobStoreIT_testListPage_WithPrefixAndDelimiter_OneBlobOnePrefix-DELETE-2",
+  "request" : {
+    "url" : "/conformance-tests/common-prefix-nested/dir1/b.txt",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A10CD2083DA733733790066",
+      "x-oss-server-time" : "15",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 22 May 2026 21:39:44 GMT"
+    }
+  },
+  "uuid" : "9243f324-07bf-4050-9297-d74f9ff5ddfa",
+  "persistent" : true,
+  "insertionIndex" : 918
+}

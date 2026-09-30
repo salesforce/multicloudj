@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.driver;
 
 import static java.util.Collections.unmodifiableMap;
 
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import java.util.Collections;
 import java.util.Map;
 import lombok.Getter;
@@ -45,6 +46,14 @@ public class UploadRequest {
   private final boolean useKmsManagedKey;
 
   /**
+   * (Optional parameter) When true, the upload succeeds only if no live blob exists at the target
+   * key when the write is committed. The default is false, which preserves overwrite behavior.
+   * This option applies only to uploads using {@code UploadRequest}; multipart uploads do not honor
+   * it.
+   */
+  private final boolean createIfAbsent;
+
+  /**
    * (Optional parameter) The base64-encoded checksum value for upload validation.
    */
   private final String checksumValue;
@@ -64,6 +73,14 @@ public class UploadRequest {
    */
   private final String contentType;
 
+  /**
+   * (Optional parameter) Per-call observability context carrying the correlation ID. The
+   * correlation ID is never auto-generated; when it is null or missing it defaults to an empty
+   * string and tracing is treated as disabled. When supplied, it is echoed back via the response
+   * object.
+   */
+  private final OperationContext operationContext;
+
   private UploadRequest(Builder builder) {
     this.key = builder.key;
     this.contentLength = builder.contentLength;
@@ -72,12 +89,14 @@ public class UploadRequest {
     this.storageClass = builder.storageClass;
     this.kmsKeyId = builder.kmsKeyId;
     this.useKmsManagedKey = builder.useKmsManagedKey;
+    this.createIfAbsent = builder.createIfAbsent;
     this.objectLock = builder.objectLock;
     this.checksumValue = builder.checksumValue;
     this.checksumAlgorithm = builder.checksumAlgorithm != null
         ? builder.checksumAlgorithm
         : (builder.checksumValue != null ? ChecksumMethod.CRC32C : null);
     this.contentType = builder.contentType;
+    this.operationContext = builder.operationContext;
   }
 
   public Map<String, String> getMetadata() {
@@ -88,6 +107,29 @@ public class UploadRequest {
     return new Builder();
   }
 
+  /**
+   * Returns a {@link Builder} pre-populated with this request's current field values, so callers
+   * can produce a modified copy without restating every field. Adding a new field to
+   * {@link UploadRequest} requires only extending this method (and the corresponding builder
+   * setter) — not every callsite that copies a request.
+   */
+  public Builder toBuilder() {
+    return new Builder()
+        .withKey(key)
+        .withContentLength(contentLength)
+        .withMetadata(metadata)
+        .withTags(tags)
+        .withStorageClass(storageClass)
+        .withKmsKeyId(kmsKeyId)
+        .withUseKmsManagedKey(useKmsManagedKey)
+        .withCreateIfAbsent(createIfAbsent)
+        .withObjectLock(objectLock)
+        .withChecksumValue(checksumValue)
+        .withChecksumAlgorithm(checksumAlgorithm)
+        .withContentType(contentType)
+        .withOperationContext(operationContext);
+  }
+
   public static class Builder {
     private String key;
     private long contentLength;
@@ -96,10 +138,12 @@ public class UploadRequest {
     private String storageClass;
     private String kmsKeyId;
     private boolean useKmsManagedKey;
+    private boolean createIfAbsent;
     private ObjectLockConfiguration objectLock;
     private String checksumValue;
     private ChecksumMethod checksumAlgorithm;
     private String contentType;
+    private OperationContext operationContext;
 
     public Builder withKey(String key) {
       this.key = key;
@@ -137,6 +181,12 @@ public class UploadRequest {
       return this;
     }
 
+    /** See {@link UploadRequest#createIfAbsent}. */
+    public Builder withCreateIfAbsent(boolean createIfAbsent) {
+      this.createIfAbsent = createIfAbsent;
+      return this;
+    }
+
     public Builder withObjectLock(ObjectLockConfiguration objectLock) {
       this.objectLock = objectLock;
       return this;
@@ -154,6 +204,19 @@ public class UploadRequest {
 
     public Builder withContentType(String contentType) {
       this.contentType = contentType;
+      return this;
+    }
+
+    /**
+     * Sets the per-call observability context carrying the correlation ID. The correlation ID is
+     * never auto-generated; if not set (or if the context's correlation ID is null/empty) it
+     * defaults to an empty string and tracing is treated as disabled.
+     *
+     * @param operationContext the observability context
+     * @return this builder
+     */
+    public Builder withOperationContext(OperationContext operationContext) {
+      this.operationContext = operationContext;
       return this;
     }
 

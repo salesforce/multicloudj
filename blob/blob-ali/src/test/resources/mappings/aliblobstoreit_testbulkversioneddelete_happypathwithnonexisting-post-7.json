@@ -1,0 +1,43 @@
+{
+  "id" : "45a30637-1f9b-4171-8bda-64eeae0e39ac",
+  "name" : "AliBlobStoreIT_testBulkVersionedDelete_happyPathWithNonExisting-POST-7",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "delete" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<Delete><Quiet>true</Quiet><Object><Key>conformance-tests/bulkDeleteByVersion/happy4</Key><VersionId>CAEQigEYgYDAxKmTsvIZIiBhYjliNjRmYWQwOWQ0OTdhYjQ3ZTY3NDQ4NDMxMDhlMA--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy5</Key><VersionId>CAEQigEYgYCAsqyTsvIZIiBjY2I5ZjQ5OTZiN2Q0ZGRmYjEyOGY5NTA2OTc4ZGFhNA--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy6</Key><VersionId>CAEQigEYgYCAuK.TsvIZIiBjYzRhYzkxMzMyOTg0OGZmOTMxZjQ4N2NiNGRjMjVkOQ--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/nonexisting2</Key></Object></Delete>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A0F7F69EB205735324EC2C3",
+      "x-oss-server-time" : "22",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 21 May 2026 21:55:53 GMT"
+    }
+  },
+  "uuid" : "45a30637-1f9b-4171-8bda-64eeae0e39ac",
+  "persistent" : true,
+  "insertionIndex" : 352
+}

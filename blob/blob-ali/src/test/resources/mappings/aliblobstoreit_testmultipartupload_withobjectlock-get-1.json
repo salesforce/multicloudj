@@ -1,0 +1,37 @@
+{
+  "id" : "d0cc7d3d-4fcd-49a6-819c-3a9b29a790f2",
+  "name" : "AliBlobStoreIT_testMultipartUpload_withObjectLock-GET-1",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-withObjectLock",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "legalHold" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchObjectLegalHoldConfiguration</Code>\n  <Message>The specified object does not have an object legal hold configuration.</Message>\n  <RequestId>6A31C2E9DF515537315F68F5</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <ObjectName>conformance-tests/multipart-withObjectLock</ObjectName>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A31C2E9DF515537315F68F5",
+      "x-oss-server-time" : "58",
+      "Server" : "AliyunOSS",
+      "Date" : "Tue, 16 Jun 2026 21:40:57 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "d0cc7d3d-4fcd-49a6-819c-3a9b29a790f2",
+  "persistent" : true,
+  "insertionIndex" : 45
+}

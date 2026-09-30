@@ -7,12 +7,13 @@ import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.Credentials;
 import com.google.auto.service.AutoService;
 import com.google.cloud.ReadChannel;
-import com.google.cloud.WriteChannel;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.GrpcStorageOptions;
 import com.google.cloud.storage.HttpMethod;
 import com.google.cloud.storage.HttpStorageOptions;
 import com.google.cloud.storage.MultipartUploadClient;
@@ -30,14 +31,25 @@ import com.google.cloud.storage.multipartupload.model.CreateMultipartUploadReque
 import com.google.cloud.storage.multipartupload.model.CreateMultipartUploadResponse;
 import com.google.cloud.storage.multipartupload.model.ListPartsRequest;
 import com.google.cloud.storage.multipartupload.model.ListPartsResponse;
+import com.google.cloud.storage.multipartupload.model.ObjectLockMode;
 import com.google.cloud.storage.multipartupload.model.UploadPartRequest;
 import com.google.cloud.storage.multipartupload.model.UploadPartResponse;
+import com.google.cloud.storage.transfermanager.DownloadJob;
+import com.google.cloud.storage.transfermanager.DownloadResult;
+import com.google.cloud.storage.transfermanager.ParallelDownloadConfig;
+import com.google.cloud.storage.transfermanager.ParallelUploadConfig;
+import com.google.cloud.storage.transfermanager.TransferManager;
+import com.google.cloud.storage.transfermanager.TransferManagerConfig;
+import com.google.cloud.storage.transfermanager.TransferStatus;
+import com.google.cloud.storage.transfermanager.UploadJob;
+import com.google.cloud.storage.transfermanager.UploadResult;
 import com.google.common.collect.Iterators;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreBuilder;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
@@ -51,6 +63,7 @@ import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
 import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -58,21 +71,30 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
+import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
 import com.salesforce.multicloudj.common.provider.Provider;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -86,42 +108,76 @@ import java.nio.channels.Channels;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** GCP implementation of BlobStore */
 @AutoService(AbstractBlobStore.class)
 public class GcpBlobStore extends AbstractBlobStore {
 
+  private static final String OBJECT_KEY_DIRECTORY_PREFIX_REGEX = "^.*/";
+  private static final Logger logger = LoggerFactory.getLogger(GcpBlobStore.class);
+
   private final Storage storage;
+  private final Storage httpStorage;
   private final MultipartUploadClient multipartUploadClient;
+  private final TransferManager transferManager;
   private final GcpTransformer transformer;
   private static final String TAG_PREFIX = "gcp-tag-";
   private static final String RESPONSE_CONTENT_DISPOSITION = "response-content-disposition";
 
   public GcpBlobStore() {
-    this(new Builder(), null, null);
+    this(new Builder(), null, null, null);
   }
 
-  public GcpBlobStore(Builder builder, Storage storage, MultipartUploadClient mpuClient) {
+  public GcpBlobStore(
+      Builder builder,
+      Storage storage,
+      MultipartUploadClient mpuClient,
+      TransferManager transferManager) {
+    this(builder, storage, storage, mpuClient, transferManager);
+  }
+
+  /**
+   * @param storage the main storage client (HTTP/JSON or gRPC depending on the transport opt-in)
+   * @param httpStorage an HTTP/JSON storage client backing operations the gRPC transport does not
+   *     implement (signed URLs and batch/collection delete). When the gRPC transport is not
+   *     selected this is the same instance as {@code storage}.
+   */
+  public GcpBlobStore(
+      Builder builder,
+      Storage storage,
+      Storage httpStorage,
+      MultipartUploadClient mpuClient,
+      TransferManager transferManager) {
     super(builder);
     this.storage = storage;
+    this.httpStorage = httpStorage;
     this.multipartUploadClient = mpuClient;
+    this.transferManager = transferManager;
     this.transformer = builder.transformerSupplier.get(bucket);
   }
 
@@ -130,55 +186,64 @@ public class GcpBlobStore extends AbstractBlobStore {
     return new Builder();
   }
 
-  private void rejectSha256(ChecksumMethod algorithm) {
-    if (algorithm == ChecksumMethod.SHA256) {
+  private void rejectUnsupportedChecksum(ChecksumMethod algorithm) {
+    // GCS validates CRC32C and MD5 as caller-supplied object checksums, but not SHA256 or CRC64.
+    // A null algorithm means "use the substrate default" (CRC32C) and is allowed.
+    if (algorithm != null
+        && algorithm != ChecksumMethod.CRC32C
+        && algorithm != ChecksumMethod.MD5) {
       throw new UnsupportedOperationException(
-          "SHA256 checksum is not supported by GCP Cloud Storage. Use CRC32C instead.");
+          algorithm + " checksum is not supported by GCP Cloud Storage. Use CRC32C or MD5.");
     }
   }
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
-    rejectSha256(uploadRequest.getChecksumAlgorithm());
-    try (WriteChannel writer =
-            storage.writer(
-                transformer.toBlobInfo(uploadRequest),
-                transformer.getKmsWriteOptions(uploadRequest));
-        var channel = Channels.newOutputStream(writer)) {
-      ByteStreams.copy(inputStream, channel);
+    rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
+    try {
+      // createFrom returns the committed Blob with server-populated generation, crc32c, and etag
+      // already set, so the response can be built directly from it without a follow-up get().
+      Blob blob =
+          storage.createFrom(
+              transformer.toBlobInfo(uploadRequest),
+              inputStream,
+              transformer.getBlobWriteOptions(uploadRequest));
+      return transformer.toUploadResponse(blob);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from input stream", e);
     }
-    Blob blob = getRequiredBlob(BlobId.of(getBucket(), uploadRequest.getKey()));
-    return transformer.toUploadResponse(blob);
   }
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
-    rejectSha256(uploadRequest.getChecksumAlgorithm());
-    Blob blob =
-        storage.create(
-            transformer.toBlobInfo(uploadRequest),
-            content,
-            transformer.getKmsTargetOptions(uploadRequest));
-    return transformer.toUploadResponse(blob);
+    rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
+    try {
+      Blob blob =
+          storage.createFrom(
+              transformer.toBlobInfo(uploadRequest),
+              new ByteArrayInputStream(content),
+              transformer.getBlobWriteOptions(uploadRequest));
+      return transformer.toUploadResponse(blob);
+    } catch (IOException e) {
+      throw new SubstrateSdkException("Request failed while uploading from byte array", e);
+    }
   }
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, File file) {
-    rejectSha256(uploadRequest.getChecksumAlgorithm());
+    rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
     return doUpload(uploadRequest, file.toPath());
   }
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, Path path) {
-    rejectSha256(uploadRequest.getChecksumAlgorithm());
+    rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
     try {
       Blob blob =
           storage.createFrom(
               transformer.toBlobInfo(uploadRequest),
               path,
-              transformer.getKmsWriteOptions(uploadRequest));
+              transformer.getBlobWriteOptions(uploadRequest));
       return transformer.toUploadResponse(blob);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from path", e);
@@ -189,20 +254,12 @@ public class GcpBlobStore extends AbstractBlobStore {
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
+    Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
+    // Parallel download uses Transfer Manager / file paths only; OutputStream downloads always use
+    // ReadChannel streaming (parallelDownload is ignored for this overload).
     try (ReadChannel reader = storage.reader(blobId);
         var channel = Channels.newInputStream(reader)) {
-
-      Blob blob = getRequiredBlob(blobId);
-      var range =
-          transformer.computeRange(
-              downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
-      if (range.getLeft() != null) {
-        reader.seek(range.getLeft());
-      }
-      if (range.getRight() != null) {
-        reader.limit(range.getRight());
-      }
-
+      applyRange(reader, downloadRequest, blob);
       ByteStreams.copy(channel, outputStream);
       return transformer.toDownloadResponse(blob);
     } catch (IOException e) {
@@ -223,32 +280,49 @@ public class GcpBlobStore extends AbstractBlobStore {
     return doDownload(downloadRequest, file.toPath());
   }
 
-  /**
-   * Performs Blob download and returns an InputStream
-   *
-   * @param downloadRequest Wrapper object containing download data
-   * @return Returns a DownloadResponse object that contains metadata about the blob and an
-   *     InputStream for reading the content
-   */
+  // parallelDownload not supported: TransferManager writes to disk,
+  // cannot produce an InputStream directly.
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
-    Blob blob = getRequiredBlob(blobId);
+    Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
     try {
       ReadChannel reader = blob.reader();
-      var range =
-          transformer.computeRange(
-              downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
-      if (range.getLeft() != null) {
-        reader.seek(range.getLeft());
-      }
-      if (range.getRight() != null) {
-        reader.limit(range.getRight());
-      }
+      applyRange(reader, downloadRequest, blob);
       InputStream inputStream = Channels.newInputStream(reader);
       return transformer.toDownloadResponse(blob, inputStream);
     } catch (IOException e) {
       throw new SubstrateSdkException("Failed to create input stream for download", e);
+    }
+  }
+
+  /**
+   * Applies the requested byte range to a {@link ReadChannel} before streaming.
+   *
+   * <p>Full-object downloads skip range setup entirely: with no start or end, {@code computeRange}
+   * would return {@code (null, null)} and neither {@code seek} nor {@code limit} would be applied,
+   * so the emitted GCS GET is identical either way. Short-circuiting here avoids a needless
+   * transformer call and keeps the request byte-for-byte the same as a plain full-object read.
+   *
+   * @param reader the channel to position/limit
+   * @param downloadRequest the request carrying the optional start/end offsets
+   * @param blob the resolved blob, used for its size when resolving a suffix range
+   * @throws IOException if positioning the channel fails
+   */
+  private void applyRange(ReadChannel reader, DownloadRequest downloadRequest, Blob blob)
+      throws IOException {
+    boolean hasRange = downloadRequest.getStart() != null || downloadRequest.getEnd() != null;
+    if (!hasRange) {
+      return;
+    }
+    var range =
+        transformer.computeRange(
+            downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
+    if (range.getLeft() != null) {
+      reader.seek(range.getLeft());
+    }
+    if (range.getRight() != null) {
+      reader.limit(range.getRight());
     }
   }
 
@@ -261,16 +335,162 @@ public class GcpBlobStore extends AbstractBlobStore {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
-    try (OutputStream outputStream = Files.newOutputStream(path)) {
+    Path destinationPath = createDownloadDestinationPath(downloadRequest, path);
+    // GCP TransferManager only supports full-file downloads;
+    // fall back to ReadChannel for range requests.
+    if (downloadRequest.isParallelDownload()
+        && downloadRequest.getStart() == null
+        && downloadRequest.getEnd() == null) {
+      return doParallelDownload(downloadRequest, destinationPath);
+    }
+    try (OutputStream outputStream = Files.newOutputStream(destinationPath)) {
       return doDownload(downloadRequest, outputStream);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while saving content to path", e);
     }
   }
 
+  /**
+   * Parallel download using the GCS transfer manager when available (divide-and-conquer / sliced
+   * Range GETs for large objects); otherwise {@link Blob#downloadTo(Path)}. Matches the shape of
+   * {@code AwsBlobStore#doParallelDownload(GetObjectRequest, Path)}: request + resolved file path
+   * only.
+   */
+  private DownloadResponse doParallelDownload(DownloadRequest downloadRequest, Path destination) {
+    BlobId blobId = transformer.toBlobId(downloadRequest);
+    Blob blob = getRequiredBlobForDownload(downloadRequest, blobId);
+    ParallelTmPaths tmPaths = computeParallelTmPaths(downloadRequest, destination);
+    if (transferManager == null || tmPaths == null) {
+      return downloadBlobToPath(blob, destination);
+    }
+    executeTransferManagerDownload(blobId, downloadRequest.getKey(), tmPaths);
+    return transformer.toDownloadResponse(blob);
+  }
+
+  private void executeTransferManagerDownload(
+      BlobId blobId, String objectKey, ParallelTmPaths tmPaths) {
+    BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
+    ParallelDownloadConfig parallelDownloadConfig =
+        ParallelDownloadConfig.newBuilder()
+            .setBucketName(getBucket())
+            .setDownloadDirectory(tmPaths.downloadDirectory)
+            .setStripPrefix(tmPaths.stripPrefix)
+            .build();
+    DownloadJob job =
+        transferManager.downloadBlobs(
+            Collections.singletonList(blobInfo), parallelDownloadConfig);
+    DownloadResult result = job.getDownloadResults().get(0);
+    if (result.getStatus() != TransferStatus.SUCCESS) {
+      Exception failure = result.getException();
+      throw new SubstrateSdkException(
+          "Parallel download failed",
+          failure != null ? failure : new IllegalStateException(result.getStatus().name()));
+    }
+    Path expected = tmPaths.expectedOutputPath(objectKey);
+    Path actual = result.getOutputDestination().normalize();
+    if (!actual.equals(expected.normalize())) {
+      throw new SubstrateSdkException(
+          "Parallel download wrote unexpected path (expected "
+              + expected
+              + ", got "
+              + actual
+              + ")");
+    }
+  }
+
+  private DownloadResponse downloadBlobToPath(Blob blob, Path destinationPath) {
+    blob.downloadTo(destinationPath);
+    return transformer.toDownloadResponse(blob);
+  }
+
+  /** Derives the download directory and strip-prefix so the resolved destination is honored. */
+  private static ParallelTmPaths computeParallelTmPaths(
+      DownloadRequest request, Path destinationPath) {
+    String key = request.getKey();
+    Path normalizedDest = destinationPath.normalize();
+    ParallelTmPaths paths;
+    if (request.isCreateParentPath()) {
+      Path downloadRoot = inferDownloadRootFromResolvedKeyPath(destinationPath, key);
+      if (downloadRoot == null) {
+        return null;
+      }
+      paths = new ParallelTmPaths(downloadRoot, "");
+    } else {
+      Path parent = destinationPath.getParent();
+      Path downloadDir = parent != null ? parent.normalize() : Paths.get(".");
+      Path name = destinationPath.getFileName();
+      if (name == null) {
+        return null;
+      }
+      String destFileName = name.toString();
+      if (key.indexOf('/') < 0) {
+        if (!key.equals(destFileName)) {
+          return null;
+        }
+        paths = new ParallelTmPaths(downloadDir, "");
+      } else {
+        String suffix = key.replaceFirst(OBJECT_KEY_DIRECTORY_PREFIX_REGEX, "");
+        if (!suffix.equals(destFileName)) {
+          return null;
+        }
+        paths = new ParallelTmPaths(downloadDir, OBJECT_KEY_DIRECTORY_PREFIX_REGEX);
+      }
+    }
+    if (!paths.expectedOutputPath(key).equals(normalizedDest)) {
+      return null;
+    }
+    return paths;
+  }
+
+  /**
+   * For {@code createParentPath}, {@code destinationPath} is {@code root.resolve(key)}; recover
+   * {@code root} by walking parents and matching object key segments (same layout as {@link
+   * #createDownloadDestinationPath}).
+   */
+  private static Path inferDownloadRootFromResolvedKeyPath(
+      Path destinationPath, String objectKey) {
+    List<String> segments =
+        Arrays.stream(objectKey.split("/"))
+            .filter(s -> !s.isEmpty())
+            .collect(Collectors.toList());
+    if (segments.isEmpty()) {
+      return null;
+    }
+    Path current = destinationPath.normalize();
+    for (int i = segments.size() - 1; i >= 0; i--) {
+      Path fileName = current.getFileName();
+      if (fileName == null || !fileName.toString().equals(segments.get(i))) {
+        return null;
+      }
+      current = current.getParent();
+      if (current == null && i > 0) {
+        return null;
+      }
+    }
+    return current;
+  }
+
+  private static final class ParallelTmPaths {
+    private final Path downloadDirectory;
+    private final String stripPrefix;
+
+    private ParallelTmPaths(Path downloadDirectory, String stripPrefix) {
+      this.downloadDirectory = downloadDirectory;
+      this.stripPrefix = stripPrefix;
+    }
+
+    private Path expectedOutputPath(String objectKey) {
+      String relative =
+          stripPrefix.isEmpty()
+              ? objectKey
+              : objectKey.replaceFirst(stripPrefix, "");
+      return downloadDirectory.resolve(relative).normalize();
+    }
+  }
+
   @Override
   protected void doDelete(String key, String versionId) {
-    validateBucketExists();
+    validateBucketExists(key);
     storage.delete(transformer.toBlobId(bucket, key, versionId));
   }
 
@@ -281,7 +501,8 @@ public class GcpBlobStore extends AbstractBlobStore {
         objects.stream()
             .map(obj -> transformer.toBlobId(bucket, obj.getKey(), obj.getVersionId()))
             .collect(Collectors.toList());
-    storage.delete(blobIds);
+    // Batch delete is a JSON-API feature with no gRPC equivalent, so it runs on the HTTP client.
+    httpStorage.delete(blobIds);
   }
 
   @Override
@@ -308,6 +529,8 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> doList(
       ListBlobsRequest request) {
+    boolean includeCommonPrefixes =
+        request.isIncludeCommonPrefixes() && StringUtils.isNotEmpty(request.getDelimiter());
     List<Storage.BlobListOption> listOptions = new ArrayList<>();
     listOptions.add(Storage.BlobListOption.includeFolders(false));
     if (request.getPrefix() != null) {
@@ -317,34 +540,8 @@ public class GcpBlobStore extends AbstractBlobStore {
       listOptions.add(Storage.BlobListOption.delimiter(request.getDelimiter()));
     }
     Storage.BlobListOption[] listOptionsArray = listOptions.toArray(new Storage.BlobListOption[0]);
-    Iterable<Blob> blobs = storage.list(getBucket(), listOptionsArray).iterateAll();
-
-    return new Iterator<>() {
-      // `Iterators.filter()` retains the lazy fetching behavior of iterateAll().
-      // i.e., Subsequent page responses are only fetched when the iterator is advanced.
-      private final Iterator<Blob> blobIterator = Iterators.filter(
-          blobs.iterator(),
-          blob -> !blob.isDirectory()
-      );
-
-      @Override
-      public boolean hasNext() {
-        return blobIterator.hasNext();
-      }
-
-      @Override
-      public com.salesforce.multicloudj.blob.driver.BlobInfo next() {
-        Blob blob = blobIterator.next();
-        return com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-            .withKey(blob.getName())
-            .withObjectSize(blob.getSize())
-            .withLastModified(
-                blob.getUpdateTimeOffsetDateTime() != null
-                    ? blob.getUpdateTimeOffsetDateTime().toInstant()
-                    : null)
-            .build();
-      }
-    };
+    Page<Blob> firstPage = storage.list(getBucket(), listOptionsArray);
+    return new BlobInfoIterator(firstPage, includeCommonPrefixes);
   }
 
   /**
@@ -381,10 +578,68 @@ public class GcpBlobStore extends AbstractBlobStore {
         blobs, commonPrefixes, page.hasNextPage(), page.getNextPageToken());
   }
 
+  /**
+   * Lists all generations for an exact object key using a bounded lexicographic range.
+   *
+   * <p>GCS version listing does not provide exact-name matching, and prefix-based listing can
+   * over-fetch sibling keys (for example, {@code key-1} when searching for {@code key}). To avoid
+   * that, this uses {@code [key, key + '\0')} bounds and still applies an exact-name filter as a
+   * defensive guard.
+   *
+   * <p>GCS represents a deletion of the live object by archiving the current generation and setting
+   * its time-deleted; there is no separate delete-marker object, so the {@code includeArchived}
+   * request flag surfaces no extra entries here. The flag does, however, gate the cloud-neutral
+   * {@code archivedAt} supersession instant: only when it is set does a no-longer-current
+   * generation report the time it stopped being current. The default listing streams generations
+   * without {@code archivedAt}, preserving the backward-compatible listing contract.
+   */
+  @Override
+  protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
+    String key = request.getKey();
+    boolean includeArchived = request.isIncludeArchived();
+    List<Storage.BlobListOption> listOptions = new ArrayList<>();
+    listOptions.add(Storage.BlobListOption.startOffset(key));
+    listOptions.add(Storage.BlobListOption.endOffset(key + "\u0000"));
+    listOptions.add(Storage.BlobListOption.versions(true));
+
+    Iterable<Blob> blobs =
+        storage.list(getBucket(), listOptions.toArray(new Storage.BlobListOption[0])).iterateAll();
+    Iterator<Blob> blobIterator =
+        Iterators.filter(blobs.iterator(), blob -> key.equals(blob.getName()));
+
+    return new Iterator<>() {
+      @Override
+      public boolean hasNext() {
+        return blobIterator.hasNext();
+      }
+
+      @Override
+      public BlobMetadata next() {
+        Blob blob = blobIterator.next();
+        OffsetDateTime versionTimestamp = blob.getCreateTimeOffsetDateTime();
+        Instant createdTime = versionTimestamp != null ? versionTimestamp.toInstant() : null;
+        // A generation that is no longer current reports the instant it was superseded/deleted, but
+        // only the opt-in delete-history view derives archivedAt; the default listing omits it.
+        OffsetDateTime deletedTimestamp = blob.getDeleteTimeOffsetDateTime();
+        Instant archivedAt =
+            (includeArchived && deletedTimestamp != null) ? deletedTimestamp.toInstant() : null;
+        return BlobMetadata.builder()
+            .key(blob.getName())
+            .versionId(blob.getGeneration() != null ? blob.getGeneration().toString() : null)
+            .eTag(blob.getEtag())
+            .objectSize(blob.getSize() != null ? blob.getSize() : 0L)
+            .lastModified(createdTime)
+            .createdTime(createdTime)
+            .archivedAt(archivedAt)
+            .build();
+      }
+    };
+  }
+
   @Override
   protected MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request) {
-    rejectSha256(request.getChecksumAlgorithm());
-    validateBucketExists();
+    rejectUnsupportedChecksum(request.getChecksumAlgorithm());
+    validateBucketExists(request.getKey());
 
     CreateMultipartUploadRequest.Builder createRequestBuilder =
         CreateMultipartUploadRequest.builder().bucket(getBucket()).key(request.getKey());
@@ -392,22 +647,55 @@ public class GcpBlobStore extends AbstractBlobStore {
       createRequestBuilder.kmsKeyName(request.getKmsKeyId());
     }
 
-    if (request.getMetadata() != null) {
-      createRequestBuilder.metadata(request.getMetadata());
+    // Build a mutable metadata map so the SDK's correlation id, service id and tenant id can be
+    // stamped onto the created object alongside any user-supplied metadata, mirroring the
+    // single-shot upload path. Stamping happens even when the caller supplied no metadata.
+    Map<String, String> metadata =
+        request.getMetadata() != null ? new HashMap<>(request.getMetadata()) : new HashMap<>();
+    transformer.stampContextMetadata(metadata, request.getOperationContext());
+    if (!metadata.isEmpty()) {
+      createRequestBuilder.metadata(metadata);
+    }
+
+    if (request.getContentType() != null && !request.getContentType().isEmpty()) {
+      createRequestBuilder.contentType(request.getContentType());
+    }
+
+    if (request.getObjectLock() != null) {
+      if (request.getObjectLock().getMode() != null) {
+        createRequestBuilder.objectLockMode(toGcpObjectLockMode(request.getObjectLock().getMode()));
+      }
+      if (request.getObjectLock().getRetainUntilDate() != null) {
+        createRequestBuilder.objectLockRetainUntilDate(
+            toOffsetDateTimeUtc(request.getObjectLock().getRetainUntilDate()));
+      }
     }
 
     CreateMultipartUploadResponse gcpMultipartUpload =
         multipartUploadClient.createMultipartUpload(createRequestBuilder.build());
 
+    // GCS's native object checksum is CRC32C. When checksumming is enabled without an explicit
+    // algorithm, resolve the substrate-native default (CRC32C) so the stored algorithm honestly
+    // reflects what GCS produces. Unsupported algorithms were rejected above.
+    ChecksumMethod algorithm = request.getChecksumAlgorithm();
+    if (algorithm == null && request.isChecksumEnabled()) {
+      algorithm = ChecksumMethod.CRC32C;
+    }
+
     return MultipartUpload.builder()
         .bucket(getBucket())
         .key(request.getKey())
         .id(gcpMultipartUpload.uploadId())
-        .metadata(request.getMetadata())
+        // Echo the stamped metadata (user-supplied entries plus the SDK's correlation/service/
+        // tenant ids) so the handle reflects what actually lands on the multipart object, matching
+        // the create request and a subsequent getMetadata read-back.
+        .metadata(metadata)
         .tags(request.getTags())
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
-        .checksumAlgorithm(request.getChecksumAlgorithm())
+        .checksumAlgorithm(algorithm)
+        .objectLock(request.getObjectLock())
+        .contentType(request.getContentType())
         .build();
   }
 
@@ -469,7 +757,37 @@ public class GcpBlobStore extends AbstractBlobStore {
     CompleteMultipartUploadResponse response =
         multipartUploadClient.completeMultipartUpload(completeRequest);
 
+    applyMultipartLegalHold(mpu);
+
     return new MultipartUploadResponse(response.etag(), response.crc32c());
+  }
+
+  private void applyMultipartLegalHold(MultipartUpload mpu) {
+    ObjectLockConfiguration lockConfig = mpu.getObjectLock();
+    if (lockConfig == null || !lockConfig.isLegalHold()) {
+      return;
+    }
+    try {
+      Blob blob = getRequiredBlob(transformer.toBlobId(bucket, mpu.getKey(), null));
+      BlobInfo.Builder builder = blob.toBuilder();
+      if (Boolean.TRUE.equals(lockConfig.getUseEventBasedHold())) {
+        builder.setEventBasedHold(true);
+        builder.setTemporaryHold(false);
+      } else {
+        builder.setTemporaryHold(true);
+        builder.setEventBasedHold(false);
+      }
+      storage.update(builder.build());
+    } catch (RuntimeException e) {
+      // Multipart completion has already succeeded, so legal hold application is best-effort.
+      logger.warn(
+          "Multipart upload completed but legal hold application failed."
+              + " bucket={}, key={}, uploadId={}",
+          bucket,
+          mpu.getKey(),
+          mpu.getId(),
+          e);
+    }
   }
 
   @Override
@@ -483,7 +801,7 @@ public class GcpBlobStore extends AbstractBlobStore {
             .build();
     ListPartsResponse response = multipartUploadClient.listParts(listPartsRequest);
 
-    return response.getParts().stream()
+    return response.parts().stream()
         .map(
             part ->
                 new com.salesforce.multicloudj.blob.driver.UploadPartResponse(
@@ -518,16 +836,82 @@ public class GcpBlobStore extends AbstractBlobStore {
     return blob;
   }
 
+  private Blob getRequiredBlobForDownload(DownloadRequest downloadRequest, BlobId blobId) {
+    Blob blob = storage.get(blobId);
+    if (blob != null) {
+      return blob;
+    }
+    if (downloadRequest.isCheckArchived()) {
+      handleArchived(blobId);
+    }
+    throw new ResourceNotFoundException(
+        "Blob not found: " + blobId.getBucket() + "/" + blobId.getName());
+  }
+
+  private void handleArchived(BlobId blobId) {
+    Page<Blob> versions = storage.list(
+        blobId.getBucket(),
+        Storage.BlobListOption.prefix(blobId.getName()),
+        Storage.BlobListOption.versions(true),
+        Storage.BlobListOption.pageSize(1));
+    for (Blob archivedBlob : versions.iterateAll()) {
+      if (archivedBlob.getName().equals(blobId.getName())) {
+        throw new ResourceNotFoundException(
+            "Object is archived: " + blobId.getName(),
+            null,
+            ArchiveInfo.builder()
+                .archived(true)
+                .versionId(archivedBlob.getGeneration().toString())
+                .build());
+      }
+    }
+  }
+
   /**
-   * Validates that the bucket exists, throwing ResourceNotFoundException if not found. Uses
-   * Objects.List with pageSize(1) instead of Buckets.Get so that only {@code storage.objects.list}
-   * is required on the bucket, not {@code storage.buckets.get}.
+   * Validates that the bucket is accessible by attempting to list objects.
    *
-   * @throws ResourceNotFoundException if the bucket does not exist
+   * Performs a lightweight probe using {@code storage.list()} with {@code pageSize(1)}.
+   * This requires only {@code storage.objects.list} IAM permission, not
+   * {@code storage.buckets.get}.
+   *
+   * @throws ResourceNotFoundException if the list operation returns HTTP 404 (bucket does not
+   *     exist or caller lacks permission to see it)
+   * @throws UnknownException if the list operation fails with any other error
    */
   private void validateBucketExists() {
     try {
       storage.list(getBucket(), Storage.BlobListOption.pageSize(1));
+    } catch (StorageException e) {
+      if (e.getCode() == 404) {
+        throw new ResourceNotFoundException("Bucket not found: " + bucket, e);
+      }
+      throw new UnknownException("Failed to check bucket existence", e);
+    }
+  }
+
+  /**
+   * Validates that the bucket is accessible by attempting to list objects with a prefix filter.
+   *
+   * Performs a lightweight probe using {@code storage.list()} with {@code pageSize(1)} and
+   * a prefix filter. This requires only {@code storage.objects.list} IAM permission, not
+   * {@code storage.buckets.get}.
+   *
+   * Using a prefix filter enables validation when IAM permissions are scoped to specific
+   * prefixes within the bucket. For example, a service account with permission to list only
+   * objects under {@code "user-data/"} can validate access by passing that prefix.
+   *
+   * @param keyPrefix the object key prefix to filter by; must match the caller's IAM
+   *     permission scope for validation to succeed
+   * @throws ResourceNotFoundException if the list operation returns HTTP 404 (bucket does not
+   *     exist or caller lacks permission to see it)
+   * @throws UnknownException if the list operation fails with any other error
+   */
+  private void validateBucketExists(String keyPrefix) {
+    try {
+      storage.list(
+          getBucket(),
+          Storage.BlobListOption.prefix(keyPrefix),
+          Storage.BlobListOption.pageSize(1));
     } catch (StorageException e) {
       if (e.getCode() == 404) {
         throw new ResourceNotFoundException("Bucket not found: " + bucket, e);
@@ -571,13 +955,39 @@ public class GcpBlobStore extends AbstractBlobStore {
       tags.forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
     }
 
-    Blob updatedBlob = blob.toBuilder().setMetadata(metadata).build();
-    storage.update(updatedBlob);
+    Blob.Builder builder = blob.toBuilder().setMetadata(metadata);
+
+    // setTags replaces the full tag set, so reconcile the lifecycle-expiration marker when the
+    // reserved tag now carries a positive day count. The tag value is the number of days the object
+    // should live measured from its creation time, so the custom time anchors to creation and the
+    // daysSinceCustomTime bucket rule expires the object that many days after it was created.
+    // The Cloud Storage custom time can only be moved to a later point in time once set: it cannot
+    // be unset or brought earlier without rewriting the object. We therefore only stamp when this
+    // extends the eligibility date, and we never attempt to clear it. Consequently removing the
+    // reserved tag does not retract an expiration that was already scheduled.
+    Integer expirationDays =
+        tags != null
+            ? GcpTransformer.parseExpirationDays(
+                tags.get(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY))
+            : null;
+    if (expirationDays != null) {
+      OffsetDateTime creationTime = blob.getCreateTimeOffsetDateTime();
+      OffsetDateTime anchor =
+          creationTime != null ? creationTime : OffsetDateTime.now(ZoneOffset.UTC);
+      OffsetDateTime expiry = anchor.plusDays(expirationDays);
+      OffsetDateTime existing = blob.getCustomTimeOffsetDateTime();
+      if (existing == null || expiry.isAfter(existing)) {
+        builder.setCustomTimeOffsetDateTime(expiry);
+      }
+    }
+
+    storage.update(builder.build());
   }
 
   @Override
-  protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
-    var blobInfo = transformer.toBlobInfo(request);
+  protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
+    Instant expiration = Instant.now().plus(request.getDuration());
+    var blobInfo = transformer.toPresignBlobInfo(request);
     HttpMethod httpMethod = null;
     switch (request.getType()) {
       case UPLOAD:
@@ -587,14 +997,50 @@ public class GcpBlobStore extends AbstractBlobStore {
         httpMethod = HttpMethod.GET;
         break;
       default:
-        throw new IllegalArgumentException(
+        throw new InvalidArgumentException(
             "Unsupported PresignedOperation. type=" + request.getType());
     }
+
+    Map<String, String> signedHeaders = new LinkedHashMap<>();
+    Map<String, String> extHeaders = new LinkedHashMap<>();
+    if (request.getMetadata() != null) {
+      extHeaders.putAll(request.getMetadata());
+    }
+
     List<Storage.SignUrlOption> options = new ArrayList<>();
     options.add(Storage.SignUrlOption.httpMethod(httpMethod));
     options.add(Storage.SignUrlOption.withV4Signature());
-    if (request.getMetadata() != null) {
-      options.add(Storage.SignUrlOption.withExtHeaders(request.getMetadata()));
+
+    if (request.getType() == PresignedOperation.UPLOAD) {
+      if (request.getContentType() != null) {
+        options.add(Storage.SignUrlOption.withContentType());
+        signedHeaders.put("Content-Type", request.getContentType());
+      }
+      // Content-Length is not signable on GCS (extHeaders must be x-goog-* prefixed).
+      // HTTP enforces content-length naturally; no signature-level enforcement available.
+      if (request.getChecksumValue() != null) {
+        ChecksumMethod algo = request.getChecksumAlgorithm() != null
+            ? request.getChecksumAlgorithm() : ChecksumMethod.CRC32C;
+        if (algo == ChecksumMethod.MD5) {
+          // Content-MD5 is folded into the V4 signature via withMd5() (the value is read from the
+          // BlobInfo, which toPresignBlobInfo populates). The uploader must send a matching
+          // Content-MD5, and GCS validates the body against it.
+          options.add(Storage.SignUrlOption.withMd5());
+          signedHeaders.put("Content-MD5", request.getChecksumValue());
+        } else if (algo == ChecksumMethod.SHA256) {
+          throw new UnSupportedOperationException(
+              "SHA256 presigned-URL upload integrity is not supported on GCS; use CRC32C or MD5");
+        } else {
+          String hashHeader = "crc32c=" + request.getChecksumValue();
+          extHeaders.put("x-goog-hash", hashHeader);
+          signedHeaders.put("x-goog-hash", hashHeader);
+        }
+      }
+    }
+
+    if (!extHeaders.isEmpty()) {
+      options.add(Storage.SignUrlOption.withExtHeaders(extHeaders));
+      signedHeaders.putAll(extHeaders);
     }
     if (request.getContentDisposition() != null
         && request.getType() == PresignedOperation.DOWNLOAD) {
@@ -603,11 +1049,18 @@ public class GcpBlobStore extends AbstractBlobStore {
       options.add(Storage.SignUrlOption.withQueryParams(queryParams));
     }
 
-    return storage.signUrl(
+    // Signed URLs are an HTTP/JSON feature with no gRPC equivalent, so they run on the HTTP client.
+    URL url = httpStorage.signUrl(
         blobInfo,
         request.getDuration().toMillis(),
         TimeUnit.MILLISECONDS,
         options.toArray(new Storage.SignUrlOption[0]));
+
+    return PresignedUrlResponse.builder()
+        .url(url)
+        .signedHeaders(signedHeaders)
+        .expiration(expiration)
+        .build();
   }
 
   @Override
@@ -633,6 +1086,15 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
   }
 
+  @Override
+  protected BucketVersioningConfiguration doGetBucketVersioning() {
+    Bucket bucketObj = storage.get(bucket);
+    if (bucketObj == null) {
+      throw new ResourceNotFoundException("Bucket does not exist: " + bucket);
+    }
+    return transformer.toBucketVersioningConfiguration(bucketObj.versioningEnabled());
+  }
+
   /**
    * Maximum number of objects that can be deleted in a single batch operation. GCP supports up to
    * 1000 objects per batch delete.
@@ -643,56 +1105,115 @@ public class GcpBlobStore extends AbstractBlobStore {
   protected DirectoryUploadResponse doUploadDirectory(
       DirectoryUploadRequest directoryUploadRequest) {
     try {
-      Path sourceDir = Paths.get(directoryUploadRequest.getLocalSourceDirectory());
+      // Resolve sourceDir to absolute form so Path#relativize works in the factory:
+      // the TransferManager always passes us an absolute filename per file.
+      final Path sourceDir =
+          Paths.get(directoryUploadRequest.getLocalSourceDirectory()).toAbsolutePath();
       List<Path> filePaths = transformer.toFilePaths(directoryUploadRequest);
-      List<FailedBlobUpload> failedUploads = new ArrayList<>();
-      // Create directory marker object if prefix is specified
-      if (directoryUploadRequest.getPrefix() != null
-          && !directoryUploadRequest.getPrefix().isEmpty()) {
-        try {
-          String dirMarkerKey = directoryUploadRequest.getPrefix();
-          if (!dirMarkerKey.endsWith("/")) {
-            dirMarkerKey += "/";
-          }
-          com.google.cloud.storage.BlobInfo dirMarkerInfo =
-              com.google.cloud.storage.BlobInfo.newBuilder(getBucket(), dirMarkerKey).build();
-          storage.create(dirMarkerInfo, new byte[0]); // Create empty object as directory marker
-        } catch (Exception e) {
-          // Don't fail the entire upload if directory marker creation fails
-        }
+      if (filePaths.isEmpty()) {
+        return DirectoryUploadResponse.builder().failedTransfers(new ArrayList<>()).build();
       }
 
-      for (Path filePath : filePaths) {
-        try {
-          // Generate blob key
-          String blobKey =
-              transformer.toBlobKey(sourceDir, filePath, directoryUploadRequest.getPrefix());
+      final String prefix = directoryUploadRequest.getPrefix();
+      final Map<String, String> metadata = buildTagMetadata(directoryUploadRequest);
 
-          // Build metadata map with tags if provided
-          Map<String, String> metadata = new HashMap<>();
-          if (directoryUploadRequest.getTags() != null
-              && !directoryUploadRequest.getTags().isEmpty()) {
-            directoryUploadRequest
-                .getTags()
-                .forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
-          }
+      // The factory populates this map (key -> absolute source path) as it builds each
+      // BlobInfo, so failures returned by the TransferManager can be attributed back
+      // to the originating file.
+      final Map<String, Path> keyToSource = new ConcurrentHashMap<>();
+      ParallelUploadConfig.Builder configBuilder =
+          ParallelUploadConfig.newBuilder()
+              .setBucketName(getBucket())
+              .setUploadBlobInfoFactory(
+                  buildUploadFactory(
+                      sourceDir,
+                      prefix,
+                      metadata,
+                      keyToSource,
+                      directoryUploadRequest.getObjectLock()));
 
-          // Upload file to GCS with tags applied
-          com.google.cloud.storage.BlobInfo blobInfo =
-              com.google.cloud.storage.BlobInfo.newBuilder(getBucket(), blobKey)
-                  .setMetadata(metadata.isEmpty() ? null : metadata)
-                  .build();
-          storage.createFrom(blobInfo, filePath);
-        } catch (Exception e) {
-          failedUploads.add(FailedBlobUpload.builder().source(filePath).exception(e).build());
-        }
+      // GCS CMEK is expressed on each write via BlobWriteOption.kmsKeyName. BlobInfo.kmsKeyName is
+      // read-back-only, so the KMS key must be threaded through ParallelUploadConfig rather than
+      // the UploadBlobInfoFactory.
+      String kmsKeyId = directoryUploadRequest.getKmsKeyId();
+      if (kmsKeyId != null && !kmsKeyId.isEmpty()) {
+        configBuilder.setWriteOptsPerRequest(
+            List.of(Storage.BlobWriteOption.kmsKeyName(kmsKeyId)));
       }
 
-      return DirectoryUploadResponse.builder().failedTransfers(failedUploads).build();
+      ParallelUploadConfig uploadConfig = configBuilder.build();
 
+      UploadJob job = transferManager.uploadFiles(filePaths, uploadConfig);
+      return DirectoryUploadResponse.builder()
+          .failedTransfers(collectFailedUploads(job, sourceDir, keyToSource))
+          .build();
     } catch (Exception e) {
       throw new SubstrateSdkException("Failed to upload directory", e);
     }
+  }
+
+  // Build metadata map with tags if provided; the same tags are applied to every
+  // file in the directory.
+  private static Map<String, String> buildTagMetadata(DirectoryUploadRequest request) {
+    Map<String, String> metadata = new HashMap<>();
+    if (request.getTags() != null && !request.getTags().isEmpty()) {
+      request.getTags().forEach((name, value) -> metadata.put(TAG_PREFIX + name, value));
+    }
+    return metadata;
+  }
+
+  /**
+   * Builds the {@link ParallelUploadConfig.UploadBlobInfoFactory} the TransferManager
+   * uses to derive each upload's destination {@code BlobInfo}, and records the
+   * {@code blobKey -> sourcePath} mapping into {@code keyToSource} for failure
+   * attribution.
+   */
+  private ParallelUploadConfig.UploadBlobInfoFactory buildUploadFactory(
+      Path sourceDir,
+      String prefix,
+      Map<String, String> metadata,
+      Map<String, Path> keyToSource,
+      ObjectLockConfiguration objectLock) {
+    return (bucketName, filename) -> {
+      Path filePath = Paths.get(filename);
+      String blobKey = transformer.toBlobKey(sourceDir, filePath, prefix);
+      keyToSource.put(blobKey, filePath);
+      if (objectLock != null) {
+        return transformer.toBlobInfo(blobKey, metadata, null, null, null, objectLock, null);
+      }
+      BlobInfo.Builder b = BlobInfo.newBuilder(bucketName, blobKey);
+      if (!metadata.isEmpty()) {
+        b.setMetadata(metadata);
+      }
+      transformer.applyLifecycleExpiration(b, metadata);
+      return b.build();
+    };
+  }
+
+  // True when this blob is a folder marker (a 0-byte object whose key ends with "/").
+  // Mirrors AWS S3TransferManager's default DownloadFilter.allObjects() definition.
+  private static boolean isFolderMarker(Blob blob) {
+    Long size = blob.getSize();
+    return blob.getName().endsWith("/") && size != null && size == 0L;
+  }
+
+  // Translates GCS UploadResult -> portable FailedBlobUpload: keeps non-SUCCESS only,
+  // recovers the source path from keyToSource (UploadResult only carries the blob key).
+  // The GCS SDK guarantees a non-null exception for FAILED_TO_START / FAILED_TO_FINISH
+  // (verified via UploadResult.Builder#build), and we never enable SKIPPED, so we pass
+  // result.getException() through directly (matching the AWS implementation).
+  private static List<FailedBlobUpload> collectFailedUploads(
+      UploadJob job, Path sourceDir, Map<String, Path> keyToSource) {
+    List<FailedBlobUpload> failedUploads = new ArrayList<>();
+    for (UploadResult result : job.getUploadResults()) {
+      if (result.getStatus() != TransferStatus.SUCCESS) {
+        String blobKey = result.getInput().getName();
+        Path source = keyToSource.getOrDefault(blobKey, sourceDir.resolve(blobKey));
+        failedUploads.add(
+            FailedBlobUpload.builder().source(source).exception(result.getException()).build());
+      }
+    }
+    return failedUploads;
   }
 
   @Override
@@ -707,36 +1228,61 @@ public class GcpBlobStore extends AbstractBlobStore {
               ? rawPrefix + "/"
               : rawPrefix;
 
-      // This can optimize performance by fetching minimal metadata instead of full blob details.
-      Storage.BlobListOption[] options =
-          (prefix != null)
-              ? new Storage.BlobListOption[] {
-                Storage.BlobListOption.prefix(prefix),
-                Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE)
-              }
-              : new Storage.BlobListOption[] {
-                Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE)
-              };
+      // Fetch name + size: name to build the destination, size to identify folder
+      // markers (matches AWS S3TransferManager DownloadFilter.allObjects, which is
+      // the default filter on AWS).
+      List<Storage.BlobListOption> listOptions = new ArrayList<>();
+      if (prefix != null) {
+        listOptions.add(Storage.BlobListOption.prefix(prefix));
+      }
+      listOptions.add(
+          Storage.BlobListOption.fields(
+              Storage.BlobField.NAME,
+              Storage.BlobField.SIZE,
+              Storage.BlobField.GENERATION));
+
+      List<BlobInfo> blobInfos = new ArrayList<>();
+      for (Blob blob :
+          storage.list(getBucket(), listOptions.toArray(new Storage.BlobListOption[0]))
+              .iterateAll()) {
+        // Skip folder markers (matches AWS default). GCS TransferManager has no
+        // built-in filter and would otherwise create a 0-byte file at the marker's
+        // path, blocking the real files inside that virtual folder.
+        if (!isFolderMarker(blob)) {
+          blobInfos.add(blob);
+        }
+      }
 
       List<FailedBlobDownload> failed = new ArrayList<>();
+      if (blobInfos.isEmpty()) {
+        return DirectoryDownloadResponse.builder().failedTransfers(failed).build();
+      }
 
-      for (Blob blob : storage.list(getBucket(), options).iterateAll()) {
-        final String name = blob.getName();
+      ParallelDownloadConfig.Builder downloadConfigBuilder =
+          ParallelDownloadConfig.newBuilder()
+              .setBucketName(getBucket())
+              .setDownloadDirectory(targetDir);
+      if (prefix != null) {
+        downloadConfigBuilder.setStripPrefix(prefix);
+      }
 
-        String relativePath = (prefix != null) ? name.substring(prefix.length()) : name;
-        if (relativePath.isEmpty()) {
-          continue;
-        }
+      DownloadJob job = transferManager.downloadBlobs(blobInfos, downloadConfigBuilder.build());
 
-        Path localFilePath = targetDir.resolve(relativePath).normalize();
-
-        try {
-          Path parent = localFilePath.getParent();
-
-          Files.createDirectories(parent);
-          blob.downloadTo(localFilePath);
-        } catch (Exception e) {
-          failed.add(FailedBlobDownload.builder().destination(localFilePath).exception(e).build());
+      for (DownloadResult result : job.getDownloadResults()) {
+        if (result.getStatus() != TransferStatus.SUCCESS) {
+          // DownloadResult#getOutputDestination() throws when status is not SUCCESS,
+          // so we always compute the destination from the blob name for failed transfers.
+          String name = result.getInput().getName();
+          String relative =
+              (prefix != null && name.startsWith(prefix))
+                  ? name.substring(prefix.length())
+                  : name;
+          Path destination = targetDir.resolve(relative).normalize();
+          failed.add(
+              FailedBlobDownload.builder()
+                  .destination(destination)
+                  .exception(result.getException())
+                  .build());
         }
       }
 
@@ -781,7 +1327,8 @@ public class GcpBlobStore extends AbstractBlobStore {
                 .map(blobInfo -> BlobId.of(getBucket(), blobInfo.getKey()))
                 .collect(Collectors.toList());
 
-        storage.delete(blobIds);
+        // Batch delete is a JSON-API feature with no gRPC equivalent; run it on the HTTP client.
+        httpStorage.delete(blobIds);
       }
 
     } catch (Exception e) {
@@ -808,7 +1355,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     RetentionMode mode = null;
-    java.time.Instant retainUntilDate = null;
+    Instant retainUntilDate = null;
 
     if (hasRetention) {
       // Map provider retention mode to SDK retention mode
@@ -842,7 +1389,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    */
   @Override
   public void updateObjectRetention(
-      String key, String versionId, java.time.Instant retainUntilDate) {
+      String key, String versionId, Instant retainUntilDate) {
     Blob blob = getRequiredBlob(transformer.toBlobId(bucket, key, versionId));
 
     Retention currentRetention = blob.getRetention();
@@ -855,7 +1402,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     // Check if trying to shorten retention (not allowed for LOCKED/COMPLIANCE mode)
     if (currentMode == Retention.Mode.LOCKED) {
-      java.time.Instant currentRetainUntil =
+      Instant currentRetainUntil =
           currentRetention.getRetainUntilTime() != null
               ? currentRetention.getRetainUntilTime().toInstant()
               : null;
@@ -871,21 +1418,23 @@ public class GcpBlobStore extends AbstractBlobStore {
     Retention updatedRetention =
         currentRetention.toBuilder()
             .setRetainUntilTime(
-                java.time.OffsetDateTime.ofInstant(retainUntilDate, java.time.ZoneOffset.UTC))
+                toOffsetDateTimeUtc(retainUntilDate))
             .build();
 
-    com.google.cloud.storage.BlobInfo updatedBlobInfo =
+    BlobInfo updatedBlobInfo =
         blob.toBuilder().setRetention(updatedRetention).build();
 
     // For GOVERNANCE (UNLOCKED) mode, use bypass header if shortening retention
     if (currentMode == Retention.Mode.UNLOCKED) {
-      java.time.Instant currentRetainUntil =
+      Instant currentRetainUntil =
           currentRetention.getRetainUntilTime() != null
               ? currentRetention.getRetainUntilTime().toInstant()
               : null;
       if (currentRetainUntil != null && retainUntilDate.isBefore(currentRetainUntil)) {
-        // Shortening retention requires bypass header
-        storage.update(updatedBlobInfo, Storage.BlobTargetOption.overrideUnlockedRetention(true));
+        // Shortening retention requires bypass header. overrideUnlockedRetention is an
+        // HTTP/JSON-only option with no gRPC equivalent, so this update runs on the HTTP client.
+        httpStorage.update(
+            updatedBlobInfo, Storage.BlobTargetOption.overrideUnlockedRetention(true));
       } else {
         // Increasing retention doesn't need bypass header
         storage.update(updatedBlobInfo);
@@ -894,6 +1443,78 @@ public class GcpBlobStore extends AbstractBlobStore {
       // COMPLIANCE (LOCKED) mode - only allow increasing
       storage.update(updatedBlobInfo);
     }
+  }
+
+  /**
+   * Provider hook for {@link
+   * com.salesforce.multicloudj.blob.driver.BlobStore#updateObjectRetention(String, String,
+   * ObjectRetentionConfig)}.
+   *
+   * <p>Stateless validation has already run; this method enforces the state-dependent rules from
+   * {@link ObjectRetentionRules} (no-current-retention, mode-downgrade, shorten-with-bypass) so
+   * the GCP impl surfaces the same {@code FailedPreconditionException} types and messages as
+   * AWS and the in-memory provider.
+   */
+  @Override
+  protected void doUpdateObjectRetention(
+      String key, String versionId, ObjectRetentionConfig config) {
+    Blob blob = getRequiredBlob(transformer.toBlobId(bucket, key, versionId));
+    Retention currentRetention = blob.getRetention();
+    java.time.Instant currentRetainUntil =
+        currentRetention != null && currentRetention.getRetainUntilTime() != null
+            ? currentRetention.getRetainUntilTime().toInstant()
+            : null;
+    RetentionMode currentMode =
+        currentRetention != null
+            ? toMulticloudMode(currentRetention.getMode())
+            : null;
+
+    RetentionMode resolvedMode =
+        ObjectRetentionRules.resolveAndValidate(currentMode, currentRetainUntil, config);
+
+    Retention updatedRetention =
+        Retention.newBuilder()
+            .setMode(toGcsRetentionMode(resolvedMode))
+            .setRetainUntilTime(toUtcOffsetDateTime(config.getRetainUntilDate()))
+            .build();
+    BlobInfo updatedBlobInfo = blob.toBuilder().setRetention(updatedRetention).build();
+
+    // GCS has no dedicated retention-only API (unlike AWS s3Client.putObjectRetention).
+    // Storage.update(BlobInfo) is a field-level patch: only the retention field we set is written.
+    boolean bypass = Boolean.TRUE.equals(config.getBypassGovernanceRetention());
+    if (bypass) {
+      // overrideUnlockedRetention is an HTTP/JSON-only option with no gRPC equivalent, so this
+      // update runs on the HTTP client.
+      httpStorage.update(
+          updatedBlobInfo, Storage.BlobTargetOption.overrideUnlockedRetention(true));
+    } else {
+      storage.update(updatedBlobInfo);
+    }
+  }
+
+  /**
+   * Converts a MultiCloudJ {@link RetentionMode} to a GCS {@link Retention.Mode}. Mapping:
+   * GOVERNANCE↔UNLOCKED, COMPLIANCE↔LOCKED.
+   */
+  private static Retention.Mode toGcsRetentionMode(RetentionMode mode) {
+    return mode == RetentionMode.COMPLIANCE ? Retention.Mode.LOCKED : Retention.Mode.UNLOCKED;
+  }
+
+  /** Inverse of {@link #toGcsRetentionMode(RetentionMode)}. */
+  private static RetentionMode toMulticloudMode(Retention.Mode mode) {
+    if (mode == null) {
+      return null;
+    }
+    return mode == Retention.Mode.LOCKED ? RetentionMode.COMPLIANCE : RetentionMode.GOVERNANCE;
+  }
+
+  /**
+   * Converts an {@link java.time.Instant} to a UTC-anchored {@link java.time.OffsetDateTime} for
+   * GCS API calls. Sub-millisecond precision is truncated by GCS server-side; document on
+   * {@link ObjectRetentionConfig#getRetainUntilDate()}.
+   */
+  private static java.time.OffsetDateTime toUtcOffsetDateTime(java.time.Instant instant) {
+    return java.time.OffsetDateTime.ofInstant(instant, java.time.ZoneOffset.UTC);
   }
 
   /** Updates legal hold status on an object. */
@@ -906,7 +1527,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     Boolean existingEventHold = blob.getEventBasedHold();
     boolean useEventBased = existingEventHold != null && existingEventHold;
 
-    com.google.cloud.storage.BlobInfo.Builder builder = blob.toBuilder();
+    BlobInfo.Builder builder = blob.toBuilder();
     if (useEventBased) {
       builder.setEventBasedHold(legalHold);
     } else {
@@ -916,31 +1537,54 @@ public class GcpBlobStore extends AbstractBlobStore {
     storage.update(builder.build());
   }
 
-  @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    if (t instanceof SubstrateSdkException) {
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (t instanceof ApiException) {
-      ApiException exception = (ApiException) t;
-      StatusCode statusCode = exception.getStatusCode();
-      return CommonErrorCodeMapping.getException(statusCode.getCode());
-    } else if (t instanceof StorageException) {
-      return CommonErrorCodeMapping.getException(((StorageException) t).getCode());
-    } else if (t instanceof IllegalArgumentException) {
-      return InvalidArgumentException.class;
-    }
-    return UnknownException.class;
+  private static OffsetDateTime toOffsetDateTimeUtc(Instant instant) {
+    return OffsetDateTime.ofInstant(instant, ZoneOffset.UTC);
   }
 
-  /** Closes the underlying GCP Storage client and releases any resources. */
+  private static ObjectLockMode toGcpObjectLockMode(RetentionMode mode) {
+    switch (mode) {
+      case COMPLIANCE:
+        return ObjectLockMode.COMPLIANCE;
+      case GOVERNANCE:
+        return ObjectLockMode.GOVERNANCE;
+      default:
+        throw new InvalidArgumentException("Unsupported retention mode: " + mode);
+    }
+  }
+
+  @Override
+  public SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass;
+    if (t instanceof ApiException) {
+      exceptionClass = CommonErrorCodeMapping.getException((ApiException) t);
+    } else if (t instanceof StorageException) {
+      exceptionClass = CommonErrorCodeMapping.getException(((StorageException) t).getCode());
+    } else if (t instanceof IllegalArgumentException) {
+      exceptionClass = InvalidArgumentException.class;
+    } else {
+      exceptionClass = UnknownException.class;
+    }
+    return ExceptionHandler.build(exceptionClass, t, GcpRetryClassifier.classify(t));
+  }
+
+  /** Closes the underlying GCP Storage clients and releases any resources. */
   @Override
   public void close() {
     try {
+      if (transferManager != null) {
+        transferManager.close();
+      }
       if (storage != null) {
         storage.close();
       }
+      // When the gRPC transport is selected, httpStorage is a distinct client backing the
+      // operations gRPC does not implement; close it too. Otherwise it is the same instance as
+      // storage (already closed above).
+      if (httpStorage != null && httpStorage != storage) {
+        httpStorage.close();
+      }
     } catch (Exception e) {
-      throw new SubstrateSdkException("Failed to close storage client", e);
+      throw new SubstrateSdkException("Failed to close GCP storage clients", e);
     }
   }
 
@@ -949,6 +1593,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     private Storage storage;
     private MultipartUploadClient mpuClient;
+    private TransferManager transferManager;
     private GcpTransformerSupplier transformerSupplier = new GcpTransformerSupplier();
 
     public Builder() {
@@ -967,6 +1612,11 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     public Builder withMultipartUploadClient(MultipartUploadClient mpuClient) {
       this.mpuClient = mpuClient;
+      return this;
+    }
+
+    public Builder withTransferManager(TransferManager transferManager) {
+      this.transferManager = transferManager;
       return this;
     }
 
@@ -1029,6 +1679,18 @@ public class GcpBlobStore extends AbstractBlobStore {
       return endpointStr;
     }
 
+    /**
+     * Determines whether the caller has configured any HTTP-transport option that requires us to
+     * override the GCS SDK's default transport. When this returns {@code false}, the SDK's own
+     * default transport (and its default connection pool) is used.
+     */
+    private static boolean shouldConfigureHttpClient(Builder builder) {
+      return builder.getProxyEndpoint() != null
+          || builder.getMaxConnections() != null
+          || builder.getSocketTimeout() != null
+          || builder.getIdleConnectionTimeout() != null;
+    }
+
     /** Creates HttpTransportOptions with ApacheHttpTransport */
     private static HttpTransportOptions buildTransportOptions(Builder builder) {
       CloseableHttpClient httpClient = buildHttpClient(builder);
@@ -1038,37 +1700,84 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     /** Helper function for generating the Storage client */
     private static Storage buildStorage(Builder builder) {
-      HttpTransportOptions transportOptions = buildTransportOptions(builder);
-
-      StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder();
-      storageOptionsBuilder.setTransportOptions(transportOptions);
-
-      String endpoint = normalizeEndpoint(builder.getEndpoint());
-      if (endpoint != null) {
-        storageOptionsBuilder.setHost(endpoint);
-      }
-
-      if (builder.getCredentialsOverrider() != null) {
-        Credentials credentials =
-            GcpCredentialsProvider.getCredentials(builder.getCredentialsOverrider());
-        storageOptionsBuilder.setCredentials(credentials);
-      }
-
-      if (builder.getRetryConfig() != null) {
-        GcpTransformer transformer = builder.transformerSupplier.get(builder.getBucket());
-        storageOptionsBuilder.setRetrySettings(
-            transformer.toGcpRetrySettings(builder.getRetryConfig()));
-      }
-
-      return storageOptionsBuilder.build().getService();
+      return buildStorageOptions(builder).getService();
     }
 
-    /** Helper function for generating the MultipartUpload client */
-    private static MultipartUploadClient buildMultipartUploadClient(Builder builder) {
-      HttpTransportOptions transportOptions = buildTransportOptions(builder);
+    /**
+     * Builds the {@link StorageOptions} for the main storage client, selecting the gRPC or
+     * HTTP/JSON transport based on {@link BlobStoreBuilder#getGrpcEnabled()}. Package-private so
+     * unit tests can assert transport selection without resolving credentials or opening a client.
+     */
+    static StorageOptions buildStorageOptions(Builder builder) {
+      if (Boolean.TRUE.equals(builder.getGrpcEnabled())) {
+        return buildGrpcStorageOptions(builder);
+      }
+      return buildHttpStorageOptions(builder);
+    }
 
-      HttpStorageOptions.Builder storageOptionsBuilder =
-          HttpStorageOptions.http().setTransportOptions(transportOptions);
+    /**
+     * Builds a dedicated HTTP/JSON {@link Storage} client. Used to back operations the gRPC
+     * transport does not implement (signed URLs and batch/collection delete) when the gRPC
+     * transport is selected for the main client.
+     */
+    private static Storage buildHttpStorage(Builder builder) {
+      return buildHttpStorageOptions(builder).getService();
+    }
+
+    /** Builds HTTP/JSON transport StorageOptions for the main storage client. */
+    private static StorageOptions buildHttpStorageOptions(Builder builder) {
+      StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder();
+      if (shouldConfigureHttpClient(builder)) {
+        storageOptionsBuilder.setTransportOptions(buildTransportOptions(builder));
+      }
+      applyCommonStorageOptions(builder, storageOptionsBuilder);
+      return storageOptionsBuilder.build();
+    }
+
+    /**
+     * Builds gRPC transport StorageOptions for the main storage client. The Apache-HTTP connection
+     * knobs (proxy endpoint, max connections, socket timeout, idle-connection timeout) configure
+     * the HTTP/JSON transport only and do not apply to the gRPC channel, so they are intentionally
+     * not wired here; see {@link BlobStoreBuilder#withGrpcEnabled(Boolean)}.
+     */
+    private static StorageOptions buildGrpcStorageOptions(Builder builder) {
+      GrpcStorageOptions.Builder storageOptionsBuilder = StorageOptions.grpc();
+      applyCommonStorageOptions(builder, storageOptionsBuilder);
+      return storageOptionsBuilder.build();
+    }
+
+    /** Applies endpoint, credentials, and retry settings shared by both transports. */
+    private static void applyCommonStorageOptions(
+        Builder builder, StorageOptions.Builder storageOptionsBuilder) {
+      String endpoint = normalizeEndpoint(builder.getEndpoint());
+      if (endpoint != null) {
+        storageOptionsBuilder.setHost(endpoint);
+      }
+
+      if (builder.getCredentialsOverrider() != null) {
+        Credentials credentials =
+            GcpCredentialsProvider.getCredentials(builder.getCredentialsOverrider());
+        storageOptionsBuilder.setCredentials(credentials);
+      }
+
+      if (builder.getRetryConfig() != null) {
+        GcpTransformer transformer = builder.transformerSupplier.get(builder.getBucket());
+        storageOptionsBuilder.setRetrySettings(
+            transformer.toGcpRetrySettings(builder.getRetryConfig()));
+      }
+    }
+
+    /**
+     * Helper function for generating the MultipartUpload client. This client always uses the
+     * HTTP/JSON transport because {@link MultipartUploadSettings} is constructed from {@link
+     * HttpStorageOptions} in this SDK version; the multipart XML API has no gRPC transport, so the
+     * {@link BlobStoreBuilder#withGrpcEnabled(Boolean)} toggle does not affect it.
+     */
+    private static MultipartUploadClient buildMultipartUploadClient(Builder builder) {
+      HttpStorageOptions.Builder storageOptionsBuilder = HttpStorageOptions.http();
+      if (shouldConfigureHttpClient(builder)) {
+        storageOptionsBuilder.setTransportOptions(buildTransportOptions(builder));
+      }
 
       String endpoint = normalizeEndpoint(builder.getEndpoint());
       if (endpoint != null) {
@@ -1085,31 +1794,88 @@ public class GcpBlobStore extends AbstractBlobStore {
         GcpTransformer transformer = builder.transformerSupplier.get(builder.getBucket());
         storageOptionsBuilder.setRetrySettings(
             transformer.toGcpRetrySettings(builder.getRetryConfig()));
+      }
+
+      if (builder.getQuotaProjectId() != null) {
+        storageOptionsBuilder.setQuotaProjectId(builder.getQuotaProjectId());
       }
 
       return MultipartUploadClient.create(
           MultipartUploadSettings.of(storageOptionsBuilder.build()));
     }
 
+    /**
+     * Helper function for generating the TransferManager, which is used for parallelized
+     * directory upload and download operations. It reuses the {@link StorageOptions} of the
+     * provided {@link Storage} client so that transport, credentials, endpoint, and retry
+     * settings are consistent between single-object and directory operations. Returns {@code
+     * null} if the provided {@link Storage} does not expose {@link StorageOptions} (for
+     * example, a test mock without stubbing); in that case directory operations will not be
+     * supported unless a {@link TransferManager} is supplied explicitly via {@link
+     * #withTransferManager(TransferManager)}.
+     */
+    private static TransferManager buildTransferManager(Builder builder, Storage storage) {
+      StorageOptions options = storage.getOptions();
+      if (options == null) {
+        return null;
+      }
+      TransferManagerConfig.Builder configBuilder =
+          TransferManagerConfig.newBuilder().setStorageOptions(options);
+
+      // Map transferManagerThreadPoolSize -> setMaxWorkers.
+      // Unset, GCS defaults maxWorkers to 2 x availableProcessors. When raising this for
+      // directory-heavy workloads, also raise withMaxConnections (see buildHttpClient): extra
+      // workers only help if the single-route Apache connection pool can serve them concurrently.
+      if (builder.getTransferManagerThreadPoolSize() != null) {
+        configBuilder.setMaxWorkers(builder.getTransferManagerThreadPoolSize());
+      }
+
+      // Map partBufferSize -> setPerWorkerBufferSize. GCP API takes int, so guard against overflow.
+      if (builder.getPartBufferSize() != null) {
+        long partBufferSize = builder.getPartBufferSize();
+        if (partBufferSize <= 0 || partBufferSize > Integer.MAX_VALUE) {
+          throw new IllegalArgumentException(
+              "partBufferSize must be a positive value not exceeding Integer.MAX_VALUE bytes,"
+                  + " got: "
+                  + partBufferSize);
+        }
+        configBuilder.setPerWorkerBufferSize((int) partBufferSize);
+      }
+
+      // Map parallelDownloadsEnabled -> setAllowDivideAndConquerDownload.
+      // multicloudj defaults this to TRUE; the underlying GCS SDK defaults to FALSE.
+      configBuilder.setAllowDivideAndConquerDownload(
+          Objects.requireNonNullElse(builder.getParallelDownloadsEnabled(), Boolean.TRUE));
+
+      // Map parallelUploadsEnabled -> setAllowParallelCompositeUpload.
+      if (builder.getParallelUploadsEnabled() != null) {
+        configBuilder.setAllowParallelCompositeUpload(builder.getParallelUploadsEnabled());
+      }
+
+      return configBuilder.build().getService();
+    }
+
     private static CloseableHttpClient buildHttpClient(Builder builder) {
-      HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+      HttpClientBuilder httpClientBuilder = ApacheHttpTransport.newDefaultHttpClientBuilder();
       httpClientBuilder.setDefaultRequestConfig(buildRequestConfig(builder));
-      httpClientBuilder.setConnectionManager(buildConnectionManager(builder));
+      // Performance note (directory / many-small-object workloads): GCS traffic all targets a
+      // single host, so it maps to one Apache HTTP route whose default per-route connection cap
+      // is 20. The TransferManager used for directory operations spawns 2 x availableProcessors
+      // workers, which on multi-core hosts exceeds that cap and leaves workers blocked waiting for
+      // a connection. For such workloads, raise this via withMaxConnections (which sets both
+      // maxConnTotal and maxConnPerRoute below) together with withTransferManagerThreadPoolSize;
+      // in a controlled benchmark this roughly tripled small-file directory throughput. The knob is
+      // left unset by default so single-object callers keep the lean default connection footprint.
+      if (builder.getMaxConnections() != null) {
+        int maxConns = builder.getMaxConnections();
+        httpClientBuilder.setMaxConnTotal(maxConns);
+        httpClientBuilder.setMaxConnPerRoute(maxConns);
+      }
       if (builder.getIdleConnectionTimeout() != null) {
         httpClientBuilder.evictIdleConnections(
             builder.getIdleConnectionTimeout().toMillis(), TimeUnit.MILLISECONDS);
       }
       return httpClientBuilder.build();
-    }
-
-    private static HttpClientConnectionManager buildConnectionManager(Builder builder) {
-      PoolingHttpClientConnectionManager connectionManager =
-          new PoolingHttpClientConnectionManager();
-      if (builder.getMaxConnections() != null) {
-        connectionManager.setMaxTotal(builder.getMaxConnections());
-        connectionManager.setDefaultMaxPerRoute(builder.getMaxConnections());
-      }
-      return connectionManager;
     }
 
     private static RequestConfig buildRequestConfig(Builder builder) {
@@ -1132,13 +1898,22 @@ public class GcpBlobStore extends AbstractBlobStore {
     public GcpBlobStore build() {
       Storage storage = this.storage;
       MultipartUploadClient mpuClient = this.mpuClient;
+      TransferManager transferManager = this.transferManager;
       if (storage == null) {
         storage = buildStorage(this);
       }
+      // Operations the gRPC transport does not implement (signed URLs, batch/collection delete)
+      // run on an HTTP/JSON client. When gRPC is not enabled the main client already uses
+      // HTTP/JSON, so reuse it instead of opening a second client.
+      Storage httpStorage =
+          Boolean.TRUE.equals(getGrpcEnabled()) ? buildHttpStorage(this) : storage;
       if (mpuClient == null) {
         mpuClient = buildMultipartUploadClient(this);
       }
-      return new GcpBlobStore(this, storage, mpuClient);
+      if (transferManager == null) {
+        transferManager = buildTransferManager(this, storage);
+      }
+      return new GcpBlobStore(this, storage, httpStorage, mpuClient, transferManager);
     }
   }
 }

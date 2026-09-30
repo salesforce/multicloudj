@@ -96,9 +96,7 @@ public class StsClient {
     try {
       return this.sts.assumeRole(request);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.sts.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw this.sts.mapException(t);
     }
   }
 
@@ -111,9 +109,7 @@ public class StsClient {
     try {
       return getCallerIdentity(GetCallerIdentityRequest.builder().build());
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.sts.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw this.sts.mapException(t);
     }
   }
 
@@ -126,9 +122,7 @@ public class StsClient {
     try {
       return this.sts.getCallerIdentity(request);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.sts.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw this.sts.mapException(t);
     }
   }
 
@@ -142,9 +136,7 @@ public class StsClient {
     try {
       return this.sts.getAccessToken(request);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.sts.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw this.sts.mapException(t);
     }
   }
 
@@ -159,9 +151,7 @@ public class StsClient {
     try {
       return this.sts.assumeRoleWithWebIdentity(request);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.sts.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw this.sts.mapException(t);
     }
   }
 
@@ -202,6 +192,42 @@ public class StsClient {
     public StsBuilder withEndpoint(URI endpoint) {
       this.endpoint = endpoint;
       this.stsBuilder.withEndpoint(endpoint);
+      return this;
+    }
+
+    /**
+     * Sets the proxy endpoint to override for the STS client.
+     *
+     * @param proxyEndpoint The proxy endpoint to set.
+     * @return This StsBuilder instance.
+     */
+    public StsBuilder withProxyEndpoint(URI proxyEndpoint) {
+      this.stsBuilder.withProxyEndpoint(proxyEndpoint);
+      return this;
+    }
+
+    /**
+     * Sets whether to use system property values for proxy configuration.
+     *
+     * @param useSystemPropertyProxyValues Whether to use system property values for proxy
+     *     configuration
+     * @return This StsBuilder instance.
+     */
+    public StsBuilder withUseSystemPropertyProxyValues(Boolean useSystemPropertyProxyValues) {
+      this.stsBuilder.withUseSystemPropertyProxyValues(useSystemPropertyProxyValues);
+      return this;
+    }
+
+    /**
+     * Sets whether to use environment variable values for proxy configuration.
+     *
+     * @param useEnvironmentVariableProxyValues Whether to use environment variable values for proxy
+     *     configuration
+     * @return This StsBuilder instance.
+     */
+    public StsBuilder withUseEnvironmentVariableProxyValues(
+        Boolean useEnvironmentVariableProxyValues) {
+      this.stsBuilder.withUseEnvironmentVariableProxyValues(useEnvironmentVariableProxyValues);
       return this;
     }
 

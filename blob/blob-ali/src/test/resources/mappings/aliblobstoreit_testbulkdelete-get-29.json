@@ -1,0 +1,28 @@
+{
+  "id" : "2bae7b43-05f0-4ccf-ad3d-979e1bdc2d9c",
+  "name" : "AliBlobStoreIT_testBulkDelete-GET-29",
+  "request" : {
+    "url" : "/conformance-tests/blob-for-bulk-delete_nonexisting",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6A0F7E911A2282333310EE84</RequestId>\n  <HostId>chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>conformance-tests/blob-for-bulk-delete_nonexisting</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A0F7E911A2282333310EE84",
+      "x-oss-server-time" : "42",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0026-00000001",
+      "Date" : "Thu, 21 May 2026 21:52:17 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "2bae7b43-05f0-4ccf-ad3d-979e1bdc2d9c",
+  "persistent" : true,
+  "insertionIndex" : 38
+}

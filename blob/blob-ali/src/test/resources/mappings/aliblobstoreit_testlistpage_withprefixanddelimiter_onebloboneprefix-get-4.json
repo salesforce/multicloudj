@@ -1,0 +1,52 @@
+{
+  "id" : "e745a2a0-1091-4aeb-bb2f-e0e585a01ffb",
+  "name" : "AliBlobStoreIT_testListPage_WithPrefixAndDelimiter_OneBlobOnePrefix-GET-4",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "4"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/common-prefix-nested/dir1/"
+        } ]
+      },
+      "delimiter" : {
+        "hasExactly" : [ {
+          "equalTo" : "/"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult>\n  <Name>chameleon-multicloudj-test</Name>\n  <Prefix>conformance-tests%2Fcommon-prefix-nested%2Fdir1%2F</Prefix>\n  <MaxKeys>100</MaxKeys>\n  <Delimiter>%2F</Delimiter>\n  <EncodingType>url</EncodingType>\n  <IsTruncated>false</IsTruncated>\n  <Contents>\n    <Key>conformance-tests%2Fcommon-prefix-nested%2Fdir1%2Fa.txt</Key>\n    <LastModified>2026-05-22T21:39:40.000Z</LastModified>\n    <ETag>\"098F6BCD4621D373CADE4E832627B4F6\"</ETag>\n    <Type>Normal</Type>\n    <Size>4</Size>\n    <StorageClass>Standard</StorageClass>\n  </Contents>\n  <Contents>\n    <Key>conformance-tests%2Fcommon-prefix-nested%2Fdir1%2Fb.txt</Key>\n    <LastModified>2026-05-22T21:39:41.000Z</LastModified>\n    <ETag>\"098F6BCD4621D373CADE4E832627B4F6\"</ETag>\n    <Type>Normal</Type>\n    <Size>4</Size>\n    <StorageClass>Standard</StorageClass>\n  </Contents>\n  <KeyCount>2</KeyCount>\n</ListBucketResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A10CD1FB8999837344928BB",
+      "x-oss-server-time" : "4",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 22 May 2026 21:39:43 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "e745a2a0-1091-4aeb-bb2f-e0e585a01ffb",
+  "persistent" : true,
+  "insertionIndex" : 920
+}

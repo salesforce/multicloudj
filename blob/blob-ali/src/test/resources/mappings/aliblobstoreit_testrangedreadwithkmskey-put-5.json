@@ -1,0 +1,33 @@
+{
+  "id" : "3d3b021e-e851-40a0-9b74-59b28c63fe38",
+  "name" : "AliBlobStoreIT_testRangedReadWithKmsKey-PUT-5",
+  "request" : {
+    "url" : "/conformance-tests/kms/ranged-read",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGhpcyBpcyB0ZXN0IGRhdGEgZm9yIHRoZSBLTVMgcmFuZ2VkIHJlYWQgdGVzdCBmaWxl"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A32E1A88D81BD3334365D12",
+      "x-oss-server-time" : "184",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "17862811016356862860",
+      "ETag" : "\"D78F126840EC9CBEFD5252BA8EF7EFD5\"",
+      "x-oss-server-side-encryption" : "KMS",
+      "x-oss-server-side-encryption-key-id" : "key-shh6a32d9fajtygsv4msy",
+      "Date" : "Wed, 17 Jun 2026 18:04:25 GMT",
+      "Content-MD5" : "148SaEDsnL79UlK6jvfv1Q=="
+    }
+  },
+  "uuid" : "3d3b021e-e851-40a0-9b74-59b28c63fe38",
+  "persistent" : true,
+  "insertionIndex" : 113
+}

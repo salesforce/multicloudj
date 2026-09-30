@@ -1,63 +1,64 @@
 package com.salesforce.multicloudj.common.exceptions;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import org.junit.jupiter.api.Test;
 
-/** Test class for ExceptionHandler. */
-public class ExceptionHandlerTest {
+/** Unit tests for {@link ExceptionHandler#build}. */
+class ExceptionHandlerTest {
 
   @Test
-  public void testHandleAndPropagateResourceAlreadyExistsException() {
-    Throwable t = new Throwable("Resource already exists");
-    assertThrows(
-        ResourceAlreadyExistsException.class,
-        () -> ExceptionHandler.handleAndPropagate(ResourceAlreadyExistsException.class, t));
+  void buildResourceAlreadyExistsException() {
+    Throwable cause = new Throwable("Resource already exists");
+    SubstrateSdkException result =
+        ExceptionHandler.build(ResourceAlreadyExistsException.class, cause);
+    assertInstanceOf(ResourceAlreadyExistsException.class, result);
+    assertEquals(cause, result.getCause());
   }
 
   @Test
-  public void testHandleAndPropagateUnAuthorizedException() {
-    Throwable t = new Throwable("Unauthorized");
-    assertThrows(
-        UnAuthorizedException.class,
-        () -> ExceptionHandler.handleAndPropagate(UnAuthorizedException.class, t));
+  void buildUnAuthorizedException() {
+    Throwable cause = new Throwable("Unauthorized");
+    SubstrateSdkException result = ExceptionHandler.build(UnAuthorizedException.class, cause);
+    assertInstanceOf(UnAuthorizedException.class, result);
   }
 
   @Test
-  public void testHandleAndPropagateResourceExhaustedException() {
-    Throwable t = new Throwable("Resource exhausted");
-    assertThrows(
-        ResourceExhaustedException.class,
-        () -> ExceptionHandler.handleAndPropagate(ResourceExhaustedException.class, t));
+  void buildResourceExhaustedException() {
+    Throwable cause = new Throwable("Resource exhausted");
+    SubstrateSdkException result =
+        ExceptionHandler.build(ResourceExhaustedException.class, cause);
+    assertInstanceOf(ResourceExhaustedException.class, result);
   }
 
   @Test
-  public void testHandleAndPropagateInvalidArgumentException() {
-    Throwable t = new Throwable("Invalid argument");
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> ExceptionHandler.handleAndPropagate(InvalidArgumentException.class, t));
+  void buildInvalidArgumentException() {
+    Throwable cause = new Throwable("Invalid argument");
+    SubstrateSdkException result =
+        ExceptionHandler.build(InvalidArgumentException.class, cause);
+    assertInstanceOf(InvalidArgumentException.class, result);
   }
 
   @Test
-  public void testHandleAndPropagateSubstrateSdkException() {
-    SubstrateSdkException t = new SubstrateSdkException("Substrate SDK exception");
-    assertThrows(
-        SubstrateSdkException.class,
-        () -> ExceptionHandler.handleAndPropagate(SubstrateSdkException.class, t));
+  void buildPreservesAlreadyTypedException() {
+    SubstrateSdkException original = new ResourceNotFoundException("not found");
+    SubstrateSdkException result = ExceptionHandler.build(SubstrateSdkException.class, original);
+    assertSame(original, result);
   }
 
   @Test
-  public void testHandleAndPropagateUnknownException() {
-    Throwable t = new Throwable("Unknown exception");
-    assertThrows(
-        UnknownException.class,
-        () -> ExceptionHandler.handleAndPropagate(UnknownException.class, t));
+  void buildUnknownException() {
+    Throwable cause = new Throwable("Unknown exception");
+    SubstrateSdkException result = ExceptionHandler.build(UnknownException.class, cause);
+    assertInstanceOf(UnknownException.class, result);
   }
 
   @Test
-  public void testNullExceptionTypeUnknownException() {
-    Throwable t = new Throwable("Null exception type");
-    assertThrows(UnknownException.class, () -> ExceptionHandler.handleAndPropagate(null, t));
+  void buildWithNullExceptionClassReturnsUnknown() {
+    Throwable cause = new Throwable("Null exception type");
+    SubstrateSdkException result = ExceptionHandler.build(null, cause);
+    assertInstanceOf(UnknownException.class, result);
   }
 }

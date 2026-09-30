@@ -1,5 +1,5 @@
 {
-  "id" : "11dedb5e-634c-4cc6-84a7-39d23cee44f8",
+  "id" : "02f76102-79a6-4e7b-b6bf-662dfc76cbcd",
   "name" : "FSDocstoreIT_testPut-POST-3",
   "request" : {
     "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet",
@@ -24,22 +24,22 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/TaylorPut\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": true\n      },\n      \"s\": {\n        \"stringValue\": \"randomStringMap\"\n      },\n      \"pName\": {\n        \"stringValue\": \"TaylorPut\"\n      },\n      \"f\": {\n        \"doubleValue\": 12.659999847412109\n      },\n      \"i\": {\n        \"integerValue\": \"121\"\n      },\n      \"DocstoreRevision\": {\n        \"nullValue\": null\n      }\n    },\n    \"createTime\": \"2026-03-04T21:19:47.691715Z\",\n    \"updateTime\": \"2026-03-04T21:19:48.500723Z\"\n  },\n  \"readTime\": \"2026-03-04T21:19:48.815561Z\"\n}\n]",
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/TaylorPut\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": true\n      },\n      \"s\": {\n        \"stringValue\": \"randomStringMap\"\n      },\n      \"pName\": {\n        \"stringValue\": \"TaylorPut\"\n      },\n      \"bytes\": {\n        \"bytesValue\": \"cmFuZG9tU3RyaW5nTWFw\"\n      },\n      \"f\": {\n        \"doubleValue\": 12.659999847412109\n      },\n      \"i\": {\n        \"integerValue\": \"121\"\n      },\n      \"DocstoreRevision\": {\n        \"nullValue\": null\n      }\n    },\n    \"createTime\": \"2026-04-22T22:41:22.950224Z\",\n    \"updateTime\": \"2026-04-22T22:41:23.436460Z\"\n  },\n  \"readTime\": \"2026-04-22T22:41:23.436460Z\"\n}\n]",
     "headers" : {
       "X-Frame-Options" : "SAMEORIGIN",
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "ESF",
-      "X-Debug-Tracking-ID" : "15782215595451582178;o=1",
+      "X-Debug-Tracking-ID" : "9407860943355733788;o=1",
       "X-Content-Type-Options" : "nosniff",
       "Vary" : [ "Origin", "X-Origin", "Referer" ],
       "X-XSS-Protection" : "0",
-      "Date" : "Wed, 04 Mar 2026 21:19:48 GMT",
+      "Date" : "Wed, 22 Apr 2026 22:41:23 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "11dedb5e-634c-4cc6-84a7-39d23cee44f8",
+  "uuid" : "02f76102-79a6-4e7b-b6bf-662dfc76cbcd",
   "persistent" : true,
   "scenarioName" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-databases-(default)-documents:batchGet",
   "requiredScenarioState" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-databases-(default)-documents:batchGet-2",
-  "insertionIndex" : 67
+  "insertionIndex" : 190
 }

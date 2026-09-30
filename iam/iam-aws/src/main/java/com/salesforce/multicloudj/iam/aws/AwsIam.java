@@ -7,7 +7,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
+import com.salesforce.multicloudj.common.aws.AwsRetryClassifier;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -20,9 +22,7 @@ import com.salesforce.multicloudj.iam.model.DeleteIdentityRequest;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
 import com.salesforce.multicloudj.iam.model.GetIdentityRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
-import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.RemovePolicyRequest;
-import com.salesforce.multicloudj.iam.model.Statement;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -133,22 +133,22 @@ public class AwsIam extends AbstractIam {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    if (t instanceof SubstrateSdkException && !t.getClass().equals(SubstrateSdkException.class)) {
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    }
+  public SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass;
     if (t instanceof AwsServiceException) {
       AwsServiceException serviceException = (AwsServiceException) t;
       if (serviceException.awsErrorDetails() != null) {
         String errorCode = serviceException.awsErrorDetails().errorCode();
-        return ErrorCodeMapping.getException(errorCode);
+        exceptionClass = ErrorCodeMapping.getException(errorCode);
+      } else {
+        exceptionClass = UnknownException.class;
       }
-      return UnknownException.class;
+    } else if (t instanceof SdkClientException || t instanceof IllegalArgumentException) {
+      exceptionClass = InvalidArgumentException.class;
+    } else {
+      exceptionClass = UnknownException.class;
     }
-    if (t instanceof SdkClientException || t instanceof IllegalArgumentException) {
-      return InvalidArgumentException.class;
-    }
-    return UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, AwsRetryClassifier.classify(t));
   }
 
   @Override

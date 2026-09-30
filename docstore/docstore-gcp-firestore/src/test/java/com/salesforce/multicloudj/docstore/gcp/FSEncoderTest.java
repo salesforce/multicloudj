@@ -5,6 +5,7 @@ import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.docstore.driver.codec.Codec;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Assertions;
@@ -79,5 +80,60 @@ public class FSEncoderTest {
     Value got = encoder.getValue();
     Assertions.assertTrue(got.hasNullValue());
     Assertions.assertEquals(com.google.protobuf.NullValue.NULL_VALUE, got.getNullValue());
+  }
+
+  @Test
+  public void testSiblingMapsDoNotMerge() {
+    Map<String, Object> doc = new LinkedHashMap<>();
+    doc.put("a", new LinkedHashMap<>(Map.of("x", 1)));
+    doc.put("b", new LinkedHashMap<>(Map.of("y", 2)));
+
+    FSEncoder encoder = new FSEncoder();
+    Codec.encode(doc, encoder);
+    Value result = encoder.getValue();
+
+    Assertions.assertTrue(result.hasMapValue());
+    Map<String, Value> fields = result.getMapValue().getFieldsMap();
+    Assertions.assertEquals(2, fields.size());
+
+    Value a = fields.get("a");
+    Assertions.assertTrue(a.hasMapValue());
+    Assertions.assertEquals(1, a.getMapValue().getFieldsCount());
+    Assertions.assertEquals(1, a.getMapValue().getFieldsMap().get("x").getIntegerValue());
+
+    Value b = fields.get("b");
+    Assertions.assertTrue(b.hasMapValue());
+    Assertions.assertEquals(1, b.getMapValue().getFieldsCount());
+    Assertions.assertEquals(2, b.getMapValue().getFieldsMap().get("y").getIntegerValue());
+  }
+
+  @Test
+  public void testMixedMapAndListSiblings() {
+    Map<String, Object> doc = new LinkedHashMap<>();
+    doc.put("id", "test123");
+    doc.put("features", new LinkedHashMap<>(Map.of("color", "red")));
+    doc.put("ratings", Arrays.asList(1, 2, 3));
+
+    FSEncoder encoder = new FSEncoder();
+    Codec.encode(doc, encoder);
+    Value result = encoder.getValue();
+
+    Assertions.assertTrue(result.hasMapValue());
+    Map<String, Value> fields = result.getMapValue().getFieldsMap();
+    Assertions.assertEquals(3, fields.size());
+    Assertions.assertEquals("test123", fields.get("id").getStringValue());
+
+    Value features = fields.get("features");
+    Assertions.assertTrue(features.hasMapValue());
+    Assertions.assertEquals(1, features.getMapValue().getFieldsCount());
+    Assertions.assertEquals(
+        "red", features.getMapValue().getFieldsMap().get("color").getStringValue());
+
+    Value ratings = fields.get("ratings");
+    Assertions.assertTrue(ratings.hasArrayValue());
+    Assertions.assertEquals(3, ratings.getArrayValue().getValuesCount());
+    Assertions.assertEquals(1, ratings.getArrayValue().getValues(0).getIntegerValue());
+    Assertions.assertEquals(2, ratings.getArrayValue().getValues(1).getIntegerValue());
+    Assertions.assertEquals(3, ratings.getArrayValue().getValues(2).getIntegerValue());
   }
 }

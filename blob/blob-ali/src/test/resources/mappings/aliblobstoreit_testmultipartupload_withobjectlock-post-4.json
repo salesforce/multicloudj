@@ -1,0 +1,48 @@
+{
+  "id" : "c1b829d0-9d70-4eba-a246-2fc2440b1da8",
+  "name" : "AliBlobStoreIT_testMultipartUpload_withObjectLock-POST-4",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-withObjectLock",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "2113D3DD89F7480B85617C857A770A55"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>2B5C91AD399409EC9B409B66F5BB00FB</ETag></Part><Part><PartNumber>2</PartNumber><ETag>267C038CC2EC32FFD0EE2512FF5DA5A5</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CompleteMultipartUploadResult>\n  <EncodingType>url</EncodingType>\n  <Location>https://chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com/conformance-tests/multipart-withObjectLock</Location>\n  <Bucket>chameleon-multicloudj-test-versioned</Bucket>\n  <Key>conformance-tests%2Fmultipart-withObjectLock</Key>\n  <ETag>\"8C11B624ED7D61A26D45D7A28FE98349-2\"</ETag>\n</CompleteMultipartUploadResult>\n",
+    "headers" : {
+      "x-oss-version-id" : "CAEQ3w0YnpXBrNbCyfYZIiA2NjM3NjhlNTdjMzU0OGJlOWQzY2YzMmYzZWU3OTk2ZA--",
+      "x-oss-request-id" : "6A31C2E6AF19EA3835FF85D8",
+      "x-oss-server-time" : "134",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "16941702395769382088",
+      "ETag" : "\"8C11B624ED7D61A26D45D7A28FE98349-2\"",
+      "Date" : "Tue, 16 Jun 2026 21:40:55 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "c1b829d0-9d70-4eba-a246-2fc2440b1da8",
+  "persistent" : true,
+  "insertionIndex" : 48
+}

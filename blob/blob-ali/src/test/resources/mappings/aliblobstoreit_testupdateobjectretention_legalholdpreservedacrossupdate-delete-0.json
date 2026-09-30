@@ -1,0 +1,27 @@
+{
+  "id" : "9be585d6-bb7c-4d3b-b301-a0c79163b806",
+  "name" : "AliBlobStoreIT_testUpdateObjectRetention_legalHoldPreservedAcrossUpdate-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/objectlock/update/legalhold-preserved",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkY3bvLzeyF1fQZIiAxZTliZGUzZTNmOWQ0YmFiOGVjYWE3NGVlODBmNTQ4Mw--",
+      "x-oss-request-id" : "6A221D6B3A503C3132510BDA",
+      "x-oss-server-time" : "19",
+      "Server" : "AliyunOSS",
+      "x-oss-delete-marker" : "true",
+      "Date" : "Fri, 05 Jun 2026 00:50:51 GMT"
+    }
+  },
+  "uuid" : "9be585d6-bb7c-4d3b-b301-a0c79163b806",
+  "persistent" : true,
+  "insertionIndex" : 989
+}

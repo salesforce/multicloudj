@@ -1,0 +1,43 @@
+{
+  "id" : "fd77083e-f51f-4e8f-ab82-1767e5c0653d",
+  "name" : "AliBlobStoreIT_testTagging_withObjectLock-PUT-2",
+  "request" : {
+    "urlPath" : "/conformance-tests/blob-for-tagging-objectlock-fake",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<Tagging><TagSet><Tag><Key>tag5</Key><Value>value5</Value></Tag></TagSet></Tagging>"
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6A221C2FFB200F3136469A94</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>conformance-tests/blob-for-tagging-objectlock-fake</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkY5oDu3pfu1PQZIiA5OTFjNTE5OGE3OGM0ODYxYmRiNDAzYTg5M2E1MDEwOQ--",
+      "x-oss-request-id" : "6A221C2FFB200F3136469A94",
+      "x-oss-server-time" : "35",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0026-00000001",
+      "x-oss-delete-marker" : "true",
+      "Date" : "Fri, 05 Jun 2026 00:45:35 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "fd77083e-f51f-4e8f-ab82-1767e5c0653d",
+  "persistent" : true,
+  "insertionIndex" : 615
+}

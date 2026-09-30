@@ -1,0 +1,52 @@
+{
+  "id" : "d153c201-fc4f-468c-b911-f6c4eadfd482",
+  "name" : "AliBlobStoreIT_testListPage_CommonPrefixesNeverNull-GET-2",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "4"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/common-prefix-not-null/"
+        } ]
+      },
+      "delimiter" : {
+        "hasExactly" : [ {
+          "equalTo" : "/"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult>\n  <Name>chameleon-multicloudj-test</Name>\n  <Prefix>conformance-tests%2Fcommon-prefix-not-null%2F</Prefix>\n  <MaxKeys>100</MaxKeys>\n  <Delimiter>%2F</Delimiter>\n  <EncodingType>url</EncodingType>\n  <IsTruncated>false</IsTruncated>\n  <Contents>\n    <Key>conformance-tests%2Fcommon-prefix-not-null%2Ffile.txt</Key>\n    <LastModified>2026-05-22T21:37:34.000Z</LastModified>\n    <ETag>\"098F6BCD4621D373CADE4E832627B4F6\"</ETag>\n    <Type>Normal</Type>\n    <Size>4</Size>\n    <StorageClass>Standard</StorageClass>\n  </Contents>\n  <KeyCount>1</KeyCount>\n</ListBucketResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A10CC9FBA2045323726D76D",
+      "x-oss-server-time" : "5",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 22 May 2026 21:37:35 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "d153c201-fc4f-468c-b911-f6c4eadfd482",
+  "persistent" : true,
+  "insertionIndex" : 697
+}

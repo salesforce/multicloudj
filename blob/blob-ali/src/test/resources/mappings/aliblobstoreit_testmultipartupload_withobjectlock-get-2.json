@@ -1,0 +1,38 @@
+{
+  "id" : "d3eb2f15-388d-495e-a207-c3b5f7b45a75",
+  "name" : "AliBlobStoreIT_testMultipartUpload_withObjectLock-GET-2",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-withObjectLock",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "retention" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Retention>\n  <Mode>GOVERNANCE</Mode>\n  <RetainUntilDate>2100-01-01T00:00:00.000Z</RetainUntilDate>\n</Retention>\n",
+    "headers" : {
+      "x-oss-version-id" : "CAEQ3w0YnpXBrNbCyfYZIiA2NjM3NjhlNTdjMzU0OGJlOWQzY2YzMmYzZWU3OTk2ZA--",
+      "x-oss-request-id" : "6A31C2E88896FB3131128BAF",
+      "x-oss-server-time" : "72",
+      "Server" : "AliyunOSS",
+      "Date" : "Tue, 16 Jun 2026 21:40:56 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "d3eb2f15-388d-495e-a207-c3b5f7b45a75",
+  "persistent" : true,
+  "insertionIndex" : 46
+}

@@ -1,19 +1,29 @@
 package com.salesforce.multicloudj.sts.aws;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.net.URI;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 import software.amazon.awssdk.services.sts.model.AssumeRoleResponse;
@@ -195,5 +205,98 @@ public class AwsStsTest {
             + "\"Resource\":\"arn:aws:s3:::my-bucket/*\","
             + "\"Condition\":{\"StringLike\":{\"s3:prefix\":\"documents/\"}}}]}";
     assertJsonEquals(expectedPolicy, capturedRequest.policy());
+  }
+
+  @Test
+  public void testBuildHttpClientWithExplicitProxyEndpoint() {
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
+    AwsSts.Builder builder =
+        new AwsSts().builder().withRegion("us-west-2").withProxyEndpoint(proxyEndpoint);
+
+    SdkHttpClient httpClient = AwsSts.buildHttpClient(builder);
+    Assertions.assertNotNull(httpClient);
+    httpClient.close();
+  }
+
+  @Test
+  public void testBuildHttpClientWithDisabledProxyFlags() {
+    AwsSts.Builder builder =
+        new AwsSts()
+            .builder()
+            .withRegion("us-west-2")
+            .withUseSystemPropertyProxyValues(false)
+            .withUseEnvironmentVariableProxyValues(false);
+
+    SdkHttpClient httpClient = AwsSts.buildHttpClient(builder);
+    Assertions.assertNotNull(httpClient);
+    httpClient.close();
+  }
+
+  @Test
+  public void testMapException_AwsServiceException_MappedErrorCode() {
+    AwsSts sts = new AwsSts().builder().build(mockStsClient);
+    AwsServiceException serviceException =
+        AwsServiceException.builder()
+            .statusCode(403)
+            .awsErrorDetails(AwsErrorDetails.builder().errorCode("SignatureDoesNotMatch").build())
+            .build();
+
+    SubstrateSdkException mapped = sts.mapException(serviceException);
+
+    assertInstanceOf(UnAuthorizedException.class, mapped);
+    assertFalse(mapped.isRetryable());
+  }
+
+  @Test
+  public void testMapException_AwsServiceException_UnknownErrorCode() {
+    AwsSts sts = new AwsSts().builder().build(mockStsClient);
+    AwsServiceException serviceException =
+        AwsServiceException.builder()
+            .statusCode(400)
+            .awsErrorDetails(AwsErrorDetails.builder().errorCode("SomethingNew").build())
+            .build();
+
+    SubstrateSdkException mapped = sts.mapException(serviceException);
+
+    assertInstanceOf(UnknownException.class, mapped);
+    assertFalse(mapped.isRetryable());
+  }
+
+  @Test
+  public void testMapException_AwsServiceException_NoErrorDetails() {
+    AwsSts sts = new AwsSts().builder().build(mockStsClient);
+    AwsServiceException serviceException =
+        AwsServiceException.builder().statusCode(503).awsErrorDetails(null).build();
+
+    SubstrateSdkException mapped = sts.mapException(serviceException);
+
+    assertInstanceOf(UnknownException.class, mapped);
+    // 5xx -> classifier hint says retryable; overrides type default for UnknownException too.
+    assertTrue(mapped.isRetryable());
+  }
+
+  @Test
+  public void testMapException_NonAwsThrowable_FallsBackToUnknown() {
+    AwsSts sts = new AwsSts().builder().build(mockStsClient);
+
+    SubstrateSdkException mapped = sts.mapException(new RuntimeException("boom"));
+
+    assertInstanceOf(UnknownException.class, mapped);
+    // No AWS signal -> type default (UnknownException is retryable by default).
+    assertTrue(mapped.isRetryable());
+  }
+
+  @Test
+  public void testMapException_AwsServiceException_5xx_Retryable() {
+    AwsSts sts = new AwsSts().builder().build(mockStsClient);
+    AwsServiceException serviceException =
+        AwsServiceException.builder()
+            .statusCode(503)
+            .awsErrorDetails(AwsErrorDetails.builder().errorCode("ServiceUnavailable").build())
+            .build();
+
+    SubstrateSdkException mapped = sts.mapException(serviceException);
+
+    assertTrue(mapped.isRetryable());
   }
 }

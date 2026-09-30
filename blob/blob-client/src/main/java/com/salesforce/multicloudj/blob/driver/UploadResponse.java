@@ -1,10 +1,12 @@
 package com.salesforce.multicloudj.blob.driver;
 
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.Value;
 
 /** Wrapper object for upload result data */
-@Builder
+@Builder(toBuilder = true)
 @Value
 public class UploadResponse {
   String key;
@@ -24,4 +26,14 @@ public class UploadResponse {
    * this is the disparity and will raise a request to alibaba to support crc32c)
    */
   String checksumValue;
+
+  /**
+   * The correlation ID associated with this upload. Echoes the application-supplied value when
+   * provided via {@code OperationContext}, or an empty string when not (the correlation ID is
+   * never auto-generated). Excluded from {@code equals}/{@code hashCode}/{@code toString} because
+   * it is observability metadata, not part of the resource's identity.
+   */
+  @EqualsAndHashCode.Exclude
+  @ToString.Exclude
+  String correlationId;
 }

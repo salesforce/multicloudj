@@ -1,0 +1,36 @@
+{
+  "id" : "fd079454-1e68-4095-9115-b33b8663b072",
+  "name" : "AwsBlobStoreIT_testUpdateObjectRetention_governance_extend_succeeds-GET-4",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/update/gov-extend",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "retention" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPFJldGVudGlvbiB4bWxucz0iaHR0cDovL3MzLmFtYXpvbmF3cy5jb20vZG9jLzIwMDYtMDMtMDEvIj48TW9kZT5HT1ZFUk5BTkNFPC9Nb2RlPjxSZXRhaW5VbnRpbERhdGU+MjAzMC0wMS0wMVQwMDowMDowMC4wMDBaPC9SZXRhaW5VbnRpbERhdGU+PC9SZXRlbnRpb24+",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "29WY9JB05PK78EM0",
+      "x-amz-id-2" : "JKVAEJvZNMaSICJnFxYAbl8vtcQmgvP61DENohbzlydd+tBz2s8toQPt9JBVhYBFJWop83GxiSM=",
+      "Date" : "Mon, 11 May 2026 10:39:10 GMT"
+    }
+  },
+  "uuid" : "fd079454-1e68-4095-9115-b33b8663b072",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-objectlock-update-gov-extend",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-objectlock-update-gov-extend-2",
+  "insertionIndex" : 719
+}

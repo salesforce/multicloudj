@@ -1,0 +1,26 @@
+{
+  "id" : "16ca6c29-2fda-483e-93a1-db1dce702299",
+  "name" : "AliDocstoreIT_testGetQuery-POST-10",
+  "request" : {
+    "url" : "/GetRange",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "Cg9kb2NzdG9yZV90ZXN0XzIQACgBOkV1AAAAAQMEBAAAAEdhbWUFDwAAAAMKAAAAWm9tYmllIERNVgpPAwQGAAAAUGxheWVyBQsAAAADBgAAAGJpbGxpZQqeCfZCO3UAAAABAwQEAAAAR2FtZQUPAAAAAwoAAABab21iaWUgRE1WCk8DBAYAAABQbGF5ZXIFAQAAAAoK0QluUhoIARIWCAESCldpdGhHbGl0Y2gaAgIAIAEoAQ=="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgBEAAS5AJ1AAAAAQMEBAAAAEdhbWUFDwAAAAMKAAAAWm9tYmllIERNVgpPAwQGAAAAUGxheWVyBQsAAAADBgAAAGJpbGxpZQqeAgMEBQAAAFNjb3JlBQkAAAAAbwAAAAAAAAAHvsttRqABAAAKJwMEBAAAAFRpbWUFDwAAAAMKAAAAMjAyNC0wNC0xMAe+y21GoAEAAArpAwQKAAAAV2l0aEdsaXRjaAUCAAAAAgAHvsttRqABAAAK3gklAQMEBAAAAEdhbWUFDwAAAAMKAAAAWm9tYmllIERNVgpPAwQGAAAAUGxheWVyBQkAAAADBAAAAGZyYW4KzgIDBAUAAABTY29yZQUJAAAAACEAAAAAAAAAB3bTbUagAQAACnkDBAQAAABUaW1lBQ8AAAADCgAAADIwMjQtMDMtMjAHdtNtRqABAAAKBwMECgAAAFdpdGhHbGl0Y2gFAgAAAAIAB3bTbUagAQAAChwJwigAMAA=",
+    "headers" : {
+      "x-ots-requestid" : "00065a13-1ea1-7f08-278b-c20bc3914022",
+      "Authorization" : "OTS STS.NYKRCFQWXELvmrjAHWndrQSNH:xJPXtypwGs4hfuIVbChCOGnydyY=",
+      "x-ots-date" : "2026-08-28T03:33:45.071397Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "ItKwId2VSFPGzE0sy8JRbw==",
+      "Date" : "Fri, 28 Aug 2026 03:33:45 GMT"
+    }
+  },
+  "uuid" : "16ca6c29-2fda-483e-93a1-db1dce702299",
+  "persistent" : true,
+  "insertionIndex" : 189
+}

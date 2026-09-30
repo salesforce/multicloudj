@@ -361,10 +361,9 @@ public class GcpIamTest {
   }
 
   @Test
-  void testGetExceptionWithNonApiException() {
-    Class<? extends SubstrateSdkException> exceptionClass =
-        gcpIam.getException(new RuntimeException("Test error"));
-    assertEquals(UnknownException.class, exceptionClass);
+  void testMapExceptionWithNonApiException() {
+    SubstrateSdkException mapped = gcpIam.mapException(new RuntimeException("Test error"));
+    assertInstanceOf(UnknownException.class, mapped);
   }
 
   @Test
@@ -553,8 +552,8 @@ public class GcpIamTest {
         });
 
     // Verify that the exception would be mapped correctly
-    Class<? extends SubstrateSdkException> mappedException = gcpIam.getException(apiException);
-    assertEquals(UnAuthorizedException.class, mappedException);
+    SubstrateSdkException mappedException = gcpIam.mapException(apiException);
+    assertInstanceOf(UnAuthorizedException.class, mappedException);
   }
 
   @Test
@@ -981,10 +980,10 @@ public class GcpIamTest {
     when(apiException.getStatusCode()).thenReturn(mockStatusCode);
     when(mockStatusCode.getCode()).thenReturn(statusCode);
 
-    Class<? extends SubstrateSdkException> actualExceptionClass = gcpIam.getException(apiException);
-    assertEquals(
+    SubstrateSdkException mapped = gcpIam.mapException(apiException);
+    assertInstanceOf(
         expectedExceptionClass,
-        actualExceptionClass,
+        mapped,
         "Expected " + expectedExceptionClass.getSimpleName() + " for status code " + statusCode);
   }
 

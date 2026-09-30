@@ -1,0 +1,26 @@
+{
+  "id" : "acb64f0d-d172-4c76-a09a-77fc47c6ec3b",
+  "name" : "GcpBlobStoreIT_testUploadWithInvalidMd5Checksum_InputStream-DELETE-0",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fchecksum%2Fupload-inputstream-invalid-md5",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/checksum/upload-inputstream-invalid-md5\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/checksum/upload-inputstream-invalid-md5\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AJ5rDhE3z7du_9p0iPYbuoFwNzoKbEN7go8vWQhAugCM5zjzNsTCBHnRF4GP7rYcGBmBbXQoq9jDLI21bgiAYA",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 23 Jun 2026 00:22:11 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "acb64f0d-d172-4c76-a09a-77fc47c6ec3b",
+  "persistent" : true,
+  "insertionIndex" : 1457
+}

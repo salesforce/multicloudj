@@ -22,6 +22,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -235,6 +236,12 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
   }
 
   @Override
+  public CompletableFuture<PresignedUrlResponse> presign(PresignedUrlRequest request) {
+    return CompletableFuture.supplyAsync(
+        () -> blobStore.presign(request), executorService);
+  }
+
+  @Override
   public CompletableFuture<Boolean> doesObjectExist(String key, String versionId) {
     return CompletableFuture.supplyAsync(
         () -> blobStore.doesObjectExist(key, versionId), executorService);
@@ -246,8 +253,8 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    return blobStore.getException(t);
+  public SubstrateSdkException mapException(Throwable t) {
+    return blobStore.mapException(t);
   }
 
   @Override

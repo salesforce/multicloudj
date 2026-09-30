@@ -1,0 +1,21 @@
+{
+  "id" : "a9f00c0d-93d0-4307-bff2-b896c6206b4a",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_withObjectLock-GET-4",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/multipart-withObjectLock?retention",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Retention xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Mode>GOVERNANCE</Mode><RetainUntilDate>2100-01-01T00:00:00Z</RetainUntilDate></Retention>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "OBJECTLOCKMPU0005",
+      "x-amz-id-2" : "objectlock-multipart-upload-retention",
+      "Date" : "Tue, 05 May 2026 20:00:04 GMT"
+    }
+  },
+  "uuid" : "a9f00c0d-93d0-4307-bff2-b896c6206b4a",
+  "persistent" : true,
+  "insertionIndex" : 2005
+}

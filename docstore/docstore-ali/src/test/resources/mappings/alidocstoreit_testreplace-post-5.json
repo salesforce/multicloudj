@@ -1,0 +1,27 @@
+{
+  "id" : "167c5bb2-bac3-4ba6-95fb-ea95c2b62855",
+  "name" : "AliDocstoreIT_testReplace-POST-5",
+  "request" : {
+    "url" : "/BatchGetRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "\nB\n\u000Fdocstore_test_1\u0012+u\u0000\u0000\u0000\u0001\u0003\u0004\u0005\u0000\u0000\u0000pName\u0005\u0012\u0000\u0000\u0000\u0003\r\u0000\u0000\u0000TaylorReplace\n\u0012\t}\u001A\u00000\u0001",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "Cs0CCg9kb2NzdG9yZV90ZXN0XzESuQIIARoGCgQIARAAIqwCdQAAAAEDBAUAAABwTmFtZQUSAAAAAw0AAABUYXlsb3JSZXBsYWNlChICAwQQAAAARG9jc3RvcmVSZXZpc2lvbgUpAAAAAyQAAAA4Y2IzYjBhZS1lNGRjLTU4MTMtOTdhZS01ZGJiYTI5NjdjMzkHpgvMuZ8BAAAKMwMEAQAAAGIFAgAAAAIAB6YLzLmfAQAACsEDBAUAAABieXRlcwUTAAAABw4AAAByZXBsYWNlZFN0cmluZwemC8y5nwEAAAqzAwQBAAAAZgUJAAAAAQAAACCuR0FAB6YLzLmfAQAACroDBAEAAABpBQkAAAAAYwAAAAAAAAAHpgvMuZ8BAAAKRQMEAQAAAHMFEwAAAAMOAAAAcmVwbGFjZWRTdHJpbmcHpgvMuZ8BAAAK7gkG",
+    "headers" : {
+      "x-ots-requestid" : "000657ed-c51c-275e-5176-2b1a08b01772",
+      "Authorization" : "OTS STS.NY3TWDAWC3sV57fGWmx8PCPqs:V2bGSEWZ6yW5GF1tewdETeJymLs=",
+      "x-ots-date" : "2026-07-31T20:09:46.088352Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "BEVrd+/2NlA4zsOfv98Jmg==",
+      "Date" : "Fri, 31 Jul 2026 20:09:46 GMT"
+    }
+  },
+  "uuid" : "167c5bb2-bac3-4ba6-95fb-ea95c2b62855",
+  "persistent" : true,
+  "insertionIndex" : 86
+}

@@ -1,0 +1,27 @@
+{
+  "id" : "36402efa-6a78-4353-ab8b-386f42739a4f",
+  "name" : "AliBlobStoreIT_testUpdateObjectRetention_governance_extend_succeeds-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/objectlock/update/gov-extend",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkY_KvIxKuF1fQZIiA4Njk0NGMyMGIzY2U0OTY1YjBiYzZhMzA5MWI1OTU0NA--",
+      "x-oss-request-id" : "6A221D5A82F61D32373B1FC6",
+      "x-oss-server-time" : "35",
+      "Server" : "AliyunOSS",
+      "x-oss-delete-marker" : "true",
+      "Date" : "Fri, 05 Jun 2026 00:50:35 GMT"
+    }
+  },
+  "uuid" : "36402efa-6a78-4353-ab8b-386f42739a4f",
+  "persistent" : true,
+  "insertionIndex" : 969
+}

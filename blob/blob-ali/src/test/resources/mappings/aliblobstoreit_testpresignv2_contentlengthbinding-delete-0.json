@@ -1,0 +1,25 @@
+{
+  "id" : "a3a8ba51-34b6-4816-b910-ed29a4ad2949",
+  "name" : "AliBlobStoreIT_testPresignV2_contentLengthBinding-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/presign-v2/content-length-binding",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A3448BE76ADAE3438864F0D",
+      "x-oss-server-time" : "47",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 18 Jun 2026 19:36:30 GMT"
+    }
+  },
+  "uuid" : "a3a8ba51-34b6-4816-b910-ed29a4ad2949",
+  "persistent" : true,
+  "insertionIndex" : 151
+}

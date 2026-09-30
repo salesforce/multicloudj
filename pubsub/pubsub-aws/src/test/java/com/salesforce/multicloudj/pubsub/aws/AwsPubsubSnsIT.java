@@ -176,4 +176,8 @@ public class AwsPubsubSnsIT extends AbstractPubsubIT {
   @Override
   @Disabled("SNS does not support receiving messages")
   public void testSendReceiveTwo() throws Exception {}
+
+  @Override
+  @Disabled("SNS does not support receiving messages")
+  public void testNackWithVisibilityTimeout() throws Exception {}
 }

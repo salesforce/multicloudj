@@ -1,0 +1,42 @@
+{
+  "id" : "42ee6f88-0cfd-4bb7-b99d-b110eefdaf21",
+  "name" : "AliBlobStoreIT_testMultipartUpload_withKms-GET-4",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-withKms",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "585F5259F3BE433CBED29234B270C9BC"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult>\n  <EncodingType>url</EncodingType>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests%2Fmultipart-withKms</Key>\n  <UploadId>585F5259F3BE433CBED29234B270C9BC</UploadId>\n  <StorageClass>Standard</StorageClass>\n  <PartNumberMarker>0</PartNumberMarker>\n  <NextPartNumberMarker>2</NextPartNumberMarker>\n  <MaxParts>1000</MaxParts>\n  <IsTruncated>false</IsTruncated>\n  <Part>\n    <PartNumber>1</PartNumber>\n    <LastModified>2026-06-17T18:04:17.000Z</LastModified>\n    <ETag>\"2B5C91AD399409EC9B409B66F5BB00FB\"</ETag>\n    <HashCrc64ecma>14920568100270865136</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n  <Part>\n    <PartNumber>2</PartNumber>\n    <LastModified>2026-06-17T18:04:19.000Z</LastModified>\n    <ETag>\"267C038CC2EC32FFD0EE2512FF5DA5A5\"</ETag>\n    <HashCrc64ecma>9618452871104087932</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n</ListPartsResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A32E1A41017793832443A71",
+      "x-oss-server-time" : "43",
+      "Server" : "AliyunOSS",
+      "Date" : "Wed, 17 Jun 2026 18:04:20 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "42ee6f88-0cfd-4bb7-b99d-b110eefdaf21",
+  "persistent" : true,
+  "insertionIndex" : 103
+}

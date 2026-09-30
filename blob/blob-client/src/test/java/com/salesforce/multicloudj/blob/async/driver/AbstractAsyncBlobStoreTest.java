@@ -32,6 +32,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -49,6 +50,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 
 public class AbstractAsyncBlobStoreTest {
@@ -88,6 +90,14 @@ public class AbstractAsyncBlobStoreTest {
     assertEquals("key-1", sessionCreds.getAccessKeyId());
     assertEquals("secret-1", sessionCreds.getAccessKeySecret());
     assertEquals("token-1", sessionCreds.getSecurityToken());
+  }
+
+  @Test
+  void testBuilderWithUseTransferListener() {
+    AsyncBlobStoreProvider.Builder builder = new TestAsyncBlobStore.Builder();
+    builder.withBucket("bucket-1").withRegion("us-west-2");
+    builder.withUseTransferListener(true);
+    assertTrue(builder.getUseTransferListener());
   }
 
   @Test
@@ -395,7 +405,7 @@ public class AbstractAsyncBlobStoreTest {
             .build();
 
     mockBlobStore.generatePresignedUrl(presignedUrlRequest);
-    verify(mockBlobStore, times(1)).doGeneratePresignedUrl(presignedUrlRequest);
+    verify(mockBlobStore, times(1)).doPresign(presignedUrlRequest);
     verify(validator, times(1)).validate(any(PresignedUrlRequest.class));
   }
 
@@ -409,7 +419,22 @@ public class AbstractAsyncBlobStoreTest {
             .build();
 
     mockBlobStore.generatePresignedUrl(presignedUrlRequest);
-    verify(mockBlobStore, times(1)).doGeneratePresignedUrl(presignedUrlRequest);
+    verify(mockBlobStore, times(1)).doPresign(presignedUrlRequest);
+    verify(validator, times(1)).validate(any(PresignedUrlRequest.class));
+  }
+
+  @Test
+  void testPresign() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofMinutes(10))
+            .contentLength(100)
+            .build();
+
+    mockBlobStore.presign(request);
+    verify(mockBlobStore, times(1)).doPresign(request);
     verify(validator, times(1)).validate(any(PresignedUrlRequest.class));
   }
 
@@ -617,6 +642,47 @@ public class AbstractAsyncBlobStoreTest {
   }
 
   @Test
+  void testUploadDirectory_WithTotalBytesToUpload() {
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/files")
+            .prefix("prefix-1")
+            .includeSubFolders(true)
+            .build();
+    DirectoryUploadResponse expectedResponse =
+        DirectoryUploadResponse.builder()
+            .failedTransfers(List.of())
+            .totalBytesTransferred(321L)
+            .build();
+    when(mockBlobStore.doUploadDirectory(request))
+        .thenReturn(CompletableFuture.completedFuture(expectedResponse));
+
+    DirectoryUploadResponse actualResponse = mockBlobStore.uploadDirectory(request).join();
+    assertNotNull(actualResponse);
+    assertEquals(321L, actualResponse.getTotalBytesTransferred());
+  }
+
+  @Test
+  void testDownloadDirectory_WithTotalBytesRequested() {
+    DirectoryDownloadRequest request =
+        DirectoryDownloadRequest.builder()
+            .prefixToDownload("prefix-1")
+            .localDestinationDirectory("/home/files")
+            .build();
+    DirectoryDownloadResponse expectedResponse =
+        DirectoryDownloadResponse.builder()
+            .failedTransfers(List.of())
+            .totalBytesTransferred(456L)
+            .build();
+    when(mockBlobStore.doDownloadDirectory(request))
+        .thenReturn(CompletableFuture.completedFuture(expectedResponse));
+
+    DirectoryDownloadResponse actualResponse = mockBlobStore.downloadDirectory(request).join();
+    assertNotNull(actualResponse);
+    assertEquals(456L, actualResponse.getTotalBytesTransferred());
+  }
+
+  @Test
   void testDeleteDirectory_WithNullResponse() {
     String prefix = "files";
     when(mockBlobStore.doDeleteDirectory(prefix))
@@ -658,5 +724,29 @@ public class AbstractAsyncBlobStoreTest {
         () -> {
           mockBlobStore.deleteDirectory("test-prefix");
         });
+  }
+
+  @Test
+  void testCreateDownloadDestinationPath_rejectsTraversalKey(@TempDir Path destination) {
+    DownloadRequest request =
+        new DownloadRequest.Builder()
+            .withKey("../../etc/passwd")
+            .withCreateParentPath(true)
+            .build();
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> mockBlobStore.createDownloadDestinationPath(request, destination));
+  }
+
+  @Test
+  void testCreateDownloadDestinationPath_allowsNestedKey(@TempDir Path destination) {
+    DownloadRequest request =
+        new DownloadRequest.Builder()
+            .withKey("nested/dir/object.txt")
+            .withCreateParentPath(true)
+            .build();
+    Path resolved = mockBlobStore.createDownloadDestinationPath(request, destination);
+    assertTrue(resolved.startsWith(destination.normalize()));
+    assertEquals(destination.resolve("nested/dir/object.txt").normalize(), resolved);
   }
 }

@@ -1,0 +1,26 @@
+{
+  "id" : "d0ae9dc4-3541-4a15-a61c-ca0852a7cf35",
+  "name" : "AwsBlobStoreIT_testUploadWithInvalidChecksumFile-PUT-1",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/checksum/upload-file-invalid-checksum",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalTo" : "Test invalid checksum with File",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>BadDigest</Code><Message>The CRC32C you specified did not match the calculated checksum.</Message><RequestId>NN0NS94XMZ2MK4XA</RequestId><HostId>WPapfI+gkT7m0GtZiYEOLH6OtS9hssgUKqd4SPtj6TE9+MYsbQK5pi+Sts628d/T3aDKo1Jj1eDwemlG2SZmACC7bVnF/ehu</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "NN0NS94XMZ2MK4XA",
+      "x-amz-id-2" : "WPapfI+gkT7m0GtZiYEOLH6OtS9hssgUKqd4SPtj6TE9+MYsbQK5pi+Sts628d/T3aDKo1Jj1eDwemlG2SZmACC7bVnF/ehu",
+      "Date" : "Wed, 20 May 2026 00:16:08 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "d0ae9dc4-3541-4a15-a61c-ca0852a7cf35",
+  "persistent" : true,
+  "insertionIndex" : 740
+}

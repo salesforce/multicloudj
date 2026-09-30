@@ -1,0 +1,32 @@
+{
+  "id" : "bbd2cc24-b8d4-4350-9767-0d030c4e8b45",
+  "name" : "AliBlobStoreIT_testUpdateObjectRetention_governance_extend_succeeds-PUT-6",
+  "request" : {
+    "url" : "/conformance-tests/objectlock/update/gov-extend",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "cmV0ZW50aW9uLXVwZGF0ZS1jb25mb3JtYW5jZS10ZXN0cy9vYmplY3Rsb2NrL3VwZGF0ZS9nb3YtZXh0ZW5k"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkYw86c2JeF1fQZIiBkM2RjNzFlMjg0MmE0ZmRlYjA4ZGI2OTQxZTdiYWZmZA--",
+      "x-oss-request-id" : "6A221D5511D2913135E02528",
+      "x-oss-server-time" : "31",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "7180117724423120612",
+      "ETag" : "\"21599C7F1B469ED1CFFC796F3F269CA0\"",
+      "Date" : "Fri, 05 Jun 2026 00:50:29 GMT",
+      "Content-MD5" : "IVmcfxtGntHP/HlvPyacoA=="
+    }
+  },
+  "uuid" : "bbd2cc24-b8d4-4350-9767-0d030c4e8b45",
+  "persistent" : true,
+  "insertionIndex" : 975
+}

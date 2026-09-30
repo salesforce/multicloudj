@@ -6,6 +6,7 @@ import com.salesforce.multicloudj.pubsub.client.AbstractPubsubIT;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.BeforeEach;
@@ -114,6 +115,18 @@ public class AwsPubsubSqsIT extends AbstractPubsubIT {
     @Override
     @SuppressWarnings("rawtypes")
     public AbstractSubscription createSubscriptionDriver() {
+      return buildSubscription(null);
+    }
+
+    @Override
+    public AbstractSubscription createSubscriptionDriver(Duration nackVisibilityTimeout) {
+      return buildSubscription(nackVisibilityTimeout);
+    }
+
+    // Shared factory for both createSubscriptionDriver overloads. Pass null to use the provider's
+    // default nack visibility timeout.
+    @SuppressWarnings("rawtypes")
+    private AbstractSubscription buildSubscription(Duration nackVisibilityTimeout) {
       sqsClient = createSqsClient();
       ensureQueueExists();
 
@@ -122,6 +135,9 @@ public class AwsPubsubSqsIT extends AbstractPubsubIT {
       subscriptionBuilder.withWaitTimeSeconds(1);
       subscriptionBuilder.withSqsClient(sqsClient);
       subscriptionBuilder.subscriptionUrl = cachedQueueUrl;
+      if (nackVisibilityTimeout != null) {
+        subscriptionBuilder.withNackVisibilityTimeout(nackVisibilityTimeout);
+      }
 
       subscriptionBuilder.build();
       subscription =

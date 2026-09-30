@@ -1,0 +1,25 @@
+{
+  "id" : "408180d9-9aaf-4a92-b521-506f2cd55dc5",
+  "name" : "AliBlobStoreIT_testMultipartUpload_skippingNumbers-DELETE-1",
+  "request" : {
+    "url" : "/conformance-tests/multipart-skippingNumbers",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A330400F1AA1038373AC7DB",
+      "x-oss-server-time" : "80",
+      "Server" : "AliyunOSS",
+      "Date" : "Wed, 17 Jun 2026 20:30:56 GMT"
+    }
+  },
+  "uuid" : "408180d9-9aaf-4a92-b521-506f2cd55dc5",
+  "persistent" : true,
+  "insertionIndex" : 133
+}

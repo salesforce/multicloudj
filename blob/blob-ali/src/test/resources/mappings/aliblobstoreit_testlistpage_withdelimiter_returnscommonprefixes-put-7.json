@@ -1,0 +1,32 @@
+{
+  "id" : "534e869e-b9d6-43d1-ad67-de37e3930e16",
+  "name" : "AliBlobStoreIT_testListPage_WithDelimiter_ReturnsCommonPrefixes-PUT-7",
+  "request" : {
+    "url" : "/conformance-tests/common-prefix-basic/dir1/b.txt",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "test",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A10CD25B899983633283DBB",
+      "x-oss-server-time" : "13",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "18020588380933092773",
+      "ETag" : "\"098F6BCD4621D373CADE4E832627B4F6\"",
+      "Date" : "Fri, 22 May 2026 21:39:49 GMT",
+      "Content-MD5" : "CY9rzUYh03PK3k6DJie09g=="
+    }
+  },
+  "uuid" : "534e869e-b9d6-43d1-ad67-de37e3930e16",
+  "persistent" : true,
+  "insertionIndex" : 936
+}

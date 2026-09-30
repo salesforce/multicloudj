@@ -1,0 +1,41 @@
+{
+  "id" : "fc45efdb-8527-4746-925f-083e50876d3f",
+  "name" : "GcpBlobStoreIT_testUpload_withServiceAndTenantId_stampsObjectMetadata-GET-3",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fupload%2FobservabilityMetadata",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/upload/observabilityMetadata/1784242834122034\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fupload%2FobservabilityMetadata\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fupload%2FobservabilityMetadata?generation=1784242834122034&alt=media\",\n  \"name\": \"conformance-tests/upload/observabilityMetadata\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1784242834122034\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"27\",\n  \"md5Hash\": \"I/IAHOrs3jyc6wS860CgtQ==\",\n  \"crc32c\": \"dh1/oA==\",\n  \"etag\": \"CLLKyMKm2JUDEAE=\",\n  \"timeCreated\": \"2026-07-16T23:00:34.184Z\",\n  \"updated\": \"2026-07-16T23:00:34.184Z\",\n  \"timeStorageClassUpdated\": \"2026-07-16T23:00:34.184Z\",\n  \"timeFinalized\": \"2026-07-16T23:00:34.184Z\",\n  \"metadata\": {\n    \"sdk-logging-tenant-id\": \"conformance-tenant\",\n    \"sdk-logging-correlation-id\": \"conformance-correlation-id\",\n    \"sdk-logging-service-id\": \"conformance-service\"\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CLLKyMKm2JUDEAE=",
+      "X-GUploader-UploadID" : "AKhXX7K5f8ATwpe1cEsjAmhfbrWCK55_5r8hhJeETJY8t3_CxyFyc46IVFTqPPJ0Beo6TEjN",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 16 Jul 2026 23:00:34 GMT",
+      "Date" : "Thu, 16 Jul 2026 23:00:34 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "fc45efdb-8527-4746-925f-083e50876d3f",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-upload-observabilityMetadata",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-upload-observabilityMetadata-2",
+  "insertionIndex" : 1475
+}

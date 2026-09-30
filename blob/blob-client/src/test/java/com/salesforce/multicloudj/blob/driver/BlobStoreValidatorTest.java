@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
@@ -267,6 +268,48 @@ public class BlobStoreValidatorTest {
   }
 
   @Test
+  void testValidatePresignedRequest_negativeContentLength() {
+    assertThrows(
+        InvalidArgumentException.class,
+        () ->
+            validator.validate(
+                PresignedUrlRequest.builder()
+                    .type(PresignedOperation.UPLOAD)
+                    .key("key")
+                    .duration(Duration.ofHours(1))
+                    .contentLength(-1)
+                    .build()));
+  }
+
+  @Test
+  void testValidatePresignedRequest_checksumAlgorithmWithoutValue() {
+    assertThrows(
+        InvalidArgumentException.class,
+        () ->
+            validator.validate(
+                PresignedUrlRequest.builder()
+                    .type(PresignedOperation.UPLOAD)
+                    .key("key")
+                    .duration(Duration.ofHours(1))
+                    .checksumAlgorithm(ChecksumMethod.CRC32C)
+                    .build()));
+  }
+
+  @Test
+  void testValidatePresignedRequest_constraintsOnDownloadRejected() {
+    assertThrows(
+        InvalidArgumentException.class,
+        () ->
+            validator.validate(
+                PresignedUrlRequest.builder()
+                    .type(PresignedOperation.DOWNLOAD)
+                    .key("key")
+                    .duration(Duration.ofHours(1))
+                    .contentLength(100)
+                    .build()));
+  }
+
+  @Test
   void testValidateEndpoint() {
 
     for (String protocol : Arrays.asList(null, "", "  ", "ftp", "http", "HTTP", "https", "HTTPS")) {
@@ -353,5 +396,46 @@ public class BlobStoreValidatorTest {
     assertThrows(IllegalArgumentException.class, () -> validator.validateRange(null, -100L));
     assertThrows(IllegalArgumentException.class, () -> validator.validateRange(-100L, -100L));
     assertThrows(IllegalArgumentException.class, () -> validator.validateRange(100L, 50L));
+  }
+
+  // ---- ObjectRetentionConfig validation ------------------------------------------------
+
+  @Test
+  void validateObjectRetentionConfig_rejectsNullConfig() {
+    var e =
+        assertThrows(
+            IllegalArgumentException.class, () -> validator.validate((ObjectRetentionConfig) null));
+    assertEquals(BlobStoreValidator.NULL_RETENTION_CONFIG_MSG, e.getMessage());
+  }
+
+  @Test
+  void validateObjectRetentionConfig_rejectsNullRetainUntilDate() {
+    var cfg = ObjectRetentionConfig.builder().mode(RetentionMode.GOVERNANCE).build();
+    var e = assertThrows(IllegalArgumentException.class, () -> validator.validate(cfg));
+    assertEquals(BlobStoreValidator.NULL_RETAIN_UNTIL_DATE_MSG, e.getMessage());
+  }
+
+  @Test
+  void validateObjectRetentionConfig_acceptsConfigWithDate() {
+    // Stateless validation only checks non-null invariants.
+    // mode == null is the documented sentinel for "preserve current mode", so it must NOT be
+    // rejected here. Bypass == null is the documented default for "no bypass".
+    var cfg =
+        ObjectRetentionConfig.builder()
+            .retainUntilDate(java.time.Instant.parse("2030-01-01T00:00:00Z"))
+            .build();
+    validator.validate(cfg); // does not throw
+  }
+
+  @Test
+  void validateObjectRetentionConfig_doesNotEnforceFutureDate() {
+    // Backward-compat: existing updateObjectRetention(..., Instant) and the AWS/GCP impls do not
+    // perform client-side future-date validation today — they defer to server-side rejection.
+    // The new overload preserves that behavior; clock-skew false-positives stay off the table.
+    var cfg =
+        ObjectRetentionConfig.builder()
+            .retainUntilDate(java.time.Instant.parse("2000-01-01T00:00:00Z"))
+            .build();
+    validator.validate(cfg); // does not throw
   }
 }

@@ -10,7 +10,6 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
@@ -102,47 +101,29 @@ public class TopicClientTest {
 
   @Test
   public void testSendWithException() {
-    // Arrange
     Message message = Message.builder().withBody("test".getBytes()).build();
     RuntimeException originalException = new RuntimeException("send error");
     doThrow(originalException).when(mockTopic).send(message);
-    when(mockTopic.getException(originalException)).thenReturn((Class) UnknownException.class);
+    when(mockTopic.mapException(originalException))
+        .thenReturn(new UnknownException(originalException));
 
-    try (MockedStatic<ExceptionHandler> mockedHandler = mockStatic(ExceptionHandler.class)) {
-      mockedHandler
-          .when(
-              () -> ExceptionHandler.handleAndPropagate(UnknownException.class, originalException))
-          .thenThrow(new UnknownException(originalException));
-
-      // Act & Assert
-      assertThrows(UnknownException.class, () -> topicClient.send(message));
-      mockedHandler.verify(
-          () -> ExceptionHandler.handleAndPropagate(UnknownException.class, originalException));
-    }
+    assertThrows(UnknownException.class, () -> topicClient.send(message));
+    verify(mockTopic).mapException(originalException);
   }
 
   @Test
   public void testCloseWithException() {
-    // Arrange
     RuntimeException originalException = new RuntimeException("close error");
     try {
       doThrow(originalException).when(mockTopic).close();
     } catch (Exception e) {
       // This should not happen in the test setup
     }
-    when(mockTopic.getException(originalException)).thenReturn((Class) UnknownException.class);
+    when(mockTopic.mapException(originalException))
+        .thenReturn(new UnknownException(originalException));
 
-    try (MockedStatic<ExceptionHandler> mockedHandler = mockStatic(ExceptionHandler.class)) {
-      mockedHandler
-          .when(
-              () -> ExceptionHandler.handleAndPropagate(UnknownException.class, originalException))
-          .thenThrow(new UnknownException(originalException));
-
-      // Act & Assert
-      assertThrows(UnknownException.class, () -> topicClient.close());
-      mockedHandler.verify(
-          () -> ExceptionHandler.handleAndPropagate(UnknownException.class, originalException));
-    }
+    assertThrows(UnknownException.class, () -> topicClient.close());
+    verify(mockTopic).mapException(originalException);
   }
 
   @Test

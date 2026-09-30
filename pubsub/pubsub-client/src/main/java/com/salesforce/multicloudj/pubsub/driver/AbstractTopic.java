@@ -147,11 +147,6 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
   /** Provider-specific implementation for sending a batch of messages synchronously. */
   protected abstract void doSendBatch(List<Message> messages);
 
-  /**
-   * Gets the SubstrateSdkException class for a given throwable. Used for exception type mapping.
-   */
-  public abstract Class<? extends SubstrateSdkException> getException(Throwable t);
-
   /** Called before sending a batch of messages. Override for custom pre-send logic. */
   protected void executeBeforeSendBatchHooks(List<Message> messages) {
     // Default implementation does nothing

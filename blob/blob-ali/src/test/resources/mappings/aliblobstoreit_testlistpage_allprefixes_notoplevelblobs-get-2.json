@@ -1,0 +1,52 @@
+{
+  "id" : "26261ae5-17d9-4ad1-8c91-642db4671096",
+  "name" : "AliBlobStoreIT_testListPage_AllPrefixes_NoTopLevelBlobs-GET-2",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "4"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/common-prefix-all-dirs/"
+        } ]
+      },
+      "delimiter" : {
+        "hasExactly" : [ {
+          "equalTo" : "/"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult>\n  <Name>chameleon-multicloudj-test</Name>\n  <Prefix>conformance-tests%2Fcommon-prefix-all-dirs%2F</Prefix>\n  <MaxKeys>100</MaxKeys>\n  <Delimiter>%2F</Delimiter>\n  <EncodingType>url</EncodingType>\n  <IsTruncated>false</IsTruncated>\n  <CommonPrefixes>\n    <Prefix>conformance-tests%2Fcommon-prefix-all-dirs%2Fdir1%2F</Prefix>\n  </CommonPrefixes>\n  <CommonPrefixes>\n    <Prefix>conformance-tests%2Fcommon-prefix-all-dirs%2Fdir2%2F</Prefix>\n  </CommonPrefixes>\n  <KeyCount>2</KeyCount>\n</ListBucketResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A10CD8740BC85353009FE82",
+      "x-oss-server-time" : "5",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 22 May 2026 21:41:27 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "26261ae5-17d9-4ad1-8c91-642db4671096",
+  "persistent" : true,
+  "insertionIndex" : 1069
+}

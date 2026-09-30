@@ -14,7 +14,7 @@ public class TestBlobClient extends AbstractBlobClient<TestBlobClient> {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
+  public SubstrateSdkException mapException(Throwable t) {
     return null;
   }
 

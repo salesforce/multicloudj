@@ -1,0 +1,27 @@
+{
+  "id" : "a093668f-f11a-434f-bd3f-68ec3dce7a05",
+  "name" : "AliBlobStoreIT_testDoesObjectExist_versioned-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/doesBlobExist/versioned",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-version-id" : "CAEQigEYgoCAgoaUsvIZIiAyYjk1ODg4ZGE5MTg0ZTU5OTA4MDJlNTI2YjBkYTZlMQ--",
+      "x-oss-request-id" : "6A0F7F7E506D7F3838E51246",
+      "x-oss-server-time" : "22",
+      "Server" : "AliyunOSS",
+      "x-oss-delete-marker" : "true",
+      "Date" : "Thu, 21 May 2026 21:56:14 GMT"
+    }
+  },
+  "uuid" : "a093668f-f11a-434f-bd3f-68ec3dce7a05",
+  "persistent" : true,
+  "insertionIndex" : 384
+}

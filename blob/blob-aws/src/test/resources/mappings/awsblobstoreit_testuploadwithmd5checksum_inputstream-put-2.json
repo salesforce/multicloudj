@@ -1,0 +1,27 @@
+{
+  "id" : "05f7e0b5-3496-46c0-93d8-af8dcd5c8ed8",
+  "name" : "AwsBlobStoreIT_testUploadWithMd5Checksum_InputStream-PUT-2",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/checksum/upload-inputstream-md5",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGVzdCBNRDUgY2hlY2tzdW0gd2l0aCBJbnB1dFN0cmVhbQ=="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"1aaa5f607bc03cf511722cfb0ba1b6c6\"",
+      "x-amz-checksum-crc64nvme" : "6jsMCtwFxJQ=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "G2024MXJMABP4RYX",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "LpWpkKxR3e/8kvUfF23rv1X0hlixRznmbTp1JWeZ3RmxkpvNd2FCTbzQrXoNqRFojG+WMYBQr1ZRVHVLVfyCnl6RPVKElY/S",
+      "Date" : "Tue, 23 Jun 2026 00:15:28 GMT"
+    }
+  },
+  "uuid" : "05f7e0b5-3496-46c0-93d8-af8dcd5c8ed8",
+  "persistent" : true,
+  "insertionIndex" : 773
+}

@@ -9,9 +9,16 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>iam</artifactId>
-        <version>0.3.1-SNAPSHOT</version>
+        <version>0.4.8-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
+
+    <properties>
+        <!-- opt in to the centralized benchmarks jar + guard (config in the root pluginManagement) -->
+        <benchmarks.jar.phase>package</benchmarks.jar.phase>
+        <!-- provider package the benchmark-jar guard asserts is present in META-INF/BenchmarkList -->
+        <benchmarks.expected.package>com.salesforce.multicloudj.iam.gcp.</benchmarks.expected.package>
+    </properties>
 
     <dependencies>
         <dependency>
@@ -96,6 +103,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>com.google.auto</groupId>
             <artifactId>auto-common</artifactId>
             <version>1.2.2</version>
@@ -109,7 +121,6 @@
         <dependency>
             <groupId>com.google.auto.service</groupId>
             <artifactId>auto-service</artifactId>
-            <version>1.1.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -120,7 +131,6 @@
         <dependency>
             <groupId>com.google.auto.service</groupId>
             <artifactId>auto-service-annotations</artifactId>
-            <version>1.1.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -135,6 +145,11 @@
     </dependencies>
     <build>
         <plugins>
+            <!-- opt in to the centralized benchmarks jar (guard runs automatically because benchmarks.expected.package is set) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+            </plugin>
             <plugin>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok-maven-plugin</artifactId>

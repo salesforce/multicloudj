@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.pubsub.aws;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.spy;
 
@@ -109,32 +110,30 @@ public class AwsBaseTopicTest {
   }
 
   @Test
-  void testGetException() {
-    // AwsServiceException with error code
+  void testMapException() {
     AwsServiceException awsException =
         AwsServiceException.builder()
             .awsErrorDetails(AwsErrorDetails.builder().errorCode("AccessDenied").build())
             .build();
-    assertEquals(UnAuthorizedException.class, topic.getException(awsException));
+    assertInstanceOf(
+        UnAuthorizedException.class, topic.mapException(awsException));
 
-    // AwsServiceException without error code
     AwsServiceException awsExceptionNoCode = AwsServiceException.builder().build();
-    assertEquals(UnknownException.class, topic.getException(awsExceptionNoCode));
+    assertInstanceOf(
+        UnknownException.class, topic.mapException(awsExceptionNoCode));
 
-    // SdkClientException
-    assertEquals(
-        InvalidArgumentException.class, topic.getException(SdkClientException.builder().build()));
+    assertInstanceOf(
+        InvalidArgumentException.class, topic.mapException(SdkClientException.builder().build()));
 
-    // IllegalArgumentException
-    assertEquals(
-        InvalidArgumentException.class, topic.getException(new IllegalArgumentException()));
+    assertInstanceOf(
+        InvalidArgumentException.class, topic.mapException(new IllegalArgumentException()));
 
-    // Unknown exception
-    assertEquals(UnknownException.class, topic.getException(new RuntimeException()));
+    assertInstanceOf(
+        UnknownException.class, topic.mapException(new RuntimeException()));
 
-    // SubstrateSdkException
     InvalidArgumentException substrateException = new InvalidArgumentException("test");
-    assertEquals(InvalidArgumentException.class, topic.getException(substrateException));
+    assertInstanceOf(
+        InvalidArgumentException.class, topic.mapException(substrateException));
   }
 
   @Test

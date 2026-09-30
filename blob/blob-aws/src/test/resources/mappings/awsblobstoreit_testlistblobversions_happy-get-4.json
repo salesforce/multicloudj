@@ -1,0 +1,39 @@
+{
+  "id" : "832b44fd-5fa3-4c2c-accb-a43387806ae2",
+  "name" : "AwsBlobStoreIT_testListBlobVersions_happy-GET-4",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "versions" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/list-object-versions/exact-three-versions-blob"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListVersionsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud-versioned</Name><Prefix>conformance-tests/list-object-versions/exact-three-versions-blob</Prefix><KeyMarker></KeyMarker><VersionIdMarker></VersionIdMarker><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated><Version><Key>conformance-tests/list-object-versions/exact-three-versions-blob</Key><VersionId>ai6I3.Af4vQpK2.WXRIRmte6iMPbrHiM</VersionId><IsLatest>true</IsLatest><LastModified>2026-05-27T00:23:43.000Z</LastModified><ETag>&quot;e05f0abebc0c2132019426823e3b1923&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>19</Size><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass></Version><Version><Key>conformance-tests/list-object-versions/exact-three-versions-blob</Key><VersionId>UtxV4ZatqLdhXivzpRwSv2CxrpV90Fsl</VersionId><IsLatest>false</IsLatest><LastModified>2026-05-27T00:23:42.000Z</LastModified><ETag>&quot;ab9782dd75210385218989f982be54eb&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>19</Size><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass></Version><Version><Key>conformance-tests/list-object-versions/exact-three-versions-blob</Key><VersionId>psh7N3N3fTaBiCXWq_MBYSNutmSQPRDQ</VersionId><IsLatest>false</IsLatest><LastModified>2026-05-27T00:23:42.000Z</LastModified><ETag>&quot;d62c85c9a3b1cac2ed2df2b9811d2891&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>19</Size><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass></Version></ListVersionsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "DMVX1JH5TPD8MAN6",
+      "x-amz-id-2" : "YseVqxpDL2wb89uXyCFUZNIp3yK6HwN6mrECwMImtQAm7jpwXQUE6TQNvDXox8gz46/zf2qc4Rz6fm0kLnG+RqsOFf2s3Z5G",
+      "Date" : "Wed, 27 May 2026 00:23:43 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "832b44fd-5fa3-4c2c-accb-a43387806ae2",
+  "persistent" : true,
+  "insertionIndex" : 749
+}

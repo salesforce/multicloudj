@@ -1,8 +1,8 @@
 #
 
-[![Java 11 Build](https://github.com/salesforce/multicloudj/actions/workflows/java11-build.yml/badge.svg)](https://github.com/salesforce/multicloudj/actions/workflows/java11-build.yml)
 [![Java 17 Build](https://github.com/salesforce/multicloudj/actions/workflows/java17-build.yml/badge.svg)](https://github.com/salesforce/multicloudj/actions/workflows/java17-build.yml)
 [![Java 21 Build](https://github.com/salesforce/multicloudj/actions/workflows/java21-build.yml/badge.svg)](https://github.com/salesforce/multicloudj/actions/workflows/java21-build.yml)
+[![Java 25 Build](https://github.com/salesforce/multicloudj/actions/workflows/java25-build.yml/badge.svg)](https://github.com/salesforce/multicloudj/actions/workflows/java25-build.yml)
 [![codecov](https://codecov.io/gh/salesforce/multicloudj/branch/main/graph/badge.svg)](https://codecov.io/gh/salesforce/multicloudj)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Maven Central](https://img.shields.io/maven-central/v/com.salesforce.multicloudj/multicloudj-parent.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/com.salesforce.multicloudj/multicloudj-parent)
@@ -14,11 +14,21 @@
 ----------------------
 Write once, deploy to any cloud provider...
 
-MultiCloudJ is a cloud-agnostic Java SDK providing unified and substrate-neutral interfaces for cloud services. It enables developers to write once and deploy to any cloud provider with high-level APIs for Security Token Service (STS), Blob Storage, Document Store, and more, supporting major cloud providers like AWS, GCP, and Alibaba.
+MultiCloudJ is a cloud-agnostic Java SDK providing unified and substrate-neutral interfaces for cloud services. It enables developers to write once and deploy to any cloud provider. It has high-level APIs for the following commonly-used Cloud services:
 - **Security Token Service (STS)**
 - **Blob Store**
 - **Document Store**
-- more to come...
+- **Pub Sub**
+- **Container Registry**
+- **IAM**
+- **DB Backup Restore**
+
+We are continually adding support for additional Cloud services.
+
+The following Cloud Providers are supported:
+- **AWS**
+- **GCP**
+- **Alibaba**
 
 MultiCloudJ simplifies multi-cloud compatibility, enabling consistent codebases and accelerating development for applications that needs to be deployed across different cloud platforms.
 
@@ -29,7 +39,7 @@ For more information, see [the MulticloudJ official web site](https://opensource
 Requirements
 --------------------
 
-- Java 11 or higher
+- Java 17 or higher
 - Maven 3.8 or higher build automation
 
 Getting Started

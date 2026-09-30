@@ -18,12 +18,14 @@ import com.google.firestore.v1.StructuredQuery;
 import com.google.firestore.v1.Value;
 import com.google.firestore.v1.Write;
 import com.google.protobuf.Timestamp;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.Action;
@@ -42,6 +44,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -141,36 +144,27 @@ public class FSDocStore extends AbstractDocStore {
    * @return The appropriate SubstrateSdkException class
    */
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    // Check if exception is already an SDK exception
-    if (t instanceof SubstrateSdkException) {
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    }
-
-    // Check full exception chain for known exception types
+  public SubstrateSdkException mapException(Throwable t) {
     Set<Throwable> exceptions =
         ExceptionUtils.getThrowableList(t).stream().limit(5).collect(Collectors.toSet());
 
-    // Handle client-side validation exceptions
+    Class<? extends SubstrateSdkException> exceptionClass;
     if (exceptions.stream().anyMatch(IllegalArgumentException.class::isInstance)) {
-      return InvalidArgumentException.class;
+      exceptionClass = InvalidArgumentException.class;
+    } else {
+      ApiException apiException =
+          exceptions.stream()
+              .filter(ApiException.class::isInstance)
+              .map(ApiException.class::cast)
+              .findFirst()
+              .orElse(null);
+      if (apiException != null && apiException.getStatusCode() != null) {
+        exceptionClass = ErrorCodeMapping.getException(apiException.getStatusCode().getCode());
+      } else {
+        exceptionClass = UnknownException.class;
+      }
     }
-
-    // Handle GAX/API exceptions
-    ApiException apiException =
-        exceptions.stream()
-            .filter(ApiException.class::isInstance)
-            .map(ApiException.class::cast)
-            .findFirst()
-            .orElse(null);
-
-    if (apiException != null) {
-      StatusCode.Code code = apiException.getStatusCode().getCode();
-      return ErrorCodeMapping.getException(code);
-    }
-
-    // Default fallback
-    return UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, GcpRetryClassifier.classify(t));
   }
 
   /**
@@ -260,15 +254,26 @@ public class FSDocStore extends AbstractDocStore {
     Util.groupActions(actions, beforeGets, getList, writeList, atomicWriteList, afterGets);
 
     try {
-      // Run gets first (can be parallelized if needed)
+      // Sequenced gets that must complete before any writes are issued.
       runGets(beforeGets, beforeDo, batchSize);
+
+      // groupActions guarantees the get/write/atomic-write buckets address disjoint keys,
+      // so the non-atomic commit, the atomic commit, and the getList reads carry no ordering
+      // dependency and can be dispatched concurrently to overlap their Firestore round trips.
+      // Dispatch the two commits on the shared executorService (bounded by
+      // maxOutstandingActionRPCs) that runGets already uses, rather than the common ForkJoinPool.
+      List<Future<?>> commitTasks = new ArrayList<>();
+      commitTasks.add(executorService.submit(() -> runWritesBatched(writeList, beforeDo)));
+      commitTasks.add(executorService.submit(() -> runAtomicWrites(atomicWriteList, beforeDo)));
+
+      // Run getList reads on the calling thread while the two commits are in flight.
       runGets(getList, beforeDo, batchSize);
 
-      // Process non-atomic writes in batches
-      runWritesBatched(writeList, beforeDo);
-
-      // Process atomic writes (transactions) - Requires different implementation
-      runAtomicWrites(atomicWriteList, beforeDo);
+      // Join the concurrent commits, surfacing their failures via ExecutionException
+      // so the original commit exception is unwrapped and rethrown below.
+      for (Future<?> commitTask : commitTasks) {
+        commitTask.get();
+      }
 
       // Run after gets
       runGets(afterGets, beforeDo, batchSize);

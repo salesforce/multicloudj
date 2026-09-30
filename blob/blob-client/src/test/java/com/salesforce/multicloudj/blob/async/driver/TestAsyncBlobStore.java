@@ -21,10 +21,12 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
 import java.io.InputStream;
@@ -175,8 +177,9 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
   }
 
   @Override
-  protected CompletableFuture<URL> doGeneratePresignedUrl(PresignedUrlRequest request) {
-    return null;
+  protected CompletableFuture<PresignedUrlResponse> doPresign(PresignedUrlRequest request) {
+    return CompletableFuture.completedFuture(
+        PresignedUrlResponse.builder().url(null).signedHeaders(Map.of()).build());
   }
 
   @Override
@@ -190,8 +193,8 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    return SubstrateSdkException.class;
+  public SubstrateSdkException mapException(Throwable t) {
+    return new UnknownException(t);
   }
 
   @Override

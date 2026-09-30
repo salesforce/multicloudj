@@ -2,6 +2,8 @@ package com.salesforce.multicloudj.blob.driver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -13,6 +15,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -27,6 +30,7 @@ import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 
 public class AbstractBlobStoreTest {
@@ -57,6 +61,7 @@ public class AbstractBlobStoreTest {
     doCallRealMethod().when(mockBlobStore).copy(any());
     doCallRealMethod().when(mockBlobStore).getMetadata(any(), any());
     doCallRealMethod().when(mockBlobStore).list(any());
+    doCallRealMethod().when(mockBlobStore).listBlobVersions(any());
     doCallRealMethod().when(mockBlobStore).initiateMultipartUpload(any());
     doCallRealMethod().when(mockBlobStore).uploadMultipartPart(any(), any());
     doCallRealMethod().when(mockBlobStore).completeMultipartUpload(any(), any());
@@ -316,6 +321,15 @@ public class AbstractBlobStoreTest {
   }
 
   @Test
+  void testDoListBlobVersions() {
+    String key = "object-1";
+    ListBlobVersionsRequest request = ListBlobVersionsRequest.builder().withKey(key).build();
+    mockBlobStore.listBlobVersions(request);
+    verify(validator, times(1)).validateKey(key);
+    verify(mockBlobStore, times(1)).doListBlobVersions(request);
+  }
+
+  @Test
   void testDoInitiateMultipartUpload() {
     MultipartUploadRequest request =
         new MultipartUploadRequest.Builder().withKey("object-1").build();
@@ -385,7 +399,7 @@ public class AbstractBlobStoreTest {
             .build();
 
     mockBlobStore.generatePresignedUrl(presignedUrlRequest);
-    verify(mockBlobStore, times(1)).doGeneratePresignedUrl(presignedUrlRequest);
+    verify(mockBlobStore, times(1)).doPresign(presignedUrlRequest);
     verify(validator, times(1)).validate(any(PresignedUrlRequest.class));
   }
 
@@ -399,7 +413,7 @@ public class AbstractBlobStoreTest {
             .build();
 
     mockBlobStore.generatePresignedUrl(presignedUrlRequest);
-    verify(mockBlobStore, times(1)).doGeneratePresignedUrl(presignedUrlRequest);
+    verify(mockBlobStore, times(1)).doPresign(presignedUrlRequest);
     verify(validator, times(1)).validate(any(PresignedUrlRequest.class));
   }
 
@@ -408,5 +422,81 @@ public class AbstractBlobStoreTest {
     mockBlobStore.doesObjectExist("object-1", "version-1");
     verify(validator, times(1)).validateKey(any());
     verify(mockBlobStore, times(1)).doDoesObjectExist("object-1", "version-1");
+  }
+
+  // ---- updateObjectRetention(key, versionId, ObjectRetentionConfig) -------------------
+
+  @Test
+  void updateObjectRetentionConfig_validatesAndDelegatesToHook() {
+    doCallRealMethod()
+        .when(mockBlobStore)
+        .updateObjectRetention(any(), any(), any(ObjectRetentionConfig.class));
+    // Stub the provider hook so the spy doesn't trip the default UnsupportedOperationException.
+    org.mockito.Mockito.doNothing()
+        .when(mockBlobStore)
+        .doUpdateObjectRetention(any(), any(), any());
+    java.time.Instant date = java.time.Instant.parse("2030-01-01T00:00:00Z");
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(date)
+            .build();
+
+    mockBlobStore.updateObjectRetention("object-1", "version-1", cfg);
+
+    verify(validator, times(1)).validate(cfg);
+    verify(mockBlobStore, times(1)).doUpdateObjectRetention("object-1", "version-1", cfg);
+  }
+
+  @Test
+  void updateObjectRetention_deprecatedPath_delegatesToNewMethodWithModeNullAndNoBypass() {
+    doCallRealMethod()
+        .when(mockBlobStore)
+        .updateObjectRetention(any(), any(), any(java.time.Instant.class));
+    doCallRealMethod()
+        .when(mockBlobStore)
+        .updateObjectRetention(any(), any(), any(ObjectRetentionConfig.class));
+    org.mockito.Mockito.doNothing()
+        .when(mockBlobStore)
+        .doUpdateObjectRetention(any(), any(), any());
+    java.time.Instant date = java.time.Instant.parse("2030-01-01T00:00:00Z");
+
+    mockBlobStore.updateObjectRetention("object-1", "version-1", date);
+
+    ArgumentCaptor<ObjectRetentionConfig> captor =
+        ArgumentCaptor.forClass(ObjectRetentionConfig.class);
+    verify(mockBlobStore, times(1))
+        .doUpdateObjectRetention(eq("object-1"), eq("version-1"), captor.capture());
+    ObjectRetentionConfig delegated = captor.getValue();
+    assertEquals(date, delegated.getRetainUntilDate());
+    // Deprecated path always delegates with mode=null (preserve current) and bypass=false (no
+    // bypass) — historical behavior of the Instant overload.
+    org.junit.jupiter.api.Assertions.assertNull(delegated.getMode());
+    org.junit.jupiter.api.Assertions.assertEquals(
+        Boolean.FALSE, delegated.getBypassGovernanceRetention());
+  }
+
+  @Test
+  void testCreateDownloadDestinationPath_rejectsTraversalKey(@TempDir Path destination) {
+    DownloadRequest request =
+        new DownloadRequest.Builder()
+            .withKey("../../etc/passwd")
+            .withCreateParentPath(true)
+            .build();
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> mockBlobStore.createDownloadDestinationPath(request, destination));
+  }
+
+  @Test
+  void testCreateDownloadDestinationPath_allowsNestedKey(@TempDir Path destination) {
+    DownloadRequest request =
+        new DownloadRequest.Builder()
+            .withKey("nested/dir/object.txt")
+            .withCreateParentPath(true)
+            .build();
+    Path resolved = mockBlobStore.createDownloadDestinationPath(request, destination);
+    assertTrue(resolved.startsWith(destination.normalize()));
+    assertEquals(destination.resolve("nested/dir/object.txt").normalize(), resolved);
   }
 }

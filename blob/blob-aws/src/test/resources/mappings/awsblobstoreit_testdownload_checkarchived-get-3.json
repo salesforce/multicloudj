@@ -1,0 +1,24 @@
+{
+  "id" : "0f1f9f03-0b00-4ceb-a04a-a01c49b38f86",
+  "name" : "AwsBlobStoreIT_testDownload_checkArchived-GET-3",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/check-archived/archived-blob",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/check-archived/archived-blob</Key><RequestId>KGHKK3NQJ8GGTQVE</RequestId><HostId>jKRmcwSy0KOU673RjBLa5cEk6Nl9hmE2wyaBwBMwPyCvf1czIIhivMV4GyZDVMCINjlzes8AmI8=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "KGHKK3NQJ8GGTQVE",
+      "x-amz-id-2" : "jKRmcwSy0KOU673RjBLa5cEk6Nl9hmE2wyaBwBMwPyCvf1czIIhivMV4GyZDVMCINjlzes8AmI8=",
+      "x-amz-version-id" : "VzVeV7LhiYIFIeIdJUoI.xKYH.U5uXnu",
+      "Date" : "Wed, 06 May 2026 19:59:51 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "0f1f9f03-0b00-4ceb-a04a-a01c49b38f86",
+  "persistent" : true,
+  "insertionIndex" : 687
+}

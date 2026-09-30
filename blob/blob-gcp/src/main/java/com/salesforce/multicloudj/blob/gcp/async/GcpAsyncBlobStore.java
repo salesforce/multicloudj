@@ -17,6 +17,7 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
 
   private final Storage storage;
   private final GcpTransformerSupplier transformerSupplier;
+  private final boolean useTransferListener;
 
   /**
    * Creates a new async wrapper around the provided BlobStore.
@@ -32,9 +33,19 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
       ExecutorService executorService,
       Storage storage,
       GcpTransformerSupplier transformerSupplier) {
+    this(blobStore, executorService, storage, transformerSupplier, null);
+  }
+
+  public GcpAsyncBlobStore(
+      AbstractBlobStore blobStore,
+      ExecutorService executorService,
+      Storage storage,
+      GcpTransformerSupplier transformerSupplier,
+      Boolean useTransferListener) {
     super(blobStore, executorService);
     this.storage = storage;
     this.transformerSupplier = transformerSupplier;
+    this.useTransferListener = Boolean.TRUE.equals(useTransferListener);
   }
 
   /** Closes the underlying GCP Storage client and wrapped blob store */
@@ -90,7 +101,12 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
                 .withTransformerSupplier(transformerSupplier)
                 .build();
       }
-      return new GcpAsyncBlobStore(blobStore, getExecutorService(), storage, transformerSupplier);
+      return new GcpAsyncBlobStore(
+          blobStore,
+          getExecutorService(),
+          storage,
+          transformerSupplier,
+          getUseTransferListener());
     }
   }
 }

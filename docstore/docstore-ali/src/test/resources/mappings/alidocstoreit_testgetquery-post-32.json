@@ -1,0 +1,28 @@
+{
+  "id" : "eba8ab0a-df28-4f27-a859-69f971e9969d",
+  "name" : "AliDocstoreIT_testGetQuery-POST-32",
+  "request" : {
+    "url" : "/PutRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"op\":\"PutRow\",\"table\":\"docstore_test_2\",\"rows\":[{\"pk\":{\"Game\":{\"t\":\"PK:STRING\",\"v\":\"Zombie DMV\"},\"Player\":{\"t\":\"PK:STRING\",\"v\":\"fran\"}},\"cells\":{\"WithGlitch\":{\"t\":\"BOOLEAN\",\"v\":\"false\"},\"Score\":{\"t\":\"INTEGER\",\"v\":\"33\"},\"Time\":{\"t\":\"STRING\",\"v\":\"2024-03-20\"}},\"deleteMarker\":false}],\"condition\":\"0800\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgBEAE=",
+    "headers" : {
+      "x-ots-requestid" : "00065a13-1d01-e92d-7376-700bb4e5509d",
+      "Authorization" : "OTS STS.NYKRCFQWXELvmrjAHWndrQSNH:dofsbeqwano00j7z/eNfwYicgx8=",
+      "x-ots-date" : "2026-08-28T03:33:17.815701Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "bofsTfsxtvymDNQpw96K/Q==",
+      "Date" : "Fri, 28 Aug 2026 03:33:17 GMT"
+    }
+  },
+  "uuid" : "eba8ab0a-df28-4f27-a859-69f971e9969d",
+  "persistent" : true,
+  "insertionIndex" : 211
+}

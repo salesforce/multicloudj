@@ -11,4 +11,5 @@ public class DirectoryDownloadRequest {
   private final String prefixToDownload;
   private final String localDestinationDirectory;
   private final List<String> prefixesToExclude;
+  private final boolean transferStatusLoggingEnabled;
 }

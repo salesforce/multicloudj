@@ -18,15 +18,21 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -35,6 +41,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -49,7 +56,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Main {
-  /** Uploads content to a specified provider using the given bucket client. */
+  /**
+   * Uploads content to a specified provider using the given bucket client.
+   */
   public static void upload() {
     // Get the provider for the storage service
     String provider = getProvider();
@@ -75,7 +84,153 @@ public class Main {
     getLogger().info("received upload response {}", response);
   }
 
-  /** Downloads a blob from a specified bucket using the provided key. */
+  /**
+   * Uploads an object while attaching an {@link OperationContext} that carries a service ID and
+   * tenant ID. The SDK stamps these identifiers onto the stored object's metadata (under the
+   * {@code sdk-logging-service-id} and {@code sdk-logging-tenant-id} keys) so that cloud audit
+   * logs (e.g. S3 server access logs / GCS data access logs) can be traced back to the calling
+   * service and tenant.
+   *
+   * <p>The {@code correlationId} is optional; when supplied it is echoed back on the {@link
+   * UploadResponse} so the caller can correlate this request across its own logs and traces. The
+   * {@code serviceId} and {@code tenantId} are supplied by the caller and are never auto-generated.
+   */
+  public static void uploadWithServiceAndTenantId() {
+    BucketClient client = getBucketClient(getProvider());
+    InputStream content = getInputStream();
+
+    // Build the per-call observability context. All three ids are optional and never
+    // auto-generated; set whichever ones you have. serviceId / tenantId identify who is making the
+    // call; correlationId ties this request together across the caller's own logs and traces and
+    // is the only id echoed back on the response.
+    //
+    // correlationIdKey is optional too. Supplying it renames the correlation id on all three
+    // surfaces at once - object metadata, the SLF4J MDC entry, and the OpenTelemetry span
+    // attribute - so the SDK lines up with an existing convention. Left unset, the SDK uses
+    // "sdk-logging-correlation-id" for metadata and "correlation_id" for MDC and the span.
+    OperationContext operationContext =
+        OperationContext.builder()
+            .serviceId("my-service")
+            .tenantId("tenant-1234")
+            .correlationId("request-abc-987")
+            // .correlationIdKey("x-request-id")
+            .build();
+
+    // Attach the context to the upload request via withOperationContext(...).
+    UploadRequest uploadRequest =
+        new UploadRequest.Builder()
+            .withKey("bucket-path/audited-object.jpg")
+            .withOperationContext(operationContext)
+            .build();
+
+    UploadResponse response = client.upload(uploadRequest, content);
+
+    // The stored object now carries sdk-logging-service-id=my-service,
+    // sdk-logging-tenant-id=tenant-1234 and sdk-logging-correlation-id=request-abc-987
+    // in its object metadata.
+    getLogger().info("received upload response {}", response);
+    getLogger().info("correlation id echoed back: {}", response.getCorrelationId());
+
+    // Read the object back to demonstrate that the service id, tenant id and correlation id were
+    // stamped onto its metadata. serviceId / tenantId are not echoed on the response (the caller
+    // supplied them), so the object metadata is where their effect is observable.
+    BlobMetadata metadata = client.getMetadata("bucket-path/audited-object.jpg", null);
+    getLogger().info("stamped object metadata: {}", metadata.getMetadata());
+    // -> {sdk-logging-service-id=my-service, sdk-logging-tenant-id=tenant-1234,
+    //     sdk-logging-correlation-id=request-abc-987}
+  }
+
+  /**
+   * ASYNC counterpart of {@link #uploadWithServiceAndTenantId()}. Threads a single {@link
+   * OperationContext} (serviceId / tenantId / correlationId) through the context-aware {@link
+   * AsyncBucketClient} APIs and blocks on each {@link CompletableFuture} so the demo runs
+   * sequentially and every SDK observability log line carries the same correlation_id / tenant_id /
+   * service_id MDC fields.
+   *
+   * <p>Exercised APIs: {@code upload(UploadRequest, byte[])}, {@code getMetadata(key, null, ctx)},
+   * {@code getTags(key, ctx)}, the multipart lifecycle ({@code initiateMultipartUpload} →
+   * {@code uploadMultipartPart} → {@code listMultipartUpload} → {@code completeMultipartUpload}),
+   * and both {@code delete(...)} overloads.
+   */
+  public static void asyncUploadWithServiceAndTenantId() {
+    AsyncBucketClient client = getAsyncBucketClient(getProvider());
+
+    OperationContext operationContext =
+        OperationContext.builder()
+            .serviceId("my-service")
+            .tenantId("tenant-1234")
+            .correlationId("request-abc-987") // optional; echoed back on the response
+            .build();
+
+    long stamp = System.currentTimeMillis();
+    String simpleKey = "async-audited-object-" + stamp;
+    String multipartKey = "async-multipart-audited-object-" + stamp;
+
+    try {
+      // 1. Single-shot upload with the context attached to the UploadRequest.
+      UploadRequest uploadRequest =
+          new UploadRequest.Builder()
+              .withKey(simpleKey)
+              .withTags(Map.of("tagKey1", "tagVal1"))
+              .withOperationContext(operationContext)
+              .build();
+      UploadResponse uploadResponse =
+          client.upload(uploadRequest, "async upload content".getBytes()).join();
+      getLogger().info("async upload response: {}", uploadResponse);
+      getLogger().info("correlation id echoed back: {}", uploadResponse.getCorrelationId());
+
+      // 2. getMetadata(key, versionId, ctx) — read back the stamped identifiers.
+      BlobMetadata metadata = client.getMetadata(simpleKey, null, operationContext).join();
+      getLogger().info("stamped object metadata: {}", metadata.getMetadata());
+      // -> {sdk-logging-service-id=my-service, sdk-logging-tenant-id=tenant-1234,
+      //     sdk-logging-correlation-id=request-abc-987}
+
+      // 3. getTags(key, ctx).
+      Map<String, String> tags = client.getTags(simpleKey, operationContext).join();
+      getLogger().info("blob tags: {}", tags);
+
+      // 4. Multipart lifecycle, context on initiate + each explicit-context call.
+      MultipartUploadRequest mpuRequest =
+          new MultipartUploadRequest.Builder()
+              .withKey(multipartKey)
+              .withOperationContext(operationContext)
+              .build();
+      MultipartUpload mpu = client.initiateMultipartUpload(mpuRequest).join();
+      getLogger().info("initiated multipart upload: {}", mpu.getId());
+
+      byte[] partContent = "multipart async content".getBytes();
+      MultipartPart part = new MultipartPart(1, partContent);
+      UploadPartResponse partResponse =
+          client.uploadMultipartPart(mpu, part, operationContext).join();
+      getLogger().info("uploaded part: {}", partResponse.getPartNumber());
+
+      List<UploadPartResponse> listedParts =
+          client.listMultipartUpload(mpu, operationContext).join();
+      getLogger().info("listed {} multipart part(s)", listedParts.size());
+
+      MultipartUploadResponse mpuResponse =
+          client.completeMultipartUpload(mpu, List.of(partResponse), operationContext).join();
+      getLogger().info("completed multipart upload, etag: {}", mpuResponse.getEtag());
+
+      // 5. getMetadata on the completed multipart object to confirm stamped identifiers.
+      BlobMetadata mpuMetadata = client.getMetadata(multipartKey, null, operationContext).join();
+      getLogger().info("stamped multipart object metadata: {}", mpuMetadata.getMetadata());
+
+      // 6. delete(key, versionId, ctx) and delete(Collection<BlobIdentifier>, ctx).
+      client.delete(simpleKey, null, operationContext).join();
+      client
+          .delete(List.of(new BlobIdentifier(multipartKey, null)), operationContext)
+          .join();
+      getLogger().info("deleted async validation objects");
+    } catch (Exception e) {
+      getLogger().error("async validation failed", e);
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * Downloads a blob from a specified bucket using the provided key.
+   */
   public static void downloadBlob() throws FileNotFoundException {
     // Create a DownloadRequest object with the specified object key
     DownloadRequest downloadRequest =
@@ -103,7 +258,61 @@ public class Main {
     getLogger().info("The file is {} bytes", response.getMetadata().getObjectSize());
   }
 
-  /** Deletes a single Blob from substrate-specific Blob storage by key Object name of the Blob */
+  /**
+   * Demonstrates the full checkArchived workflow: upload a blob, delete it (creating a
+   * delete marker), then download with checkArchived=true to detect the archive and
+   * recover the content using the returned versionId.
+   */
+  public static void downloadArchivedBlob() {
+    BucketClient client = getBucketClient(getProvider());
+    String key = "check-archived-example/test-blob";
+
+    // 1. Upload a blob
+    byte[] originalContent = "Hello, archived world!".getBytes();
+    UploadRequest uploadRequest =
+        new UploadRequest.Builder().withKey(key).withContentLength(originalContent.length).build();
+    UploadResponse uploadResponse =
+        client.upload(uploadRequest, new ByteArrayInputStream(originalContent));
+    getLogger().info("Uploaded blob: key={}, versionId={}", key, uploadResponse.getVersionId());
+
+    // 2. Delete the blob (creates a delete marker on versioned buckets)
+    client.delete(key, null);
+    getLogger().info("Deleted blob: {}", key);
+
+    // 3. Attempt download with checkArchived=true
+    ByteArrayOutputStream content = new ByteArrayOutputStream();
+    try {
+      DownloadRequest request =
+          new DownloadRequest.Builder()
+              .withKey(key)
+              .withCheckArchived(true)
+              .build();
+      client.download(request, content);
+    } catch (ResourceNotFoundException e) {
+      ArchiveInfo archiveInfo = e.getArchiveInfo();
+      if (archiveInfo == null || !archiveInfo.isArchived()) {
+        getLogger().info("Object truly does not exist: {}", key);
+        return;
+      }
+
+      getLogger().info("Object is archived. versionId={}", archiveInfo.getVersionId());
+
+      // 4. Recover the archived version by downloading with the versionId
+      ByteArrayOutputStream recovered = new ByteArrayOutputStream();
+      DownloadRequest recoverRequest =
+          new DownloadRequest.Builder()
+              .withKey(key)
+              .withVersionId(archiveInfo.getVersionId())
+              .build();
+      DownloadResponse response = client.download(recoverRequest, recovered);
+      getLogger().info("Recovered archived blob: {} ({} bytes)",
+          response.getKey(), recovered.size());
+    }
+  }
+
+  /**
+   * Deletes a single Blob from substrate-specific Blob storage by key Object name of the Blob
+   */
   public static void deleteBlob() {
     // Get the BucketClient instance using the provided getBucketClient() method
     BucketClient client = getBucketClient(getProvider());
@@ -130,7 +339,9 @@ public class Main {
     getLogger().info("Blobs deleted successfully.");
   }
 
-  /** Copies a Blob from one bucket to other bucket */
+  /**
+   * Copies a Blob from one bucket to other bucket
+   */
   public static void copyFromBucketToBucket() {
     BucketClient bucketClient = getBucketClient(getProvider());
 
@@ -184,7 +395,9 @@ public class Main {
     getLogger().info("Presigned URL: {}", presignedUrl.toString());
   }
 
-  /** Retrieves the metadata for the specified object for which to retrieve the metadata t */
+  /**
+   * Retrieves the metadata for the specified object for which to retrieve the metadata t
+   */
   public static void getMetadataForBlob() {
     // Get the BucketClient instance using the getBucketClient method
     BucketClient bucketClient = getBucketClient(getProvider());
@@ -199,7 +412,9 @@ public class Main {
     getLogger().info("blob metadata is {}", metadata);
   }
 
-  /** Retrieves the list of Blob in the bucket and returns an iterator of @{BlobInfo} */
+  /**
+   * Retrieves the list of Blob in the bucket and returns an iterator of @{BlobInfo}
+   */
   public static void getBlobListInBucket() {
     // Get the BucketClient instance using the getBucketClient method
     BucketClient bucketClient = getBucketClient(getProvider());
@@ -218,7 +433,9 @@ public class Main {
     }
   }
 
-  /** Initiates a multipartUpload for a Blob */
+  /**
+   * Initiates a multipartUpload for a Blob
+   */
   public static void multipartUpload() throws IOException {
     // Get the BucketClient instance
     BucketClient bucketClient = getBucketClient(getProvider());
@@ -235,7 +452,9 @@ public class Main {
     getLogger().info("Object Location: {}", response.getBucket());
   }
 
-  /** Demonstrates a full multipart upload lifecycle: initiate, upload parts, complete. */
+  /**
+   * Demonstrates a full multipart upload lifecycle: initiate, upload parts, complete.
+   */
   public static void fullMultipartUploadExample() {
     BucketClient bucketClient = getBucketClient(getProvider());
     String key = "multipart-example-" + System.currentTimeMillis();
@@ -290,7 +509,79 @@ public class Main {
     }
   }
 
-  /** This method retrieves all tags associated with a specific blob. */
+  /**
+   * Initiates a multipart upload while attaching an {@link OperationContext} that carries a service
+   * ID and tenant ID. The SDK stamps these identifiers onto the created object's metadata (under the
+   * {@code sdk-logging-service-id} and {@code sdk-logging-tenant-id} keys), mirroring the single-shot
+   * {@link #uploadWithServiceAndTenantId()} path, so that cloud audit logs can be traced back to the
+   * calling service and tenant even for objects assembled from multiple parts.
+   *
+   * <p>The {@code correlationId} is optional; when supplied it is also stamped onto the object
+   * metadata (under {@code sdk-logging-correlation-id}). The {@code serviceId} and {@code tenantId}
+   * are supplied by the caller and are never auto-generated.
+   */
+  public static void multipartUploadWithServiceAndTenantId() {
+    BucketClient bucketClient = getBucketClient(getProvider());
+    String key = "multipart-audited-object-" + System.currentTimeMillis();
+
+    // Build the per-call observability context. All three ids are optional and never
+    // auto-generated; set whichever ones you have. serviceId / tenantId identify who is making the
+    // call; correlationId ties this request together across the caller's own logs and traces and
+    // is the only id echoed back on the response.
+    OperationContext operationContext =
+        OperationContext.builder()
+            .serviceId("my-service")
+            .tenantId("tenant-1234")
+            .correlationId("request-abc-987")
+            .build();
+
+    // Attach the context to the multipart-upload request via withOperationContext(...). The SDK
+    // stamps the ids onto the object at initiate time, so the created object carries them once the
+    // upload is completed.
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey(key)
+            .withOperationContext(operationContext)
+            .build();
+
+    MultipartUpload upload = bucketClient.initiateMultipartUpload(request);
+    getLogger().info("Initiated multipart upload: id={}", upload.getId());
+
+    try {
+      List<UploadPartResponse> partResponses = new ArrayList<>();
+
+      // Upload a single 5MB part to meet the minimum part-size requirement of some providers.
+      int partSize = 5 * 1024 * 1024;
+      byte[] partData = new byte[partSize];
+      Arrays.fill(partData, (byte) '0');
+
+      UploadPartResponse partResponse =
+          bucketClient.uploadMultipartPart(upload, new MultipartPart(1, partData));
+      partResponses.add(partResponse);
+
+      bucketClient.completeMultipartUpload(upload, partResponses);
+      getLogger().info("Completed multipart upload for key: {}", key);
+
+      // Read the object back to demonstrate that the service id, tenant id and correlation id were
+      // stamped onto its metadata. serviceId / tenantId identify the caller, so the object metadata
+      // is where their effect is observable.
+      BlobMetadata metadata = bucketClient.getMetadata(key, null);
+      getLogger().info("stamped object metadata: {}", metadata.getMetadata());
+      // -> {sdk-logging-service-id=my-service, sdk-logging-tenant-id=tenant-1234,
+      //     sdk-logging-correlation-id=request-abc-987}
+    } catch (Exception e) {
+      getLogger().error("Multipart upload failed, aborting...", e);
+      try {
+        bucketClient.abortMultipartUpload(upload);
+      } catch (Exception abortEx) {
+        getLogger().error("Failed to abort multipart upload", abortEx);
+      }
+    }
+  }
+
+  /**
+   * This method retrieves all tags associated with a specific blob.
+   */
   public static void getTags() {
     // Get the BucketClient instance using the getBucketClient method
     BucketClient client = getBucketClient(getProvider());
@@ -308,7 +599,9 @@ public class Main {
     }
   }
 
-  /** This method sets tags on a blob. This replaces all existing tags. */
+  /**
+   * This method sets tags on a blob. This replaces all existing tags.
+   */
   public static void setTags() {
     // Get the BucketClient instance using the getBucketClient method
     BucketClient client = getBucketClient(getProvider());
@@ -326,63 +619,191 @@ public class Main {
     client.setTags("blob-key", tags);
   }
 
-  /** Uploads a directory to blob storage */
-  public static void uploadDirectory() {
-    System.out.println("Creating AsyncBucketClient for provider: " + getProvider());
+  /**
+   * Marks an object for lifecycle-based expiration using the reserved {@code expiration-days} tag.
+   *
+   * <p>{@code expiration-days} is a reserved tag key. Setting it with a positive integer value
+   * marks the object as eligible for expiration, where the value is the number of days from the
+   * object's creation time after which it should expire. The SDK only <em>classifies</em> the
+   * object; it does not delete it. The actual deletion is performed by a bucket lifecycle rule that
+   * must be configured separately on the bucket. Once an object has been marked, the expiration can
+   * only be moved to a later time - lowering the value or removing the tag does not retract an
+   * expiration that was already scheduled.
+   */
+  public static void setLifecycleExpirationTag() {
+    // Get the BucketClient instance using the getBucketClient method
+    BucketClient client = getBucketClient(getProvider());
 
-    // Get the AsyncBucketClient instance
-    AsyncBucketClient asyncClient = getAsyncBucketClient(getProvider());
-    System.out.println("AsyncBucketClient created successfully");
+    // Mark the object to expire 30 days after its creation time. The bucket lifecycle rule
+    // (configured separately on the bucket) performs the actual deletion.
+    client.setTags("blob-key", Map.of("expiration-days", "30"));
 
-    // Check if test directory exists
-    java.nio.file.Path testDir = java.nio.file.Paths.get("/tmp/test-directory");
-    if (!java.nio.file.Files.exists(testDir)) {
-      System.out.println("ERROR: Test directory does not exist at " + testDir);
-      return;
+    getLogger().info("Marked blob-key with expiration-days=30");
+  }
+
+  // Shared constants used by the directory-operation example flow so that the upload,
+  // download, delete and verification steps all agree on the same paths/keys.
+  private static final String LOCAL_SOURCE_DIRECTORY = "/tmp/test-directory";
+  private static final String LOCAL_DOWNLOAD_DIRECTORY = "/tmp/downloaded-directory";
+  private static final String REMOTE_PREFIX = "uploads/";
+  private static final String REMOTE_PREFIX_OBJECT_LOCK = REMOTE_PREFIX + "object-lock/";
+  private static final Map<String, String> EXPECTED_FILE_CONTENT =
+      Map.of(
+          "file1.txt", "Hello from file1",
+          "file2.txt", "Hello from file2",
+          "subdir/file3.txt", "Hello from subdir/file3");
+  private static final Map<String, String> DIRECTORY_TAGS =
+      Map.of("env", "example", "owner", "multicloudj");
+
+  // Single shared async client used by every directory-operation step in this example.
+  // Building two separate clients (sync + async) hits a known impersonated-SA ADC
+  // refresh quirk in google-auth-java where the second client's credentials chain
+  // cannot refresh on its own.
+  private static AsyncBucketClient SHARED_ASYNC_CLIENT;
+
+  private static synchronized AsyncBucketClient sharedAsyncClient() {
+    if (SHARED_ASYNC_CLIENT == null) {
+      SHARED_ASYNC_CLIENT = getAsyncBucketClient(getProvider());
     }
-    System.out.println("Test directory exists: " + testDir);
+    return SHARED_ASYNC_CLIENT;
+  }
 
-    // Create a DirectoryUploadRequest
+  /**
+   * Uploads the local test directory ({@value #LOCAL_SOURCE_DIRECTORY}) to the bucket
+   * under prefix {@value #REMOTE_PREFIX}. This exercises the provider's directory-upload
+   * code path (on GCP, backed by {@code TransferManager.uploadFiles}) and includes the
+   * same set of tags on every file.
+   */
+  public static void uploadDirectory() {
+    System.out.println("Using AsyncBucketClient for provider: " + getProvider());
+    AsyncBucketClient asyncClient = sharedAsyncClient();
+
+    java.nio.file.Path testDir = java.nio.file.Paths.get(LOCAL_SOURCE_DIRECTORY);
+    if (!java.nio.file.Files.exists(testDir)) {
+      throw new IllegalStateException("Missing local source directory: " + testDir);
+    }
+
     DirectoryUploadRequest request =
         DirectoryUploadRequest.builder()
-            .localSourceDirectory("/tmp/test-directory") // Change this to your test directory
-            .prefix("uploads/")
+            .localSourceDirectory(LOCAL_SOURCE_DIRECTORY)
+            .prefix(REMOTE_PREFIX)
             .includeSubFolders(true)
-            .followSymbolicLinks(false) // Set to true to follow symbolic links during upload
+            .followSymbolicLinks(false)
+            .tags(DIRECTORY_TAGS)
             .build();
 
-    System.out.println("DirectoryUploadRequest created: " + request);
-
     try {
-      System.out.println("Calling asyncClient.uploadDirectory()...");
-
-      // Use async method and wait for completion
+      System.out.println("Calling asyncClient.uploadDirectory() with prefix=" + REMOTE_PREFIX);
       CompletableFuture<DirectoryUploadResponse> future = asyncClient.uploadDirectory(request);
-      System.out.println("Got CompletableFuture, waiting for completion...");
-      DirectoryUploadResponse response = future.get(); // Block until completion
+      DirectoryUploadResponse response = future.get();
 
-      // Log the response
-      System.out.println("Directory upload completed");
-      System.out.println("Failed transfers: " + response.getFailedTransfers().size());
+      System.out.println(
+          "Directory upload completed; failedTransfers=" + response.getFailedTransfers().size());
 
       if (!response.getFailedTransfers().isEmpty()) {
-        System.out.println("Some files failed to upload:");
         response
             .getFailedTransfers()
             .forEach(
-                failure -> {
-                  System.out.println(
-                      "Failed: "
-                          + failure.getSource()
-                          + " - "
-                          + failure.getException().getMessage());
-                });
-      } else {
-        System.out.println("All files uploaded successfully!");
+                failure ->
+                    System.out.println(
+                        "Upload failed for "
+                            + failure.getSource()
+                            + ": "
+                            + failure.getException().getMessage()));
+        throw new IllegalStateException(
+            "Directory upload produced "
+                + response.getFailedTransfers().size()
+                + " failures");
+      }
+
+      verifyUploadedBlobsAndTags();
+    } catch (Exception e) {
+      throw new RuntimeException("Directory upload failed: " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Uploads a local directory with object-lock settings applied to every uploaded file.
+   *
+   * <p>Note: Your bucket must have object lock enabled, and your credentials must have permission
+   * to set retention / legal hold.
+   */
+  public static void uploadDirectoryWithObjectLockAsync() {
+    System.out.println("Using AsyncBucketClient for provider: aws");
+    AsyncBucketClient asyncClient = getAsyncBucketClient("aws");
+    try {
+      asyncClient.deleteDirectory(REMOTE_PREFIX_OBJECT_LOCK).get();
+      System.out.println("Cleaned existing prefix before upload: " + REMOTE_PREFIX_OBJECT_LOCK);
+    } catch (Exception e) {
+      System.out.println(
+          "Prefix cleanup skipped/failed (continuing): "
+              + REMOTE_PREFIX_OBJECT_LOCK
+              + " - "
+              + e.getMessage());
+    }
+
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.now().plus(Duration.ofDays(7)))
+            .legalHold(true)
+            .useEventBasedHold(false)
+            .build();
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(LOCAL_SOURCE_DIRECTORY)
+            .prefix(REMOTE_PREFIX_OBJECT_LOCK)
+            .includeSubFolders(true)
+            .followSymbolicLinks(false)
+            .objectLock(objectLock)
+            .build();
+
+    try {
+      CompletableFuture<DirectoryUploadResponse> future = asyncClient.uploadDirectory(request);
+      DirectoryUploadResponse response = future.get();
+      System.out.println(
+          "Directory upload (object lock) completed; failedTransfers="
+              + response.getFailedTransfers().size());
+      if (!response.getFailedTransfers().isEmpty()) {
+        response
+            .getFailedTransfers()
+            .forEach(
+                failure ->
+                    System.out.println(
+                        "Upload failed for "
+                            + failure.getSource()
+                            + ": "
+                            + failure.getException().getMessage()));
+        throw new IllegalStateException(
+            "Directory upload with object lock produced "
+                + response.getFailedTransfers().size()
+                + " failures");
       }
     } catch (Exception e) {
-      System.out.println("Directory upload failed: " + e.getMessage());
-      e.printStackTrace();
+      throw new RuntimeException("Directory upload with object lock failed: " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Verifies that every file we expected to upload now exists in the bucket, and that the
+   * tags specified in the upload request were applied to every uploaded blob. Uses the
+   * synchronous {@link BucketClient} because it exposes {@code doesObjectExist} and
+   * {@code getTags} directly.
+   */
+  private static void verifyUploadedBlobsAndTags() throws Exception {
+    AsyncBucketClient client = sharedAsyncClient();
+    for (String relative : EXPECTED_FILE_CONTENT.keySet()) {
+      String key = REMOTE_PREFIX + relative;
+      if (!client.doesObjectExist(key, null).get()) {
+        throw new IllegalStateException("Uploaded blob missing: " + key);
+      }
+      Map<String, String> actual = client.getTags(key).get();
+      if (actual == null || !actual.equals(DIRECTORY_TAGS)) {
+        throw new IllegalStateException(
+            "Tags on " + key + " do not match. expected=" + DIRECTORY_TAGS + " actual=" + actual);
+      }
+      System.out.println("Verified uploaded blob " + key + " with tags " + actual);
     }
   }
 
@@ -429,62 +850,135 @@ public class Main {
     }
   }
 
-  /** Downloads a directory from blob storage */
+  /**
+   * Downloads the prefix {@value #REMOTE_PREFIX} from the bucket into a clean local
+   * directory and verifies each file landed with the expected content. This exercises
+   * the provider's directory-download code path (on GCP, backed by
+   * {@code TransferManager.downloadBlobs} with {@code stripPrefix}).
+   */
   public static void downloadDirectory() {
-    // Get the AsyncBucketClient instance
-    AsyncBucketClient asyncClient = getAsyncBucketClient(getProvider());
-
-    // Create a DirectoryDownloadRequest
-    DirectoryDownloadRequest request =
-        DirectoryDownloadRequest.builder()
-            .prefixToDownload("uploads/")
-            .localDestinationDirectory(
-                "/tmp/downloaded-directory") // Change this to your download directory
-            .build();
+    AsyncBucketClient asyncClient = sharedAsyncClient();
 
     try {
-      // Download the directory using async method
-      CompletableFuture<DirectoryDownloadResponse> future = asyncClient.downloadDirectory(request);
-      DirectoryDownloadResponse response = future.get(); // Block until completion
+      // Start from a clean destination so stale files can't mask a broken download.
+      java.nio.file.Path destRoot = java.nio.file.Paths.get(LOCAL_DOWNLOAD_DIRECTORY);
+      safeDeleteLocalDirectory(destRoot);
+      java.nio.file.Files.createDirectories(destRoot);
 
-      // Log the response
-      getLogger().info("Directory download completed");
-      getLogger().info("Failed transfers: {}", response.getFailedTransfers().size());
+      DirectoryDownloadRequest request =
+          DirectoryDownloadRequest.builder()
+              .prefixToDownload(REMOTE_PREFIX)
+              .localDestinationDirectory(LOCAL_DOWNLOAD_DIRECTORY)
+              .build();
+
+      CompletableFuture<DirectoryDownloadResponse> future = asyncClient.downloadDirectory(request);
+      DirectoryDownloadResponse response = future.get();
+
+      System.out.println(
+          "Directory download completed; failedTransfers="
+              + response.getFailedTransfers().size());
 
       if (!response.getFailedTransfers().isEmpty()) {
-        getLogger().error("Some files failed to download:");
         response
             .getFailedTransfers()
             .forEach(
-                failure -> {
-                  getLogger()
-                      .error(
-                          "Failed: {} - {}",
-                          failure.getDestination(),
-                          failure.getException().getMessage());
-                });
+                failure ->
+                    System.out.println(
+                        "Download failed for "
+                            + failure.getDestination()
+                            + ": "
+                            + failure.getException().getMessage()));
+        throw new IllegalStateException(
+            "Directory download produced "
+                + response.getFailedTransfers().size()
+                + " failures");
       }
+
+      verifyDownloadedContent(destRoot);
     } catch (Exception e) {
-      getLogger().error("Directory download failed: {}", e.getMessage(), e);
+      throw new RuntimeException("Directory download failed: " + e.getMessage(), e);
     }
   }
 
-  /** Deletes a directory from blob storage */
+  /**
+   * Reads every file we expected to download and asserts its content matches the value
+   * that was originally written locally before the upload. Catches TransferManager
+   * stripPrefix bugs and silent-empty-file bugs.
+   */
+  private static void verifyDownloadedContent(java.nio.file.Path destRoot) throws IOException {
+    for (Map.Entry<String, String> entry : EXPECTED_FILE_CONTENT.entrySet()) {
+      java.nio.file.Path localFile = destRoot.resolve(entry.getKey());
+      if (!java.nio.file.Files.exists(localFile)) {
+        throw new IllegalStateException(
+            "Downloaded file missing: " + localFile + " (for remote key " + entry.getKey() + ")");
+      }
+      String actual =
+          new String(
+              java.nio.file.Files.readAllBytes(localFile), java.nio.charset.StandardCharsets.UTF_8);
+      if (!actual.equals(entry.getValue())) {
+        throw new IllegalStateException(
+            "Downloaded content mismatch for "
+                + localFile
+                + ". expected=\""
+                + entry.getValue()
+                + "\" actual=\""
+                + actual
+                + "\"");
+      }
+      System.out.println(
+          "Verified downloaded file " + localFile + " (" + actual.length() + " bytes)");
+    }
+  }
+
+  /**
+   * Deletes everything under {@value #REMOTE_PREFIX} from the bucket and verifies that
+   * none of the expected keys exist afterwards.
+   */
   public static void deleteDirectory() {
-    // Get the AsyncBucketClient instance
-    AsyncBucketClient asyncClient = getAsyncBucketClient(getProvider());
+    AsyncBucketClient asyncClient = sharedAsyncClient();
 
     try {
-      // Delete the directory using async method
-      CompletableFuture<Void> future = asyncClient.deleteDirectory("uploads/");
-      future.get(); // Block until completion
-      getLogger().info("Directory deleted successfully");
+      CompletableFuture<Void> future = asyncClient.deleteDirectory(REMOTE_PREFIX);
+      future.get();
+      System.out.println("Directory deleted; verifying every uploaded key is gone");
+
+      for (String relative : EXPECTED_FILE_CONTENT.keySet()) {
+        String key = REMOTE_PREFIX + relative;
+        if (asyncClient.doesObjectExist(key, null).get()) {
+          throw new IllegalStateException("Blob still exists after deleteDirectory: " + key);
+        }
+      }
     } catch (Exception e) {
-      getLogger().error("Directory delete failed: {}", e.getMessage(), e);
+      throw new RuntimeException("Directory delete failed: " + e.getMessage(), e);
     }
   }
 
-  /** This method uploads a part of the multipartUpload operation */
+  /**
+   * Recursively deletes a local directory tree. Ignores errors.
+   */
+  private static void safeDeleteLocalDirectory(java.nio.file.Path root) {
+    if (root == null || !java.nio.file.Files.exists(root)) {
+      return;
+    }
+    try (java.util.stream.Stream<java.nio.file.Path> paths = java.nio.file.Files.walk(root)) {
+      paths
+          .sorted(java.util.Comparator.reverseOrder())
+          .forEach(
+              p -> {
+                try {
+                  java.nio.file.Files.deleteIfExists(p);
+                } catch (IOException ignored) {
+                  // best-effort cleanup
+                }
+              });
+    } catch (IOException ignored) {
+      // best-effort cleanup
+    }
+  }
+
+  /**
+   * This method uploads a part of the multipartUpload operation
+   */
   public static void uploadMultiPart() {
     // Get an instance of BucketClient
     BucketClient bucketClient = getBucketClient(getProvider());
@@ -503,7 +997,9 @@ public class Main {
     getLogger().info("Response: {}", response);
   }
 
-  /** This method Completes a multipartUpload */
+  /**
+   * This method Completes a multipartUpload
+   */
   public static void completeMultiPartUpload() {
     BucketClient bucketClient = getBucketClient(getProvider());
 
@@ -564,9 +1060,9 @@ public class Main {
     }
 
     // Add credentials if available (for providers that need them)
-    String accessKeyId = System.getenv("ACCESS_KEY_ID");
-    String secretAccessKey = System.getenv("SECRET_ACCESS_KEY");
-    String sessionToken = System.getenv("SESSION_TOKEN");
+    String accessKeyId = System.getenv("AWS_ACCESS_KEY_ID");
+    String secretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY");
+    String sessionToken = System.getenv("AWS_SESSION_TOKEN");
 
     if (accessKeyId != null && secretAccessKey != null) {
       StsCredentials credentials = new StsCredentials(accessKeyId, secretAccessKey, sessionToken);
@@ -617,61 +1113,82 @@ public class Main {
     return LoggerFactory.getLogger("Main");
   }
 
-  /** Creates a test directory with sample files for testing */
+  /**
+   * Creates a fresh local test directory populated with the fixed file layout described
+   * by {@link #EXPECTED_FILE_CONTENT}. Any existing directory at the same path is wiped
+   * first so repeated runs don't accumulate stale state.
+   */
   public static void createTestDirectory() {
     try {
-      java.nio.file.Path testDir = java.nio.file.Paths.get("/tmp/test-directory");
+      java.nio.file.Path testDir = java.nio.file.Paths.get(LOCAL_SOURCE_DIRECTORY);
+      safeDeleteLocalDirectory(testDir);
       java.nio.file.Files.createDirectories(testDir);
 
-      // Create some test files
-      java.nio.file.Files.write(testDir.resolve("file1.txt"), "Hello from file1".getBytes());
-      java.nio.file.Files.write(testDir.resolve("file2.txt"), "Hello from file2".getBytes());
+      for (Map.Entry<String, String> entry : EXPECTED_FILE_CONTENT.entrySet()) {
+        java.nio.file.Path file = testDir.resolve(entry.getKey());
+        java.nio.file.Files.createDirectories(file.getParent());
+        java.nio.file.Files.write(
+            file, entry.getValue().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      }
 
-      // Create a subdirectory
-      java.nio.file.Path subDir = testDir.resolve("subdir");
-      java.nio.file.Files.createDirectories(subDir);
-      java.nio.file.Files.write(subDir.resolve("file3.txt"), "Hello from subdir/file3".getBytes());
-
-      getLogger().info("Test directory created at: {}", testDir);
+      System.out.println("Test directory created at: " + testDir);
     } catch (Exception e) {
-      getLogger().error("Failed to create test directory: {}", e.getMessage(), e);
+      throw new RuntimeException("Failed to create test directory: " + e.getMessage(), e);
     }
   }
 
-  /** Main method to test directory operations */
+  /**
+   * Walks through an upload/verify + download/verify + delete/verify cycle against the
+   * configured provider. Each step throws on failure so that the overall script exits
+   * non-zero if any assertion is violated, giving a clear pass/fail signal for the
+   * directory-operation code paths (e.g. the GCP {@code TransferManager} integration).
+   *
+   * <p>Uses {@link System#out} directly (in addition to the SLF4J logger) so that progress
+   * is visible when the example is launched via {@code mvn exec:java} where no SLF4J
+   * provider is configured in the examples classpath.
+   */
   public static void main(String[] args) {
     System.out.println("=== STARTING DIRECTORY OPERATIONS TEST ===");
     System.out.println("Provider: " + getProvider());
 
+    boolean success = false;
     try {
-      // single operation upload
-      upload();
-      // Create test directory first
+      System.out.println("=== Test Archived ===");
+      downloadArchivedBlob();
+
       System.out.println("=== Creating Test Directory ===");
       createTestDirectory();
 
-      // Test directory upload only
-      System.out.println("=== Testing Directory Upload ===");
+      System.out.println("=== Testing Directory Upload (with tags) ===");
       uploadDirectory();
+      System.out.println("uploadDirectory: PASS");
 
-      // Test directory download
-      getLogger().info("=== Testing Directory Download ===");
+      System.out.println("=== Testing Directory Upload (with object lock) ===");
+      uploadDirectoryWithObjectLockAsync();
+      System.out.println("uploadDirectoryWithObjectLockAsync: PASS");
+
+      System.out.println("=== Testing Directory Download (with content verification) ===");
       downloadDirectory();
+      System.out.println("downloadDirectory: PASS");
 
-      // Test directory delete
-      getLogger().info("=== Testing Directory Delete ===");
+      System.out.println("=== Testing Directory Delete (with existence verification) ===");
       deleteDirectory();
+      System.out.println("deleteDirectory: PASS");
 
-      System.out.println("Directory operations test completed!");
-
-      // Test multipart upload
-      System.out.println("=== Testing Multipart Upload ===");
-      fullMultipartUploadExample();
-      System.out.println("Multipart upload test completed!");
-
+      success = true;
+      System.out.println("=== ALL DIRECTORY OPERATIONS TESTS PASSED ===");
     } catch (Exception e) {
-      System.out.println("Test failed: " + e.getMessage());
-      e.printStackTrace();
+      System.out.println("Directory operations test FAILED: " + e.getMessage());
+      e.printStackTrace(System.out);
+    } finally {
+      // Always clean up local temp directories so repeated runs start clean.
+      safeDeleteLocalDirectory(java.nio.file.Paths.get(LOCAL_SOURCE_DIRECTORY));
+      safeDeleteLocalDirectory(java.nio.file.Paths.get(LOCAL_DOWNLOAD_DIRECTORY));
     }
+
+    // getAsyncBucketClient() creates a non-daemon FixedThreadPool executor that we
+    // don't have a handle on; explicitly exit so {@code mvn exec:java} doesn't hang
+    // waiting for those threads to terminate.
+    System.exit(success ? 0 : 1);
   }
 }

@@ -38,6 +38,10 @@ public abstract class AbstractBlobClientIT {
     // to run tests in parallel. Each provider can provide the
     // randomly selected port number.
     int getPort();
+
+    default java.util.List<String> getRecordingCaptureHeaders() {
+      return java.util.List.of();
+    }
   }
 
   protected abstract Harness createHarness();
@@ -65,7 +69,9 @@ public abstract class AbstractBlobClientIT {
     String testClassName = testInfo.getTestClass().map(Class::getSimpleName).orElse("Unknown");
     String testMethodName =
         testInfo.getTestMethod().map(java.lang.reflect.Method::getName).orElse("unknown");
-    TestsUtil.startWireMockRecording(harness.getEndpoint(), testClassName, testMethodName);
+    TestsUtil.startWireMockRecording(
+        harness.getEndpoint(), testClassName, testMethodName,
+        harness.getRecordingCaptureHeaders());
   }
 
   /** Cleans up the test environment after each test. */

@@ -1,0 +1,40 @@
+{
+  "id" : "b21d99e0-f922-4d2b-854c-6a83a715e257",
+  "name" : "GcpBlobStoreIT_testUpdateObjectRetention_modeDowngrade_complianceToGovernance_throws-GET-2",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fmode-downgrade",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/objectlock/update/mode-downgrade/1778744664392077\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fmode-downgrade\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fmode-downgrade?generation=1778744664392077&alt=media\",\n  \"name\": \"conformance-tests/objectlock/update/mode-downgrade\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1778744664392077\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"67\",\n  \"md5Hash\": \"O82ngmB/FsifDE071Umm0A==\",\n  \"crc32c\": \"4Q5YlQ==\",\n  \"etag\": \"CI2D+J6kuJQDEAE=\",\n  \"temporaryHold\": false,\n  \"retentionExpirationTime\": \"2030-01-01T00:00:00.000Z\",\n  \"retention\": {\n    \"retainUntilTime\": \"2030-01-01T00:00:00.000Z\",\n    \"mode\": \"Locked\"\n  },\n  \"timeCreated\": \"2026-05-14T07:44:24.457Z\",\n  \"updated\": \"2026-05-14T07:44:24.457Z\",\n  \"timeStorageClassUpdated\": \"2026-05-14T07:44:24.457Z\",\n  \"timeFinalized\": \"2026-05-14T07:44:24.457Z\",\n  \"metadata\": {\n    \"correlation-id\": \"8745dc58-5a5d-4c0d-9583-891db00fbe1e\"\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CI2D+J6kuJQDEAE=",
+      "X-GUploader-UploadID" : "AAVLpEhpRBYU8NErO6_FU9TzViKlwh7rMN3eeHrv27hjiLaqN47D12DRcWytGYefScCSWHJ7AgY9cmE",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 14 May 2026 07:44:25 GMT",
+      "Date" : "Thu, 14 May 2026 07:44:25 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "b21d99e0-f922-4d2b-854c-6a83a715e257",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-objectlock-update-mode-downgrade",
+  "requiredScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-objectlock-update-mode-downgrade-2",
+  "insertionIndex" : 1311
+}
