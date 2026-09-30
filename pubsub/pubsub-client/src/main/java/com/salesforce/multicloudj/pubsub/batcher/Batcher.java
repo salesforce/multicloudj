@@ -266,11 +266,12 @@ public class Batcher<T> {
           items.add(item.batchItem);
         }
 
-        // Process the batch
-        RuntimeException processingError = null;
+        // Catch Throwable, not RuntimeException: if the handler throws an Error
+        // (e.g. NoClassDefFoundError), the futures must still be completed.
+        Throwable processingError = null;
         try {
           handler.apply(items);
-        } catch (RuntimeException e) {
+        } catch (Throwable e) {
           processingError = e;
         }
 
@@ -294,10 +295,10 @@ public class Batcher<T> {
           lock.unlock();
         }
       }
-    } catch (RuntimeException e) {
+    } catch (Throwable e) {
       lock.lock();
       try {
-        // When a handler thread fails with an unexpected exception,
+        // When a handler thread fails with an unexpected throwable,
         // fail all pending items and exit.
         for (Item<T> item : pending) {
           item.future.completeExceptionally(e);

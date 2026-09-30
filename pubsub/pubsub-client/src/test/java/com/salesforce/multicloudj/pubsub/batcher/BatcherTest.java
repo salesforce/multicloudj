@@ -268,6 +268,24 @@ public class BatcherTest {
   }
 
   @Test
+  @Timeout(10) // Guards the regression: before the fix an Error left the future
+  // uncompleted, so this get() blocked forever.
+  void testHandlerError() {
+    // Arrange: handler throws an Error (not a RuntimeException), e.g. a
+    // NoClassDefFoundError surfacing from a provider path at first use.
+    Error testError = new NoClassDefFoundError("test handler error");
+    when(mockHandler.apply(any())).thenThrow(testError);
+    Batcher<SizableString> batcher = new Batcher<>(mockHandler);
+
+    // Act & Assert: the returned future must complete exceptionally with the
+    // Error as its cause, rather than orphaning the future and hanging.
+    CompletableFuture<Void> future = batcher.addNoWait(new SizableString("test-item"));
+    ExecutionException ex = assertThrows(ExecutionException.class, future::get);
+    assertEquals(testError, ex.getCause());
+    batcher.shutdownAndDrain();
+  }
+
+  @Test
   void testShutdownPreventsNewItems() {
     // Arrange
     Batcher<SizableString> batcher = new Batcher<>(mockHandler);
