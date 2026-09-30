@@ -254,6 +254,17 @@ public class Batcher<T> {
     return batch.isEmpty() ? null : batch;
   }
 
+  /** Completes every future in the batch: exceptionally if the handler failed, else normally. */
+  private void completeBatch(List<Item<T>> batch, Throwable processingError) {
+    for (Item<T> item : batch) {
+      if (processingError != null) {
+        item.future.completeExceptionally(processingError);
+      } else {
+        item.future.complete(null);
+      }
+    }
+  }
+
   /** Processes batches in a handler thread */
   private void processHandler(List<Item<T>> initialBatch) {
     List<Item<T>> batch = initialBatch;
@@ -275,14 +286,7 @@ public class Batcher<T> {
           processingError = e;
         }
 
-        // Complete all futures in the batch
-        for (Item<T> item : batch) {
-          if (processingError != null) {
-            item.future.completeExceptionally(processingError);
-          } else {
-            item.future.complete(null);
-          }
-        }
+        completeBatch(batch, processingError);
 
         // Check for more work
         lock.lock();
