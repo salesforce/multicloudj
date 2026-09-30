@@ -4,12 +4,11 @@ import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.Blob;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-/** Lazily iterates GCS list pages while preserving deterministic ordering within each page. */
+/** Lazily iterates GCS list pages. */
 final class BlobInfoIterator implements Iterator<BlobInfo> {
 
   private final boolean includeCommonPrefixes;
@@ -19,10 +18,10 @@ final class BlobInfoIterator implements Iterator<BlobInfo> {
   BlobInfoIterator(Page<Blob> firstPage, boolean includeCommonPrefixes) {
     this.currentPage = firstPage;
     this.includeCommonPrefixes = includeCommonPrefixes;
-    this.currentBatch = toSortedBatch(firstPage).iterator();
+    this.currentBatch = toBatch(firstPage).iterator();
   }
 
-  private List<BlobInfo> toSortedBatch(Page<Blob> page) {
+  private List<BlobInfo> toBatch(Page<Blob> page) {
     List<BlobInfo> entries = new ArrayList<>();
     for (Blob blob : page.getValues()) {
       if (!includeCommonPrefixes && blob.isDirectory()) {
@@ -39,7 +38,6 @@ final class BlobInfoIterator implements Iterator<BlobInfo> {
               .withCommonPrefix(blob.isDirectory())
               .build());
     }
-    entries.sort(Comparator.comparing(BlobInfo::getKey).thenComparing(BlobInfo::isCommonPrefix));
     return entries;
   }
 
@@ -47,7 +45,7 @@ final class BlobInfoIterator implements Iterator<BlobInfo> {
   public boolean hasNext() {
     while (!currentBatch.hasNext() && currentPage.hasNextPage()) {
       currentPage = currentPage.getNextPage();
-      currentBatch = toSortedBatch(currentPage).iterator();
+      currentBatch = toBatch(currentPage).iterator();
     }
     return currentBatch.hasNext();
   }

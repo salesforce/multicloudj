@@ -135,6 +135,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -711,10 +712,10 @@ public class AliBlobStoreTest {
     iterator.forEachRemaining(entries::add);
 
     assertEquals(2, entries.size());
-    assertEquals("base/directory/", entries.get(0).getKey());
-    assertTrue(entries.get(0).isCommonPrefix());
-    assertEquals("base/root.txt", entries.get(1).getKey());
-    assertFalse(entries.get(1).isCommonPrefix());
+    assertEquals(
+        Map.of("base/directory/", true, "base/root.txt", false),
+        entries.stream()
+            .collect(Collectors.toMap(BlobInfo::getKey, BlobInfo::isCommonPrefix)));
   }
 
   @Test
@@ -773,11 +774,9 @@ public class AliBlobStoreTest {
     iterator.forEachRemaining(entries::add);
 
     assertEquals(
-        List.of("a/", "b.txt", "c/", "d.txt"),
-        entries.stream().map(BlobInfo::getKey).toList());
-    assertEquals(
-        List.of(true, false, true, false),
-        entries.stream().map(BlobInfo::isCommonPrefix).toList());
+        Map.of("a/", true, "b.txt", false, "c/", true, "d.txt", false),
+        entries.stream()
+            .collect(Collectors.toMap(BlobInfo::getKey, BlobInfo::isCommonPrefix)));
   }
 
   // Base instant for deterministic lastModified values in the object-summary fixtures;

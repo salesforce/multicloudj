@@ -8,11 +8,9 @@ import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
 import com.aliyun.sdk.service.oss2.models.ListObjectsV2Result;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.TreeSet;
 import org.apache.commons.lang3.StringUtils;
 
 /** Iterator object to retrieve BlobInfo list */
@@ -54,11 +52,13 @@ public class BlobInfoIterator implements Iterator<BlobInfo> {
       return blobs;
     }
 
-    TreeSet<String> commonPrefixes = new TreeSet<>();
-    result.commonPrefixes().forEach(prefix -> commonPrefixes.add(prefix.prefix()));
-    commonPrefixes.forEach(
-        prefix -> blobs.add(new BlobInfo.Builder().withKey(prefix).withCommonPrefix(true).build()));
-    blobs.sort(Comparator.comparing(BlobInfo::getKey).thenComparing(BlobInfo::isCommonPrefix));
+    result.commonPrefixes().forEach(
+        prefix ->
+            blobs.add(
+                new BlobInfo.Builder()
+                    .withKey(prefix.prefix())
+                    .withCommonPrefix(true)
+                    .build()));
     return blobs;
   }
 
