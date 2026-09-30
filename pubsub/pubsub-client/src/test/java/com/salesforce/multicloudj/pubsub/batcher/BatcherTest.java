@@ -18,7 +18,9 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -268,13 +270,47 @@ public class BatcherTest {
   }
 
   @Test
-  @Timeout(10) // Before the fix an Error orphaned the future and this get() hung forever.
+  @Timeout(10) // A handler Error must complete the future, not leave get() blocking.
   void testHandlerError() {
     Error testError = new NoClassDefFoundError("test handler error");
     when(mockHandler.apply(any())).thenThrow(testError);
     Batcher<SizableString> batcher = new Batcher<>(mockHandler);
 
     CompletableFuture<Void> future = batcher.addNoWait(new SizableString("test-item"));
+    ExecutionException ex = assertThrows(ExecutionException.class, future::get);
+    assertEquals(testError, ex.getCause());
+    batcher.shutdownAndDrain();
+  }
+
+  @Test
+  @Timeout(10) // An Error in getNextBatch must complete pending futures, not orphan them.
+  void testErrorDuringGetNextBatch() throws Exception {
+    Error testError = new NoClassDefFoundError("byte-size lookup failed");
+    Batcher.Options options = new Batcher.Options().setMaxHandlers(1).setMaxBatchByteSize(100);
+
+    CountDownLatch handlerStarted = new CountDownLatch(1);
+    CountDownLatch release = new CountDownLatch(1);
+    Function<List<Batcher.SizableItem>, Void> handler =
+        items -> {
+          handlerStarted.countDown();
+          try {
+            release.await();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          return null;
+        };
+    Batcher<Batcher.SizableItem> batcher = new Batcher<>(options, handler);
+
+    // First item occupies the single handler thread and blocks it there.
+    batcher.addNoWait(new SizableTestItem("first", 10));
+    assertTrue(handlerStarted.await(5, TimeUnit.SECONDS));
+
+    // Second item's size is read once (fine) at add, then throws when the busy
+    // handler calls getNextBatch() to look for more work -> hits the outer catch.
+    CompletableFuture<Void> future = batcher.addNoWait(new ThrowingSizableItem(testError));
+
+    release.countDown();
     ExecutionException ex = assertThrows(ExecutionException.class, future::get);
     assertEquals(testError, ex.getCause());
     batcher.shutdownAndDrain();
@@ -575,6 +611,29 @@ public class BatcherTest {
     @Override
     public String toString() {
       return value;
+    }
+  }
+
+  /** Returns a size once, then throws — used to fail inside getNextBatch(). */
+  private static class ThrowingSizableItem implements Batcher.SizableItem {
+    private final Error error;
+    private final AtomicInteger calls = new AtomicInteger(0);
+
+    ThrowingSizableItem(Error error) {
+      this.error = error;
+    }
+
+    @Override
+    public int getByteSize() {
+      if (calls.getAndIncrement() == 0) {
+        return 10;
+      }
+      throw error;
+    }
+
+    @Override
+    public String toString() {
+      return "throwing";
     }
   }
 

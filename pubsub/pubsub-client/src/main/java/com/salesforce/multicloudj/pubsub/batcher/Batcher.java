@@ -277,8 +277,8 @@ public class Batcher<T> {
           items.add(item.batchItem);
         }
 
-        // Catch Throwable, not RuntimeException: if the handler throws an Error
-        // (e.g. NoClassDefFoundError), the futures must still be completed.
+        // Catch Throwable so a handler Error (e.g. NoClassDefFoundError) still
+        // completes the item futures; otherwise callers block forever.
         Throwable processingError = null;
         try {
           handler.apply(items);
