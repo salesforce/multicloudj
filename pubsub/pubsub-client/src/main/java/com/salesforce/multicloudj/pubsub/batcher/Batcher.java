@@ -271,7 +271,7 @@ public class Batcher<T> {
         Throwable processingError = null;
         try {
           handler.apply(items);
-        } catch (Throwable e) {
+        } catch (Throwable e) { // NOSONAR java:S1181 -- intentional; propagated to the caller, not swallowed
           processingError = e;
         }
 
@@ -295,7 +295,7 @@ public class Batcher<T> {
           lock.unlock();
         }
       }
-    } catch (Throwable e) {
+    } catch (Throwable e) { // NOSONAR java:S1181 -- intentional; fails pending futures, not swallowed
       lock.lock();
       try {
         // When a handler thread fails with an unexpected throwable,
