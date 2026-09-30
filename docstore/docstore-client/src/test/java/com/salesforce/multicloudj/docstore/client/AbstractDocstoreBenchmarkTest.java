@@ -133,7 +133,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
       AbstractDocStore queryDocStore = harness.createQueryDocStore();
       queryDocStoreClient = new DocStoreClient(queryDocStore);
 
-      cleanupTestData();
       generateTestPlayers();
       generateTestHighScores();
       setupTestData();
@@ -440,6 +439,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
     try {
       String key = baseKey + ThreadLocalRandom.current().nextLong();
+      // Track before the write so a failed get/delete leaves the doc for teardown, not orphaned.
+      benchmarkCreatedKeys.add(key);
       Player player = createPlayer(key, ThreadLocalRandom.current().nextInt(1000), docSize);
 
       Document writeDoc = new Document(player);
