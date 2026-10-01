@@ -5,11 +5,9 @@ import static java.util.stream.Collectors.toList;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.common.Constants;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.TreeSet;
 import org.apache.commons.lang3.StringUtils;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
@@ -67,11 +65,13 @@ public class BlobInfoIterator implements Iterator<BlobInfo> {
       return blobs;
     }
 
-    TreeSet<String> commonPrefixes = new TreeSet<>();
-    response.commonPrefixes().forEach(prefix -> commonPrefixes.add(prefix.prefix()));
-    commonPrefixes.forEach(
-        prefix -> blobs.add(new BlobInfo.Builder().withKey(prefix).withCommonPrefix(true).build()));
-    blobs.sort(Comparator.comparing(BlobInfo::getKey).thenComparing(BlobInfo::isCommonPrefix));
+    response.commonPrefixes().forEach(
+        prefix ->
+            blobs.add(
+                new BlobInfo.Builder()
+                    .withKey(prefix.prefix())
+                    .withCommonPrefix(true)
+                    .build()));
     return blobs;
   }
 
