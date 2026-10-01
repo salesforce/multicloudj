@@ -13,6 +13,8 @@ import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -114,10 +116,10 @@ public class BlobInfoIteratorTest {
     iterator.forEachRemaining(entries::add);
 
     assertEquals(2, entries.size());
-    assertEquals("folder/", entries.get(0).getKey());
-    assertTrue(entries.get(0).isCommonPrefix());
-    assertEquals("root.txt", entries.get(1).getKey());
-    assertTrue(!entries.get(1).isCommonPrefix());
+    assertEquals(
+        Map.of("folder/", true, "root.txt", false),
+        entries.stream()
+            .collect(Collectors.toMap(BlobInfo::getKey, BlobInfo::isCommonPrefix)));
   }
 
   @Test
@@ -181,10 +183,8 @@ public class BlobInfoIteratorTest {
     iterator.forEachRemaining(entries::add);
 
     assertEquals(
-        List.of("a/", "b.txt", "c/", "d.txt"),
-        entries.stream().map(BlobInfo::getKey).toList());
-    assertEquals(
-        List.of(true, false, true, false),
-        entries.stream().map(BlobInfo::isCommonPrefix).toList());
+        Map.of("a/", true, "b.txt", false, "c/", true, "d.txt", false),
+        entries.stream()
+            .collect(Collectors.toMap(BlobInfo::getKey, BlobInfo::isCommonPrefix)));
   }
 }
