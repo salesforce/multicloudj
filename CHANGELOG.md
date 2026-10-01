@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.4.8](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.7...multicloudj-v0.4.8) (2026-10-01)
+
+
+### Bug Fixes
+
+* **pubsub:** resolve receive() lost-wakeup deadlock in AbstractSubscription prefetch ([#650](https://github.com/salesforce/multicloudj/issues/650)) ([6c5b1cb](https://github.com/salesforce/multicloudj/commit/6c5b1cbf8d71512c5e2d764eec8545318aefe03e))
+
+
+### Document Store
+
+* fix FirestoreClient leak and teardown-tracking gaps in benchmark harness ([#655](https://github.com/salesforce/multicloudj/issues/655)) ([05efd7d](https://github.com/salesforce/multicloudj/commit/05efd7dd4c7d527a9270fe4e397343a290d6a7bf))
+* nested object leaks into sibling Map field during encoding in AWS ([#649](https://github.com/salesforce/multicloudj/issues/649)) ([971f91c](https://github.com/salesforce/multicloudj/commit/971f91cf7e062211110c8652896c71e0ca586fcd))
+
+
+### PubSub
+
+* add pubsub-ali SMQ topic publisher and topic-delivery envelope unwrap ([#641](https://github.com/salesforce/multicloudj/issues/641)) ([8e3b73f](https://github.com/salesforce/multicloudj/commit/8e3b73fd5e085aa59dc1f7299b99a5be30048038))
+* complete batch futures when the handler throws an Error ([#653](https://github.com/salesforce/multicloudj/issues/653)) ([010b8bf](https://github.com/salesforce/multicloudj/commit/010b8bfb1cc120dc976c3b588d22801b62744993))
+
 ## [0.4.7](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.6...multicloudj-v0.4.7) (2026-09-23)
 
 
