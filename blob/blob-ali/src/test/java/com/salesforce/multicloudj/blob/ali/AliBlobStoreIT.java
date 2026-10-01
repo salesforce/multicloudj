@@ -12,12 +12,7 @@ import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
-import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.net.ssl.SSLContext;
@@ -29,8 +24,6 @@ import org.apache.hc.client5.http.ssl.HostnameVerificationPolicy;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.apache.hc.core5.http.HttpHost;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.Test;
 
 public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
@@ -50,43 +43,6 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
   @Override
   protected Harness createHarness() {
     return new HarnessImpl();
-  }
-
-  @Override
-  @Test
-  public void testUpload_createIfAbsent() {
-    Assumptions.assumeTrue(
-        System.getProperty("record") != null
-            || hasReplayRecording("aliblobstoreit_testupload_createifabsent-"),
-        "Alibaba create-if-absent replay is enabled after its recording is generated");
-    super.testUpload_createIfAbsent();
-  }
-
-  @Override
-  @Test
-  public void testList_WithDelimiter_IncludesMarkedCommonPrefixesWhenRequested()
-      throws IOException {
-    Assumptions.assumeTrue(
-        System.getProperty("record") != null
-            || hasReplayRecording(
-                "aliblobstoreit_testlist_withdelimiter_"
-                    + "includesmarkedcommonprefixeswhenrequested-"),
-        "Alibaba common-prefix replay is enabled after its recording is generated");
-    super.testList_WithDelimiter_IncludesMarkedCommonPrefixesWhenRequested();
-  }
-
-  private static boolean hasReplayRecording(String fileNamePrefix) {
-    URL mappings = AliBlobStoreIT.class.getClassLoader().getResource("mappings");
-    if (mappings == null || !"file".equals(mappings.getProtocol())) {
-      return false;
-    }
-
-    try (var files = Files.list(Path.of(mappings.toURI()))) {
-      return files.anyMatch(
-          path -> path.getFileName().toString().startsWith(fileNamePrefix));
-    } catch (IOException | URISyntaxException e) {
-      return false;
-    }
   }
 
   public static class HarnessImpl implements Harness {

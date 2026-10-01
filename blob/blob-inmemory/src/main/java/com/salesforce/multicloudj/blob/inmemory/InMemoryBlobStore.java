@@ -68,7 +68,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -738,7 +737,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
 
     List<BlobInfo> entries = new ArrayList<>();
-    Set<String> commonPrefixes = new TreeSet<>();
+    Set<String> commonPrefixes = new HashSet<>();
     boolean includeCommonPrefixes =
         request.isIncludeCommonPrefixes() && StringUtils.isNotEmpty(delimiter);
     for (Map.Entry<String, StoredBlob> entry : matchingBlobs.entrySet()) {
@@ -764,7 +763,6 @@ public class InMemoryBlobStore extends AbstractBlobStore {
           commonPrefix -> entries.add(new BlobInfo.Builder()
               .withKey(commonPrefix).withCommonPrefix(true).build()));
     }
-    entries.sort(Comparator.comparing(BlobInfo::getKey).thenComparing(BlobInfo::isCommonPrefix));
     return entries.iterator();
   }
 
