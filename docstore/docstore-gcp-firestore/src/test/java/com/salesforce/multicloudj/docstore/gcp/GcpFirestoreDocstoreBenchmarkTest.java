@@ -56,10 +56,11 @@ public class GcpFirestoreDocstoreBenchmarkTest extends AbstractDocstoreBenchmark
           collectionName);
 
       try {
-        FirestoreClient client = FirestoreClient.create();
+        // Reuse one client for both stores; per-store creation leaked the untracked second one.
         if (firestoreClient == null) {
-          firestoreClient = client;
+          firestoreClient = FirestoreClient.create();
         }
+        FirestoreClient client = firestoreClient;
 
         CollectionOptions.CollectionOptionsBuilder optionsBuilder =
             new CollectionOptions.CollectionOptionsBuilder()
