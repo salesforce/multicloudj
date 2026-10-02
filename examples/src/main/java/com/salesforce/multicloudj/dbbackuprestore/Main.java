@@ -4,31 +4,26 @@ import com.salesforce.multicloudj.dbbackuprestore.client.DBBackupRestoreClient;
 import com.salesforce.multicloudj.dbbackuprestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackuprestore.driver.Restore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreRequest;
+import com.salesforce.multicloudj.examples.AppConfig;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Main class demonstrating DBBackupRestore operations across different cloud providers. This
  * example shows how to use the multicloudj library for database backup and restore operations.
- * Usage: java -cp ... com.salesforce.multicloudj.dbbackuprestore.Main [provider] [resource-name] -
- * provider: Cloud provider (aws, gcp-firestore, ali) - defaults to "aws" - resource-name:
- * Table/database resource name - defaults to AWS DynamoDB table ARN Examples: java -cp ...
- * com.salesforce.multicloudj.dbbackuprestore.Main java -cp ...
- * com.salesforce.multicloudj.dbbackuprestore.Main aws
- * "arn:aws:dynamodb:us-west-2:123456789012:table/my-table" java -cp ...
- * com.salesforce.multicloudj.dbbackuprestore.Main gcp-firestore
- * "projects/my-project/locations/us-west-2" java -cp ...
- * com.salesforce.multicloudj.dbbackuprestore.Main ali "my-tablestore-instance"
+ *
+ * <p>Usage: {@code java -cp examples/target/multicloudj-examples-<version>.jar
+ * com.salesforce.multicloudj.dbbackuprestore.Main [provider-id] [resource-name]}. The provider id
+ * defaults to {@code dbbackuprestore.provider}, else the global {@code provider}; the resource name
+ * defaults to {@code dbbackuprestore.resource.name}; the region comes from the global {@code
+ * region} (see {@code examples.properties}).
  */
 public class Main {
-
-  // Default Configuration
-  private static final String DEFAULT_PROVIDER = "gcp-firestore";
-  private static final String DEFAULT_RESOURCE_NAME =
-      "projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1";
-  private static final String REGION = "projects/substrate-sdk-gcp-poc1/locations/nam5";
+  private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
   // Demo settings
   private static final BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
@@ -36,23 +31,26 @@ public class Main {
   // Runtime configuration
   private final String provider;
   private final String resourceName;
+  private final String region;
 
   // State shared across demo steps
   private String restoreId;
 
-  public Main(String provider, String resourceName) {
+  public Main(String provider, String resourceName, String region) {
     this.provider = provider;
     this.resourceName = resourceName;
+    this.region = region;
   }
 
   public static void main(String[] args) {
     String provider = parseProvider(args);
     String resourceName = parseResourceName(args);
+    String region = AppConfig.get("region");
 
     printWelcomeBanner();
-    printConfiguration(provider, resourceName);
+    printConfiguration(provider, resourceName, region);
 
-    Main main = new Main(provider, resourceName);
+    Main main = new Main(provider, resourceName, region);
     main.runDemo();
 
     printCompletionBanner();
@@ -68,73 +66,85 @@ public class Main {
     if (args.length > 0 && args[0] != null && !args[0].trim().isEmpty()) {
       return args[0].trim();
     }
-    return DEFAULT_PROVIDER;
+    // Never hardcode the provider id; resolve it from configuration (see examples.properties)
+    return AppConfig.provider("dbbackuprestore");
   }
 
   private static String parseResourceName(String[] args) {
     if (args.length > 1 && args[1] != null && !args[1].trim().isEmpty()) {
       return args[1].trim();
     }
-    return DEFAULT_RESOURCE_NAME;
+    return AppConfig.get("dbbackuprestore.resource.name");
   }
 
   private static void printWelcomeBanner() {
-    System.out.println();
-    System.out.println("========================================================================");
-    System.out.println("          MultiCloudJ DBBackupRestore Demo");
-    System.out.println("          Cross-Cloud Database Backup & Restore");
-    System.out.println("========================================================================");
-    System.out.println();
+    logger.info("");
+    logger.info("========================================================================");
+    logger.info("          MultiCloudJ DBBackupRestore Demo");
+    logger.info("          Cross-Cloud Database Backup & Restore");
+    logger.info("========================================================================");
+    logger.info("");
   }
 
-  private static void printConfiguration(String provider, String resourceName) {
-    System.out.println("Configuration:");
-    System.out.println("   Provider:  " + provider);
-    System.out.println("   Resource:  " + resourceName);
-    System.out.println("   Region:    " + REGION);
-    System.out.println();
+  private static void printConfiguration(String provider, String resourceName, String region) {
+    logger.info("Configuration:");
+    logger.info("   Provider:  {}", provider);
+    logger.info("   Resource:  {}", resourceName);
+    logger.info("   Region:    {}", region);
+    logger.info("");
     waitForEnter("Press Enter to start the demo...");
   }
 
   private static void printCompletionBanner() {
-    System.out.println();
-    System.out.println("========================================================================");
-    System.out.println("          Demo Completed Successfully!");
-    System.out.println("          Thanks for trying MultiCloudJ!");
-    System.out.println("========================================================================");
-    System.out.println();
+    logger.info("");
+    logger.info("========================================================================");
+    logger.info("          Demo Completed Successfully!");
+    logger.info("          Thanks for trying MultiCloudJ!");
+    logger.info("========================================================================");
+    logger.info("");
   }
 
   private static void waitForEnter(String message) {
-    System.out.print(message);
+    logger.info(message);
     try {
       reader.readLine();
     } catch (IOException e) {
-      System.out.println("(Continuing automatically...)");
+      logger.info("(Continuing automatically...)");
+    }
+  }
+
+  /** Prompts for a value and returns it trimmed, or {@code null} if the user skipped it. */
+  private static String readOptional(String prompt) {
+    logger.info(prompt);
+    try {
+      String value = reader.readLine();
+      return value == null || value.trim().isEmpty() ? null : value.trim();
+    } catch (IOException e) {
+      return null;
     }
   }
 
   private static void showInfo(String message) {
-    System.out.println("[INFO] " + message);
+    logger.info("{}", message);
   }
 
   private static void showSuccess(String message) {
-    System.out.println("[OK]   " + message);
+    logger.info("[OK]   {}", message);
   }
 
   private static void showSectionHeader(String title) {
-    System.out.println();
-    System.out.println("------------------------------------------------------------------------");
-    System.out.println("  " + title);
-    System.out.println("------------------------------------------------------------------------");
-    System.out.println();
+    logger.info("");
+    logger.info("------------------------------------------------------------------------");
+    logger.info("  {}", title);
+    logger.info("------------------------------------------------------------------------");
+    logger.info("");
     waitForEnter("Press Enter to start this section...");
   }
 
   /** Create a DBBackupRestoreClient with the configured provider, region, and resource. */
   private DBBackupRestoreClient createClient() {
     return DBBackupRestoreClient.builder(provider)
-        .withRegion(REGION)
+        .withRegion(region)
         .withResourceName(resourceName)
         .build();
   }
@@ -162,17 +172,17 @@ public class Main {
       } else {
         for (int i = 0; i < backups.size(); i++) {
           Backup backup = backups.get(i);
-          System.out.printf("  [%d] ID:       %s%n", i + 1, backup.getBackupId());
-          System.out.printf("      Resource: %s%n", backup.getResourceName());
-          System.out.printf("      Status:   %s%n", backup.getStatus());
-          System.out.printf("      Size:     %d bytes%n", backup.getSizeInBytes());
-          System.out.printf("      Created:  %s%n", backup.getCreationTime());
-          System.out.println();
+          logger.info("  [{}] ID:       {}", i + 1, backup.getBackupId());
+          logger.info("      Resource: {}", backup.getResourceName());
+          logger.info("      Status:   {}", backup.getStatus());
+          logger.info("      Size:     {} bytes", backup.getSizeInBytes());
+          logger.info("      Created:  {}", backup.getCreationTime());
+          logger.info("");
         }
         showSuccess("Found " + backups.size() + " backup(s).");
       }
     } catch (Exception e) {
-      System.out.println("[ERROR] Failed to list backups: " + e.getMessage());
+      logger.error("Failed to list backups: {}", e.getMessage());
     }
   }
 
@@ -182,7 +192,7 @@ public class Main {
   private void demonstrateGetBackup() {
     showSectionHeader("GET BACKUP");
 
-    System.out.print("Enter a backup ID to look up (or press Enter to skip): ");
+    logger.info("Enter a backup ID to look up (or press Enter to skip): ");
     String backupId;
     try {
       backupId = reader.readLine();
@@ -200,17 +210,17 @@ public class Main {
     try (DBBackupRestoreClient client = createClient()) {
       Backup backup = client.getBackup(backupId);
 
-      System.out.printf("  Backup ID:   %s%n", backup.getBackupId());
-      System.out.printf("  Resource:    %s%n", backup.getResourceName());
-      System.out.printf("  Status:      %s%n", backup.getStatus());
-      System.out.printf("  Created:     %s%n", backup.getCreationTime());
-      System.out.printf("  Expires:     %s%n", backup.getExpiryTime());
-      System.out.printf("  Size:        %d bytes%n", backup.getSizeInBytes());
-      System.out.printf("  Description: %s%n", backup.getDescription());
-      System.out.printf("  Vault ID:    %s%n", backup.getVaultId());
+      logger.info("  Backup ID:   {}", backup.getBackupId());
+      logger.info("  Resource:    {}", backup.getResourceName());
+      logger.info("  Status:      {}", backup.getStatus());
+      logger.info("  Created:     {}", backup.getCreationTime());
+      logger.info("  Expires:     {}", backup.getExpiryTime());
+      logger.info("  Size:        {} bytes", backup.getSizeInBytes());
+      logger.info("  Description: {}", backup.getDescription());
+      logger.info("  Vault ID:    {}", backup.getVaultId());
       showSuccess("Backup details retrieved.");
     } catch (Exception e) {
-      System.out.println("[ERROR] Failed to get backup: " + e.getMessage());
+      logger.error("Failed to get backup: {}", e.getMessage());
     }
   }
 
@@ -221,7 +231,7 @@ public class Main {
   private void demonstrateRestoreBackup() {
     showSectionHeader("RESTORE BACKUP");
 
-    System.out.print("Enter a backup ID to restore from (or press Enter to skip): ");
+    logger.info("Enter a backup ID to restore from (or press Enter to skip): ");
     String backupId;
     try {
       backupId = reader.readLine();
@@ -235,7 +245,7 @@ public class Main {
     }
     backupId = backupId.trim();
 
-    System.out.print("Enter target resource name for restore: ");
+    logger.info("Enter target resource name for restore: ");
     String targetResource;
     try {
       targetResource = reader.readLine();
@@ -246,24 +256,18 @@ public class Main {
       targetResource = targetResource.trim();
     }
 
-    System.out.print("Enter role ID (AWS) or vault ID (Ali) if required, or press Enter to skip: ");
-    String roleOrVaultId;
-    try {
-      roleOrVaultId = reader.readLine();
-    } catch (IOException e) {
-      roleOrVaultId = null;
-    }
+    // Whether a role ID or a vault ID is required depends on the provider; prompt for both and let
+    // the user supply whichever applies.
+    String roleId = readOptional("Enter role ID if required, or press Enter to skip: ");
+    String vaultId = readOptional("Enter vault ID if required, or press Enter to skip: ");
 
     RestoreRequest.RestoreRequestBuilder requestBuilder =
         RestoreRequest.builder().backupId(backupId).targetResource(targetResource);
-
-    if (roleOrVaultId != null && !roleOrVaultId.trim().isEmpty()) {
-      roleOrVaultId = roleOrVaultId.trim();
-      if ("ali".equals(provider)) {
-        requestBuilder.vaultId(roleOrVaultId);
-      } else {
-        requestBuilder.roleId(roleOrVaultId);
-      }
+    if (roleId != null) {
+      requestBuilder.roleId(roleId);
+    }
+    if (vaultId != null) {
+      requestBuilder.vaultId(vaultId);
     }
 
     showInfo("Starting restore from backup: " + backupId);
@@ -271,7 +275,7 @@ public class Main {
       restoreId = client.restoreBackup(requestBuilder.build());
       showSuccess("Restore started with ID: " + restoreId);
     } catch (Exception e) {
-      System.out.println("[ERROR] Failed to start restore: " + e.getMessage());
+      logger.error("Failed to start restore: {}", e.getMessage());
     }
   }
 
@@ -284,7 +288,7 @@ public class Main {
 
     String jobId = restoreId;
     if (jobId == null || jobId.isEmpty()) {
-      System.out.print("Enter a restore job ID to look up (or press Enter to skip): ");
+      logger.info("Enter a restore job ID to look up (or press Enter to skip): ");
       try {
         jobId = reader.readLine();
       } catch (IOException e) {
@@ -304,15 +308,15 @@ public class Main {
     try (DBBackupRestoreClient client = createClient()) {
       Restore restore = client.getRestoreJob(jobId);
 
-      System.out.printf("  Restore ID:  %s%n", restore.getRestoreId());
-      System.out.printf("  Backup ID:   %s%n", restore.getBackupId());
-      System.out.printf("  Target:      %s%n", restore.getTargetResource());
-      System.out.printf("  Status:      %s%n", restore.getStatus());
-      System.out.printf("  Started:     %s%n", restore.getStartTime());
-      System.out.printf("  Ended:       %s%n", restore.getEndTime());
+      logger.info("  Restore ID:  {}", restore.getRestoreId());
+      logger.info("  Backup ID:   {}", restore.getBackupId());
+      logger.info("  Target:      {}", restore.getTargetResource());
+      logger.info("  Status:      {}", restore.getStatus());
+      logger.info("  Started:     {}", restore.getStartTime());
+      logger.info("  Ended:       {}", restore.getEndTime());
       showSuccess("Restore job details retrieved.");
     } catch (Exception e) {
-      System.out.println("[ERROR] Failed to get restore job: " + e.getMessage());
+      logger.error("Failed to get restore job: {}", e.getMessage());
     }
   }
 }
