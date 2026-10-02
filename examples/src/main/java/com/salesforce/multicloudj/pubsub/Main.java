@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.pubsub;
 
+import com.salesforce.multicloudj.examples.AppConfig;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.client.SubscriptionClient;
 import com.salesforce.multicloudj.pubsub.client.TopicClient;
@@ -12,8 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Main {
-
-  static String provider = "gcp";
 
   public static void main(String[] args) {
     publishMessage();
@@ -30,7 +29,7 @@ public class Main {
   /** Publishes a simple message to a topic. */
   public static void publishMessage() {
     // Create a TopicClient instance based on the provider
-    TopicClient topicClient = getTopicClient(provider);
+    TopicClient topicClient = getTopicClient(provider());
 
     // Create a message with body content
     Message message = Message.builder().withBody("Hello from MultiCloudJ PubSub!").build();
@@ -45,7 +44,7 @@ public class Main {
   /** Publishes a message with metadata to a topic. */
   public static void publishMessageWithMetadata() {
     // Get the TopicClient instance
-    TopicClient topicClient = getTopicClient(provider);
+    TopicClient topicClient = getTopicClient(provider());
 
     // Create a message with body and metadata
     Message message =
@@ -65,7 +64,7 @@ public class Main {
   /** Send and receive multiple messages individually */
   public static void publishBatchMessages() {
     // Get the TopicClient instance
-    TopicClient topicClient = getTopicClient(provider);
+    TopicClient topicClient = getTopicClient(provider());
 
     // Publish 5 messages for batch acknowledgment
     for (int i = 1; i <= 5; i++) {
@@ -86,8 +85,8 @@ public class Main {
   /** Publishes multiple messages for batch operations. */
   public static void sendReceiveMultipleMessages() {
     // Get the TopicClient instance
-    TopicClient topicClient = getTopicClient(provider);
-    SubscriptionClient subscriptionClient = getSubscriptionClient(provider);
+    TopicClient topicClient = getTopicClient(provider());
+    SubscriptionClient subscriptionClient = getSubscriptionClient(provider());
 
     // Publish 5 messages for batch acknowledgment
     for (int i = 1; i <= 5; i++) {
@@ -109,7 +108,7 @@ public class Main {
   /** Receives a message from a subscription. */
   public static void receiveMessage() {
     // Get the SubscriptionClient instance
-    SubscriptionClient subscriptionClient = getSubscriptionClient(provider);
+    SubscriptionClient subscriptionClient = getSubscriptionClient(provider());
 
     // Receive a message from the subscription
     Message message = subscriptionClient.receive();
@@ -132,7 +131,7 @@ public class Main {
   /** Acknowledges a single message. */
   public static void acknowledgeMessage() {
     // Get the SubscriptionClient instance
-    SubscriptionClient subscriptionClient = getSubscriptionClient(provider);
+    SubscriptionClient subscriptionClient = getSubscriptionClient(provider());
 
     // Receive a message
     Message message = subscriptionClient.receive();
@@ -147,7 +146,7 @@ public class Main {
   /** Acknowledges multiple messages in a batch. */
   public static void acknowledgeMessagesBatch() {
     // Get the SubscriptionClient instance
-    SubscriptionClient subscriptionClient = getSubscriptionClient(provider);
+    SubscriptionClient subscriptionClient = getSubscriptionClient(provider());
 
     // Receive multiple messages and collect their AckIDs
     List<AckID> ackIDs = new ArrayList<>();
@@ -176,7 +175,7 @@ public class Main {
   /** Negatively acknowledges a message (nack). */
   public static void negativeAcknowledgeMessage() {
     // Get the SubscriptionClient instance
-    SubscriptionClient subscriptionClient = getSubscriptionClient(provider);
+    SubscriptionClient subscriptionClient = getSubscriptionClient(provider());
 
     // Check if nacking is supported
     if (!subscriptionClient.canNack()) {
@@ -185,7 +184,7 @@ public class Main {
     }
 
     // First, publish a message to nack
-    TopicClient topicClient = getTopicClient(provider);
+    TopicClient topicClient = getTopicClient(provider());
     Message messageToNack =
         Message.builder()
             .withBody("Message to be nacked and redelivered")
@@ -217,7 +216,7 @@ public class Main {
   /** Gets subscription attributes. */
   public static void getSubscriptionAttributes() {
     // Get the SubscriptionClient instance
-    SubscriptionClient subscriptionClient = getSubscriptionClient(provider);
+    SubscriptionClient subscriptionClient = getSubscriptionClient(provider());
 
     // Get subscription attributes
     GetAttributeResult attributes = subscriptionClient.getAttributes();
@@ -227,17 +226,30 @@ public class Main {
   }
 
   private static TopicClient getTopicClient(String provider) {
-    return TopicClient.builder(provider)
-        .withTopicName("projects/substrate-sdk-gcp-poc1/topics/test-topic")
-        //                .withRegion("us-west-2")
-        .build();
+    TopicClient.TopicClientBuilder builder =
+        TopicClient.builder(provider)
+            .withTopicName(AppConfig.get("pubsub.topic"));
+    String region = AppConfig.getOptional("region");
+    if (region != null) {
+      builder.withRegion(region);
+    }
+    return builder.build();
   }
 
   private static SubscriptionClient getSubscriptionClient(String provider) {
-    return SubscriptionClient.builder(provider)
-        .withSubscriptionName("projects/substrate-sdk-gcp-poc1/subscriptions/test-subscription")
-        //                .withRegion("us-west-2")
-        .build();
+    SubscriptionClient.SubscriptionClientBuilder builder =
+        SubscriptionClient.builder(provider)
+            .withSubscriptionName(AppConfig.get("pubsub.subscription"));
+    String region = AppConfig.getOptional("region");
+    if (region != null) {
+      builder.withRegion(region);
+    }
+    return builder.build();
+  }
+
+  private static String provider() {
+    // Never hardcode the provider id; resolve it from configuration (see examples.properties)
+    return AppConfig.provider();
   }
 
   private static Logger getLogger() {
