@@ -48,6 +48,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -501,7 +502,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
   @Override
   protected CompletableFuture<Void> doDeleteDirectory(String prefix) {
-    List<CompletableFuture> futures = new ArrayList<>();
+    // The paginator invokes the consumer on SDK threads, so the list must be thread-safe.
+    List<CompletableFuture<Void>> deletes = Collections.synchronizedList(new ArrayList<>());
 
     // When listed batches of blobs come in, partition them into groups, then delete them
     Consumer<ListBlobsBatch> consumer =
@@ -509,13 +511,13 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           List<List<BlobInfo>> partitionedBlobLists =
               transformer.partitionList(batch.getBlobs(), MAX_OBJECTS_PER_DELETE);
           for (List<BlobInfo> blobList : partitionedBlobLists) {
-            futures.add(doDelete(transformer.toBlobIdentifiers(blobList)));
+            deletes.add(doDelete(transformer.toBlobIdentifiers(blobList)));
           }
         };
-    CompletableFuture<Void> listFuture =
-        doList(ListBlobsRequest.builder().withPrefix(prefix).build(), consumer);
-    futures.add(listFuture);
-    return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+    // Deletes are only all known once listing completes, so wait on them after it.
+    return doList(ListBlobsRequest.builder().withPrefix(prefix).build(), consumer)
+        .thenCompose(
+            ignored -> CompletableFuture.allOf(deletes.toArray(new CompletableFuture[0])));
   }
 
   /**
