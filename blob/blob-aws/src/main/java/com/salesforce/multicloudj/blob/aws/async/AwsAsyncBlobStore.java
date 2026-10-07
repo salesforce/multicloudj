@@ -48,7 +48,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -502,8 +501,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
   @Override
   protected CompletableFuture<Void> doDeleteDirectory(String prefix) {
-    // The paginator invokes the consumer on SDK threads, so the list must be thread-safe.
-    List<CompletableFuture<Void>> deletes = Collections.synchronizedList(new ArrayList<>());
+    List<CompletableFuture<Void>> deletes = new ArrayList<>();
 
     // When listed batches of blobs come in, partition them into groups, then delete them
     Consumer<ListBlobsBatch> consumer =
