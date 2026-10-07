@@ -69,12 +69,6 @@
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
-            <artifactId>multicloudj-common</artifactId>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common-aws</artifactId>
         </dependency>
         <dependency>
