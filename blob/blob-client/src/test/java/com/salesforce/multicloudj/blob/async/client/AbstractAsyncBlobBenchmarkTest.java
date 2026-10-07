@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -53,6 +54,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.BenchmarkParams;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.results.format.ResultFormatType;
 import org.openjdk.jmh.runner.Runner;
@@ -78,6 +80,10 @@ import org.slf4j.LoggerFactory;
  * directory benchmarks ({@code benchmarkUploadDirectoryLarge},
  * {@code benchmarkDownloadDirectoryLarge}) override measurement to 5 x 30s because a single
  * operation takes tens of seconds — short iterations would not capture a complete sample.
+ *
+ * <p>JMH forks the whole trial per method, so each fork runs exactly one {@code @Benchmark}.
+ * {@code @Setup} stages only the corpus the active method reads (see {@link #stageFor(String)});
+ * read-path methods see the same corpus as before, so per-op results are unchanged.
  *
  * <p>Intentionally avoids {@code @Setup(Level.Invocation)} because JMH does not reliably invoke
  * it on every worker thread in Throughput mode. Per-invocation resources are set up inside the
@@ -149,6 +155,29 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
 
   // All per-thread upload prefixes ever assigned, so trial teardown can delete them.
   private final ConcurrentLinkedQueue<String> allUploadPrefixes = new ConcurrentLinkedQueue<>();
+
+  private static final String BENCHMARK_UPLOAD_DIRECTORY_SMALL = "benchmarkUploadDirectorySmall";
+  private static final String BENCHMARK_UPLOAD_DIRECTORY_MEDIUM = "benchmarkUploadDirectoryMedium";
+  private static final String BENCHMARK_UPLOAD_DIRECTORY_LARGE = "benchmarkUploadDirectoryLarge";
+  private static final String BENCHMARK_DOWNLOAD_DIRECTORY_SMALL =
+      "benchmarkDownloadDirectorySmall";
+  private static final String BENCHMARK_DOWNLOAD_DIRECTORY_MEDIUM =
+      "benchmarkDownloadDirectoryMedium";
+  private static final String BENCHMARK_DOWNLOAD_DIRECTORY_LARGE =
+      "benchmarkDownloadDirectoryLarge";
+  private static final String BENCHMARK_DOWNLOAD_SMALL = "benchmarkDownloadSmall";
+  private static final String BENCHMARK_DOWNLOAD_MEDIUM = "benchmarkDownloadMedium";
+  private static final String BENCHMARK_DOWNLOAD_LARGE = "benchmarkDownloadLarge";
+  private static final String BENCHMARK_GET_METADATA = "benchmarkGetMetadata";
+  private static final String BENCHMARK_LIST = "benchmarkList";
+  private static final String BENCHMARK_LIST_PAGE = "benchmarkListPage";
+  private static final String BENCHMARK_COPY = "benchmarkCopy";
+
+  /** Benchmarks that only need the in-memory payloads; {@code @Setup} stages nothing remote. */
+  private static final Set<String> WRITE_PATH_BENCHMARKS = Set.of(
+      "benchmarkUploadSmall", "benchmarkUploadMedium", "benchmarkUploadLarge",
+      "benchmarkWriteReadDelete", "benchmarkMultipartUpload", "benchmarkBulkDelete",
+      "benchmarkDeleteDirectory");
 
   // Single-object benchmark state
   private static final int SMALL_COUNT = 100;
@@ -228,7 +257,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   }
 
   @Setup(Level.Trial)
-  public void setupBenchmark() {
+  public void setupBenchmark(BenchmarkParams params) {
     logger.info("Creating {} async blob store", getProviderId());
     try {
       harness = createHarness();
@@ -236,10 +265,71 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
       bucketName = store.getBucket();
       asyncClient = new AsyncBucketClient(store);
       cleanupSingleObjectData();
-      setupDirectoryData();
-      setupSingleObjectData();
+      initPayloads();
+      dirTempRoot = Files.createTempDirectory("mcj-async-dir-bench-");
+      stageFor(benchmarkMethod(params));
     } catch (IOException e) {
       throw new RuntimeException("Failed to setup async benchmark", e);
+    }
+  }
+
+  /** Extracts the short {@code @Benchmark} method name from the fully-qualified JMH id. */
+  private static String benchmarkMethod(BenchmarkParams params) {
+    String fqn = params.getBenchmark();
+    return fqn.substring(fqn.lastIndexOf('.') + 1);
+  }
+
+  /**
+   * Stages only what the active benchmark reads. Fails fast on an unknown method so a new
+   * {@code @Benchmark} cannot silently measure against an empty corpus.
+   */
+  private void stageFor(String method) throws IOException {
+    switch (method) {
+      case BENCHMARK_UPLOAD_DIRECTORY_SMALL:
+        dirSmallSource = createLocalCorpus("small", DIR_SMALL_COUNT, SMALL_FILE);
+        break;
+      case BENCHMARK_UPLOAD_DIRECTORY_MEDIUM:
+        dirMediumSource = createLocalCorpus("medium", DIR_MEDIUM_COUNT, MEDIUM_FILE);
+        break;
+      case BENCHMARK_UPLOAD_DIRECTORY_LARGE:
+        dirLargeSource = createLocalCorpus("large", DIR_LARGE_COUNT, LARGE_FILE);
+        break;
+      case BENCHMARK_DOWNLOAD_DIRECTORY_SMALL:
+        dirSmallDownloadPrefixes = uploadCorpusShards(
+            createLocalCorpus("small", DIR_SMALL_COUNT, SMALL_FILE), "small");
+        break;
+      case BENCHMARK_DOWNLOAD_DIRECTORY_MEDIUM:
+        dirMediumDownloadPrefixes = uploadCorpusShards(
+            createLocalCorpus("medium", DIR_MEDIUM_COUNT, MEDIUM_FILE), "medium");
+        break;
+      case BENCHMARK_DOWNLOAD_DIRECTORY_LARGE:
+        dirLargeDownloadPrefixes = uploadCorpusShards(
+            createLocalCorpus("large", DIR_LARGE_COUNT, LARGE_FILE), "large");
+        break;
+      case BENCHMARK_DOWNLOAD_SMALL:
+      case BENCHMARK_GET_METADATA:
+      case BENCHMARK_LIST:
+      case BENCHMARK_LIST_PAGE:
+        smallKeys = uploadCorpus(SMALL_BLOBS_PREFIX, SMALL_COUNT, smallBlob);
+        break;
+      case BENCHMARK_DOWNLOAD_MEDIUM:
+        mediumKeys = uploadCorpus(MEDIUM_BLOBS_PREFIX, MEDIUM_COUNT, mediumBlob);
+        break;
+      case BENCHMARK_DOWNLOAD_LARGE:
+        largeKeys = uploadCorpus(LARGE_BLOBS_PREFIX, LARGE_COUNT, largeBlob);
+        logger.info("Uploaded {} large blobs, verifying existence...", LARGE_COUNT);
+        for (String key : largeKeys) {
+          asyncClient.getMetadata(key, null).orTimeout(60, TimeUnit.SECONDS).join();
+        }
+        break;
+      case BENCHMARK_COPY:
+        copySourceKey = uploadCorpus(SMALL_BLOBS_PREFIX, 1, smallBlob).get(0);
+        break;
+      default:
+        if (!WRITE_PATH_BENCHMARKS.contains(method)) {
+          throw new IllegalStateException("No staging defined for benchmark " + method);
+        }
+        break;
     }
   }
 
@@ -342,17 +432,6 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
     return prefixes.get(ThreadLocalRandom.current().nextInt(prefixes.size()));
   }
 
-  private void setupDirectoryData() throws IOException {
-    dirTempRoot = Files.createTempDirectory("mcj-async-dir-bench-");
-    dirSmallSource = createLocalCorpus("small", DIR_SMALL_COUNT, SMALL_FILE);
-    dirMediumSource = createLocalCorpus("medium", DIR_MEDIUM_COUNT, MEDIUM_FILE);
-    dirLargeSource = createLocalCorpus("large", DIR_LARGE_COUNT, LARGE_FILE);
-
-    dirSmallDownloadPrefixes = uploadCorpusShards(dirSmallSource, "small");
-    dirMediumDownloadPrefixes = uploadCorpusShards(dirMediumSource, "medium");
-    dirLargeDownloadPrefixes = uploadCorpusShards(dirLargeSource, "large");
-  }
-
   private List<String> uploadCorpusShards(Path source, String sizeTag) {
     List<String> prefixes = new ArrayList<>(DIR_DOWNLOAD_SHARDS);
     for (int i = 0; i < DIR_DOWNLOAD_SHARDS; i++) {
@@ -364,23 +443,17 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   }
 
   private void teardownDirectoryData() {
-    safeDeleteDirectoryPrefixes(dirSmallDownloadPrefixes);
-    safeDeleteDirectoryPrefixes(dirMediumDownloadPrefixes);
-    safeDeleteDirectoryPrefixes(dirLargeDownloadPrefixes);
-    for (String prefix : allUploadPrefixes) {
-      safeDeleteDirectoryPrefix(prefix);
+    List<String> prefixes = new ArrayList<>(allUploadPrefixes);
+    for (List<String> shards :
+        Arrays.asList(dirSmallDownloadPrefixes, dirMediumDownloadPrefixes,
+            dirLargeDownloadPrefixes)) {
+      if (shards != null) {
+        prefixes.addAll(shards);
+      }
     }
+    deletePrefixesConcurrently(prefixes);
     allUploadPrefixes.clear();
     deleteLocalRecursive(dirTempRoot);
-  }
-
-  private void safeDeleteDirectoryPrefixes(List<String> prefixes) {
-    if (prefixes == null) {
-      return;
-    }
-    for (String prefix : prefixes) {
-      safeDeleteDirectoryPrefix(prefix);
-    }
   }
 
   private Path createLocalCorpus(String name, int count, int fileSize) throws IOException {
@@ -404,16 +477,24 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
     asyncClient.uploadDirectory(req).join();
   }
 
-  private void safeDeleteDirectoryPrefix(String prefix) {
-    if (prefix == null || asyncClient == null) {
+  /** Best-effort cleanup; prefixes are disjoint, so they are deleted in parallel. */
+  private void deletePrefixesConcurrently(List<String> prefixes) {
+    if (asyncClient == null) {
       return;
     }
-    try {
-      asyncClient.deleteDirectory(prefix).orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
-    } catch (Exception e) {
-      // Best-effort cleanup.
-      logger.warn("Failed to delete benchmark prefix {}", prefix, e);
+    List<CompletableFuture<Void>> futures = new ArrayList<>(prefixes.size());
+    for (String prefix : prefixes) {
+      futures.add(
+          asyncClient
+              .deleteDirectory(prefix)
+              .orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+              .exceptionally(
+                  e -> {
+                    logger.warn("Failed to delete benchmark prefix {}", prefix, e);
+                    return null;
+                  }));
     }
+    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
   }
 
   // ─── Single-object benchmark methods ───
@@ -637,7 +718,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
 
   // ─── Single-object data setup/teardown helpers ───
 
-  private void setupSingleObjectData() {
+  private void initPayloads() {
     Random rnd = new Random(42);
     smallBlob = new byte[SMALL_FILE];
     rnd.nextBytes(smallBlob);
@@ -645,34 +726,16 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
     rnd.nextBytes(mediumBlob);
     largeBlob = new byte[LARGE_FILE];
     rnd.nextBytes(largeBlob);
+  }
 
-    smallKeys = new ArrayList<>(SMALL_COUNT);
-    for (int i = 0; i < SMALL_COUNT; i++) {
-      String key = SMALL_BLOBS_PREFIX + "blob_" + i + ".dat";
-      uploadBlob(key, smallBlob);
-      smallKeys.add(key);
+  private List<String> uploadCorpus(String prefix, int count, byte[] data) {
+    List<String> keys = new ArrayList<>(count);
+    for (int i = 0; i < count; i++) {
+      String key = prefix + "blob_" + i + ".dat";
+      uploadBlob(key, data);
+      keys.add(key);
     }
-
-    mediumKeys = new ArrayList<>(MEDIUM_COUNT);
-    for (int i = 0; i < MEDIUM_COUNT; i++) {
-      String key = MEDIUM_BLOBS_PREFIX + "blob_" + i + ".dat";
-      uploadBlob(key, mediumBlob);
-      mediumKeys.add(key);
-    }
-
-    largeKeys = new ArrayList<>(LARGE_COUNT);
-    for (int i = 0; i < LARGE_COUNT; i++) {
-      String key = LARGE_BLOBS_PREFIX + "blob_" + i + ".dat";
-      uploadBlob(key, largeBlob);
-      largeKeys.add(key);
-    }
-    logger.info("Uploaded {} large blobs, verifying existence...", LARGE_COUNT);
-    for (String key : largeKeys) {
-      asyncClient.getMetadata(key, null).orTimeout(60, TimeUnit.SECONDS).join();
-    }
-    logger.info("All large blobs verified");
-
-    copySourceKey = smallKeys.get(0);
+    return keys;
   }
 
   private void uploadBlob(String key, byte[] data) {
@@ -685,19 +748,10 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
     if (asyncClient == null) {
       return;
     }
-    String[] prefixes = {
+    deletePrefixesConcurrently(Arrays.asList(
         DOWNLOAD_BLOBS_PREFIX, UPLOAD_SMALL_PREFIX, UPLOAD_MEDIUM_PREFIX,
         UPLOAD_LARGE_PREFIX, WRITE_READ_DELETE_PREFIX, MULTIPART_PREFIX,
-        COPY_DEST_PREFIX, BULK_DELETE_PREFIX, DELETE_DIR_PREFIX
-    };
-    for (String prefix : prefixes) {
-      try {
-        asyncClient.deleteDirectory(prefix)
-            .orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
-      } catch (Exception e) {
-        logger.warn("Failed to cleanup prefix {}", prefix, e);
-      }
-    }
+        COPY_DEST_PREFIX, BULK_DELETE_PREFIX, DELETE_DIR_PREFIX));
   }
 
   private static void deleteLocalRecursive(Path root) {
