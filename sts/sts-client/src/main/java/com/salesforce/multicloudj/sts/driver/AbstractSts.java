@@ -1,6 +1,8 @@
 package com.salesforce.multicloudj.sts.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.provider.Provider;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
@@ -142,6 +144,7 @@ public abstract class AbstractSts implements Provider {
     @Getter protected URI proxyEndpoint;
     @Getter protected Boolean useSystemPropertyProxyValues;
     @Getter protected Boolean useEnvironmentVariableProxyValues;
+    @Getter protected RetryConfig retryConfig;
     protected String providerId;
 
     /**
@@ -204,6 +207,58 @@ public abstract class AbstractSts implements Provider {
         Boolean useEnvironmentVariableProxyValues) {
       this.useEnvironmentVariableProxyValues = useEnvironmentVariableProxyValues;
       return self();
+    }
+
+    /**
+     * Sets the retry configuration applied to every request the STS client makes. When not set,
+     * the provider's default retry behavior is used.
+     *
+     * @param retryConfig The retry configuration, or null to use the provider's defaults.
+     * @return This Builder instance.
+     * @throws InvalidArgumentException if the configuration has non-positive attempts, delays, or
+     *     timeouts for the selected mode.
+     */
+    public T withRetryConfig(RetryConfig retryConfig) {
+      validateRetryConfig(retryConfig);
+      this.retryConfig = retryConfig;
+      return self();
+    }
+
+    private static void validateRetryConfig(RetryConfig retryConfig) {
+      if (retryConfig == null) {
+        return;
+      }
+      if (retryConfig.getMaxAttempts() != null && retryConfig.getMaxAttempts() <= 0) {
+        throw new InvalidArgumentException(
+            "RetryConfig.maxAttempts must be greater than 0, got: " + retryConfig.getMaxAttempts());
+      }
+      if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
+        if (retryConfig.getInitialDelayMillis() <= 0) {
+          throw new InvalidArgumentException(
+              "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
+                  + retryConfig.getInitialDelayMillis());
+        }
+        if (retryConfig.getMaxDelayMillis() <= 0) {
+          throw new InvalidArgumentException(
+              "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
+                  + retryConfig.getMaxDelayMillis());
+        }
+      } else if (retryConfig.getMode() == RetryConfig.Mode.FIXED
+          && retryConfig.getFixedDelayMillis() <= 0) {
+        throw new InvalidArgumentException(
+            "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: "
+                + retryConfig.getFixedDelayMillis());
+      }
+      if (retryConfig.getAttemptTimeout() != null && retryConfig.getAttemptTimeout() <= 0) {
+        throw new InvalidArgumentException(
+            "RetryConfig.attemptTimeout must be greater than 0, got: "
+                + retryConfig.getAttemptTimeout());
+      }
+      if (retryConfig.getTotalTimeout() != null && retryConfig.getTotalTimeout() <= 0) {
+        throw new InvalidArgumentException(
+            "RetryConfig.totalTimeout must be greater than 0, got: "
+                + retryConfig.getTotalTimeout());
+      }
     }
 
     /** {@inheritDoc} */

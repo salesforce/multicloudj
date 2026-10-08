@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.sts.ali;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 
@@ -8,6 +9,8 @@ import com.aliyuncs.DefaultAcsClient;
 import com.aliyuncs.auth.AlibabaCloudCredentialsProvider;
 import com.aliyuncs.exceptions.ClientException;
 import com.aliyuncs.http.HttpClientConfig;
+import com.aliyuncs.policy.retry.RetryPolicy;
+import com.aliyuncs.policy.retry.RetryPolicyContext;
 import com.aliyuncs.profile.IClientProfile;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleRequest;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleResponse;
@@ -20,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
@@ -462,5 +466,126 @@ public class AliStsTest {
   private static void assertJsonEquals(String expected, String actual) throws Exception {
     ObjectMapper mapper = new ObjectMapper();
     Assertions.assertEquals(mapper.readTree(expected), mapper.readTree(actual));
+  }
+
+  private static int delayBeforeRetry(RetryPolicy policy, int retriesAttempted) {
+    return policy
+        .backoffStrategy()
+        .computeDelayBeforeNextRetry(
+            RetryPolicyContext.builder().retriesAttempted(retriesAttempted).build());
+  }
+
+  @Test
+  public void testToRetryPolicyExponential() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .maxAttempts(5)
+            .initialDelayMillis(100)
+            .multiplier(3.0)
+            .maxDelayMillis(1000)
+            .build();
+
+    RetryPolicy policy = AliSts.toRetryPolicy(retryConfig);
+
+    assertEquals(4, policy.maxNumberOfRetries());
+    assertEquals(1000, policy.maxDelayTimeMillis());
+    assertEquals(100, delayBeforeRetry(policy, 1));
+    assertEquals(300, delayBeforeRetry(policy, 2));
+    assertEquals(900, delayBeforeRetry(policy, 3));
+    assertEquals(1000, delayBeforeRetry(policy, 4));
+  }
+
+  @Test
+  public void testToRetryPolicyExponentialDefaultsMultiplierToTwo() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .initialDelayMillis(50)
+            .maxDelayMillis(10000)
+            .build();
+
+    RetryPolicy policy = AliSts.toRetryPolicy(retryConfig);
+
+    assertEquals(50, delayBeforeRetry(policy, 1));
+    assertEquals(100, delayBeforeRetry(policy, 2));
+    assertEquals(200, delayBeforeRetry(policy, 3));
+  }
+
+  @Test
+  public void testToRetryPolicyFixed() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(3)
+            .fixedDelayMillis(250)
+            .build();
+
+    RetryPolicy policy = AliSts.toRetryPolicy(retryConfig);
+
+    assertEquals(2, policy.maxNumberOfRetries());
+    assertEquals(250, policy.maxDelayTimeMillis());
+    assertEquals(250, delayBeforeRetry(policy, 1));
+    assertEquals(250, delayBeforeRetry(policy, 2));
+  }
+
+  @Test
+  public void testToRetryPolicySingleAttemptDisablesRetries() {
+    RetryPolicy policy = AliSts.toRetryPolicy(RetryConfig.builder().maxAttempts(1).build());
+    assertEquals(0, policy.maxNumberOfRetries());
+  }
+
+  @Test
+  public void testToRetryPolicyWithoutModeKeepsSdkBackoff() {
+    RetryPolicy defaults = RetryPolicy.builder().build();
+    RetryPolicy policy = AliSts.toRetryPolicy(RetryConfig.builder().maxAttempts(2).build());
+    assertEquals(defaults.maxDelayTimeMillis(), policy.maxDelayTimeMillis());
+    assertEquals(defaults.backoffStrategy().getClass(), policy.backoffStrategy().getClass());
+  }
+
+  @Test
+  public void testBuildHttpClientConfigAppliesAttemptTimeout() {
+    AliSts.Builder builder =
+        new AliSts()
+            .builder()
+            .withRegion("cn-hangzhou")
+            .withRetryConfig(RetryConfig.builder().attemptTimeout(4321L).build());
+
+    HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
+
+    assertEquals(4321L, config.getReadTimeoutMillis());
+  }
+
+  @Test
+  public void testBuildWithRetryConfigSetsSysRetryPolicy() throws Exception {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(4)
+            .fixedDelayMillis(100)
+            .attemptTimeout(2000L)
+            .build();
+    AliSts sts =
+        new AliSts().builder().withRegion("cn-hangzhou").withRetryConfig(retryConfig).build();
+
+    Field field = AliSts.class.getDeclaredField("stsClient");
+    field.setAccessible(true);
+    DefaultAcsClient client = (DefaultAcsClient) field.get(sts);
+
+    assertEquals(3, client.getSysRetryPolicy().maxNumberOfRetries());
+    assertEquals(100, client.getSysRetryPolicy().maxDelayTimeMillis());
+  }
+
+  @Test
+  public void testBuildWithoutRetryConfigKeepsSdkNoRetryPolicy() throws Exception {
+    AliSts sts = new AliSts().builder().withRegion("cn-hangzhou").build();
+
+    Field field = AliSts.class.getDeclaredField("stsClient");
+    field.setAccessible(true);
+    DefaultAcsClient client = (DefaultAcsClient) field.get(sts);
+
+    assertEquals(
+        RetryPolicy.none().maxNumberOfRetries(),
+        client.getSysRetryPolicy().maxNumberOfRetries());
   }
 }

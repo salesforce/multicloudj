@@ -49,6 +49,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpClientConnection;
+import org.apache.http.HttpException;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.routing.HttpRoute;
@@ -57,6 +59,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.DefaultRoutePlanner;
 import org.apache.http.impl.conn.DefaultSchemePortResolver;
+import org.apache.http.protocol.HttpContext;
+import org.apache.http.protocol.HttpRequestExecutor;
 
 @AutoService(AbstractSts.class)
 public class GcpSts extends AbstractSts {
@@ -66,21 +70,25 @@ public class GcpSts extends AbstractSts {
 
   private GoogleCredentials googleCredentials;
   private HttpTransportFactory httpTransportFactory;
+  private final GcpStsRetrier retrier;
 
   public GcpSts(Builder builder) {
     super(builder);
     initializeHttpTransportFactory(builder);
+    this.retrier = new GcpStsRetrier(builder.getRetryConfig());
   }
 
   public GcpSts(Builder builder, GoogleCredentials credentials) {
     super(builder);
     this.googleCredentials = credentials;
     initializeHttpTransportFactory(builder);
+    this.retrier = new GcpStsRetrier(builder.getRetryConfig());
   }
 
   public GcpSts(Builder builder, HttpTransportFactory httpTransportFactory) {
     super(builder);
     this.httpTransportFactory = httpTransportFactory;
+    this.retrier = new GcpStsRetrier(builder.getRetryConfig());
   }
 
   public GcpSts(
@@ -88,24 +96,44 @@ public class GcpSts extends AbstractSts {
     super(builder);
     this.googleCredentials = credentials;
     this.httpTransportFactory = httpTransportFactory;
+    this.retrier = new GcpStsRetrier(builder.getRetryConfig());
+  }
+
+  GcpSts(
+      Builder builder,
+      GoogleCredentials credentials,
+      HttpTransportFactory httpTransportFactory,
+      GcpStsRetrier retrier) {
+    super(builder);
+    this.googleCredentials = credentials;
+    this.httpTransportFactory = httpTransportFactory;
+    this.retrier = retrier;
   }
 
   public GcpSts() {
     super(new Builder());
+    this.retrier = new GcpStsRetrier(null);
   }
 
   /**
-   * Initializes the HTTP transport factory with proxy configuration if any proxy settings are
-   * provided.
+   * Initializes the HTTP transport factory if any proxy settings or a per-attempt timeout are
+   * provided. The factory carries requests this class issues itself (impersonation and token
+   * exchange); refreshing caller-supplied or application-default credentials uses the transport
+   * those credentials were created with.
    *
-   * @param builder The builder containing proxy configuration
+   * @param builder The builder containing proxy and retry configuration
    */
   private void initializeHttpTransportFactory(Builder builder) {
     if (builder.getProxyEndpoint() != null
         || builder.getUseSystemPropertyProxyValues() != null
-        || builder.getUseEnvironmentVariableProxyValues() != null) {
+        || builder.getUseEnvironmentVariableProxyValues() != null
+        || attemptTimeoutMillis(builder) != null) {
       this.httpTransportFactory = buildHttpTransportFactory(builder);
     }
+  }
+
+  private static Long attemptTimeoutMillis(Builder builder) {
+    return builder.getRetryConfig() != null ? builder.getRetryConfig().getAttemptTimeout() : null;
   }
 
   /**
@@ -250,72 +278,79 @@ public class GcpSts extends AbstractSts {
   @Override
   protected StsCredentials getSTSCredentialsWithAssumeRole(AssumedRoleRequest request) {
     try {
-      // Create credentials for the service account
-      GoogleCredentials sourceCredentials = getCredentials();
-
-      // If service account impersonation is needed, use ImpersonatedCredentials
-      if (request.getRole() != null && !request.getRole().isEmpty()) {
-        ImpersonatedCredentials.Builder impersonatedBuilder =
-            ImpersonatedCredentials.newBuilder()
-                .setSourceCredentials(sourceCredentials)
-                .setTargetPrincipal(request.getRole())
-                .setScopes(impersonationScopes(request));
-
-        if (request.getExpiration() > 0) {
-          impersonatedBuilder.setLifetime(request.getExpiration());
-        }
-
-        // Set custom HTTP transport if available
-        if (httpTransportFactory != null) {
-          impersonatedBuilder.setHttpTransportFactory(httpTransportFactory);
-        }
-
-        sourceCredentials = impersonatedBuilder.build();
-      }
-
-      // If credential scope is provided, apply downscoping
-      if (request.getCredentialScope() != null) {
-        // Convert cloud-agnostic CredentialScope to GCP CredentialAccessBoundary
-        CredentialAccessBoundary gcpAccessBoundary =
-            convertToGcpAccessBoundary(request.getCredentialScope());
-
-        // Create downscoped credentials with the access boundary
-        DownscopedCredentials.Builder downscopedBuilder =
-            DownscopedCredentials.newBuilder()
-                .setSourceCredential(sourceCredentials)
-                .setCredentialAccessBoundary(gcpAccessBoundary);
-        DownscopedCredentials downscopedCredentials = downscopedBuilder.build();
-
-        // Get the downscoped access token
-        downscopedCredentials.refreshIfExpired();
-        AccessToken accessToken = downscopedCredentials.getAccessToken();
-        return new StsCredentials(
-            StringUtils.EMPTY, StringUtils.EMPTY, accessToken.getTokenValue());
-      }
-
-      // No downscoping - refresh and return the credentials
-      sourceCredentials.refreshIfExpired();
-      AccessToken accessToken = sourceCredentials.getAccessToken();
-      return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, accessToken.getTokenValue());
+      return retrier.execute(() -> assumeRoleOnce(request));
     } catch (IOException e) {
       throw new SubstrateSdkException("Failed to create credentials", e);
     }
   }
 
+  private StsCredentials assumeRoleOnce(AssumedRoleRequest request) throws IOException {
+    // Create credentials for the service account
+    GoogleCredentials sourceCredentials = getCredentials();
+
+    // If service account impersonation is needed, use ImpersonatedCredentials
+    if (request.getRole() != null && !request.getRole().isEmpty()) {
+      ImpersonatedCredentials.Builder impersonatedBuilder =
+          ImpersonatedCredentials.newBuilder()
+              .setSourceCredentials(sourceCredentials)
+              .setTargetPrincipal(request.getRole())
+              .setScopes(impersonationScopes(request));
+
+      if (request.getExpiration() > 0) {
+        impersonatedBuilder.setLifetime(request.getExpiration());
+      }
+
+      // Set custom HTTP transport if available
+      if (httpTransportFactory != null) {
+        impersonatedBuilder.setHttpTransportFactory(httpTransportFactory);
+      }
+
+      sourceCredentials = impersonatedBuilder.build();
+    }
+
+    // If credential scope is provided, apply downscoping
+    if (request.getCredentialScope() != null) {
+      // Convert cloud-agnostic CredentialScope to GCP CredentialAccessBoundary
+      CredentialAccessBoundary gcpAccessBoundary =
+          convertToGcpAccessBoundary(request.getCredentialScope());
+
+      // Create downscoped credentials with the access boundary
+      DownscopedCredentials.Builder downscopedBuilder =
+          DownscopedCredentials.newBuilder()
+              .setSourceCredential(sourceCredentials)
+              .setCredentialAccessBoundary(gcpAccessBoundary);
+      DownscopedCredentials downscopedCredentials = downscopedBuilder.build();
+
+      // Get the downscoped access token
+      downscopedCredentials.refreshIfExpired();
+      AccessToken accessToken = downscopedCredentials.getAccessToken();
+      return new StsCredentials(
+          StringUtils.EMPTY, StringUtils.EMPTY, accessToken.getTokenValue());
+    }
+
+    // No downscoping - refresh and return the credentials
+    sourceCredentials.refreshIfExpired();
+    AccessToken accessToken = sourceCredentials.getAccessToken();
+    return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, accessToken.getTokenValue());
+  }
+
   @Override
   protected CallerIdentity getCallerIdentityFromProvider(GetCallerIdentityRequest request) {
     try {
-      GoogleCredentials credentials = getCredentials();
-      credentials.refreshIfExpired();
-      IdTokenCredentials idTokenCredentials =
-          IdTokenCredentials.newBuilder()
-              .setIdTokenProvider((IdTokenProvider) credentials)
-              .setTargetAudience(
-                  request.getAud() != null ? request.getAud().toLowerCase() : "multicloudj")
-              .build();
-      String idToken = idTokenCredentials.refreshAccessToken().getTokenValue();
+      return retrier.execute(
+          () -> {
+            GoogleCredentials credentials = getCredentials();
+            credentials.refreshIfExpired();
+            IdTokenCredentials idTokenCredentials =
+                IdTokenCredentials.newBuilder()
+                    .setIdTokenProvider((IdTokenProvider) credentials)
+                    .setTargetAudience(
+                        request.getAud() != null ? request.getAud().toLowerCase() : "multicloudj")
+                    .build();
+            String idToken = idTokenCredentials.refreshAccessToken().getTokenValue();
 
-      return new CallerIdentity(StringUtils.EMPTY, idToken, StringUtils.EMPTY);
+            return new CallerIdentity(StringUtils.EMPTY, idToken, StringUtils.EMPTY);
+          });
     } catch (IOException e) {
       throw new SubstrateSdkException("Could not create credentials in given environment", e);
     }
@@ -324,10 +359,15 @@ public class GcpSts extends AbstractSts {
   @Override
   protected StsCredentials getAccessTokenFromProvider(GetAccessTokenRequest request) {
     try {
-      GoogleCredentials credentials = getCredentials();
-      credentials.refreshIfExpired();
-      return new StsCredentials(
-          StringUtils.EMPTY, StringUtils.EMPTY, credentials.getAccessToken().getTokenValue());
+      return retrier.execute(
+          () -> {
+            GoogleCredentials credentials = getCredentials();
+            credentials.refreshIfExpired();
+            return new StsCredentials(
+                StringUtils.EMPTY,
+                StringUtils.EMPTY,
+                credentials.getAccessToken().getTokenValue());
+          });
     } catch (IOException e) {
       throw new SubstrateSdkException("Could not create credentials in given environment", e);
     }
@@ -357,26 +397,28 @@ public class GcpSts extends AbstractSts {
       tokenRequest.set("subjectTokenType", "urn:ietf:params:oauth:token-type:jwt");
       tokenRequest.set("scope", SCOPE);
 
-      // Execute token exchange
-      HttpTransport transport =
-          httpTransportFactory != null ? httpTransportFactory.create() : new NetHttpTransport();
-      JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
-      HttpRequest httpRequest =
-          transport
-              .createRequestFactory()
-              .buildPostRequest(
-                  new GenericUrl(STS_ENDPOINT),
-                  new ByteArrayContent("application/json", jsonFactory.toByteArray(tokenRequest)));
-      com.google.api.client.http.HttpResponse response = httpRequest.execute();
-      GenericJson responseData =
-          jsonFactory.fromInputStream(
-              response.getContent(), response.getContentCharset(), GenericJson.class);
-      String accessToken = String.valueOf(responseData.get("access_token"));
-
+      String accessToken = retrier.execute(() -> exchangeToken(tokenRequest));
       return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, accessToken);
     } catch (IOException e) {
       throw new SubstrateSdkException("Failed to exchange OIDC token for GCP access token", e);
     }
+  }
+
+  private String exchangeToken(GenericJson tokenRequest) throws IOException {
+    HttpTransport transport =
+        httpTransportFactory != null ? httpTransportFactory.create() : new NetHttpTransport();
+    JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
+    HttpRequest httpRequest =
+        transport
+            .createRequestFactory()
+            .buildPostRequest(
+                new GenericUrl(STS_ENDPOINT),
+                new ByteArrayContent("application/json", jsonFactory.toByteArray(tokenRequest)));
+    com.google.api.client.http.HttpResponse response = httpRequest.execute();
+    GenericJson responseData =
+        jsonFactory.fromInputStream(
+            response.getContent(), response.getContentCharset(), GenericJson.class);
+    return String.valueOf(responseData.get("access_token"));
   }
 
   @Override
@@ -486,7 +528,38 @@ public class GcpSts extends AbstractSts {
 
     RequestConfig requestConfig = buildRequestConfig(builder);
     httpClientBuilder.setDefaultRequestConfig(requestConfig);
+
+    Long attemptTimeout = attemptTimeoutMillis(builder);
+    if (attemptTimeout != null) {
+      httpClientBuilder.setRequestExecutor(
+          new AttemptTimeoutRequestExecutor((int) Math.min(attemptTimeout, Integer.MAX_VALUE)));
+    }
     return httpClientBuilder.build();
+  }
+
+  /**
+   * Caps the socket read timeout of each HTTP exchange at the configured attempt timeout.
+   * google-http-client sets its own connect and read timeouts on every request it builds, which
+   * replace the client's default RequestConfig, so the cap is applied to the connection right
+   * before the request is sent.
+   */
+  static final class AttemptTimeoutRequestExecutor extends HttpRequestExecutor {
+    private final int timeoutMillis;
+
+    AttemptTimeoutRequestExecutor(int timeoutMillis) {
+      this.timeoutMillis = timeoutMillis;
+    }
+
+    @Override
+    public org.apache.http.HttpResponse execute(
+        org.apache.http.HttpRequest request, HttpClientConnection conn, HttpContext context)
+        throws IOException, HttpException {
+      int current = conn.getSocketTimeout();
+      if (current <= 0 || current > timeoutMillis) {
+        conn.setSocketTimeout(timeoutMillis);
+      }
+      return super.execute(request, conn, context);
+    }
   }
 
   /**

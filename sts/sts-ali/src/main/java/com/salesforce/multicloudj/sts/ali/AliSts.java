@@ -7,6 +7,9 @@ import com.aliyuncs.auth.BasicSessionCredentials;
 import com.aliyuncs.auth.DefaultCredentialsProvider;
 import com.aliyuncs.exceptions.ClientException;
 import com.aliyuncs.http.HttpClientConfig;
+import com.aliyuncs.policy.retry.RetryPolicy;
+import com.aliyuncs.policy.retry.RetryPolicyContext;
+import com.aliyuncs.policy.retry.backoff.BackoffStrategy;
 import com.aliyuncs.profile.DefaultProfile;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleRequest;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleResponse;
@@ -23,6 +26,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
@@ -55,10 +59,12 @@ public class AliSts extends AbstractSts {
       clientProfile = DefaultProfile.getProfile(builder.getRegion());
     }
 
-    // Configure proxy if any proxy settings are provided
+    // Configure the HTTP client if any proxy settings or a per-attempt timeout are provided
+    RetryConfig retryConfig = builder.getRetryConfig();
     if (builder.getProxyEndpoint() != null
         || builder.getUseSystemPropertyProxyValues() != null
-        || builder.getUseEnvironmentVariableProxyValues() != null) {
+        || builder.getUseEnvironmentVariableProxyValues() != null
+        || (retryConfig != null && retryConfig.getAttemptTimeout() != null)) {
       HttpClientConfig httpClientConfig = buildHttpClientConfig(builder);
       clientProfile.setHttpClientConfig(httpClientConfig);
     }
@@ -76,7 +82,11 @@ public class AliSts extends AbstractSts {
     // every request with MissingAccessKeyId. DefaultCredentialsProvider resolves — and refreshes —
     // per request across system properties, env vars (long-term AK/SK), OIDC/RRSA (re-reads the
     // token file), profile file, and ECS instance RAM role.
-    this.stsClient = new DefaultAcsClient(clientProfile, buildCredentialsProvider());
+    DefaultAcsClient acsClient = new DefaultAcsClient(clientProfile, buildCredentialsProvider());
+    if (retryConfig != null) {
+      acsClient.setSysRetryPolicy(toRetryPolicy(retryConfig));
+    }
+    this.stsClient = acsClient;
   }
 
   public AliSts(Builder builder, IAcsClient stsClient) {
@@ -86,6 +96,64 @@ public class AliSts extends AbstractSts {
 
   public AliSts() {
     super(new Builder());
+  }
+
+  /**
+   * Translates a RetryConfig into the SDK's RetryPolicy, which otherwise defaults to no retries.
+   * Fields left unset keep the SDK's RetryPolicy builder defaults. The SDK has no limit on total
+   * time spent across attempts, so RetryConfig.totalTimeout is not applied.
+   *
+   * <p>The SDK stops retrying when a computed delay exceeds {@code maxDelayTimeMillis}, so that
+   * limit is set to the largest delay the configured mode can produce.
+   */
+  static RetryPolicy toRetryPolicy(RetryConfig retryConfig) {
+    RetryPolicy.Builder policy = RetryPolicy.builder();
+    if (retryConfig.getMaxAttempts() != null) {
+      // The SDK always makes the initial attempt, then up to maxNumberOfRetries more.
+      policy.maxNumberOfRetries(retryConfig.getMaxAttempts() - 1);
+    }
+    if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
+      policy
+          .backoffStrategy(new RetryConfigBackoffStrategy(retryConfig))
+          .maxDelayTimeMillis(toIntMillis(retryConfig.getMaxDelayMillis()));
+    } else if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
+      policy
+          .backoffStrategy(new RetryConfigBackoffStrategy(retryConfig))
+          .maxDelayTimeMillis(toIntMillis(retryConfig.getFixedDelayMillis()));
+    }
+    return policy.build();
+  }
+
+  /**
+   * Delay before the given retry (1 for the first retry). EXPONENTIAL grows as {@code
+   * initialDelayMillis * multiplier^(retry-1)} capped at maxDelayMillis, with the multiplier
+   * defaulting to 2.0 when unset.
+   */
+  static long retryDelayMillis(RetryConfig retryConfig, int retryNumber) {
+    if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
+      return retryConfig.getFixedDelayMillis();
+    }
+    double multiplier = retryConfig.getMultiplier() > 0 ? retryConfig.getMultiplier() : 2.0;
+    double delay =
+        retryConfig.getInitialDelayMillis() * Math.pow(multiplier, Math.max(0, retryNumber - 1));
+    return (long) Math.min(retryConfig.getMaxDelayMillis(), delay);
+  }
+
+  private static int toIntMillis(long millis) {
+    return (int) Math.min(millis, Integer.MAX_VALUE);
+  }
+
+  private static final class RetryConfigBackoffStrategy extends BackoffStrategy {
+    private final RetryConfig retryConfig;
+
+    RetryConfigBackoffStrategy(RetryConfig retryConfig) {
+      this.retryConfig = retryConfig;
+    }
+
+    @Override
+    public int computeDelayBeforeNextRetry(RetryPolicyContext context) {
+      return toIntMillis(retryDelayMillis(retryConfig, context.retriesAttempted()));
+    }
   }
 
   /**
@@ -186,6 +254,11 @@ public class AliSts extends AbstractSts {
     // Environment variables: Handled by EnvironmentUtils workaround in constructor
     //   - When useEnvironmentVariableProxyValues=false, constructor sets EnvironmentUtils to ""
     //   - When null/true, SDK automatically reads HTTP_PROXY/HTTPS_PROXY via EnvironmentUtils
+
+    // The read timeout is the SDK's only per-request time bound, so it carries attemptTimeout.
+    if (builder.getRetryConfig() != null && builder.getRetryConfig().getAttemptTimeout() != null) {
+      clientConfig.setReadTimeoutMillis(builder.getRetryConfig().getAttemptTimeout());
+    }
 
     return clientConfig;
   }

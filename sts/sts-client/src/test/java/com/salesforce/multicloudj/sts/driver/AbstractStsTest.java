@@ -2,11 +2,15 @@ package com.salesforce.multicloudj.sts.driver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.provider.Provider;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.CredentialScope;
@@ -255,5 +259,63 @@ public class AbstractStsTest {
     // Should not throw
     StsCredentials credentials = sts.assumeRole(request);
     assertNotNull(credentials);
+  }
+
+  @Test
+  public void testWithRetryConfigStoresValidConfig() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .maxAttempts(4)
+            .initialDelayMillis(100)
+            .maxDelayMillis(1000)
+            .attemptTimeout(500L)
+            .totalTimeout(5000L)
+            .build();
+    TestSts.Builder retryBuilder = new TestSts.Builder().withRetryConfig(retryConfig);
+    assertSame(retryConfig, retryBuilder.getRetryConfig());
+  }
+
+  @Test
+  public void testWithRetryConfigAcceptsNull() {
+    assertNull(new TestSts.Builder().withRetryConfig(null).getRetryConfig());
+  }
+
+  @Test
+  public void testWithRetryConfigRejectsNonPositiveMaxAttempts() {
+    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(0).build();
+    assertThrows(
+        InvalidArgumentException.class, () -> new TestSts.Builder().withRetryConfig(retryConfig));
+  }
+
+  @Test
+  public void testWithRetryConfigRejectsExponentialWithoutDelays() {
+    RetryConfig noInitialDelay =
+        RetryConfig.builder().mode(RetryConfig.Mode.EXPONENTIAL).maxDelayMillis(1000).build();
+    RetryConfig noMaxDelay =
+        RetryConfig.builder().mode(RetryConfig.Mode.EXPONENTIAL).initialDelayMillis(100).build();
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> new TestSts.Builder().withRetryConfig(noInitialDelay));
+    assertThrows(
+        InvalidArgumentException.class, () -> new TestSts.Builder().withRetryConfig(noMaxDelay));
+  }
+
+  @Test
+  public void testWithRetryConfigRejectsFixedWithoutDelay() {
+    RetryConfig retryConfig = RetryConfig.builder().mode(RetryConfig.Mode.FIXED).build();
+    assertThrows(
+        InvalidArgumentException.class, () -> new TestSts.Builder().withRetryConfig(retryConfig));
+  }
+
+  @Test
+  public void testWithRetryConfigRejectsNonPositiveTimeouts() {
+    RetryConfig attemptTimeout = RetryConfig.builder().attemptTimeout(0L).build();
+    RetryConfig totalTimeout = RetryConfig.builder().totalTimeout(-1L).build();
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> new TestSts.Builder().withRetryConfig(attemptTimeout));
+    assertThrows(
+        InvalidArgumentException.class, () -> new TestSts.Builder().withRetryConfig(totalTimeout));
   }
 }

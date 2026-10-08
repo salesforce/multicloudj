@@ -10,6 +10,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
@@ -17,6 +18,7 @@ import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -24,10 +26,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.retries.StandardRetryStrategy;
+import software.amazon.awssdk.retries.api.BackoffStrategy;
+import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
@@ -58,6 +64,10 @@ public class AwsSts extends AbstractSts {
         || builder.getUseSystemPropertyProxyValues() != null
         || builder.getUseEnvironmentVariableProxyValues() != null) {
       sb = sb.httpClient(buildHttpClient(builder));
+    }
+
+    if (builder.getRetryConfig() != null) {
+      sb = sb.overrideConfiguration(buildOverrideConfiguration(builder.getRetryConfig()));
     }
 
     this.stsClient = sb.build();
@@ -294,6 +304,43 @@ public class AwsSts extends AbstractSts {
     }
 
     return httpClientBuilder.build();
+  }
+
+  /**
+   * Translates a RetryConfig into the STS client's override configuration: the retry strategy
+   * plus the per-attempt and total API call timeouts.
+   */
+  static ClientOverrideConfiguration buildOverrideConfiguration(RetryConfig retryConfig) {
+    ClientOverrideConfiguration.Builder config =
+        ClientOverrideConfiguration.builder().retryStrategy(toRetryStrategy(retryConfig));
+    if (retryConfig.getAttemptTimeout() != null) {
+      config.apiCallAttemptTimeout(Duration.ofMillis(retryConfig.getAttemptTimeout()));
+    }
+    if (retryConfig.getTotalTimeout() != null) {
+      config.apiCallTimeout(Duration.ofMillis(retryConfig.getTotalTimeout()));
+    }
+    return config.build();
+  }
+
+  /**
+   * Builds a StandardRetryStrategy from the RetryConfig. Unset fields keep the SDK defaults. The
+   * SDK's exponential backoff always doubles, so RetryConfig.multiplier is not applied.
+   */
+  static RetryStrategy toRetryStrategy(RetryConfig retryConfig) {
+    StandardRetryStrategy.Builder strategy = StandardRetryStrategy.builder();
+    if (retryConfig.getMaxAttempts() != null) {
+      strategy.maxAttempts(retryConfig.getMaxAttempts());
+    }
+    if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
+      strategy.backoffStrategy(
+          BackoffStrategy.exponentialDelay(
+              Duration.ofMillis(retryConfig.getInitialDelayMillis()),
+              Duration.ofMillis(retryConfig.getMaxDelayMillis())));
+    } else if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
+      strategy.backoffStrategy(
+          BackoffStrategy.fixedDelay(Duration.ofMillis(retryConfig.getFixedDelayMillis())));
+    }
+    return strategy.build();
   }
 
   public static class Builder extends AbstractSts.Builder<AwsSts, Builder> {
