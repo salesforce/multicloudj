@@ -584,12 +584,13 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
 
     private static SqsClient buildSqsClient(Builder builder) {
       return SqsClientUtil.buildSqsClient(
-          builder.region, builder.endpoint, builder.credentialsOverrider);
+          builder.region, builder.endpoint, builder.credentialsOverrider, builder.retryConfig);
     }
 
     @Override
     public AwsSubscription build() {
       validateSubscriptionName(subscriptionName);
+      validateAttemptTimeout();
 
       if (sqsClient == null) {
         sqsClient = buildSqsClient(this);
@@ -601,6 +602,21 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
       }
 
       return new AwsSubscription(this);
+    }
+
+    // ReceiveMessage long-polls for up to waitTimeSeconds, so a shorter per-attempt timeout
+    // would abort every receive call.
+    private void validateAttemptTimeout() {
+      if (retryConfig == null || retryConfig.getAttemptTimeout() == null) {
+        return;
+      }
+      long attemptTimeoutMillis = retryConfig.getAttemptTimeout();
+      if (attemptTimeoutMillis <= Duration.ofSeconds(waitTimeSeconds).toMillis()) {
+        throw new InvalidArgumentException(
+            String.format(
+                "RetryConfig attemptTimeout (%d ms) must be greater than waitTimeSeconds (%d s)",
+                attemptTimeoutMillis, waitTimeSeconds));
+      }
     }
   }
 }

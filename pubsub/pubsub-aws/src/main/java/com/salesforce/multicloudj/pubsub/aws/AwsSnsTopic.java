@@ -194,7 +194,7 @@ public class AwsSnsTopic extends AwsBaseTopic<AwsSnsTopic> {
 
     private static SnsClient buildSnsClient(Builder builder) {
       return SnsClientUtil.buildSnsClient(
-          builder.region, builder.endpoint, builder.credentialsOverrider);
+          builder.region, builder.endpoint, builder.credentialsOverrider, builder.retryConfig);
     }
 
     @Override

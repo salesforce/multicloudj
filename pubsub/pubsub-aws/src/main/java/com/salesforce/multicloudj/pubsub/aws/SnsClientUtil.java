@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.pubsub.aws;
 
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -15,6 +16,14 @@ public final class SnsClientUtil {
 
   public static SnsClient buildSnsClient(
       String region, URI endpoint, CredentialsOverrider credentialsOverrider) {
+    return buildSnsClient(region, endpoint, credentialsOverrider, null);
+  }
+
+  public static SnsClient buildSnsClient(
+      String region,
+      URI endpoint,
+      CredentialsOverrider credentialsOverrider,
+      RetryConfig retryConfig) {
     SnsClientBuilder clientBuilder = SnsClient.builder();
 
     // Set region if provided
@@ -35,6 +44,11 @@ public final class SnsClientUtil {
       if (credentialsProvider != null) {
         clientBuilder.credentialsProvider(credentialsProvider);
       }
+    }
+
+    if (retryConfig != null) {
+      clientBuilder.overrideConfiguration(
+          RetryConfigUtil.toClientOverrideConfiguration(retryConfig));
     }
 
     return clientBuilder.build();

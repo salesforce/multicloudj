@@ -31,6 +31,8 @@ import java.util.Map;
  * <p>Receives messages from an SMQ queue via {@code batchPopMessage}, acknowledges them via {@code
  * batchDeleteMessage}, and nacks them via {@code changeMessageVisibility}. Receipt
  * handles are modelled as {@link AliAckID}. Registered under the {@code ali} provider id.
+ *
+ * <p>{@code RetryConfig} is not supported yet and is ignored.
  */
 @AutoService(AbstractSubscription.class)
 public class AliSubscription extends AbstractSubscription<AliSubscription> {

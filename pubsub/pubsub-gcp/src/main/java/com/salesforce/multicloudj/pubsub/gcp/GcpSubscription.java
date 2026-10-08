@@ -7,6 +7,7 @@ import com.google.api.gax.httpjson.InstantiatingHttpJsonChannelProvider;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.api.gax.rpc.TransportChannelProvider;
+import com.google.api.gax.rpc.UnaryCallSettings;
 import com.google.auth.Credentials;
 import com.google.auto.service.AutoService;
 import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
@@ -26,6 +27,7 @@ import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
@@ -118,6 +120,13 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
             TransportChannelProvider channelProvider = httpJson.build();
             settingsBuilder.setTransportChannelProvider(channelProvider);
 
+            if (retryConfig != null) {
+              applyRetryConfig(settingsBuilder.pullSettings());
+              applyRetryConfig(settingsBuilder.acknowledgeSettings());
+              applyRetryConfig(settingsBuilder.modifyAckDeadlineSettings());
+              applyRetryConfig(settingsBuilder.getSubscriptionSettings());
+            }
+
             subscriptionAdminClient = SubscriptionAdminClient.create(settingsBuilder.build());
           } catch (IOException e) {
             throw new SubstrateSdkException("Failed to create subscription admin client", e);
@@ -126,6 +135,11 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
       }
     }
     return subscriptionAdminClient;
+  }
+
+  private void applyRetryConfig(UnaryCallSettings.Builder<?, ?> callSettings) {
+    callSettings.setRetrySettings(
+        RetrySettingsUtil.apply(callSettings.getRetrySettings(), retryConfig));
   }
 
   @Override
@@ -397,8 +411,17 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
     }
 
     @Override
+    public GcpSubscription.Builder withRetryConfig(RetryConfig retryConfig) {
+      super.withRetryConfig(retryConfig);
+      return this;
+    }
+
+    @Override
     public GcpSubscription build() {
       validateSubscriptionName(this.subscriptionName);
+      if (this.retryConfig != null) {
+        RetrySettingsUtil.validate(this.retryConfig);
+      }
       return new GcpSubscription(this);
     }
   }

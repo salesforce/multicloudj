@@ -193,6 +193,14 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
       TransportChannelProvider channelProvider = httpJson.build();
       settingsBuilder.setTransportChannelProvider(channelProvider);
 
+      if (retryConfig != null) {
+        settingsBuilder
+            .publishSettings()
+            .setRetrySettings(
+                RetrySettingsUtil.apply(
+                    settingsBuilder.publishSettings().getRetrySettings(), retryConfig));
+      }
+
       topicAdminClient = TopicAdminClient.create(settingsBuilder.build());
       return topicAdminClient;
 
@@ -217,6 +225,9 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
     @Override
     public GcpTopic build() {
       validateTopicName(this.topicName);
+      if (this.retryConfig != null) {
+        RetrySettingsUtil.validate(this.retryConfig);
+      }
       return new GcpTopic(this);
     }
   }

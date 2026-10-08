@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.pubsub.driver;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.provider.Provider;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.driver.utils.MessageUtils;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -35,6 +36,7 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
   protected final URI endpoint;
   protected final URI proxyEndpoint;
   protected final CredentialsOverrider credentialsOverrider;
+  protected final RetryConfig retryConfig;
   protected final Batcher<Message> batcher;
   protected final AtomicBoolean isShutdown = new AtomicBoolean(false);
 
@@ -51,6 +53,7 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
     this.endpoint = endpoint;
     this.proxyEndpoint = proxyEndpoint;
     this.credentialsOverrider = credentialsOverrider;
+    this.retryConfig = null;
     this.batcher = new Batcher<>(createBatcherOptions(), this::handleBatch);
   }
 
@@ -61,6 +64,7 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
     this.endpoint = builder.endpoint;
     this.proxyEndpoint = builder.proxyEndpoint;
     this.credentialsOverrider = builder.credentialsOverrider;
+    this.retryConfig = builder.retryConfig;
     this.batcher = new Batcher<>(createBatcherOptions(), this::handleBatch);
   }
 
@@ -182,6 +186,7 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
     protected URI endpoint;
     protected URI proxyEndpoint;
     protected CredentialsOverrider credentialsOverrider;
+    protected RetryConfig retryConfig;
 
     @Override
     public Builder<T> providerId(String providerId) {
@@ -211,6 +216,11 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
 
     public Builder<T> withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
       this.credentialsOverrider = credentialsOverrider;
+      return this;
+    }
+
+    public Builder<T> withRetryConfig(RetryConfig retryConfig) {
+      this.retryConfig = retryConfig;
       return this;
     }
 

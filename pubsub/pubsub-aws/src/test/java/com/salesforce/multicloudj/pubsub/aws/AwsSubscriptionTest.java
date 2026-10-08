@@ -20,6 +20,7 @@ import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.AckInfo;
@@ -106,6 +107,33 @@ public class AwsSubscriptionTest {
     subscription.doReceiveBatch(5);
 
     assertEquals(10, requestCaptor.getValue().waitTimeSeconds());
+  }
+
+  @Test
+  void testBuildRejectsAttemptTimeoutNotExceedingWaitTime() {
+    builder
+        .withWaitTimeSeconds(20)
+        .withRetryConfig(RetryConfig.builder().attemptTimeout(20_000L).build());
+
+    InvalidArgumentException e = assertThrows(InvalidArgumentException.class, builder::build);
+    assertTrue(e.getMessage().contains("attemptTimeout"));
+    verify(mockSqsClient, never()).getQueueUrl(any(GetQueueUrlRequest.class));
+  }
+
+  @Test
+  void testBuildAcceptsAttemptTimeoutExceedingWaitTime() {
+    builder
+        .withWaitTimeSeconds(20)
+        .withRetryConfig(RetryConfig.builder().attemptTimeout(20_001L).build());
+
+    assertDoesNotThrow(builder::build);
+  }
+
+  @Test
+  void testBuildAcceptsRetryConfigWithoutAttemptTimeout() {
+    builder.withWaitTimeSeconds(20).withRetryConfig(RetryConfig.builder().maxAttempts(5).build());
+
+    assertDoesNotThrow(builder::build);
   }
 
   @Test
