@@ -101,8 +101,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
   private final AtomicLong streamReadThreadId = new AtomicLong();
 
-  // Store-owned so stream-read threads are reused and released on close(); daemon threads so an
-  // unclosed store never blocks JVM exit.
+  // Store-owned so stream-read threads are reused and released on close(). Non-daemon so an
+  // in-flight stream upload keeps the JVM alive; idle threads still exit after 60s.
   private final ExecutorService streamReadExecutor =
       Executors.newCachedThreadPool(
           runnable -> {
@@ -110,7 +110,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                 new Thread(
                     runnable,
                     "multicloudj-aws-async-stream-read-" + streamReadThreadId.incrementAndGet());
-            thread.setDaemon(true);
+            // Set explicitly: a new thread inherits daemon status from the submitting thread.
+            thread.setDaemon(false);
             return thread;
           });
 

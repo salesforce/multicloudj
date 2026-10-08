@@ -508,12 +508,12 @@ public class AwsAsyncBlobStoreTest {
   }
 
   @Test
-  void testDoUploadInputStream_readsStreamOnStoreOwnedDaemonThread() throws Exception {
+  void testDoUploadInputStream_readsStreamOnStoreOwnedNonDaemonThread() throws Exception {
     AsyncRequestBody body = captureInputStreamUploadBody();
 
     Thread reader = readFully(body).get(10, TimeUnit.SECONDS);
 
-    assertTrue(reader.isDaemon());
+    assertFalse(reader.isDaemon());
     assertTrue(reader.getName().startsWith("multicloudj-aws-async-stream-read-"));
   }
 
