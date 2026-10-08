@@ -57,12 +57,14 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -77,6 +79,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
@@ -86,6 +90,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.MockedStatic;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.ResponseBytes;
@@ -499,6 +505,69 @@ public class AwsAsyncBlobStoreTest {
         .putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
     verifyUploadTestResults(
         aws.doUpload(generateTestUploadRequest(), mock(InputStream.class)).get());
+  }
+
+  @Test
+  void testDoUploadInputStream_readsStreamOnStoreOwnedNonDaemonThread() throws Exception {
+    AsyncRequestBody body = captureInputStreamUploadBody();
+
+    Thread reader = readFully(body).get(10, TimeUnit.SECONDS);
+
+    assertFalse(reader.isDaemon());
+    assertTrue(reader.getName().startsWith("multicloudj-aws-async-stream-read-"));
+  }
+
+  @Test
+  void testClose_shutsDownStreamReadExecutor() throws Exception {
+    AsyncRequestBody body = captureInputStreamUploadBody();
+
+    aws.close();
+
+    ExecutionException thrown =
+        assertThrows(ExecutionException.class, () -> readFully(body).get(10, TimeUnit.SECONDS));
+    assertInstanceOf(RejectedExecutionException.class, thrown.getCause());
+  }
+
+  private AsyncRequestBody captureInputStreamUploadBody() throws Exception {
+    doReturn(CompletableFuture.completedFuture(buildMockPutObjectResponse()))
+        .when(mockS3Client)
+        .putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
+    UploadRequest request =
+        new UploadRequest.Builder().withKey("object-1").withContentLength(3).build();
+    aws.doUpload(request, new ByteArrayInputStream(new byte[] {1, 2, 3})).get();
+    ArgumentCaptor<AsyncRequestBody> bodyCaptor = ArgumentCaptor.forClass(AsyncRequestBody.class);
+    verify(mockS3Client).putObject(any(PutObjectRequest.class), bodyCaptor.capture());
+    return bodyCaptor.getValue();
+  }
+
+  /** Drains the body and completes with the thread that delivered the last chunk. */
+  private static CompletableFuture<Thread> readFully(AsyncRequestBody body) {
+    CompletableFuture<Thread> result = new CompletableFuture<>();
+    body.subscribe(
+        new Subscriber<ByteBuffer>() {
+          private volatile Thread lastReader;
+
+          @Override
+          public void onSubscribe(Subscription subscription) {
+            subscription.request(Long.MAX_VALUE);
+          }
+
+          @Override
+          public void onNext(ByteBuffer buffer) {
+            lastReader = Thread.currentThread();
+          }
+
+          @Override
+          public void onError(Throwable t) {
+            result.completeExceptionally(t);
+          }
+
+          @Override
+          public void onComplete() {
+            result.complete(lastReader);
+          }
+        });
+    return result;
   }
 
   @Test
