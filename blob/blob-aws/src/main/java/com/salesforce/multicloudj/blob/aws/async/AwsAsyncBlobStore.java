@@ -54,6 +54,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -98,6 +99,22 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   private final S3TransferManager transferManager;
   private final AwsTransformer transformer;
 
+  private final AtomicLong streamReadThreadId = new AtomicLong();
+
+  // Store-owned so stream-read threads are reused and released on close(). Non-daemon so an
+  // in-flight stream upload keeps the JVM alive; idle threads still exit after 60s.
+  private final ExecutorService streamReadExecutor =
+      Executors.newCachedThreadPool(
+          runnable -> {
+            Thread thread =
+                new Thread(
+                    runnable,
+                    "multicloudj-aws-async-stream-read-" + streamReadThreadId.incrementAndGet());
+            // Set explicitly: a new thread inherits daemon status from the submitting thread.
+            thread.setDaemon(false);
+            return thread;
+          });
+
   public AwsAsyncBlobStore(
       String bucket,
       String region,
@@ -115,7 +132,9 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   @Override
   protected CompletableFuture<UploadResponse> doUpload(
       UploadRequest uploadRequest, InputStream inputStream) {
-    return doUpload(uploadRequest, transformer.toAsyncRequestBody(uploadRequest, inputStream));
+    return doUpload(
+        uploadRequest,
+        transformer.toAsyncRequestBody(uploadRequest, inputStream, streamReadExecutor));
   }
 
   @Override
@@ -356,7 +375,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     UploadPartRequest uploadPartRequest = transformer.toUploadPartRequest(mpu, mpp);
     AsyncRequestBody asyncRequestBody =
         AsyncRequestBody.fromInputStream(
-            mpp.getInputStream(), mpp.getContentLength(), Executors.newSingleThreadExecutor());
+            mpp.getInputStream(), mpp.getContentLength(), streamReadExecutor);
 
     return client
         .uploadPart(uploadPartRequest, asyncRequestBody)
@@ -566,6 +585,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   /** Closes the underlying S3 async client and transfer manager, releasing any resources. */
   @Override
   public void close() {
+    streamReadExecutor.shutdown();
     if (transferManager != null) {
       transferManager.close();
     }
