@@ -120,6 +120,52 @@ public class RetrySettingsUtilTest {
   }
 
   @Test
+  void testNonFiniteMultiplierRejected() {
+    for (double multiplier :
+        new double[] {Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY}) {
+      RetryConfig config =
+          RetryConfig.builder()
+              .mode(RetryConfig.Mode.EXPONENTIAL)
+              .initialDelayMillis(100L)
+              .multiplier(multiplier)
+              .maxDelayMillis(1000L)
+              .build();
+
+      InvalidArgumentException e =
+          assertThrows(InvalidArgumentException.class, () -> RetrySettingsUtil.validate(config));
+      assertTrue(e.getMessage().contains("multiplier"));
+    }
+  }
+
+  @Test
+  void testMaxDelayBelowInitialDelayRejected() {
+    RetryConfig config =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .initialDelayMillis(1000L)
+            .maxDelayMillis(500L)
+            .build();
+
+    InvalidArgumentException e =
+        assertThrows(InvalidArgumentException.class, () -> RetrySettingsUtil.validate(config));
+    assertTrue(e.getMessage().contains("maxDelayMillis"));
+  }
+
+  @Test
+  void testEqualInitialAndMaxDelayAccepted() {
+    RetryConfig config =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .initialDelayMillis(500L)
+            .maxDelayMillis(500L)
+            .build();
+
+    RetrySettings settings = RetrySettingsUtil.apply(BASE, config);
+
+    assertEquals(Duration.ofMillis(500L), settings.getMaxRetryDelayDuration());
+  }
+
+  @Test
   void testExponentialModeRequiresDelays() {
     RetryConfig config =
         RetryConfig.builder().mode(RetryConfig.Mode.EXPONENTIAL).maxDelayMillis(1000L).build();

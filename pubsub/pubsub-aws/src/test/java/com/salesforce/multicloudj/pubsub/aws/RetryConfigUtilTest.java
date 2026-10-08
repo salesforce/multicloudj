@@ -78,10 +78,62 @@ public class RetryConfigUtilTest {
   }
 
   @Test
+  void testTimeoutOnlyConfigKeepsSdkRetryStrategy() {
+    RetryConfig config = RetryConfig.builder().attemptTimeout(2000L).build();
+
+    ClientOverrideConfiguration override = RetryConfigUtil.toClientOverrideConfiguration(config);
+
+    assertEquals(Duration.ofMillis(2000L), override.apiCallAttemptTimeout().orElseThrow());
+    assertFalse(override.retryStrategy().isPresent());
+  }
+
+  @Test
+  void testEmptyConfigOverridesNothing() {
+    ClientOverrideConfiguration override =
+        RetryConfigUtil.toClientOverrideConfiguration(RetryConfig.builder().build());
+
+    assertFalse(override.retryStrategy().isPresent());
+    assertFalse(override.apiCallAttemptTimeout().isPresent());
+    assertFalse(override.apiCallTimeout().isPresent());
+  }
+
+  @Test
+  void testModeOnlyConfigOverridesRetryStrategy() {
+    RetryConfig config =
+        RetryConfig.builder().mode(RetryConfig.Mode.FIXED).fixedDelayMillis(100L).build();
+
+    ClientOverrideConfiguration override = RetryConfigUtil.toClientOverrideConfiguration(config);
+
+    assertTrue(override.retryStrategy().isPresent());
+  }
+
+  @Test
   void testNullConfigThrows() {
     InvalidArgumentException exception =
         assertThrows(InvalidArgumentException.class, () -> RetryConfigUtil.toRetryStrategy(null));
     assertEquals("RetryConfig cannot be null", exception.getMessage());
+
+    exception =
+        assertThrows(
+            InvalidArgumentException.class,
+            () -> RetryConfigUtil.toClientOverrideConfiguration(null));
+    assertEquals("RetryConfig cannot be null", exception.getMessage());
+  }
+
+  @Test
+  void testMaxDelayBelowInitialDelayThrows() {
+    RetryConfig config =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .initialDelayMillis(1000L)
+            .maxDelayMillis(500L)
+            .build();
+
+    InvalidArgumentException exception =
+        assertThrows(InvalidArgumentException.class, () -> RetryConfigUtil.toRetryStrategy(config));
+    assertEquals(
+        "RetryConfig.maxDelayMillis must not be less than initialDelayMillis, got: 500 < 1000",
+        exception.getMessage());
   }
 
   @Test

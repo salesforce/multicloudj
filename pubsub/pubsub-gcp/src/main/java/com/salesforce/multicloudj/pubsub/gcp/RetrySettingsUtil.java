@@ -18,7 +18,9 @@ public final class RetrySettingsUtil {
    *
    * <p>{@code attemptTimeout} sets a constant per-RPC timeout and {@code totalTimeout} bounds all
    * attempts combined. FIXED mode is expressed as equal initial and max delays with a multiplier of
-   * 1.0.
+   * 1.0. Retry delays are jittered, so the actual wait is a random duration up to the computed
+   * delay. When {@code totalTimeout} is unset, the base total timeout still bounds every attempt,
+   * including one with a longer {@code attemptTimeout}.
    *
    * @throws InvalidArgumentException if {@code retryConfig} is null or has invalid values
    */
@@ -72,6 +74,13 @@ public final class RetrySettingsUtil {
     if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
       requirePositive("initialDelayMillis", retryConfig.getInitialDelayMillis());
       requirePositive("maxDelayMillis", retryConfig.getMaxDelayMillis());
+      if (retryConfig.getMaxDelayMillis() < retryConfig.getInitialDelayMillis()) {
+        throw new InvalidArgumentException(
+            "RetryConfig.maxDelayMillis must not be less than initialDelayMillis, got: "
+                + retryConfig.getMaxDelayMillis()
+                + " < "
+                + retryConfig.getInitialDelayMillis());
+      }
       multiplier(retryConfig);
     } else if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
       requirePositive("fixedDelayMillis", retryConfig.getFixedDelayMillis());
@@ -85,13 +94,14 @@ public final class RetrySettingsUtil {
   }
 
   // An unset multiplier is 0.0 on RetryConfig; treat it as 2.0 because RetrySettings rejects
-  // multipliers below 1.0.
+  // multipliers below 1.0. NaN and infinity are rejected explicitly because RetrySettings accepts
+  // them and then retries with no delay.
   private static double multiplier(RetryConfig retryConfig) {
     double multiplier = retryConfig.getMultiplier();
     if (multiplier == 0.0) {
       return DEFAULT_MULTIPLIER;
     }
-    if (multiplier < 1.0) {
+    if (!Double.isFinite(multiplier) || multiplier < 1.0) {
       throw new InvalidArgumentException(
           "RetryConfig.multiplier must be at least 1.0, got: " + multiplier);
     }

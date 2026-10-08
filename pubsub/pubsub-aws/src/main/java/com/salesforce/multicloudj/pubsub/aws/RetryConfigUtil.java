@@ -18,12 +18,20 @@ public final class RetryConfigUtil {
    *
    * <p>{@code attemptTimeout} maps to the per-attempt API call timeout and {@code totalTimeout} to
    * the overall API call timeout. See {@link #toRetryStrategy} for how backoff fields are applied.
+   * The retry strategy is overridden only when {@code mode} or {@code maxAttempts} is set, so a
+   * timeout-only config keeps the SDK's resolved default retry behavior, including {@code
+   * AWS_RETRY_MODE} / {@code AWS_MAX_ATTEMPTS}.
    *
    * @throws InvalidArgumentException if {@code retryConfig} is null or has invalid values
    */
   public static ClientOverrideConfiguration toClientOverrideConfiguration(RetryConfig retryConfig) {
-    ClientOverrideConfiguration.Builder builder =
-        ClientOverrideConfiguration.builder().retryStrategy(toRetryStrategy(retryConfig));
+    if (retryConfig == null) {
+      throw new InvalidArgumentException("RetryConfig cannot be null");
+    }
+    ClientOverrideConfiguration.Builder builder = ClientOverrideConfiguration.builder();
+    if (retryConfig.getMode() != null || retryConfig.getMaxAttempts() != null) {
+      builder.retryStrategy(toRetryStrategy(retryConfig));
+    }
     if (retryConfig.getAttemptTimeout() != null) {
       requirePositive("attemptTimeout", retryConfig.getAttemptTimeout());
       builder.apiCallAttemptTimeout(Duration.ofMillis(retryConfig.getAttemptTimeout()));
@@ -42,8 +50,11 @@ public final class RetryConfigUtil {
    * <p>{@code multiplier} is not supported and is ignored. {@code EXPONENTIAL} maps to {@link
    * BackoffStrategy#exponentialDelay}, which accepts only a base and a maximum delay and always
    * doubles the delay between attempts: the delay before attempt {@code n} is {@code
-   * min(initialDelayMillis * 2^(n-2), maxDelayMillis)}. That strategy also applies full jitter, so
-   * the actual wait is a random duration between zero and that value.
+   * min(initialDelayMillis * 2^(n-2), maxDelayMillis)}. Both modes apply full jitter, so the actual
+   * wait is a random duration between zero and the computed delay.
+   *
+   * <p>Throttling errors keep the SDK's throttling backoff and ignore the configured delays. The
+   * SDK's retry token bucket can also stop retries before {@code maxAttempts} is reached.
    *
    * @throws InvalidArgumentException if {@code retryConfig} is null or has invalid values
    */
@@ -61,6 +72,7 @@ public final class RetryConfigUtil {
     if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
       requirePositive("initialDelayMillis", retryConfig.getInitialDelayMillis());
       requirePositive("maxDelayMillis", retryConfig.getMaxDelayMillis());
+      requireMaxDelayAtLeastInitial(retryConfig);
       strategyBuilder.backoffStrategy(
           BackoffStrategy.exponentialDelay(
               Duration.ofMillis(retryConfig.getInitialDelayMillis()),
@@ -71,6 +83,16 @@ public final class RetryConfigUtil {
           BackoffStrategy.fixedDelay(Duration.ofMillis(retryConfig.getFixedDelayMillis())));
     }
     return strategyBuilder.build();
+  }
+
+  private static void requireMaxDelayAtLeastInitial(RetryConfig retryConfig) {
+    if (retryConfig.getMaxDelayMillis() < retryConfig.getInitialDelayMillis()) {
+      throw new InvalidArgumentException(
+          "RetryConfig.maxDelayMillis must not be less than initialDelayMillis, got: "
+              + retryConfig.getMaxDelayMillis()
+              + " < "
+              + retryConfig.getInitialDelayMillis());
+    }
   }
 
   private static void requirePositive(String field, long value) {

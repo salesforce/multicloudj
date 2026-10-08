@@ -9,7 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -40,6 +43,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -134,6 +138,25 @@ public class AwsSubscriptionTest {
     builder.withWaitTimeSeconds(20).withRetryConfig(RetryConfig.builder().maxAttempts(5).build());
 
     assertDoesNotThrow(builder::build);
+  }
+
+  @Test
+  void testBuildPassesRetryConfigToSqsClient() {
+    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(5).build();
+    try (MockedStatic<SqsClientUtil> sqsClientUtil = mockStatic(SqsClientUtil.class)) {
+      sqsClientUtil
+          .when(() -> SqsClientUtil.buildSqsClient(any(), any(), any(), any()))
+          .thenReturn(mockSqsClient);
+
+      new AwsSubscription.Builder()
+          .withSubscriptionName("test-queue")
+          .withRegion("us-east-1")
+          .withRetryConfig(retryConfig)
+          .build();
+
+      sqsClientUtil.verify(
+          () -> SqsClientUtil.buildSqsClient(eq("us-east-1"), any(), any(), same(retryConfig)));
+    }
   }
 
   @Test
