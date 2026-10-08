@@ -7,11 +7,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Answers.RETURNS_SELF;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -75,7 +77,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -440,6 +444,69 @@ public class AwsAsyncBlobStoreTest {
     assertEquals(AwsConstants.PROVIDER_ID, store.getProviderId());
     assertEquals(BUCKET, store.getBucket());
     assertEquals(REGION, store.getRegion());
+  }
+
+  @Test
+  void testClose_shutsDownBuilderCreatedTransferManagerExecutor() throws Exception {
+    S3TransferManager.Builder tmBuilder = mock(S3TransferManager.Builder.class, RETURNS_SELF);
+    when(tmBuilder.build()).thenReturn(mockS3TransferManager);
+    try (MockedStatic<S3TransferManager> tm = mockStatic(S3TransferManager.class)) {
+      tm.when(S3TransferManager::builder).thenReturn(tmBuilder);
+
+      var store =
+          new AwsAsyncBlobStoreProvider()
+              .builder()
+              .withBucket(BUCKET)
+              .withRegion(REGION)
+              .withTransferManagerThreadPoolSize(2)
+              .build();
+
+      ArgumentCaptor<Executor> captor = ArgumentCaptor.forClass(Executor.class);
+      verify(tmBuilder).executor(captor.capture());
+      ExecutorService executor = (ExecutorService) captor.getValue();
+      Thread worker = executor.submit(Thread::currentThread).get();
+      assertTrue(worker.getName().startsWith("multicloudj-aws-transfer-manager-"));
+      assertFalse(worker.isDaemon());
+
+      store.close();
+
+      verify(mockS3TransferManager).close();
+      assertTrue(executor.isShutdown());
+    }
+  }
+
+  @Test
+  void testClose_leavesCallerSuppliedExecutorRunning() throws Exception {
+    ExecutorService callerExecutor = Executors.newSingleThreadExecutor();
+    try {
+      var store =
+          new AwsAsyncBlobStoreProvider()
+              .builder()
+              .withBucket(BUCKET)
+              .withRegion(REGION)
+              .withExecutorService(callerExecutor)
+              .withTransferManagerThreadPoolSize(2)
+              .build();
+
+      store.close();
+
+      assertFalse(callerExecutor.isShutdown());
+    } finally {
+      callerExecutor.shutdownNow();
+    }
+  }
+
+  @Test
+  void testBuild_withoutPoolSize_leavesTransferManagerExecutorToSdk() {
+    S3TransferManager.Builder tmBuilder = mock(S3TransferManager.Builder.class, RETURNS_SELF);
+    when(tmBuilder.build()).thenReturn(mockS3TransferManager);
+    try (MockedStatic<S3TransferManager> tm = mockStatic(S3TransferManager.class)) {
+      tm.when(S3TransferManager::builder).thenReturn(tmBuilder);
+
+      new AwsAsyncBlobStoreProvider().builder().withBucket(BUCKET).withRegion(REGION).build();
+
+      verify(tmBuilder, never()).executor(any());
+    }
   }
 
   @Test
