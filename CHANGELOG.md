@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.9](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.8...multicloudj-v0.4.9) (2026-10-08)
+
+
+### Blob Store
+
+* fix aws sync directory delete operations to return the nested delete futures  ([#664](https://github.com/salesforce/multicloudj/issues/664)) ([fd76e9b](https://github.com/salesforce/multicloudj/commit/fd76e9b7d9fb8ef5f7ef579de0c564522a64d0d8))
+* support GCP presigned URLs with access-token-only (session) credentials and email scope in gcpsts ([#660](https://github.com/salesforce/multicloudj/issues/660)) ([9ce278c](https://github.com/salesforce/multicloudj/commit/9ce278cf70fd7ed6f396fb84565e5d3b8a434759))
+
 ## [0.4.8](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.7...multicloudj-v0.4.8) (2026-10-01)
 
 
