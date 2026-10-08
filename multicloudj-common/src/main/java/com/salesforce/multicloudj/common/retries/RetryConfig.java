@@ -76,7 +76,11 @@ public final class RetryConfig {
    */
   private final long initialDelayMillis;
 
-  /** Delay multiplier between retries (EXPONENTIAL mode only). Some providers ignore it. */
+  /**
+   * Multiplier for exponential backoff (EXPONENTIAL mode only). Each retry delay is calculated as:
+   * {@code initialDelayMillis * multiplier^(attempt-1)}. Common values: 2.0 for doubling delay,
+   * Default will be 2.0 if you don't specific it. AWS is always 2.0
+   */
   private final double multiplier;
 
   /**
