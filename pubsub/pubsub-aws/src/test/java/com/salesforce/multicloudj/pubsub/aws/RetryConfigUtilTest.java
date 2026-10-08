@@ -7,11 +7,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
+import java.io.IOException;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.awscore.retry.AwsRetryStrategy;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
-import software.amazon.awssdk.retries.StandardRetryStrategy;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.retries.api.AcquireInitialTokenRequest;
+import software.amazon.awssdk.retries.api.RefreshRetryTokenRequest;
 import software.amazon.awssdk.retries.api.RetryStrategy;
+import software.amazon.awssdk.retries.api.RetryToken;
+import software.amazon.awssdk.retries.api.TokenAcquisitionFailedException;
 
 public class RetryConfigUtilTest {
 
@@ -51,7 +59,56 @@ public class RetryConfigUtilTest {
 
     RetryStrategy strategy = RetryConfigUtil.toRetryStrategy(config);
 
-    assertEquals(StandardRetryStrategy.builder().build().maxAttempts(), strategy.maxAttempts());
+    assertEquals(AwsRetryStrategy.standardRetryStrategy().maxAttempts(), strategy.maxAttempts());
+  }
+
+  @Test
+  void testStrategyRetriesTransientErrorsOnly() {
+    RetryStrategy exponential =
+        RetryConfigUtil.toRetryStrategy(
+            RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(5)
+                .initialDelayMillis(100L)
+                .maxDelayMillis(1000L)
+                .build());
+    RetryStrategy fixed =
+        RetryConfigUtil.toRetryStrategy(
+            RetryConfig.builder().mode(RetryConfig.Mode.FIXED).fixedDelayMillis(100L).build());
+    RetryStrategy maxAttemptsOnly =
+        RetryConfigUtil.toRetryStrategy(RetryConfig.builder().maxAttempts(5).build());
+
+    for (RetryStrategy strategy : new RetryStrategy[] {exponential, fixed, maxAttemptsOnly}) {
+      assertTrue(retries(strategy, serviceError(503, "ServiceUnavailable")));
+      assertTrue(
+          retries(
+              strategy,
+              SdkClientException.builder()
+                  .message("connection reset")
+                  .cause(new IOException("connection reset"))
+                  .build()));
+      assertFalse(retries(strategy, serviceError(400, "InvalidParameterValue")));
+    }
+  }
+
+  private static AwsServiceException serviceError(int statusCode, String errorCode) {
+    return AwsServiceException.builder()
+        .message(errorCode)
+        .statusCode(statusCode)
+        .awsErrorDetails(AwsErrorDetails.builder().errorCode(errorCode).build())
+        .build();
+  }
+
+  private static boolean retries(RetryStrategy strategy, Throwable failure) {
+    RetryToken token =
+        strategy.acquireInitialToken(AcquireInitialTokenRequest.create("test")).token();
+    try {
+      strategy.refreshRetryToken(
+          RefreshRetryTokenRequest.builder().token(token).failure(failure).build());
+      return true;
+    } catch (TokenAcquisitionFailedException e) {
+      return false;
+    }
   }
 
   @Test

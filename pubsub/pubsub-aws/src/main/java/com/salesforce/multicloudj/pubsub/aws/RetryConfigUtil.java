@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.pubsub.aws;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.time.Duration;
+import software.amazon.awssdk.awscore.retry.AwsRetryStrategy;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.retries.StandardRetryStrategy;
 import software.amazon.awssdk.retries.api.BackoffStrategy;
@@ -62,7 +63,10 @@ public final class RetryConfigUtil {
     if (retryConfig == null) {
       throw new InvalidArgumentException("RetryConfig cannot be null");
     }
-    StandardRetryStrategy.Builder strategyBuilder = StandardRetryStrategy.builder();
+    // A bare StandardRetryStrategy.builder() has no retry conditions and retries nothing. The AWS
+    // standard strategy carries the SDK's conditions for retryable, throttling and 5xx errors.
+    StandardRetryStrategy.Builder strategyBuilder =
+        AwsRetryStrategy.standardRetryStrategy().toBuilder();
 
     if (retryConfig.getMaxAttempts() != null) {
       requirePositive("maxAttempts", retryConfig.getMaxAttempts());
