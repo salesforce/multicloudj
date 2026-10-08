@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.sts.aws;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
@@ -17,13 +19,17 @@ import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
+import java.time.Duration;
+import java.util.Optional;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.http.SdkHttpClient;
+import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 import software.amazon.awssdk.services.sts.model.AssumeRoleResponse;
@@ -298,5 +304,62 @@ public class AwsStsTest {
     SubstrateSdkException mapped = sts.mapException(serviceException);
 
     assertTrue(mapped.isRetryable());
+  }
+
+  @Test
+  public void testBuildOverrideConfigurationAppliesRetryConfig() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .maxAttempts(5)
+            .initialDelayMillis(100)
+            .maxDelayMillis(2000)
+            .attemptTimeout(1500L)
+            .totalTimeout(10000L)
+            .build();
+
+    ClientOverrideConfiguration config = AwsSts.buildOverrideConfiguration(retryConfig);
+
+    assertEquals(5, config.retryStrategy().orElseThrow().maxAttempts());
+    assertEquals(Optional.of(Duration.ofMillis(1500)), config.apiCallAttemptTimeout());
+    assertEquals(Optional.of(Duration.ofMillis(10000)), config.apiCallTimeout());
+  }
+
+  @Test
+  public void testBuildOverrideConfigurationLeavesUnsetTimeoutsEmpty() {
+    RetryConfig retryConfig =
+        RetryConfig.builder().mode(RetryConfig.Mode.FIXED).fixedDelayMillis(200).build();
+
+    ClientOverrideConfiguration config = AwsSts.buildOverrideConfiguration(retryConfig);
+
+    assertTrue(config.retryStrategy().isPresent());
+    assertFalse(config.apiCallAttemptTimeout().isPresent());
+    assertFalse(config.apiCallTimeout().isPresent());
+  }
+
+  @Test
+  public void testToRetryStrategyKeepsSdkDefaultAttemptsWhenUnset() {
+    RetryStrategy defaults = software.amazon.awssdk.retries.StandardRetryStrategy.builder().build();
+    RetryStrategy strategy = AwsSts.toRetryStrategy(RetryConfig.builder().build());
+    assertEquals(defaults.maxAttempts(), strategy.maxAttempts());
+  }
+
+  @Test
+  public void testToRetryStrategySingleAttempt() {
+    RetryStrategy strategy = AwsSts.toRetryStrategy(RetryConfig.builder().maxAttempts(1).build());
+    assertEquals(1, strategy.maxAttempts());
+  }
+
+  @Test
+  public void testBuildWithRetryConfig() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(2)
+            .fixedDelayMillis(50)
+            .attemptTimeout(1000L)
+            .build();
+    AwsSts sts = new AwsSts.Builder().withRegion("us-west-2").withRetryConfig(retryConfig).build();
+    assertEquals("aws", sts.getProviderId());
   }
 }

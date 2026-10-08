@@ -5,10 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
@@ -216,6 +218,29 @@ public class StsClientTest {
       assertThrows(
           SubstrateSdkException.class,
           () -> client.getAssumeRoleWithWebIdentityCredentials(request));
+    }
+  }
+
+  @Test
+  public void testWithRetryConfigDelegatesToProviderBuilder() {
+    AbstractSts mockProvider = mock(AbstractSts.class);
+    AbstractSts.Builder mockBuilder = mock(AbstractSts.Builder.class);
+    when(mockProvider.getProviderId()).thenReturn("mockProviderId");
+    when(mockProvider.builder()).thenReturn(mockBuilder);
+
+    ServiceLoader serviceLoader = mock(ServiceLoader.class);
+    Iterator<? extends AbstractSts> providerIterator = List.of(mockProvider).iterator();
+    when(serviceLoader.iterator()).thenReturn(providerIterator);
+
+    try (MockedStatic<ServiceLoader> serviceLoaderStatic =
+        Mockito.mockStatic(ServiceLoader.class)) {
+      serviceLoaderStatic
+          .when(() -> ServiceLoader.load(AbstractSts.class))
+          .thenReturn(serviceLoader);
+
+      RetryConfig retryConfig = RetryConfig.builder().maxAttempts(3).build();
+      StsClient.builder("mockProviderId").withRetryConfig(retryConfig);
+      verify(mockBuilder).withRetryConfig(retryConfig);
     }
   }
 
