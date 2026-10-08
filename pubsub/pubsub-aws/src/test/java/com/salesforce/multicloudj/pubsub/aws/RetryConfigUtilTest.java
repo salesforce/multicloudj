@@ -194,6 +194,24 @@ public class RetryConfigUtilTest {
   }
 
   @Test
+  void testBackoffFieldsWithoutModeThrow() {
+    RetryConfig[] configs = {
+      RetryConfig.builder().initialDelayMillis(100L).build(),
+      RetryConfig.builder().maxDelayMillis(1000L).build(),
+      RetryConfig.builder().fixedDelayMillis(100L).build(),
+      RetryConfig.builder().maxAttempts(3).multiplier(2.0).build()
+    };
+    for (RetryConfig config : configs) {
+      InvalidArgumentException exception =
+          assertThrows(
+              InvalidArgumentException.class,
+              () -> RetryConfigUtil.toClientOverrideConfiguration(config));
+      assertTrue(exception.getMessage().contains("RetryConfig.mode must be set"));
+      assertThrows(InvalidArgumentException.class, () -> RetryConfigUtil.toRetryStrategy(config));
+    }
+  }
+
+  @Test
   void testNonPositiveMaxAttemptsThrows() {
     RetryConfig config = RetryConfig.builder().maxAttempts(0).build();
 

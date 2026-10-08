@@ -29,6 +29,7 @@ public final class RetryConfigUtil {
     if (retryConfig == null) {
       throw new InvalidArgumentException("RetryConfig cannot be null");
     }
+    requireModeForBackoffFields(retryConfig);
     ClientOverrideConfiguration.Builder builder = ClientOverrideConfiguration.builder();
     if (retryConfig.getMode() != null || retryConfig.getMaxAttempts() != null) {
       builder.retryStrategy(toRetryStrategy(retryConfig));
@@ -63,6 +64,7 @@ public final class RetryConfigUtil {
     if (retryConfig == null) {
       throw new InvalidArgumentException("RetryConfig cannot be null");
     }
+    requireModeForBackoffFields(retryConfig);
     // A bare StandardRetryStrategy.builder() has no retry conditions and retries nothing. The AWS
     // standard strategy carries the SDK's conditions for retryable, throttling and 5xx errors.
     StandardRetryStrategy.Builder strategyBuilder =
@@ -87,6 +89,20 @@ public final class RetryConfigUtil {
           BackoffStrategy.fixedDelay(Duration.ofMillis(retryConfig.getFixedDelayMillis())));
     }
     return strategyBuilder.build();
+  }
+
+  // Backoff fields only take effect for a mode, so setting them without one is a mistake rather
+  // than a request for the SDK default backoff.
+  private static void requireModeForBackoffFields(RetryConfig retryConfig) {
+    if (retryConfig.getMode() == null
+        && (retryConfig.getInitialDelayMillis() != 0
+            || retryConfig.getMaxDelayMillis() != 0
+            || retryConfig.getFixedDelayMillis() != 0
+            || retryConfig.getMultiplier() != 0.0)) {
+      throw new InvalidArgumentException(
+          "RetryConfig.mode must be set when initialDelayMillis, maxDelayMillis,"
+              + " fixedDelayMillis or multiplier is set");
+    }
   }
 
   private static void requireMaxDelayAtLeastInitial(RetryConfig retryConfig) {

@@ -71,6 +71,17 @@ public final class RetrySettingsUtil {
     if (retryConfig.getMaxAttempts() != null) {
       requirePositive("maxAttempts", retryConfig.getMaxAttempts());
     }
+    // Backoff fields only take effect for a mode, so setting them without one is a mistake rather
+    // than a request for the Pub/Sub default backoff.
+    if (retryConfig.getMode() == null
+        && (retryConfig.getInitialDelayMillis() != 0
+            || retryConfig.getMaxDelayMillis() != 0
+            || retryConfig.getFixedDelayMillis() != 0
+            || retryConfig.getMultiplier() != 0.0)) {
+      throw new InvalidArgumentException(
+          "RetryConfig.mode must be set when initialDelayMillis, maxDelayMillis,"
+              + " fixedDelayMillis or multiplier is set");
+    }
     if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
       requirePositive("initialDelayMillis", retryConfig.getInitialDelayMillis());
       requirePositive("maxDelayMillis", retryConfig.getMaxDelayMillis());
