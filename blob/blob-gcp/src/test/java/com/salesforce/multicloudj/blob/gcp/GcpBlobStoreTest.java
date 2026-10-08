@@ -25,10 +25,19 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.http.HttpResponseException;
+import com.google.api.client.http.LowLevelHttpRequest;
+import com.google.api.client.testing.http.MockHttpTransport;
+import com.google.api.client.testing.http.MockLowLevelHttpRequest;
+import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import com.google.api.gax.paging.Page;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
+import com.google.auth.oauth2.AccessToken;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.ReadChannel;
+import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -100,8 +109,10 @@ import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStore;
 import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStoreProvider;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.observability.OperationContext;
@@ -115,6 +126,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -124,9 +137,11 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -417,6 +432,58 @@ class GcpBlobStoreTest {
             any(Storage.SignUrlOption[].class));
     verify(mockStorage, never())
         .signUrl(any(BlobInfo.class), anyLong(), any(TimeUnit.class), any());
+  }
+
+  @Test
+  void testDoPresignSignsWithTokenAccountWhenCredentialsAreAccessTokenOnly() throws Exception {
+    // Exercises the real HTTP signUrl path: the account is resolved from tokeninfo and the
+    // string-to-sign is signed by IAM signBlob, both over the store's HTTP transport.
+    String email = "signer@test-project.iam.gserviceaccount.com";
+    byte[] signature = "signature".getBytes(StandardCharsets.UTF_8);
+    MockHttpTransport transport = new MockHttpTransport() {
+      @Override
+      public LowLevelHttpRequest buildRequest(String method, String url) {
+        String body = url.startsWith("https://oauth2.googleapis.com/tokeninfo")
+            ? "{\"email\":\"" + email + "\"}"
+            : "{\"signedBlob\":\"" + Base64.getEncoder().encodeToString(signature) + "\"}";
+        return new MockLowLevelHttpRequest(url).setResponse(
+            new MockLowLevelHttpResponse().setContentType("application/json").setContent(body));
+      }
+    };
+    PresignedUrlRequest request = presignUploadRequest();
+
+    URL url = accessTokenStore(transport).doPresign(request).getUrl();
+
+    String query = URLDecoder.decode(url.getQuery(), StandardCharsets.UTF_8);
+    assertTrue(query.contains("X-Goog-Credential=" + email + "/"), query);
+    assertTrue(query.contains("X-Goog-Signature=" + HexFormat.of().formatHex(signature)), query);
+  }
+
+  private PresignedUrlRequest presignUploadRequest() {
+    PresignedUrlRequest request = PresignedUrlRequest.builder()
+        .type(PresignedOperation.UPLOAD)
+        .key(TEST_KEY)
+        .duration(Duration.ofMinutes(5))
+        .build();
+    when(mockTransformer.toPresignBlobInfo(request))
+        .thenReturn(BlobInfo.newBuilder(TEST_BUCKET, TEST_KEY).build());
+    return request;
+  }
+
+  /** Builds a store whose HTTP client holds only an access token and talks to the transport. */
+  private GcpBlobStore accessTokenStore(MockHttpTransport transport) {
+    Storage tokenStorage = StorageOptions.newBuilder()
+        .setProjectId("test-project")
+        .setCredentials(GoogleCredentials.create(new AccessToken("ya29.test-token", null)))
+        .setTransportOptions(
+            HttpTransportOptions.newBuilder().setHttpTransportFactory(() -> transport).build())
+        .build()
+        .getService();
+    GcpBlobStore.Builder builder = (GcpBlobStore.Builder) new GcpBlobStore.Builder()
+        .withStorage(mockStorage)
+        .withTransformerSupplier(mockTransformerSupplier)
+        .withBucket(TEST_BUCKET);
+    return new GcpBlobStore(builder, mockStorage, tokenStorage, mpuClient, mockTransferManager);
   }
 
   @Test
@@ -2051,6 +2118,32 @@ class GcpBlobStoreTest {
     RuntimeException runtimeException = new RuntimeException("Test");
     SubstrateSdkException mapped = gcpBlobStore.mapException(runtimeException);
     assertInstanceOf(UnknownException.class, mapped);
+  }
+
+  @Test
+  void testMapException_WithWrappedHttpResponseExceptionUsesStatusCode() {
+    HttpResponseException unauthorized =
+        new HttpResponseException.Builder(401, "Unauthorized", new HttpHeaders()).build();
+
+    SubstrateSdkException mapped =
+        gcpBlobStore.mapException(new SubstrateSdkException("failed", unauthorized));
+
+    assertInstanceOf(UnAuthorizedException.class, mapped);
+    assertEquals(unauthorized, mapped.getCause());
+  }
+
+  @Test
+  void testMapException_WithWrappedIoExceptionWithoutResponsePassesThrough() {
+    SubstrateSdkException wrapped =
+        new SubstrateSdkException("failed", new IOException("connection reset"));
+    assertEquals(wrapped, gcpBlobStore.mapException(wrapped));
+  }
+
+  @Test
+  void testMapException_DoesNotReclassifySpecificExceptionWithHttpCause() {
+    InvalidArgumentException specific = new InvalidArgumentException("bad input",
+        new HttpResponseException.Builder(401, "Unauthorized", new HttpHeaders()).build());
+    assertEquals(specific, gcpBlobStore.mapException(specific));
   }
 
   @Test

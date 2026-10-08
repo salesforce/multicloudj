@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.gcp;
 
+import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.http.apache.v2.ApacheHttpTransport;
 import com.google.api.gax.paging.Page;
 import com.google.api.gax.rpc.ApiException;
@@ -127,6 +128,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -146,6 +148,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   private final MultipartUploadClient multipartUploadClient;
   private final TransferManager transferManager;
   private final GcpTransformer transformer;
+  private final GcpAccessTokenSigner accessTokenSigner = new GcpAccessTokenSigner();
   private static final String TAG_PREFIX = "gcp-tag-";
   private static final String RESPONSE_CONTENT_DISPOSITION = "response-content-disposition";
 
@@ -1048,6 +1051,8 @@ public class GcpBlobStore extends AbstractBlobStore {
       queryParams.put(RESPONSE_CONTENT_DISPOSITION, request.getContentDisposition());
       options.add(Storage.SignUrlOption.withQueryParams(queryParams));
     }
+    accessTokenSigner.signerFor(httpStorage.getOptions())
+        .ifPresent(signer -> options.add(Storage.SignUrlOption.signWith(signer)));
 
     // Signed URLs are an HTTP/JSON feature with no gRPC equivalent, so they run on the HTTP client.
     URL url = httpStorage.signUrl(
@@ -1554,8 +1559,17 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   public SubstrateSdkException mapException(Throwable t) {
+    // google-http-client reports non-2xx responses as the checked HttpResponseException, which
+    // arrives wrapped in a generic SubstrateSdkException. Only the generic type is classified by
+    // the response status; specific subtypes are already classified and pass through unchanged.
+    HttpResponseException httpResponseException =
+        ExceptionUtils.throwableOfType(t, HttpResponseException.class);
+    Throwable source = t;
     Class<? extends SubstrateSdkException> exceptionClass;
-    if (t instanceof ApiException) {
+    if (t.getClass() == SubstrateSdkException.class && httpResponseException != null) {
+      exceptionClass = CommonErrorCodeMapping.getException(httpResponseException.getStatusCode());
+      source = httpResponseException;
+    } else if (t instanceof ApiException) {
       exceptionClass = CommonErrorCodeMapping.getException((ApiException) t);
     } else if (t instanceof StorageException) {
       exceptionClass = CommonErrorCodeMapping.getException(((StorageException) t).getCode());
@@ -1564,7 +1578,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     } else {
       exceptionClass = UnknownException.class;
     }
-    return ExceptionHandler.build(exceptionClass, t, GcpRetryClassifier.classify(t));
+    return ExceptionHandler.build(exceptionClass, source, GcpRetryClassifier.classify(source));
   }
 
   /** Closes the underlying GCP Storage clients and releases any resources. */

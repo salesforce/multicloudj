@@ -62,6 +62,7 @@ import org.apache.http.impl.conn.DefaultSchemePortResolver;
 public class GcpSts extends AbstractSts {
   private static final String STS_ENDPOINT = "https://sts.googleapis.com/v1/token";
   private static final String SCOPE = "https://www.googleapis.com/auth/cloud-platform";
+  private static final String EMAIL_SCOPE = "https://www.googleapis.com/auth/userinfo.email";
 
   private GoogleCredentials googleCredentials;
   private HttpTransportFactory httpTransportFactory;
@@ -236,6 +237,16 @@ public class GcpSts extends AbstractSts {
     return value.replace("\\", "\\\\").replace("'", "\\'");
   }
 
+  /**
+   * The email scope lets token holders resolve the service account through tokeninfo, which
+   * URL signing with access-token-only credentials depends on. It is omitted when downscoping:
+   * a Credential Access Boundary token is usable only with Cloud Storage, so it cannot sign
+   * through IAM and the scope would not help.
+   */
+  private static List<String> impersonationScopes(AssumedRoleRequest request) {
+    return request.getCredentialScope() == null ? List.of(SCOPE, EMAIL_SCOPE) : List.of(SCOPE);
+  }
+
   @Override
   protected StsCredentials getSTSCredentialsWithAssumeRole(AssumedRoleRequest request) {
     try {
@@ -248,7 +259,7 @@ public class GcpSts extends AbstractSts {
             ImpersonatedCredentials.newBuilder()
                 .setSourceCredentials(sourceCredentials)
                 .setTargetPrincipal(request.getRole())
-                .setScopes(List.of(SCOPE));
+                .setScopes(impersonationScopes(request));
 
         if (request.getExpiration() > 0) {
           impersonatedBuilder.setLifetime(request.getExpiration());
