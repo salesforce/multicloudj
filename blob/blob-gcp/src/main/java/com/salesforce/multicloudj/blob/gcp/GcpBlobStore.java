@@ -544,7 +544,11 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
     Storage.BlobListOption[] listOptionsArray = listOptions.toArray(new Storage.BlobListOption[0]);
     Page<Blob> firstPage = storage.list(getBucket(), listOptionsArray);
-    return new BlobInfoIterator(firstPage, includeCommonPrefixes);
+    // Fully qualified because this file imports com.google.cloud.storage.BlobInfo. On a
+    // case-insensitive filesystem (default macOS volume), javac cannot resolve the
+    // same-package class BlobInfoIterator by its short name since it starts with BlobInfo.
+    return new com.salesforce.multicloudj.blob.gcp.BlobInfoIterator(
+        firstPage, includeCommonPrefixes);
   }
 
   /**
