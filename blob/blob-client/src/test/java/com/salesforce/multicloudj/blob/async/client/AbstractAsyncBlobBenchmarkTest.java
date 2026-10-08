@@ -82,8 +82,7 @@ import org.slf4j.LoggerFactory;
  * operation takes tens of seconds — short iterations would not capture a complete sample.
  *
  * <p>JMH forks the whole trial per method, so each fork runs exactly one {@code @Benchmark}.
- * {@code @Setup} stages only the corpus the active method reads (see {@link #stageFor(String)});
- * read-path methods see the same corpus as before, so per-op results are unchanged.
+ * {@code @Setup} stages only what that method reads (see {@link #stageFor(String)}).
  *
  * <p>Intentionally avoids {@code @Setup(Level.Invocation)} because JMH does not reliably invoke
  * it on every worker thread in Throughput mode. Per-invocation resources are set up inside the
@@ -484,9 +483,15 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
     }
     List<CompletableFuture<Void>> futures = new ArrayList<>(prefixes.size());
     for (String prefix : prefixes) {
+      CompletableFuture<Void> delete;
+      try {
+        delete = asyncClient.deleteDirectory(prefix);
+      } catch (RuntimeException e) {
+        // The client can throw before returning a future; keep cleaning the other prefixes.
+        delete = CompletableFuture.failedFuture(e);
+      }
       futures.add(
-          asyncClient
-              .deleteDirectory(prefix)
+          delete
               .orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
               .exceptionally(
                   e -> {
