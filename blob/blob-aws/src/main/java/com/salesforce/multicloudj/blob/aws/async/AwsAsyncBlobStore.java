@@ -106,6 +106,22 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   // caller-supplied executor, so close() does.
   private final ExecutorService transferManagerExecutor;
 
+  private final AtomicLong streamReadThreadId = new AtomicLong();
+
+  // Store-owned so stream-read threads are reused and released on close(). Non-daemon so an
+  // in-flight stream upload keeps the JVM alive; idle threads still exit after 60s.
+  private final ExecutorService streamReadExecutor =
+      Executors.newCachedThreadPool(
+          runnable -> {
+            Thread thread =
+                new Thread(
+                    runnable,
+                    "multicloudj-aws-async-stream-read-" + streamReadThreadId.incrementAndGet());
+            // Set explicitly: a new thread inherits daemon status from the submitting thread.
+            thread.setDaemon(false);
+            return thread;
+          });
+
   public AwsAsyncBlobStore(
       String bucket,
       String region,
@@ -144,7 +160,9 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   @Override
   protected CompletableFuture<UploadResponse> doUpload(
       UploadRequest uploadRequest, InputStream inputStream) {
-    return doUpload(uploadRequest, transformer.toAsyncRequestBody(uploadRequest, inputStream));
+    return doUpload(
+        uploadRequest,
+        transformer.toAsyncRequestBody(uploadRequest, inputStream, streamReadExecutor));
   }
 
   @Override
@@ -385,7 +403,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     UploadPartRequest uploadPartRequest = transformer.toUploadPartRequest(mpu, mpp);
     AsyncRequestBody asyncRequestBody =
         AsyncRequestBody.fromInputStream(
-            mpp.getInputStream(), mpp.getContentLength(), Executors.newSingleThreadExecutor());
+            mpp.getInputStream(), mpp.getContentLength(), streamReadExecutor);
 
     return client
         .uploadPart(uploadPartRequest, asyncRequestBody)
@@ -595,6 +613,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   /** Closes the underlying S3 async client and transfer manager, releasing any resources. */
   @Override
   public void close() {
+    streamReadExecutor.shutdown();
     if (transferManager != null) {
       transferManager.close();
     }

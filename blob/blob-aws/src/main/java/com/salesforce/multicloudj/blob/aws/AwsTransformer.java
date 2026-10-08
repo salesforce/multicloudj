@@ -54,7 +54,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
@@ -209,11 +209,12 @@ public class AwsTransformer {
     return builder.build();
   }
 
-  public AsyncRequestBody toAsyncRequestBody(UploadRequest uploadRequest, InputStream inputStream) {
+  /** {@code executor} runs the blocking stream reads; the caller owns its lifecycle. */
+  public AsyncRequestBody toAsyncRequestBody(
+      UploadRequest uploadRequest, InputStream inputStream, ExecutorService executor) {
     Long contentLength =
         uploadRequest.getContentLength() > 0 ? uploadRequest.getContentLength() : null;
-    return AsyncRequestBody.fromInputStream(
-        inputStream, contentLength, Executors.newSingleThreadExecutor());
+    return AsyncRequestBody.fromInputStream(inputStream, contentLength, executor);
   }
 
   /**
