@@ -1,0 +1,34 @@
+name: PR Title
+
+# PRs are squash-merged with the PR title as the commit message, and release-please builds the
+# changelog from those messages. A title whose type is not a changelog-sections type in
+# release-please-config.json is silently left out of the release notes.
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  conventional-title:
+    runs-on: ubuntu-latest
+    steps:
+      # Base branch only: the allowed types come from the trusted config, not the PR.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: release-please-config.json
+          sparse-checkout-cone-mode: false
+
+      - name: Validate PR title against release-please types
+        env:
+          # Passed via env, never interpolated into the script, so a crafted title can't inject shell.
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          types=$(jq -r '.packages["."]["changelog-sections"][].type' release-please-config.json | paste -sd'|' -)
+          pattern="^(${types})(\([a-z0-9._/-]+\))?!?: .+"
+          if [[ ! "$TITLE" =~ $pattern ]]; then
+            echo "::error::PR title must be '<type>[(scope)][!]: <description>' with type one of: ${types//|/, }. Got: $TITLE"
+            exit 1
+          fi
