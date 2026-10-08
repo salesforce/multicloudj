@@ -114,21 +114,22 @@ public class AwsSubscriptionTest {
   }
 
   @Test
-  void testBuildRejectsAttemptTimeoutWithoutLongPollMargin() {
+  void testBuildRejectsAttemptTimeoutEqualToWaitTime() {
     builder
         .withWaitTimeSeconds(20)
-        .withRetryConfig(RetryConfig.builder().attemptTimeout(20_001L).build());
+        .withRetryConfig(RetryConfig.builder().attemptTimeout(20_000L).build());
 
     InvalidArgumentException e = assertThrows(InvalidArgumentException.class, builder::build);
     assertTrue(e.getMessage().contains("attemptTimeout"));
+    assertFalse(e.getMessage().contains("withWaitTimeSeconds"));
     verify(mockSqsClient, never()).getQueueUrl(any(GetQueueUrlRequest.class));
   }
 
   @Test
-  void testBuildAcceptsAttemptTimeoutCoveringWaitTimePlusMargin() {
+  void testBuildAcceptsAttemptTimeoutGreaterThanWaitTime() {
     builder
         .withWaitTimeSeconds(20)
-        .withRetryConfig(RetryConfig.builder().attemptTimeout(25_000L).build());
+        .withRetryConfig(RetryConfig.builder().attemptTimeout(20_001L).build());
 
     assertDoesNotThrow(builder::build);
   }
@@ -140,6 +141,7 @@ public class AwsSubscriptionTest {
 
     InvalidArgumentException e = assertThrows(InvalidArgumentException.class, builder::build);
     assertTrue(e.getMessage().contains("attemptTimeout"));
+    assertTrue(e.getMessage().contains("withWaitTimeSeconds"));
   }
 
   @Test
@@ -153,7 +155,7 @@ public class AwsSubscriptionTest {
   @Test
   void testBuildAcceptsTimeoutsCoveringDefaultWaitTime() {
     builder.withRetryConfig(
-        RetryConfig.builder().attemptTimeout(25_000L).totalTimeout(60_000L).build());
+        RetryConfig.builder().attemptTimeout(20_001L).totalTimeout(60_000L).build());
 
     assertDoesNotThrow(builder::build);
   }
@@ -163,7 +165,7 @@ public class AwsSubscriptionTest {
     builder
         .withWaitTimeSeconds(5)
         .withRetryConfig(
-            RetryConfig.builder().attemptTimeout(10_000L).totalTimeout(10_000L).build());
+            RetryConfig.builder().attemptTimeout(6_000L).totalTimeout(6_000L).build());
 
     assertDoesNotThrow(builder::build);
   }
