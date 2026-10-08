@@ -552,6 +552,9 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
   }
 
   public static class Builder extends AbstractSubscription.Builder<AwsSubscription> {
+    private static final long SQS_MAX_WAIT_TIME_SECONDS = 20;
+    private static final Duration LONG_POLL_TIMEOUT_MARGIN = Duration.ofSeconds(5);
+
     private boolean nackLazy = false;
     private long waitTimeSeconds = 0;
     private SqsClient sqsClient;
@@ -590,7 +593,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
     @Override
     public AwsSubscription build() {
       validateSubscriptionName(subscriptionName);
-      validateAttemptTimeout();
+      validateTimeoutsCoverLongPoll();
 
       if (sqsClient == null) {
         sqsClient = buildSqsClient(this);
@@ -604,18 +607,29 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
       return new AwsSubscription(this);
     }
 
-    // ReceiveMessage long-polls for up to waitTimeSeconds, so a shorter per-attempt timeout
-    // would abort every receive call.
-    private void validateAttemptTimeout() {
-      if (retryConfig == null || retryConfig.getAttemptTimeout() == null) {
+    // An empty ReceiveMessage is held open for the whole long-poll wait, so a shorter timeout
+    // aborts every empty receive. When waitTimeSeconds is 0 the request omits WaitTimeSeconds and
+    // SQS applies the queue's ReceiveMessageWaitTimeSeconds, which can be up to 20 seconds.
+    private void validateTimeoutsCoverLongPoll() {
+      if (retryConfig == null) {
         return;
       }
-      long attemptTimeoutMillis = retryConfig.getAttemptTimeout();
-      if (attemptTimeoutMillis <= Duration.ofSeconds(waitTimeSeconds).toMillis()) {
+      long waitSeconds = waitTimeSeconds > 0 ? waitTimeSeconds : SQS_MAX_WAIT_TIME_SECONDS;
+      long minTimeoutMillis =
+          Duration.ofSeconds(waitSeconds).plus(LONG_POLL_TIMEOUT_MARGIN).toMillis();
+      requireTimeoutCoversLongPoll(
+          "attemptTimeout", retryConfig.getAttemptTimeout(), minTimeoutMillis);
+      requireTimeoutCoversLongPoll("totalTimeout", retryConfig.getTotalTimeout(), minTimeoutMillis);
+    }
+
+    private static void requireTimeoutCoversLongPoll(
+        String field, Long timeoutMillis, long minTimeoutMillis) {
+      if (timeoutMillis != null && timeoutMillis < minTimeoutMillis) {
         throw new InvalidArgumentException(
             String.format(
-                "RetryConfig attemptTimeout (%d ms) must be greater than waitTimeSeconds (%d s)",
-                attemptTimeoutMillis, waitTimeSeconds));
+                "RetryConfig.%s (%d ms) must be at least %d ms to cover the SQS long-poll wait"
+                    + " plus a network margin",
+                field, timeoutMillis, minTimeoutMillis));
       }
     }
   }

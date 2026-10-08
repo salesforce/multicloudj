@@ -114,10 +114,10 @@ public class AwsSubscriptionTest {
   }
 
   @Test
-  void testBuildRejectsAttemptTimeoutNotExceedingWaitTime() {
+  void testBuildRejectsAttemptTimeoutWithoutLongPollMargin() {
     builder
         .withWaitTimeSeconds(20)
-        .withRetryConfig(RetryConfig.builder().attemptTimeout(20_000L).build());
+        .withRetryConfig(RetryConfig.builder().attemptTimeout(20_001L).build());
 
     InvalidArgumentException e = assertThrows(InvalidArgumentException.class, builder::build);
     assertTrue(e.getMessage().contains("attemptTimeout"));
@@ -125,10 +125,45 @@ public class AwsSubscriptionTest {
   }
 
   @Test
-  void testBuildAcceptsAttemptTimeoutExceedingWaitTime() {
+  void testBuildAcceptsAttemptTimeoutCoveringWaitTimePlusMargin() {
     builder
         .withWaitTimeSeconds(20)
-        .withRetryConfig(RetryConfig.builder().attemptTimeout(20_001L).build());
+        .withRetryConfig(RetryConfig.builder().attemptTimeout(25_000L).build());
+
+    assertDoesNotThrow(builder::build);
+  }
+
+  @Test
+  void testBuildRejectsShortAttemptTimeoutWithDefaultWaitTime() {
+    // The queue's ReceiveMessageWaitTimeSeconds may hold empty receives for up to 20 seconds.
+    builder.withRetryConfig(RetryConfig.builder().attemptTimeout(5_000L).build());
+
+    InvalidArgumentException e = assertThrows(InvalidArgumentException.class, builder::build);
+    assertTrue(e.getMessage().contains("attemptTimeout"));
+  }
+
+  @Test
+  void testBuildRejectsShortTotalTimeout() {
+    builder.withRetryConfig(RetryConfig.builder().totalTimeout(10_000L).build());
+
+    InvalidArgumentException e = assertThrows(InvalidArgumentException.class, builder::build);
+    assertTrue(e.getMessage().contains("totalTimeout"));
+  }
+
+  @Test
+  void testBuildAcceptsTimeoutsCoveringDefaultWaitTime() {
+    builder.withRetryConfig(
+        RetryConfig.builder().attemptTimeout(25_000L).totalTimeout(60_000L).build());
+
+    assertDoesNotThrow(builder::build);
+  }
+
+  @Test
+  void testBuildUsesExplicitWaitTimeForTimeoutCheck() {
+    builder
+        .withWaitTimeSeconds(5)
+        .withRetryConfig(
+            RetryConfig.builder().attemptTimeout(10_000L).totalTimeout(10_000L).build());
 
     assertDoesNotThrow(builder::build);
   }
