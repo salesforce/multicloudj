@@ -21,6 +21,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -29,6 +30,9 @@ import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.examples.AppConfig;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import com.salesforce.multicloudj.sts.model.CredentialsType;
+import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
@@ -38,6 +42,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -46,7 +54,10 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -392,6 +403,89 @@ public class Main {
 
     getLogger().info("Presigned URL: {}", presignedUrl.toString());
   }
+
+  /**
+   * Presigns upload and download URLs from a client that holds only short-lived session
+   * credentials, then uses them with a plain HTTP client, the way a caller without cloud
+   * credentials would.
+   *
+   * <p>The session identity needs three things: permission to sign as itself (through the cloud's
+   * remote signing API when the credentials carry no private key), the signing API enabled for its
+   * project, and write/read access to the bucket. Signing does not check bucket access; the cloud
+   * checks it when the URL is used.
+   *
+   * <p>Throws on any failure so {@code main} can report a clear pass or fail.
+   */
+  public static void presignWithSessionCredentials() throws Exception {
+    String provider = getProvider();
+
+    CredentialsOverrider overrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(getSessionCredentials())
+            .build();
+    String key = "bucket-path/presigned-session.txt";
+    byte[] content = "Uploaded through a presigned URL".getBytes(StandardCharsets.UTF_8);
+
+    try (BucketClient client = getBucketClient(provider, overrider)) {
+      PresignedUrlResponse upload =
+          client.presign(
+              PresignedUrlRequest.builder()
+                  .type(PresignedOperation.UPLOAD)
+                  .key(key)
+                  .contentType("text/plain")
+                  .duration(Duration.ofMinutes(5))
+                  .build());
+
+      // The URL is only valid if the uploader sends exactly the headers that were signed.
+      // java.net.http rejects headers it manages itself (such as Host and Content-Length); it
+      // sends those with the same values the signer saw.
+      HttpRequest.Builder put =
+          HttpRequest.newBuilder(URI.create(upload.getUrl().toString()))
+              .PUT(HttpRequest.BodyPublishers.ofByteArray(content));
+      upload.getSignedHeaders().forEach((name, value) -> {
+        if (!RESTRICTED_HTTP_HEADERS.contains(name.toLowerCase(Locale.ROOT))) {
+          put.header(name, value);
+        }
+      });
+
+      try {
+        HttpClient http = HttpClient.newHttpClient();
+        HttpResponse<String> putResponse =
+            http.send(put.build(), HttpResponse.BodyHandlers.ofString());
+        if (putResponse.statusCode() / 100 != 2) {
+          throw new IllegalStateException(
+              "Presigned upload failed: " + putResponse.statusCode() + " " + putResponse.body());
+        }
+
+        URL download =
+            client.generatePresignedUrl(
+                PresignedUrlRequest.builder()
+                    .type(PresignedOperation.DOWNLOAD)
+                    .key(key)
+                    .duration(Duration.ofMinutes(5))
+                    .build());
+        HttpResponse<byte[]> getResponse =
+            http.send(
+                HttpRequest.newBuilder(URI.create(download.toString())).GET().build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+        if (getResponse.statusCode() != 200 || !Arrays.equals(content, getResponse.body())) {
+          throw new IllegalStateException(
+              "Presigned download failed or returned different content: "
+                  + getResponse.statusCode());
+        }
+        getLogger().info("Uploaded and downloaded {} through presigned URLs", key);
+      } finally {
+        try {
+          client.delete(key, null);
+        } catch (RuntimeException e) {
+          getLogger().warn("Failed to delete {}: {}", key, e.getMessage());
+        }
+      }
+    }
+  }
+
+  private static final Set<String> RESTRICTED_HTTP_HEADERS =
+      Set.of("host", "content-length", "connection", "expect", "upgrade");
 
   /**
    * Retrieves the metadata for the specified object for which to retrieve the metadata t
@@ -1031,7 +1125,32 @@ public class Main {
     return bucketClient.initiateMultipartUpload(request);
   }
 
+  /**
+   * Returns the session credentials from the {@code SESSION_TOKEN}, {@code
+   * SESSION_ACCESS_KEY_ID} and {@code SESSION_SECRET_ACCESS_KEY} environment variables.
+   * They are read only from the environment, never from examples.properties or system properties,
+   * so secrets are not committed or exposed in process listings. The token is required; the access
+   * key id and secret are optional because some substrates' session credentials consist of the
+   * token alone.
+   */
+  private static StsCredentials getSessionCredentials() {
+    String token = System.getenv("SESSION_TOKEN");
+    if (token == null || token.isBlank()) {
+      throw new IllegalStateException(
+          "Set the SESSION_TOKEN environment variable (and SESSION_ACCESS_KEY_ID /"
+              + " SESSION_SECRET_ACCESS_KEY if the substrate needs them).");
+    }
+    return new StsCredentials(
+        Objects.toString(System.getenv("SESSION_ACCESS_KEY_ID"), ""),
+        Objects.toString(System.getenv("SESSION_SECRET_ACCESS_KEY"), ""),
+        token);
+  }
+
   private static BucketClient getBucketClient(String provider) {
+    return getBucketClient(provider, null);
+  }
+
+  private static BucketClient getBucketClient(String provider, CredentialsOverrider overrider) {
     // Environment-specific values come from configuration (see examples.properties)
     String region = AppConfig.getOptional("region");
     String endpoint = AppConfig.getOptional("endpoint");
@@ -1040,6 +1159,10 @@ public class Main {
     BucketClient.BlobBuilder builder =
         BucketClient.builder(provider)
             .withBucket(AppConfig.get("blob.bucket"));
+
+    if (overrider != null) {
+      builder.withCredentialsOverrider(overrider);
+    }
 
     if (region != null) {
       builder.withRegion(region);
@@ -1120,13 +1243,35 @@ public class Main {
     }
   }
 
+  private static void runPresignWithSessionCredentials() {
+    getLogger().info("=== TESTING PRESIGN WITH SESSION CREDENTIALS ===");
+    getLogger().info("Provider: {}", getProvider());
+    boolean success = false;
+    try {
+      presignWithSessionCredentials();
+      success = true;
+      getLogger().info("presignWithSessionCredentials: PASS");
+    } catch (Exception e) {
+      getLogger().error("presignWithSessionCredentials: FAIL: {}", e.getMessage(), e);
+    }
+    System.exit(success ? 0 : 1);
+  }
+
   /**
    * Walks through an upload/verify + download/verify + delete/verify cycle against the
    * configured provider. Each step throws on failure so that the overall script exits
    * non-zero if any assertion is violated, giving a clear pass/fail signal for the
    * directory-operation code paths.
+   *
+   * <p>Pass {@code presign-session} as the first argument to run only the session-credentials
+   * presign check ({@link #presignWithSessionCredentials()}) instead.
    */
   public static void main(String[] args) {
+    if (args.length > 0 && "presign-session".equals(args[0])) {
+      runPresignWithSessionCredentials();
+      return;
+    }
+
     getLogger().info("=== STARTING DIRECTORY OPERATIONS TEST ===");
     getLogger().info("Provider: {}", getProvider());
 
