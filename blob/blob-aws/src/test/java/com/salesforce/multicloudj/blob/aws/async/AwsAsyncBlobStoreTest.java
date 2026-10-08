@@ -1998,6 +1998,61 @@ public class AwsAsyncBlobStoreTest {
   }
 
   @Test
+  void doDeleteDirectory_completesOnlyAfterDeletesComplete() {
+    // The paginator delivers pages after subscribe() returns, as the SDK does.
+    AsyncListing listing = stubAsyncDeleteDirectoryListing();
+    CompletableFuture<DeleteObjectsResponse> pendingDelete = new CompletableFuture<>();
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class))).thenReturn(pendingDelete);
+
+    CompletableFuture<Void> result = aws.doDeleteDirectory("files");
+    listing.deliver(S3Object.builder().key("file1.txt").size(1L).build());
+
+    assertFalse(result.isDone());
+    pendingDelete.complete(mock(DeleteObjectsResponse.class));
+    assertTrue(result.isDone());
+    assertFalse(result.isCompletedExceptionally());
+  }
+
+  @Test
+  void doDeleteDirectory_propagatesDeleteFailure() {
+    AsyncListing listing = stubAsyncDeleteDirectoryListing();
+    RuntimeException failure = new RuntimeException("delete failed");
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(CompletableFuture.failedFuture(failure));
+
+    CompletableFuture<Void> result = aws.doDeleteDirectory("files");
+    listing.deliver(S3Object.builder().key("file1.txt").size(1L).build());
+
+    ExecutionException thrown = assertThrows(ExecutionException.class, result::get);
+    assertEquals(failure, thrown.getCause());
+  }
+
+  private AsyncListing stubAsyncDeleteDirectoryListing() {
+    AsyncListing listing = new AsyncListing();
+    ListObjectsV2Publisher publisher = mock(ListObjectsV2Publisher.class);
+    doAnswer(
+            invocation -> {
+              listing.consumer = invocation.getArgument(0);
+              return listing.done;
+            })
+        .when(publisher)
+        .subscribe(any(Consumer.class));
+    when(mockS3Client.listObjectsV2Paginator(any(ListObjectsV2Request.class)))
+        .thenReturn(publisher);
+    return listing;
+  }
+
+  private static class AsyncListing {
+    private final CompletableFuture<Void> done = new CompletableFuture<>();
+    private Consumer<ListObjectsV2Response> consumer;
+
+    void deliver(S3Object... objects) {
+      consumer.accept(ListObjectsV2Response.builder().contents(objects).build());
+      done.complete(null);
+    }
+  }
+
+  @Test
   void testBuildS3AsyncClientWithRetryConfig() {
     // Test with exponential retry config
     RetryConfig exponentialConfig =
