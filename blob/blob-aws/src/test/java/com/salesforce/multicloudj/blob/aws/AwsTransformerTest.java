@@ -48,6 +48,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
@@ -563,7 +564,8 @@ public class AwsTransformerTest {
     UploadRequest uploadRequest =
         UploadRequest.builder().withKey("key").withContentLength(content.length).build();
 
-    AsyncRequestBody asyncRequestBody = transformer.toAsyncRequestBody(uploadRequest, inputStream);
+    AsyncRequestBody asyncRequestBody =
+        transformer.toAsyncRequestBody(uploadRequest, inputStream, mock(ExecutorService.class));
 
     assertTrue(asyncRequestBody.contentLength().isPresent());
     assertEquals(content.length, asyncRequestBody.contentLength().get());
@@ -577,7 +579,8 @@ public class AwsTransformerTest {
     InputStream inputStream = new ByteArrayInputStream(content);
     UploadRequest uploadRequest = UploadRequest.builder().withKey("key").build();
 
-    AsyncRequestBody asyncRequestBody = transformer.toAsyncRequestBody(uploadRequest, inputStream);
+    AsyncRequestBody asyncRequestBody =
+        transformer.toAsyncRequestBody(uploadRequest, inputStream, mock(ExecutorService.class));
 
     assertFalse(asyncRequestBody.contentLength().isPresent());
   }
