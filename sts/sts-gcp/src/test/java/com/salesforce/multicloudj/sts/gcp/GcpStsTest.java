@@ -31,7 +31,10 @@ import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
+import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -40,6 +43,10 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 public class GcpStsTest {
+
+  private static final String CLOUD_PLATFORM_SCOPE =
+      "https://www.googleapis.com/auth/cloud-platform";
+  private static final String EMAIL_SCOPE = "https://www.googleapis.com/auth/userinfo.email";
 
   private static GoogleCredentials mockGoogleCredentials;
   private static GoogleCredentials mockGoogleCredentialsWithIdToken;
@@ -669,4 +676,81 @@ public class GcpStsTest {
         "Expected " + expectedExceptionClass.getSimpleName() + " for status code " + statusCode);
   }
 
+  /**
+   * Records each IAM generateAccessToken request body and fails the call, so the test observes
+   * the requested scopes without reaching the downscoping STS exchange.
+   */
+  private static HttpTransportFactory recordingFailingIamTransport(List<String> requestBodies) {
+    MockHttpTransport transport =
+        new MockHttpTransport() {
+          @Override
+          public MockLowLevelHttpRequest buildRequest(String method, String url) {
+            return new MockLowLevelHttpRequest(url) {
+              @Override
+              public MockLowLevelHttpResponse execute() throws IOException {
+                requestBodies.add(getContentAsString());
+                return new MockLowLevelHttpResponse()
+                    .setStatusCode(403)
+                    .setContentType("application/json")
+                    .setContent("{\"error\":{\"code\":403,\"message\":\"denied\"}}");
+              }
+            };
+          }
+        };
+    return () -> transport;
+  }
+
+  private static GoogleCredentials staticSourceCredentials() {
+    return GoogleCredentials.create(
+        new AccessToken("source-token", new Date(System.currentTimeMillis() + 3_600_000L)));
+  }
+
+  @Test
+  public void testAssumeRoleWithoutCredentialScopeRequestsEmailScope() {
+    List<String> requestBodies = new ArrayList<>();
+    GcpSts sts =
+        new GcpSts()
+            .builder()
+            .build(staticSourceCredentials(), recordingFailingIamTransport(requestBodies));
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder()
+            .withRole("target@test-project.iam.gserviceaccount.com")
+            .withSessionName("testSession")
+            .build();
+
+    Assertions.assertThrows(SubstrateSdkException.class, () -> sts.assumeRole(request));
+
+    Assertions.assertEquals(1, requestBodies.size());
+    Assertions.assertTrue(requestBodies.get(0).contains(CLOUD_PLATFORM_SCOPE));
+    Assertions.assertTrue(requestBodies.get(0).contains(EMAIL_SCOPE));
+  }
+
+  @Test
+  public void testAssumeRoleWithCredentialScopeOmitsEmailScope() {
+    List<String> requestBodies = new ArrayList<>();
+    GcpSts sts =
+        new GcpSts()
+            .builder()
+            .build(staticSourceCredentials(), recordingFailingIamTransport(requestBodies));
+    CredentialScope scope =
+        CredentialScope.builder()
+            .rule(
+                CredentialScope.ScopeRule.builder()
+                    .availableResource("storage://my-bucket")
+                    .availablePermission("storage:GetObject")
+                    .build())
+            .build();
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder()
+            .withRole("target@test-project.iam.gserviceaccount.com")
+            .withSessionName("testSession")
+            .withCredentialScope(scope)
+            .build();
+
+    Assertions.assertThrows(SubstrateSdkException.class, () -> sts.assumeRole(request));
+
+    Assertions.assertEquals(1, requestBodies.size());
+    Assertions.assertTrue(requestBodies.get(0).contains(CLOUD_PLATFORM_SCOPE));
+    Assertions.assertFalse(requestBodies.get(0).contains(EMAIL_SCOPE));
+  }
 }
