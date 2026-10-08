@@ -514,7 +514,7 @@ public class AwsAsyncBlobStoreTest {
     Thread reader = readFully(body).get(10, TimeUnit.SECONDS);
 
     assertTrue(reader.isDaemon());
-    assertEquals("multicloudj-aws-async-stream-read", reader.getName());
+    assertTrue(reader.getName().startsWith("multicloudj-aws-async-stream-read-"));
   }
 
   @Test

@@ -99,12 +99,17 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   private final S3TransferManager transferManager;
   private final AwsTransformer transformer;
 
+  private final AtomicLong streamReadThreadId = new AtomicLong();
+
   // Store-owned so stream-read threads are reused and released on close(); daemon threads so an
   // unclosed store never blocks JVM exit.
   private final ExecutorService streamReadExecutor =
       Executors.newCachedThreadPool(
           runnable -> {
-            Thread thread = new Thread(runnable, "multicloudj-aws-async-stream-read");
+            Thread thread =
+                new Thread(
+                    runnable,
+                    "multicloudj-aws-async-stream-read-" + streamReadThreadId.incrementAndGet());
             thread.setDaemon(true);
             return thread;
           });
