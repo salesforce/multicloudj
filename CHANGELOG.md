@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.10](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.9...multicloudj-v0.4.10) (2026-10-09)
+
+
+### Blob Store
+
+* fix AWS async stream-upload thread leak with a store-owned executor ([#663](https://github.com/salesforce/multicloudj/issues/663)) ([663be99](https://github.com/salesforce/multicloudj/commit/663be990a29bb897d02d5d22f18b413b58253dd8))
+
 ## [0.4.9](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.8...multicloudj-v0.4.9) (2026-10-08)
 
 
