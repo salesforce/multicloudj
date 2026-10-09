@@ -24,6 +24,8 @@ import com.aliyun.mns.model.MessagePropertyValue;
 import com.aliyun.mns.model.PropertyType;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
@@ -61,6 +63,16 @@ public class AliSmqQueueTest {
     AliSmqQueue topic = builder.build();
     closeables.add(topic);
     return topic;
+  }
+
+  @Test
+  void builderRejectsRetryConfig() {
+    MNSClient client = mock(MNSClient.class);
+    AliSmqQueue.Builder builder = new AliSmqQueue.Builder();
+    builder.withSmqClient(client);
+    builder.withTopicName("test-queue");
+    builder.withRetryConfig(RetryConfig.builder().maxAttempts(3).build());
+    assertThrows(UnSupportedOperationException.class, builder::build);
   }
 
   @Test

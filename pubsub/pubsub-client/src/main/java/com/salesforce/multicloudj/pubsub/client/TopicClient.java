@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.pubsub.client;
 
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -127,6 +128,21 @@ public class TopicClient implements AutoCloseable {
      */
     public TopicClientBuilder withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
       this.topicBuilder.withCredentialsOverrider(credentialsOverrider);
+      return this;
+    }
+
+    /**
+     * Sets the retry configuration applied to requests made to the provider.
+     *
+     * <p>If not set, the provider SDK's default retry behavior is used. Fields left unset in
+     * {@code retryConfig} keep the provider SDK's defaults for each operation, so setting only
+     * {@code maxAttempts} still leaves the SDK's default total timeout in effect.
+     *
+     * @param retryConfig The retry configuration
+     * @return This builder instance
+     */
+    public TopicClientBuilder withRetryConfig(RetryConfig retryConfig) {
+      this.topicBuilder.withRetryConfig(retryConfig);
       return this;
     }
 

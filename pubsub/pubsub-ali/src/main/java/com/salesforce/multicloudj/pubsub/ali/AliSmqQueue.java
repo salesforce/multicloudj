@@ -132,6 +132,7 @@ public class AliSmqQueue extends AliBaseTopic<AliSmqQueue> {
 
     @Override
     public AliSmqQueue build() {
+      SmqClientFactory.rejectRetryConfig(retryConfig);
       if (topicName == null || topicName.trim().isEmpty()) {
         throw new InvalidArgumentException("Topic name cannot be null or empty");
       }

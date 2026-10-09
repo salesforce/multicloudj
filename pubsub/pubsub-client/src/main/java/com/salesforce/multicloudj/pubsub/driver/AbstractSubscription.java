@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.provider.Provider;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -39,6 +40,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
   protected final URI endpoint;
   protected final URI proxyEndpoint;
   protected final Duration nackVisibilityTimeout;
+  protected final RetryConfig retryConfig;
 
   /**
    * Constants class for queue batching and sizing parameters. Contains immutable configuration
@@ -174,6 +176,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     this.endpoint = null;
     this.proxyEndpoint = null;
     this.nackVisibilityTimeout = Duration.ZERO;
+    this.retryConfig = null;
 
     this.lock = lock;
     this.batchArrived = lock.newCondition();
@@ -202,6 +205,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     this.proxyEndpoint = builder.proxyEndpoint;
     this.nackVisibilityTimeout =
         builder.nackVisibilityTimeout == null ? Duration.ZERO : builder.nackVisibilityTimeout;
+    this.retryConfig = builder.retryConfig;
 
     this.lock = new ReentrantLock();
     this.batchArrived = this.lock.newCondition();
@@ -762,6 +766,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     protected URI proxyEndpoint;
     protected CredentialsOverrider credentialsOverrider;
     protected Duration nackVisibilityTimeout;
+    protected RetryConfig retryConfig;
 
     @Override
     public Builder<T> providerId(String providerId) {
@@ -800,6 +805,11 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
             "Nack visibility timeout cannot be negative: " + nackVisibilityTimeout);
       }
       this.nackVisibilityTimeout = nackVisibilityTimeout;
+      return this;
+    }
+
+    public Builder<T> withRetryConfig(RetryConfig retryConfig) {
+      this.retryConfig = retryConfig;
       return this;
     }
 

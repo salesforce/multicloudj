@@ -552,6 +552,8 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
   }
 
   public static class Builder extends AbstractSubscription.Builder<AwsSubscription> {
+    private static final long SQS_MAX_WAIT_TIME_SECONDS = 20;
+
     private boolean nackLazy = false;
     private long waitTimeSeconds = 0;
     private SqsClient sqsClient;
@@ -584,12 +586,13 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
 
     private static SqsClient buildSqsClient(Builder builder) {
       return SqsClientUtil.buildSqsClient(
-          builder.region, builder.endpoint, builder.credentialsOverrider);
+          builder.region, builder.endpoint, builder.credentialsOverrider, builder.retryConfig);
     }
 
     @Override
     public AwsSubscription build() {
       validateSubscriptionName(subscriptionName);
+      validateTimeoutsCoverLongPoll();
 
       if (sqsClient == null) {
         sqsClient = buildSqsClient(this);
@@ -601,6 +604,36 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
       }
 
       return new AwsSubscription(this);
+    }
+
+    // An empty ReceiveMessage is held open for the whole long-poll wait, so a timeout that does
+    // not exceed it aborts every empty receive. When waitTimeSeconds is 0 the request omits
+    // WaitTimeSeconds and SQS applies the queue's ReceiveMessageWaitTimeSeconds, which is unknown
+    // here and can be up to 20 seconds.
+    private void validateTimeoutsCoverLongPoll() {
+      if (retryConfig == null) {
+        return;
+      }
+      long waitSeconds = waitTimeSeconds > 0 ? waitTimeSeconds : SQS_MAX_WAIT_TIME_SECONDS;
+      long waitMillis = Duration.ofSeconds(waitSeconds).toMillis();
+      requireTimeoutExceedsLongPoll("attemptTimeout", retryConfig.getAttemptTimeout(), waitMillis);
+      requireTimeoutExceedsLongPoll("totalTimeout", retryConfig.getTotalTimeout(), waitMillis);
+    }
+
+    private void requireTimeoutExceedsLongPoll(String field, Long timeoutMillis, long waitMillis) {
+      if (timeoutMillis == null || timeoutMillis > waitMillis) {
+        return;
+      }
+      String message =
+          String.format(
+              "RetryConfig.%s (%d ms) must be greater than the SQS long-poll wait (%d ms)",
+              field, timeoutMillis, waitMillis);
+      if (waitTimeSeconds <= 0) {
+        message +=
+            "; the queue's ReceiveMessageWaitTimeSeconds is assumed to be the 20 second maximum,"
+                + " set withWaitTimeSeconds to use a shorter wait";
+      }
+      throw new InvalidArgumentException(message);
     }
   }
 }

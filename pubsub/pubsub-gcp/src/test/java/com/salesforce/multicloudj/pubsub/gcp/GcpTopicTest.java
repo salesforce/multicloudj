@@ -9,14 +9,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.core.ApiFuture;
+import com.google.api.core.ApiFutures;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.api.gax.rpc.UnaryCallable;
 import com.google.cloud.pubsub.v1.TopicAdminClient;
+import com.google.cloud.pubsub.v1.TopicAdminSettings;
 import com.google.pubsub.v1.PublishRequest;
 import com.google.pubsub.v1.PublishResponse;
 import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
@@ -30,6 +34,7 @@ import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.IOException;
@@ -41,6 +46,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -393,6 +400,38 @@ public class GcpTopicTest {
       assertTrue(exception.getMessage().contains("Publish failed"));
     } finally {
       topicWithMockClient.close();
+    }
+  }
+
+  @Test
+  void testRetryConfigAppliedToPublishSettings() throws Exception {
+    TopicAdminClient mockClient = mock(TopicAdminClient.class);
+    @SuppressWarnings("unchecked")
+    UnaryCallable<PublishRequest, PublishResponse> mockCallable = mock(UnaryCallable.class);
+    when(mockClient.publishCallable()).thenReturn(mockCallable);
+    when(mockCallable.futureCall(org.mockito.ArgumentMatchers.any(PublishRequest.class)))
+        .thenReturn(ApiFutures.immediateFuture(PublishResponse.getDefaultInstance()));
+
+    GcpTopic topicWithRetry =
+        new GcpTopic()
+            .builder()
+            .withTopicName(VALID_TOPIC_NAME)
+            .withRetryConfig(RetryConfig.builder().maxAttempts(7).totalTimeout(9000L).build())
+            .build();
+    List<Message> messages = new ArrayList<>();
+    messages.add(Message.builder().withBody("test".getBytes()).build());
+
+    try (MockedStatic<TopicAdminClient> clientStatic = mockStatic(TopicAdminClient.class)) {
+      ArgumentCaptor<TopicAdminSettings> captor = ArgumentCaptor.forClass(TopicAdminSettings.class);
+      clientStatic.when(() -> TopicAdminClient.create(captor.capture())).thenReturn(mockClient);
+
+      topicWithRetry.doSendBatch(messages);
+
+      RetrySettings retrySettings = captor.getValue().publishSettings().getRetrySettings();
+      assertEquals(7, retrySettings.getMaxAttempts());
+      assertEquals(9000L, retrySettings.getTotalTimeoutDuration().toMillis());
+    } finally {
+      topicWithRetry.close();
     }
   }
 

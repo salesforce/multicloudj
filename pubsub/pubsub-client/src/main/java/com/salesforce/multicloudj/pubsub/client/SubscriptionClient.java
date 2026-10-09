@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.pubsub.client;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.Message;
@@ -296,6 +297,21 @@ public class SubscriptionClient implements AutoCloseable {
      */
     public SubscriptionClientBuilder withNackVisibilityTimeout(Duration nackVisibilityTimeout) {
       this.subscriptionBuilder.withNackVisibilityTimeout(nackVisibilityTimeout);
+      return this;
+    }
+
+    /**
+     * Sets the retry configuration applied to requests made to the provider.
+     *
+     * <p>If not set, the provider SDK's default retry behavior is used. Fields left unset in
+     * {@code retryConfig} keep the provider SDK's defaults for each operation, so setting only
+     * {@code maxAttempts} still leaves the SDK's default total timeout in effect.
+     *
+     * @param retryConfig The retry configuration
+     * @return This builder instance
+     */
+    public SubscriptionClientBuilder withRetryConfig(RetryConfig retryConfig) {
+      this.subscriptionBuilder.withRetryConfig(retryConfig);
       return this;
     }
 

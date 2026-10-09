@@ -6,10 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -21,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -60,6 +65,27 @@ public class AwsSqsTopicTest {
     builder.withRegion("us-east-1");
     builder.withSqsClient(mockSqsClient);
     topic = builder.build();
+  }
+
+  @Test
+  void testBuildPassesRetryConfigToSqsClient() throws Exception {
+    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(5).build();
+    try (MockedStatic<SqsClientUtil> sqsClientUtil = mockStatic(SqsClientUtil.class)) {
+      sqsClientUtil
+          .when(() -> SqsClientUtil.buildSqsClient(any(), any(), any(), any()))
+          .thenReturn(mockSqsClient);
+
+      AwsSqsTopic built =
+          new AwsSqsTopic.Builder()
+              .withTopicName(QUEUE_URL)
+              .withRegion("us-east-1")
+              .withRetryConfig(retryConfig)
+              .build();
+      built.close();
+
+      sqsClientUtil.verify(
+          () -> SqsClientUtil.buildSqsClient(eq("us-east-1"), any(), any(), same(retryConfig)));
+    }
   }
 
   @AfterEach
