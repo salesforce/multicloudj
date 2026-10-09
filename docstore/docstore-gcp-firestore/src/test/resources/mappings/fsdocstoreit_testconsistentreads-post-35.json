@@ -1,0 +1,43 @@
+{
+  "id" : "317252bc-5c18-4305-97d4-45c95c4233a0",
+  "name" : "FSDocstoreIT_testConsistentReads-POST-35",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/consistent-read-first\",\"fields\":{\"s\":{\"stringValue\":\"replaced\"},\"pName\":{\"stringValue\":\"consistent-read-first\"},\"i\":{\"integerValue\":\"1\"}}},\"currentDocument\":{\"exists\":true}}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"writeResults\": [\n    {\n      \"updateTime\": \"2026-10-09T20:02:45.165137Z\"\n    }\n  ],\n  \"commitTime\": \"2026-10-09T20:02:45.165137Z\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "12016969556355177916;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Fri, 09 Oct 2026 20:02:45 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "317252bc-5c18-4305-97d4-45c95c4233a0",
+  "persistent" : true,
+  "insertionIndex" : 36
+}

@@ -1,0 +1,45 @@
+{
+  "id" : "e81a70ce-215f-4468-bcb1-a7e9d08097e5",
+  "name" : "FSDocstoreIT_testConsistentReads-POST-29",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/consistent-read-first\"],\"mask\":{\"fieldPaths\":[\"s\",\"pName\"]}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/consistent-read-first\",\n    \"fields\": {\n      \"s\": {\n        \"stringValue\": \"replaced\"\n      },\n      \"pName\": {\n        \"stringValue\": \"consistent-read-first\"\n      }\n    },\n    \"createTime\": \"2026-10-09T20:02:43.867900Z\",\n    \"updateTime\": \"2026-10-09T20:02:45.165137Z\"\n  },\n  \"readTime\": \"2026-10-09T20:02:46.842512Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "841097710552492661;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Fri, 09 Oct 2026 20:02:46 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "e81a70ce-215f-4468-bcb1-a7e9d08097e5",
+  "persistent" : true,
+  "scenarioName" : "scenario-12-v1-projects-substrate-sdk-gcp-poc1-databases-(default)-documents:batchGet",
+  "requiredScenarioState" : "scenario-12-v1-projects-substrate-sdk-gcp-poc1-databases-(default)-documents:batchGet-2",
+  "insertionIndex" : 30
+}

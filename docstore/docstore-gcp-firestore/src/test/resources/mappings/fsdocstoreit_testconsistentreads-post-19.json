@@ -1,0 +1,46 @@
+{
+  "id" : "1222c6ca-a704-4669-9355-aef08cb8165b",
+  "name" : "FSDocstoreIT_testConsistentReads-POST-19",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/consistent-read:first\"}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"writeResults\": [\n    {}\n  ],\n  \"commitTime\": \"2026-10-09T20:02:51.104660Z\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "2996242875490417862;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Fri, 09 Oct 2026 20:02:51 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "1222c6ca-a704-4669-9355-aef08cb8165b",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-v1-projects-substrate-sdk-gcp-poc1-databases-(default)-documents:commit",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-3-v1-projects-substrate-sdk-gcp-poc1-databases-(default)-documents:commit-2",
+  "insertionIndex" : 20
+}

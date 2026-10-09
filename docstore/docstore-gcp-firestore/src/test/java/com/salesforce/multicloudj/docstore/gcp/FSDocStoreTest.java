@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.docstore.gcp;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
@@ -11,9 +12,12 @@ import com.google.api.gax.rpc.ServerStream;
 import com.google.api.gax.rpc.ServerStreamingCallable;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.cloud.firestore.v1.FirestoreClient;
+import com.google.firestore.v1.BatchGetDocumentsRequest;
+import com.google.firestore.v1.BatchGetDocumentsResponse;
 import com.google.firestore.v1.CommitRequest;
 import com.google.firestore.v1.CommitResponse;
 import com.google.firestore.v1.Document;
+import com.google.firestore.v1.Value;
 import com.google.firestore.v1.Write;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
@@ -28,6 +32,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -110,6 +116,95 @@ public class FSDocStoreTest {
   @Test
   void testProviderId() {
     Assertions.assertEquals("gcp-firestore", docStore.getProviderId());
+  }
+
+  @Test
+  void testGetReadModesUseStrongConsistency() {
+    ServerStreamingCallable<BatchGetDocumentsRequest, BatchGetDocumentsResponse> callable =
+        mock(ServerStreamingCallable.class);
+    ServerStream<BatchGetDocumentsResponse> stream = mock(ServerStream.class);
+    String path = collectionOptions.getTableName() + "/TestTitle:TestPublisher";
+    BatchGetDocumentsResponse found =
+        BatchGetDocumentsResponse.newBuilder()
+            .setFound(
+                Document.newBuilder()
+                    .setName(path)
+                    .putFields("title", Value.newBuilder().setStringValue("TestTitle").build())
+                    .putFields(
+                        "publisher", Value.newBuilder().setStringValue("TestPublisher").build())
+                    .putFields("content", Value.newBuilder().setStringValue("latest").build()))
+            .build();
+    BatchGetDocumentsResponse missing =
+        BatchGetDocumentsResponse.newBuilder()
+            .setMissing(collectionOptions.getTableName() + "/Missing:TestPublisher")
+            .build();
+    doAnswer(
+            invocation -> {
+              Consumer<BatchGetDocumentsResponse> consumer = invocation.getArgument(0);
+              List.of(missing, found).forEach(consumer);
+              return null;
+            })
+        .when(stream)
+        .forEach(any());
+    when(mockFirestoreClient.batchGetDocumentsCallable()).thenReturn(callable);
+    when(callable.call(any(BatchGetDocumentsRequest.class))).thenReturn(stream);
+
+    for (boolean consistentRead : List.of(false, true)) {
+      Map<String, Object> result =
+          new HashMap<>(Map.of("title", "TestTitle", "publisher", "TestPublisher"));
+      Map<String, Object> missingResult =
+          new HashMap<>(Map.of("title", "Missing", "publisher", "TestPublisher"));
+      docStore
+          .getActions()
+          .get(
+              new com.salesforce.multicloudj.docstore.driver.Document(result),
+              consistentRead,
+              "content")
+          .get(
+              new com.salesforce.multicloudj.docstore.driver.Document(missingResult),
+              consistentRead,
+              "content")
+          .run();
+      Assertions.assertEquals("latest", result.get("content"));
+      Assertions.assertEquals(
+          Map.of("title", "Missing", "publisher", "TestPublisher"), missingResult);
+    }
+
+    ArgumentCaptor<BatchGetDocumentsRequest> requests =
+        ArgumentCaptor.forClass(BatchGetDocumentsRequest.class);
+    verify(callable, Mockito.times(2)).call(requests.capture());
+    for (BatchGetDocumentsRequest request : requests.getAllValues()) {
+      Assertions.assertEquals(
+          BatchGetDocumentsRequest.ConsistencySelectorCase.CONSISTENCYSELECTOR_NOT_SET,
+          request.getConsistencySelectorCase());
+      Assertions.assertEquals(2, request.getDocumentsCount());
+      Assertions.assertTrue(request.getDocumentsList().contains(path));
+      Assertions.assertEquals(
+          Set.of("title", "publisher", "content"),
+          Set.copyOf(request.getMask().getFieldPathsList()));
+    }
+  }
+
+  @Test
+  void testConsistentGetMapsNativeFailure() {
+    ServerStreamingCallable<BatchGetDocumentsRequest, BatchGetDocumentsResponse> callable =
+        mock(ServerStreamingCallable.class);
+    StatusCode status = mock(StatusCode.class);
+    when(status.getCode()).thenReturn(StatusCode.Code.NOT_FOUND);
+    ApiException failure = new ApiException("missing collection", null, status, false);
+    when(mockFirestoreClient.batchGetDocumentsCallable()).thenReturn(callable);
+    when(callable.call(any(BatchGetDocumentsRequest.class))).thenThrow(failure);
+
+    Assertions.assertThrows(
+        ResourceNotFoundException.class,
+        () ->
+            docStore
+                .getActions()
+                .get(
+                    new com.salesforce.multicloudj.docstore.driver.Document(
+                        new HashMap<>(Map.of("title", "TestTitle", "publisher", "TestPublisher"))),
+                    true)
+                .run());
   }
 
   @Test

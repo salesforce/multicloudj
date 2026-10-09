@@ -53,10 +53,12 @@ public class ActionList {
   }
 
   /**
-   * Adds a get action.
+   * Adds a get action by primary key. A consistent read reflects writes completed before the read
+   * within the substrate's native consistency scope; it does not create an atomic read snapshot.
    *
    * @param document the document to retrieve
-   * @param consistentRead whether to request the substrate's consistent-read behavior
+   * @param consistentRead true to require a strongly consistent read; false to preserve the
+   *     default behavior
    * @param fieldPaths optional field paths to retrieve
    * @return this action list
    */

@@ -1,0 +1,45 @@
+{
+  "id" : "336b6b97-66f5-4061-ba0a-c07eeb3a8cd7",
+  "name" : "FSDocstoreIT_testConsistentReads-POST-24",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/consistent-read-missing\"],\"mask\":{\"fieldPaths\":[\"s\",\"pName\"]}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"missing\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/consistent-read-missing\",\n  \"readTime\": \"2026-10-09T20:02:48.820833Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "13211803835093992423;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Fri, 09 Oct 2026 20:02:48 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "336b6b97-66f5-4061-ba0a-c07eeb3a8cd7",
+  "persistent" : true,
+  "scenarioName" : "scenario-10-v1-projects-substrate-sdk-gcp-poc1-databases-(default)-documents:batchGet",
+  "requiredScenarioState" : "scenario-10-v1-projects-substrate-sdk-gcp-poc1-databases-(default)-documents:batchGet-2",
+  "insertionIndex" : 25
+}

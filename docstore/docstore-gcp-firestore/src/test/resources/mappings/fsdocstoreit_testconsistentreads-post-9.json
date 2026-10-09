@@ -1,0 +1,43 @@
+{
+  "id" : "1cff62e8-ca79-4f24-8f9a-9ab82c13ded5",
+  "name" : "FSDocstoreIT_testConsistentReads-POST-9",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/consistent-read:second\"],\"mask\":{\"fieldPaths\":[\"Player\",\"Game\",\"i\"]}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/consistent-read:second\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"second\"\n      },\n      \"Game\": {\n        \"stringValue\": \"consistent-read\"\n      },\n      \"i\": {\n        \"integerValue\": \"2\"\n      }\n    },\n    \"createTime\": \"2026-10-09T20:02:54.381024Z\",\n    \"updateTime\": \"2026-10-09T20:02:54.381024Z\"\n  },\n  \"readTime\": \"2026-10-09T20:02:54.381024Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "13822445651452747635;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Fri, 09 Oct 2026 20:02:55 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "1cff62e8-ca79-4f24-8f9a-9ab82c13ded5",
+  "persistent" : true,
+  "insertionIndex" : 10
+}

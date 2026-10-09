@@ -1,0 +1,45 @@
+{
+  "id" : "ff8659b3-70cb-40ed-8e89-50a166666b25",
+  "name" : "FSDocstoreIT_testConsistentReads-POST-8",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/consistent-read:first\"],\"mask\":{\"fieldPaths\":[\"Player\",\"s\",\"Game\"]}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/consistent-read:first\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"first\"\n      },\n      \"s\": {\n        \"stringValue\": \"replaced\"\n      },\n      \"Game\": {\n        \"stringValue\": \"consistent-read\"\n      }\n    },\n    \"createTime\": \"2026-10-09T20:02:52.731919Z\",\n    \"updateTime\": \"2026-10-09T20:02:53.684963Z\"\n  },\n  \"readTime\": \"2026-10-09T20:02:54.381024Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "383385700743853794;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Fri, 09 Oct 2026 20:02:55 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "ff8659b3-70cb-40ed-8e89-50a166666b25",
+  "persistent" : true,
+  "scenarioName" : "scenario-6-v1-projects-substrate-sdk-gcp-poc1-databases-(default)-documents:batchGet",
+  "requiredScenarioState" : "scenario-6-v1-projects-substrate-sdk-gcp-poc1-databases-(default)-documents:batchGet-2",
+  "insertionIndex" : 9
+}

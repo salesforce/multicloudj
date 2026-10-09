@@ -1,0 +1,43 @@
+{
+  "id" : "feca1835-f113-472c-a5a8-87f7889b6fff",
+  "name" : "FSDocstoreIT_testConsistentReads-POST-16",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/consistent-read:first\",\"fields\":{\"Player\":{\"stringValue\":\"first\"},\"Game\":{\"stringValue\":\"consistent-read\"},\"s\":{\"stringValue\":\"created\"},\"i\":{\"integerValue\":\"1\"}}},\"currentDocument\":{\"exists\":false}}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"writeResults\": [\n    {\n      \"updateTime\": \"2026-10-09T20:02:52.731919Z\"\n    }\n  ],\n  \"commitTime\": \"2026-10-09T20:02:52.731919Z\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "1701989167002789595;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Fri, 09 Oct 2026 20:02:52 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "feca1835-f113-472c-a5a8-87f7889b6fff",
+  "persistent" : true,
+  "insertionIndex" : 17
+}

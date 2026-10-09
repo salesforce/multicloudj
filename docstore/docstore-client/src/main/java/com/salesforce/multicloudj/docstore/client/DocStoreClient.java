@@ -191,17 +191,18 @@ public class DocStoreClient {
    *     fields are retrieved
    */
   public void get(Document document, String... fieldPath) {
-    docStore.getActions().get(document, fieldPath).run();
+    get(document, false, fieldPath);
   }
 
   /**
-   * Retrieves a document from the document store, optionally requesting the substrate's
-   * consistent-read behavior. The document input should have a valid key. The retrieved data is
-   * stored in the supplied document.
+   * Retrieves a document by primary key. A consistent read reflects writes completed before the
+   * read within the substrate's native consistency scope. Otherwise, the substrate's existing
+   * default read behavior is preserved. The retrieved data is stored in the supplied document.
    *
    * @param document the document to retrieve, must have a valid key. The result will be stored in
    *     this document
-   * @param consistentRead whether to request the substrate's consistent-read behavior
+   * @param consistentRead true to require a strongly consistent read; false to preserve the
+   *     default behavior
    * @param fieldPath optional field paths to retrieve specific fields only. If not provided, all
    *     fields are retrieved
    */
@@ -233,13 +234,14 @@ public class DocStoreClient {
   }
 
   /**
-   * Retrieves multiple documents from the document store in a single batch operation, optionally
-   * requesting the substrate's consistent-read behavior. The retrieved data is stored in the
-   * supplied documents.
+   * Retrieves multiple documents by primary key. Consistent reads reflect writes completed before
+   * each read within the substrate's native consistency scope. The batch is not an atomic
+   * snapshot. The retrieved data is stored in the supplied documents.
    *
    * @param documents the list of documents to retrieve, each must have a valid key. Results will
    *     be stored in these documents
-   * @param consistentRead whether to request the substrate's consistent-read behavior
+   * @param consistentRead true to require strongly consistent reads; false to preserve the
+   *     default behavior
    */
   public void batchGet(List<Document> documents, boolean consistentRead) {
     ActionList actionList = docStore.getActions();

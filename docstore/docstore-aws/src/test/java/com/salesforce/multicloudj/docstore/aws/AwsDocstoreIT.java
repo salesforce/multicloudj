@@ -6,8 +6,12 @@ import com.salesforce.multicloudj.docstore.client.CollectionKind;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpClient;
@@ -16,6 +20,26 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
 
 public class AwsDocstoreIT extends AbstractDocstoreIT {
+
+  @Override
+  @Test
+  @EnabledIf(
+      value = "hasConsistentReadRecordings",
+      disabledReason = "Record testConsistentReads with valid credentials before replay")
+  public void testConsistentReads() {
+    super.testConsistentReads();
+  }
+
+  boolean hasConsistentReadRecordings() throws java.io.IOException {
+    if (System.getProperty("record") != null) {
+      return true;
+    }
+    try (java.util.stream.Stream<Path> mappings =
+        Files.list(Path.of("src/test/resources/mappings"))) {
+      return mappings.anyMatch(
+          path -> path.getFileName().toString().startsWith("awsdocstoreit_testconsistentreads-"));
+    }
+  }
 
   @Override
   protected Harness createHarness() {
@@ -91,8 +115,12 @@ public class AwsDocstoreIT extends AbstractDocstoreIT {
 
     @Override
     public void close() {
-      client.close();
-      httpClient.close();
+      if (client != null) {
+        client.close();
+      }
+      if (httpClient != null) {
+        httpClient.close();
+      }
     }
   }
 }

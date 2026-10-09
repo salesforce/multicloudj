@@ -1142,51 +1142,48 @@ public class FSDocStore extends AbstractDocStore {
       beforeDo.accept(object -> true);
     }
 
-    try {
-      // Create a batch get request using Firestore V1 API
-      BatchGetDocumentsRequest.Builder requestBuilder =
-          BatchGetDocumentsRequest.newBuilder()
-              .setDatabase(getDatabasePath())
-              .addAllDocuments(documentPaths);
+    // BatchGetDocuments defaults to strong consistency without a consistency selector.
+    // Keep that default for both read modes; no historical read or transaction is requested.
+    BatchGetDocumentsRequest.Builder requestBuilder =
+        BatchGetDocumentsRequest.newBuilder()
+            .setDatabase(getDatabasePath())
+            .addAllDocuments(documentPaths);
 
-      // Add field mask if specific fields are requested
-      if (gets.get(start).getFieldPaths() != null && !gets.get(start).getFieldPaths().isEmpty()) {
-        DocumentMask.Builder maskBuilder = DocumentMask.newBuilder();
-        // Add key fields to ensure they're included
-        Set<String> fieldPaths = new HashSet<>(gets.get(start).getFieldPaths());
-        fieldPaths.add(collectionOptions.getPartitionKey());
-        if (collectionOptions.getSortKey() != null) {
-          fieldPaths.add(collectionOptions.getSortKey());
-        }
-
-        maskBuilder.addAllFieldPaths(fieldPaths);
-        requestBuilder.setMask(maskBuilder.build());
+    // Add field mask if specific fields are requested
+    if (gets.get(start).getFieldPaths() != null && !gets.get(start).getFieldPaths().isEmpty()) {
+      DocumentMask.Builder maskBuilder = DocumentMask.newBuilder();
+      // Add key fields to ensure they're included
+      Set<String> fieldPaths = new HashSet<>(gets.get(start).getFieldPaths());
+      fieldPaths.add(collectionOptions.getPartitionKey());
+      if (collectionOptions.getSortKey() != null) {
+        fieldPaths.add(collectionOptions.getSortKey());
       }
 
-      // Execute the batch get request
-      BatchGetDocumentsRequest request = requestBuilder.build();
-
-      // Process each document response
-      firestoreClient
-          .batchGetDocumentsCallable()
-          .call(request)
-          .forEach(
-              response -> {
-                if (response.hasFound()) {
-                  com.google.firestore.v1.Document foundDoc = response.getFound();
-                  String documentPath = foundDoc.getName();
-                  Action action = docPathToAction.get(documentPath);
-
-                  if (action != null) {
-                    // Decode document fields into the action's document
-                    FSCodec.decodeDoc(foundDoc, action.getDocument(), getRevisionField());
-                  }
-                }
-                // Missing documents are silently ignored, which matches other implementations
-              });
-    } catch (Exception e) {
-      throw new SubstrateSdkException("Error executing Firestore batch gets", e);
+      maskBuilder.addAllFieldPaths(fieldPaths);
+      requestBuilder.setMask(maskBuilder.build());
     }
+
+    // Execute the batch get request
+    BatchGetDocumentsRequest request = requestBuilder.build();
+
+    // Process each document response
+    firestoreClient
+        .batchGetDocumentsCallable()
+        .call(request)
+        .forEach(
+            response -> {
+              if (response.hasFound()) {
+                com.google.firestore.v1.Document foundDoc = response.getFound();
+                String documentPath = foundDoc.getName();
+                Action action = docPathToAction.get(documentPath);
+
+                if (action != null) {
+                  // Decode document fields into the action's document
+                  FSCodec.decodeDoc(foundDoc, action.getDocument(), getRevisionField());
+                }
+              }
+              // An explicit missing response leaves the caller's key-only document unchanged.
+            });
   }
 
   /**
