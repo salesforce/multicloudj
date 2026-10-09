@@ -32,7 +32,7 @@ import java.util.Map;
  * batchDeleteMessage}, and nacks them via {@code changeMessageVisibility}. Receipt
  * handles are modelled as {@link AliAckID}. Registered under the {@code ali} provider id.
  *
- * <p>{@code RetryConfig} is not supported yet and is ignored.
+ * <p>{@code RetryConfig} is not supported yet; {@code build()} rejects a non-null config.
  */
 @AutoService(AbstractSubscription.class)
 public class AliSubscription extends AbstractSubscription<AliSubscription> {
@@ -517,6 +517,7 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
 
     @Override
     public AliSubscription build() {
+      SmqClientFactory.rejectRetryConfig(retryConfig);
       if (subscriptionName == null || subscriptionName.trim().isEmpty()) {
         throw new InvalidArgumentException("Subscription name cannot be null or empty");
       }

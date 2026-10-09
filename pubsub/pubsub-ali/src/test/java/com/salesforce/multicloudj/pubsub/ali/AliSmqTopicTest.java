@@ -25,6 +25,8 @@ import com.aliyun.mns.model.PropertyType;
 import com.aliyun.mns.model.RawTopicMessage;
 import com.aliyun.mns.model.TopicMessage;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -320,6 +322,16 @@ public class AliSmqTopicTest {
     AliSmqTopic.Builder builder = new AliSmqTopic.Builder();
     builder.withSmqClient(client);
     assertThrows(InvalidArgumentException.class, builder::build);
+  }
+
+  @Test
+  void builderRejectsRetryConfig() {
+    MNSClient client = mock(MNSClient.class);
+    AliSmqTopic.Builder builder = new AliSmqTopic.Builder();
+    builder.withSmqClient(client);
+    builder.withTopicName("test-topic");
+    builder.withRetryConfig(RetryConfig.builder().maxAttempts(3).build());
+    assertThrows(UnSupportedOperationException.class, builder::build);
   }
 
   @Test

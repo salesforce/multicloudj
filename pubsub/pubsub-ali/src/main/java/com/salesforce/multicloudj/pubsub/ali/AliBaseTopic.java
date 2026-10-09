@@ -27,7 +27,7 @@ import java.util.Map;
  * and error translation ({@link #mapException}). Concrete subclasses implement {@code doSendBatch}
  * with the queue- or topic-specific SMQ call.
  *
- * <p>{@code RetryConfig} is not supported yet and is ignored.
+ * <p>{@code RetryConfig} is not supported yet; {@code build()} rejects a non-null config.
  */
 public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTopic<T> {
 

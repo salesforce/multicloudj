@@ -8,6 +8,7 @@ import com.aliyuncs.auth.DefaultCredentialsProvider;
 import com.aliyuncs.exceptions.ClientException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
 import java.util.Locale;
@@ -41,6 +42,19 @@ public final class SmqClientFactory {
   public static MNSClient buildSmqClient(
       URI endpoint, CredentialsOverrider credentialsOverrider, URI proxyEndpoint) {
     return buildCloudAccount(endpoint, credentialsOverrider, proxyEndpoint).getMNSClient();
+  }
+
+  /**
+   * Rejects a non-null {@link RetryConfig}. The SMQ SDK exposes only a retry count, with no
+   * backoff or total-timeout controls, so a config cannot be honored as specified; failing at
+   * build time keeps it from being silently dropped.
+   *
+   * @throws UnSupportedOperationException if {@code retryConfig} is non-null
+   */
+  static void rejectRetryConfig(RetryConfig retryConfig) {
+    if (retryConfig != null) {
+      throw new UnSupportedOperationException("RetryConfig is not supported yet for Alibaba SMQ");
+    }
   }
 
   /**

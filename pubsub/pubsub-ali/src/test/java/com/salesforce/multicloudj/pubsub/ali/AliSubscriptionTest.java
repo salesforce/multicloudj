@@ -37,7 +37,9 @@ import com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.AckInfo;
@@ -89,6 +91,16 @@ public class AliSubscriptionTest {
     try (AliSubscription s = new AliSubscription()) {
       assertEquals("ali", s.getProviderId());
     }
+  }
+
+  @Test
+  void builderRejectsRetryConfig() {
+    MNSClient client = mock(MNSClient.class);
+    AliSubscription.Builder builder = new AliSubscription.Builder();
+    builder.withSmqClient(client);
+    builder.withSubscriptionName("test-queue");
+    builder.withRetryConfig(RetryConfig.builder().maxAttempts(3).build());
+    assertThrows(UnSupportedOperationException.class, builder::build);
   }
 
   @Test
