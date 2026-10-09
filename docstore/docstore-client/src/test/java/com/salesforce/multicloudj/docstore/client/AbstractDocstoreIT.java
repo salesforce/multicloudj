@@ -74,12 +74,13 @@ public abstract class AbstractDocstoreIT {
   protected abstract Harness createHarness();
 
   private Harness harness;
+  private Random revisionRandom;
 
   /** Initializes the WireMock server before all tests. */
   @BeforeAll
   public void initializeWireMockServer() {
-    Random random = new Random(12345L);
-    UUID.setUuidSupplier(() -> new java.util.UUID(random.nextLong(), random.nextLong()).toString());
+    revisionRandom = new Random(12345L);
+    UUID.setUuidSupplier(this::nextRevision);
     harness = createHarness();
     List<String> extensions = harness.getWiremockExtensions();
     TestsUtil.startWireMockServer(
@@ -100,7 +101,10 @@ public abstract class AbstractDocstoreIT {
     String testMethodName =
         testInfo.getTestMethod().map(java.lang.reflect.Method::getName).orElse("unknown");
     TestsUtil.startWireMockRecording(harness.getDocstoreEndpoint(), testClassName, testMethodName);
-    clearCollection(CollectionKind.SINGLE_KEY);
+    // The consistent-read test owns and cleans up its fixed keys in both collections.
+    if (!testMethodName.equals("testConsistentReads")) {
+      clearCollection(CollectionKind.SINGLE_KEY);
+    }
     // clearCollection(CollectionKind.TWO_KEYS);
   }
 
@@ -136,6 +140,138 @@ public abstract class AbstractDocstoreIT {
       player.setPName(((Player) doc).getPName());
       return player;
     }
+  }
+
+  private String nextRevision() {
+    return new java.util.UUID(revisionRandom.nextLong(), revisionRandom.nextLong()).toString();
+  }
+
+  @Test
+  public void testConsistentReads() {
+    // Keep this recording independent of the other tests' revision sequence.
+    Random random = new Random(675L);
+    UUID.setUuidSupplier(() -> new java.util.UUID(random.nextLong(), random.nextLong()).toString());
+    try {
+      for (CollectionKind kind : List.of(CollectionKind.SINGLE_KEY, CollectionKind.TWO_KEYS)) {
+        try (AbstractDocStore store = harness.createDocstoreDriver(kind)) {
+          DocStoreClient client = new DocStoreClient(store);
+          assertConsistentReads(client, kind);
+        }
+      }
+    } finally {
+      UUID.setUuidSupplier(this::nextRevision);
+    }
+  }
+
+  private void assertConsistentReads(DocStoreClient client, CollectionKind kind) {
+    Map<String, Object> firstKey = consistentReadKey(kind, "first");
+    Map<String, Object> secondKey = consistentReadKey(kind, "second");
+    Map<String, Object> missingKey = consistentReadKey(kind, "missing");
+    try {
+      // The fixed keys make the fixture reproducible, including after an interrupted recording.
+      client.delete(new Document(new HashMap<>(firstKey)));
+      client.delete(new Document(new HashMap<>(secondKey)));
+      client.delete(new Document(new HashMap<>(missingKey)));
+
+      Map<String, Object> first = new HashMap<>(firstKey);
+      first.put("s", "created");
+      first.put("i", 1);
+      client.create(new Document(first));
+
+      Map<String, Object> read = new HashMap<>(firstKey);
+      client.get(new Document(read), true);
+      Assertions.assertTrue(compareMaps(first, read));
+
+      first.put("s", "replaced");
+      client.replace(new Document(first));
+      Map<String, Object> projected = new HashMap<>(firstKey);
+      client.get(new Document(projected), true, "s");
+      Map<String, Object> expected = new HashMap<>(firstKey);
+      expected.put("s", "replaced");
+      Assertions.assertEquals(expected, projected);
+
+      Map<String, Object> second = new HashMap<>(secondKey);
+      second.put("s", "batch-created");
+      second.put("i", 2);
+      client.create(new Document(second));
+
+      Map<String, Object> batchFirst = new HashMap<>(firstKey);
+      Map<String, Object> batchSecond = new HashMap<>(secondKey);
+      Map<String, Object> batchMissing = new HashMap<>(missingKey);
+      client.batchGet(
+          List.of(new Document(batchFirst), new Document(batchSecond), new Document(batchMissing)),
+          true);
+      Assertions.assertTrue(compareMaps(first, batchFirst));
+      Assertions.assertTrue(compareMaps(second, batchSecond));
+      Assertions.assertEquals(missingKey, batchMissing);
+
+      Map<String, Object> actionFirst = new HashMap<>(firstKey);
+      Map<String, Object> actionSecond = new HashMap<>(secondKey);
+      Map<String, Object> actionMissing = new HashMap<>(missingKey);
+      client
+          .getActions()
+          .get(new Document(actionFirst), true, "s")
+          .get(new Document(actionSecond), true, "i")
+          .get(new Document(actionMissing), false, "s")
+          .run();
+      Assertions.assertEquals(expected, actionFirst);
+      Map<String, Object> expectedSecond = new HashMap<>(secondKey);
+      expectedSecond.put("i", batchSecond.get("i"));
+      Assertions.assertEquals(expectedSecond, actionSecond);
+      Assertions.assertEquals(missingKey, actionMissing);
+
+      Map<String, Object> orderedWrite = new HashMap<>(firstKey);
+      orderedWrite.put("s", "action-written");
+      Map<String, Object> orderedRead = new HashMap<>(firstKey);
+      client
+          .getActions()
+          .put(new Document(orderedWrite))
+          .get(new Document(orderedRead), true)
+          .run();
+      Assertions.assertTrue(compareMaps(orderedWrite, orderedRead));
+
+      Map<String, Object> invalidKey = new HashMap<>();
+      invalidKey.put(kind == CollectionKind.SINGLE_KEY ? "pName" : "Game", "");
+      assertThrowsAndNotRetryable(
+          InvalidArgumentException.class,
+          () -> client.get(new Document(new HashMap<>(invalidKey)), true),
+          "Consistent get must reject an empty partition key");
+      assertThrowsAndNotRetryable(
+          InvalidArgumentException.class,
+          () -> client.batchGet(List.of(new Document(new HashMap<>(invalidKey))), true),
+          "Consistent batch get must reject an empty partition key");
+      assertThrowsAndNotRetryable(
+          InvalidArgumentException.class,
+          () -> client.getActions().get(new Document(new HashMap<>(invalidKey)), true).run(),
+          "Consistent action-list get must reject an empty partition key");
+
+      client.delete(new Document(orderedWrite));
+      Map<String, Object> deleted = new HashMap<>(firstKey);
+      client.get(new Document(deleted), true);
+      Assertions.assertEquals(firstKey, deleted);
+      Map<String, Object> missing = new HashMap<>(missingKey);
+      client.get(new Document(missing), true, "s");
+      Assertions.assertEquals(missingKey, missing);
+
+      if (kind == CollectionKind.SINGLE_KEY) {
+        Player player = new Player();
+        player.setPName((String) secondKey.get("pName"));
+        client.get(new Document(player), true, "s", "i");
+        Assertions.assertEquals("batch-created", player.getS());
+        Assertions.assertEquals(2, player.getI());
+      }
+    } finally {
+      client.delete(new Document(new HashMap<>(firstKey)));
+      client.delete(new Document(new HashMap<>(secondKey)));
+      client.delete(new Document(new HashMap<>(missingKey)));
+    }
+  }
+
+  private Map<String, Object> consistentReadKey(CollectionKind kind, String suffix) {
+    if (kind == CollectionKind.SINGLE_KEY) {
+      return Map.of("pName", "consistent-read-" + suffix);
+    }
+    return Map.of("Game", "consistent-read", "Player", suffix);
   }
 
   @Test

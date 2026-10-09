@@ -1,0 +1,35 @@
+{
+  "id" : "c36fd6a0-c0d7-484a-86fa-218c915233f2",
+  "name" : "AwsDocstoreIT_testConsistentReads-POST-39",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.DeleteItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"consistent-read-second\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-requestid" : "1G4TT42OC9O7L9VUFOEBC1V3LNVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Fri, 09 Oct 2026 20:27:35 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "c36fd6a0-c0d7-484a-86fa-218c915233f2",
+  "persistent" : true,
+  "scenarioName" : "scenario-7-",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-7--2",
+  "insertionIndex" : 249
+}

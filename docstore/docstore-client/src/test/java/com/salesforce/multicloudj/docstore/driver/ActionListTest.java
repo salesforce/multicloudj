@@ -110,6 +110,15 @@ public class ActionListTest {
     al.get(mockDoc, "Path");
     Assertions.assertEquals(1, al.getActions().size());
     Assertions.assertEquals("Path", al.getActions().get(0).getFieldPaths().get(0));
+    Assertions.assertFalse(al.getActions().get(0).isConsistentRead());
+  }
+
+  @Test
+  void testGetWithConsistentRead() {
+    al.get(mockDoc, true, "Path");
+
+    Assertions.assertEquals(1, al.getActions().size());
+    Assertions.assertTrue(al.getActions().get(0).isConsistentRead());
   }
 
   @Test

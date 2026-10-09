@@ -1,0 +1,32 @@
+{
+  "id" : "d56f8fa7-c53f-448d-a2bb-2f0c04c1a55f",
+  "name" : "AwsDocstoreIT_testConsistentReads-POST-12",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"Item\":{\"Player\":{\"S\":\"second\"},\"Game\":{\"S\":\"consistent-read\"},\"s\":{\"S\":\"batch-created\"},\"i\":{\"N\":\"2\"}},\"ConditionExpression\":\"attribute_not_exists(Game)\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-requestid" : "698OLSO2J8026IU2R052GBGCC7VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Fri, 09 Oct 2026 20:27:50 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "d56f8fa7-c53f-448d-a2bb-2f0c04c1a55f",
+  "persistent" : true,
+  "insertionIndex" : 222
+}

@@ -191,7 +191,23 @@ public class DocStoreClient {
    *     fields are retrieved
    */
   public void get(Document document, String... fieldPath) {
-    docStore.getActions().get(document, fieldPath).run();
+    get(document, false, fieldPath);
+  }
+
+  /**
+   * Retrieves a document by primary key. A consistent read reflects writes completed before the
+   * read within the substrate's native consistency scope. Otherwise, the substrate's existing
+   * default read behavior is preserved. The retrieved data is stored in the supplied document.
+   *
+   * @param document the document to retrieve, must have a valid key. The result will be stored in
+   *     this document
+   * @param consistentRead true to require a strongly consistent read; false to preserve the
+   *     default behavior
+   * @param fieldPath optional field paths to retrieve specific fields only. If not provided, all
+   *     fields are retrieved
+   */
+  public void get(Document document, boolean consistentRead, String... fieldPath) {
+    docStore.getActions().get(document, consistentRead, fieldPath).run();
   }
 
   /**
@@ -214,9 +230,23 @@ public class DocStoreClient {
    *     stored in these documents
    */
   public void batchGet(List<Document> documents) {
+    batchGet(documents, false);
+  }
+
+  /**
+   * Retrieves multiple documents by primary key. Consistent reads reflect writes completed before
+   * each read within the substrate's native consistency scope. The batch is not an atomic
+   * snapshot. The retrieved data is stored in the supplied documents.
+   *
+   * @param documents the list of documents to retrieve, each must have a valid key. Results will
+   *     be stored in these documents
+   * @param consistentRead true to require strongly consistent reads; false to preserve the
+   *     default behavior
+   */
+  public void batchGet(List<Document> documents, boolean consistentRead) {
     ActionList actionList = docStore.getActions();
     for (Document document : documents) {
-      actionList.get(document);
+      actionList.get(document, consistentRead);
     }
     actionList.run();
   }

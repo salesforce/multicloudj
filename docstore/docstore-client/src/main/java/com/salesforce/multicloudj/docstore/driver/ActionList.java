@@ -49,7 +49,28 @@ public class ActionList {
   }
 
   public ActionList get(Document document, String... fieldPaths) {
-    actions.add(new Action(ActionKind.ACTION_KIND_GET, document, List.of(fieldPaths), null, false));
+    return get(document, false, fieldPaths);
+  }
+
+  /**
+   * Adds a get action by primary key. A consistent read reflects writes completed before the read
+   * within the substrate's native consistency scope; it does not create an atomic read snapshot.
+   *
+   * @param document the document to retrieve
+   * @param consistentRead true to require a strongly consistent read; false to preserve the
+   *     default behavior
+   * @param fieldPaths optional field paths to retrieve
+   * @return this action list
+   */
+  public ActionList get(Document document, boolean consistentRead, String... fieldPaths) {
+    actions.add(
+        new Action(
+            ActionKind.ACTION_KIND_GET,
+            document,
+            List.of(fieldPaths),
+            null,
+            false,
+            consistentRead));
     return this;
   }
 

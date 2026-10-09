@@ -546,6 +546,40 @@ public class AwsDocStoreTest {
   }
 
   @Test
+  void testBatchGetWithConsistentRead() {
+    List<Action> gets = new ArrayList<>();
+    TestAction get =
+        new TestAction(
+            ActionKind.ACTION_KIND_GET, new Document(book), List.of("title"), null);
+    get.setKey("partitionKey:YellowBook,sortKey:WA");
+    get.setConsistentRead(true);
+    gets.add(get);
+
+    DynamoDbClient mockDdb = mock(DynamoDbClient.class);
+    BatchGetItemResponse mockResponse = mock(BatchGetItemResponse.class);
+    when(mockDdb.batchGetItem(any(BatchGetItemRequest.class))).thenReturn(mockResponse);
+    when(mockResponse.responses()).thenReturn(Map.of());
+    try {
+      Field field = docStore.getClass().getDeclaredField("ddb");
+      field.setAccessible(true);
+      field.set(docStore, mockDdb);
+    } catch (Exception e) {
+      Assertions.fail("Failed to get field.", e);
+    }
+
+    docStore.batchGet(gets, null, 0, 0);
+
+    ArgumentCaptor<BatchGetItemRequest> captor = ArgumentCaptor.forClass(BatchGetItemRequest.class);
+    verify(mockDdb).batchGetItem(captor.capture());
+    Assertions.assertTrue(
+        captor
+            .getValue()
+            .requestItems()
+            .get(collectionOptions.getTableName())
+            .consistentRead());
+  }
+
+  @Test
   void testNewWriteOperation() {
     Person person =
         new Person(

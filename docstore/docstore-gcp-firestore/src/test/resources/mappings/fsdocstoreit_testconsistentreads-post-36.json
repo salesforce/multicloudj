@@ -1,0 +1,46 @@
+{
+  "id" : "101036c5-4c9e-429a-9d25-4b27d26e7b4a",
+  "name" : "FSDocstoreIT_testConsistentReads-POST-36",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/consistent-read-first\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/consistent-read-first\",\n    \"fields\": {\n      \"s\": {\n        \"stringValue\": \"created\"\n      },\n      \"pName\": {\n        \"stringValue\": \"consistent-read-first\"\n      },\n      \"i\": {\n        \"integerValue\": \"1\"\n      }\n    },\n    \"createTime\": \"2026-10-09T20:02:43.867900Z\",\n    \"updateTime\": \"2026-10-09T20:02:43.867900Z\"\n  },\n  \"readTime\": \"2026-10-09T20:02:44.656504Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "15723011037665466684;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Fri, 09 Oct 2026 20:02:44 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "101036c5-4c9e-429a-9d25-4b27d26e7b4a",
+  "persistent" : true,
+  "scenarioName" : "scenario-11-v1-projects-substrate-sdk-gcp-poc1-databases-(default)-documents:batchGet",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-11-v1-projects-substrate-sdk-gcp-poc1-databases-(default)-documents:batchGet-2",
+  "insertionIndex" : 37
+}

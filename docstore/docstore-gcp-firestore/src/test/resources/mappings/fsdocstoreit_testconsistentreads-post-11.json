@@ -1,0 +1,43 @@
+{
+  "id" : "c71ec82f-afa9-4ba9-b38d-08bd27ff256c",
+  "name" : "FSDocstoreIT_testConsistentReads-POST-11",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/consistent-read:first\",\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/consistent-read:second\",\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/consistent-read:missing\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/consistent-read:first\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"first\"\n      },\n      \"Game\": {\n        \"stringValue\": \"consistent-read\"\n      },\n      \"s\": {\n        \"stringValue\": \"replaced\"\n      },\n      \"i\": {\n        \"integerValue\": \"1\"\n      }\n    },\n    \"createTime\": \"2026-10-09T20:02:52.731919Z\",\n    \"updateTime\": \"2026-10-09T20:02:53.684963Z\"\n  },\n  \"readTime\": \"2026-10-09T20:02:54.707177Z\"\n}\n,\r\n{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/consistent-read:second\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"second\"\n      },\n      \"Game\": {\n        \"stringValue\": \"consistent-read\"\n      },\n      \"s\": {\n        \"stringValue\": \"batch-created\"\n      },\n      \"i\": {\n        \"integerValue\": \"2\"\n      }\n    },\n    \"createTime\": \"2026-10-09T20:02:54.381024Z\",\n    \"updateTime\": \"2026-10-09T20:02:54.381024Z\"\n  },\n  \"readTime\": \"2026-10-09T20:02:54.707177Z\"\n}\n,\r\n{\n  \"missing\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/consistent-read:missing\",\n  \"readTime\": \"2026-10-09T20:02:54.707177Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "11040148565677819402;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Fri, 09 Oct 2026 20:02:54 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "c71ec82f-afa9-4ba9-b38d-08bd27ff256c",
+  "persistent" : true,
+  "insertionIndex" : 12
+}

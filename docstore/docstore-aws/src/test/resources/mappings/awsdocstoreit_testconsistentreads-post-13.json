@@ -1,0 +1,35 @@
+{
+  "id" : "c7518b52-8406-4030-b573-3d2835b7868e",
+  "name" : "AwsDocstoreIT_testConsistentReads-POST-13",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-2\":{\"Keys\":[{\"Player\":{\"S\":\"first\"},\"Game\":{\"S\":\"consistent-read\"}}],\"ConsistentRead\":true,\"ProjectionExpression\":\"#attr0,#attr1,#attr2\",\"ExpressionAttributeNames\":{\"#attr2\":\"Player\",\"#attr1\":\"Game\",\"#attr0\":\"s\"}}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-2\":[{\"Game\":{\"S\":\"consistent-read\"},\"Player\":{\"S\":\"first\"},\"s\":{\"S\":\"replaced\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-requestid" : "UK8GDL95I2JTVK8P6G60BORJ8RVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "3402923667",
+      "Date" : "Fri, 09 Oct 2026 20:27:50 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "c7518b52-8406-4030-b573-3d2835b7868e",
+  "persistent" : true,
+  "scenarioName" : "scenario-5-",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-5--2",
+  "insertionIndex" : 223
+}

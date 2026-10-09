@@ -1,0 +1,32 @@
+{
+  "id" : "8a497852-48a8-49cc-addb-e256012e65af",
+  "name" : "AwsDocstoreIT_testConsistentReads-POST-24",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"consistent-read-missing\"}}],\"ConsistentRead\":true,\"ProjectionExpression\":\"#attr0,#attr1\",\"ExpressionAttributeNames\":{\"#attr1\":\"pName\",\"#attr0\":\"s\"}}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-requestid" : "O7KBJMJETEVM61HRTV24SHJG2BVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "289144682",
+      "Date" : "Fri, 09 Oct 2026 20:27:43 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "8a497852-48a8-49cc-addb-e256012e65af",
+  "persistent" : true,
+  "insertionIndex" : 234
+}
