@@ -18,6 +18,9 @@ public class Action {
   // A list of field paths to retrieve, for Get only. Each field path is a dot separated string.
   private List<String> fieldPaths;
 
+  // Whether a Get operation requests the substrate's consistent-read behavior.
+  private boolean consistentRead;
+
   // modifications to make, for Update only. The key is a field path (dot separated string).
   private Map<String, Object> mods;
 
@@ -31,10 +34,21 @@ public class Action {
       List<String> fieldPaths,
       Map<String, Object> mods,
       boolean inAtomicWrite) {
+    this(kind, document, fieldPaths, mods, inAtomicWrite, false);
+  }
+
+  public Action(
+      ActionKind kind,
+      Document document,
+      List<String> fieldPaths,
+      Map<String, Object> mods,
+      boolean inAtomicWrite,
+      boolean consistentRead) {
     this.kind = kind;
     this.document = document;
     this.fieldPaths = fieldPaths;
     this.mods = mods;
     this.inAtomicWrite = inAtomicWrite;
+    this.consistentRead = consistentRead;
   }
 }

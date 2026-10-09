@@ -129,6 +129,37 @@ public class UtilTest {
   }
 
   @Test
+  void testGroupByFieldPathSeparatesConsistentReads() {
+    Person person =
+        new Person(
+            Collections.singleton("Jamie"),
+            "Zoe",
+            "Ford",
+            Timestamp.newBuilder().setNanos(100).build());
+    TestAction eventual =
+        new TestAction(
+            ActionKind.ACTION_KIND_GET,
+            new Document(person),
+            null,
+            List.of("a"),
+            null,
+            false);
+    TestAction consistent =
+        new TestAction(
+            ActionKind.ACTION_KIND_GET,
+            new Document(person),
+            null,
+            List.of("a"),
+            null,
+            false);
+    consistent.setConsistentRead(true);
+
+    List<List<Action>> groups = Util.groupByFieldPath(List.of(eventual, consistent));
+
+    Assertions.assertEquals(2, groups.size());
+  }
+
+  @Test
   void testSerializeObject() {
     Person person =
         new Person(

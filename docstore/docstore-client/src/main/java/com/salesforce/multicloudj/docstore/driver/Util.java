@@ -94,8 +94,7 @@ public class Util {
     }
   }
 
-  // GroupByFieldPath collect the Get actions into groups with the same set of
-  // field paths.
+  // GroupByFieldPath collects Get actions into groups with the same field paths and read mode.
   public static List<List<Action>> groupByFieldPath(List<Action> gets) {
     List<List<Action>> groups = new ArrayList<>();
     Map<Action, Boolean> seen = new HashMap<>();
@@ -103,7 +102,9 @@ public class Util {
       List<Action> g = new ArrayList<>();
       for (Action a : gets) {
         if (seen.get(a) == null
-            && (g.isEmpty() || fpsEqual(g.get(0).getFieldPaths(), a.getFieldPaths()))) {
+            && (g.isEmpty()
+                || (fpsEqual(g.get(0).getFieldPaths(), a.getFieldPaths())
+                    && g.get(0).isConsistentRead() == a.isConsistentRead()))) {
           g.add(a);
           seen.put(a, Boolean.TRUE);
         }

@@ -49,7 +49,26 @@ public class ActionList {
   }
 
   public ActionList get(Document document, String... fieldPaths) {
-    actions.add(new Action(ActionKind.ACTION_KIND_GET, document, List.of(fieldPaths), null, false));
+    return get(document, false, fieldPaths);
+  }
+
+  /**
+   * Adds a get action.
+   *
+   * @param document the document to retrieve
+   * @param consistentRead whether to request the substrate's consistent-read behavior
+   * @param fieldPaths optional field paths to retrieve
+   * @return this action list
+   */
+  public ActionList get(Document document, boolean consistentRead, String... fieldPaths) {
+    actions.add(
+        new Action(
+            ActionKind.ACTION_KIND_GET,
+            document,
+            List.of(fieldPaths),
+            null,
+            false,
+            consistentRead));
     return this;
   }
 

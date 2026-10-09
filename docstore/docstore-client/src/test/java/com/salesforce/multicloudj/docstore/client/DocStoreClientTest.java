@@ -107,6 +107,19 @@ public class DocStoreClientTest {
     when(mockDocStore.getActions()).thenReturn(actionList);
     mockClient.get(doc, "path");
     Assertions.assertEquals(1, actionList.getActions().size());
+    Assertions.assertFalse(actionList.getActions().get(0).isConsistentRead());
+  }
+
+  @Test
+  void testGetWithConsistentRead() {
+    ActionList actionList = new ActionList(mockDocStore);
+    Document doc = mock(Document.class);
+    when(mockDocStore.getActions()).thenReturn(actionList);
+
+    mockClient.get(doc, true, "path");
+
+    Assertions.assertEquals(1, actionList.getActions().size());
+    Assertions.assertTrue(actionList.getActions().get(0).isConsistentRead());
   }
 
   @Test
@@ -126,6 +139,18 @@ public class DocStoreClientTest {
     when(mockDocStore.getActions()).thenReturn(actionList);
     mockClient.batchGet(List.of(doc));
     mockClient.close();
+  }
+
+  @Test
+  void testBatchGetWithConsistentRead() {
+    ActionList actionList = new ActionList(mockDocStore);
+    Document doc = mock(Document.class);
+    when(mockDocStore.getActions()).thenReturn(actionList);
+
+    mockClient.batchGet(List.of(doc), true);
+
+    Assertions.assertEquals(1, actionList.getActions().size());
+    Assertions.assertTrue(actionList.getActions().get(0).isConsistentRead());
   }
 
   @Test

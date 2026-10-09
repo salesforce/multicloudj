@@ -226,7 +226,9 @@ public class AwsDocStore extends AbstractDocStore {
 
     // Create the KeysAndAttributes.
     KeysAndAttributes.Builder keysAndAttributes =
-        KeysAndAttributes.builder().keys(keysList).consistentRead(false);
+        KeysAndAttributes.builder()
+            .keys(keysList)
+            .consistentRead(gets.get(start).isConsistentRead());
     if (gets.get(start).getFieldPaths() != null && !gets.get(start).getFieldPaths().isEmpty()) {
       // Need to add the key fields if not included.
       boolean hasP = false;

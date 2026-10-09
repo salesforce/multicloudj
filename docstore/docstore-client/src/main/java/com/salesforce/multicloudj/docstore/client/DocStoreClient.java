@@ -195,6 +195,21 @@ public class DocStoreClient {
   }
 
   /**
+   * Retrieves a document from the document store, optionally requesting the substrate's
+   * consistent-read behavior. The document input should have a valid key. The retrieved data is
+   * stored in the supplied document.
+   *
+   * @param document the document to retrieve, must have a valid key. The result will be stored in
+   *     this document
+   * @param consistentRead whether to request the substrate's consistent-read behavior
+   * @param fieldPath optional field paths to retrieve specific fields only. If not provided, all
+   *     fields are retrieved
+   */
+  public void get(Document document, boolean consistentRead, String... fieldPath) {
+    docStore.getActions().get(document, consistentRead, fieldPath).run();
+  }
+
+  /**
    * Updates specific fields of an existing document in the document store. This operation is not
    * yet supported and will throw an UnSupportedOperationException.
    *
@@ -214,9 +229,22 @@ public class DocStoreClient {
    *     stored in these documents
    */
   public void batchGet(List<Document> documents) {
+    batchGet(documents, false);
+  }
+
+  /**
+   * Retrieves multiple documents from the document store in a single batch operation, optionally
+   * requesting the substrate's consistent-read behavior. The retrieved data is stored in the
+   * supplied documents.
+   *
+   * @param documents the list of documents to retrieve, each must have a valid key. Results will
+   *     be stored in these documents
+   * @param consistentRead whether to request the substrate's consistent-read behavior
+   */
+  public void batchGet(List<Document> documents, boolean consistentRead) {
     ActionList actionList = docStore.getActions();
     for (Document document : documents) {
-      actionList.get(document);
+      actionList.get(document, consistentRead);
     }
     actionList.run();
   }
