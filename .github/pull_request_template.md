@@ -2,9 +2,14 @@
 
 < Provide a brief description of the changes in this PR >
 
-## Some conventions to follow
-1. add the module name as a prefix
-   - for example: add a prefix: `docstore:` for document store module, `blobstore` for Blob Store module
-2. for a test only PR, add `test:`
-3. for a perf improvement only PR, add `perf:`
-4. for a refactoring only PR, add "refactor:"
+## PR title format
+
+The PR title becomes the squash commit message, which release-please uses to build the changelog.
+The `PR Title` check fails unless the title is `<type>[(scope)][!]: <description>` with a type
+from `changelog-sections` in `release-please-config.json`:
+
+1. module changes: `blobstore:`, `docstore:`, `sts:`, `pubsub:`, `iam:`, `dbbackuprestore:`, `registry:`
+   - for example: `blobstore: support presigned URLs with session credentials`
+2. cross-module changes: `feat:`, `fix:`, `perf:`, `refactor:`, `revert:`
+3. not in release notes: `test:`, `docs:`, `build:`, `ci:`, `chore:`
+4. add `!` after the type for a breaking change, for example `blobstore!: remove deprecated list API`
