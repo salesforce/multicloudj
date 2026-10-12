@@ -2479,6 +2479,18 @@ class GcpTransformerTest {
   }
 
   @Test
+  public void testToGcpRetrySettings_MaxDelayLessThanInitialDelay() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .initialDelayMillis(5000L)
+            .maxDelayMillis(1000L)
+            .build();
+    assertThrows(
+        InvalidArgumentException.class, () -> transformer.toGcpRetrySettings(retryConfig));
+  }
+
+  @Test
   public void testToGcpRetrySettings_InvalidFixedDelay() {
     RetryConfig retryConfig =
         RetryConfig.builder().mode(RetryConfig.Mode.FIXED).fixedDelayMillis(0).build();
@@ -2520,7 +2532,42 @@ class GcpTransformerTest {
 
     RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
 
-    assertEquals(defaults.toBuilder().setMaxAttempts(3).build(), settings);
+    assertEquals(
+        defaults.toBuilder().setMaxAttempts(3).setTotalTimeoutDuration(Duration.ZERO).build(),
+        settings);
+  }
+
+  @Test
+  public void testToGcpRetrySettings_OnlyAttemptTimeoutKeepsDefaults() {
+    RetrySettings defaults = ServiceOptions.getDefaultRetrySettings();
+    RetryConfig retryConfig = RetryConfig.builder().attemptTimeout(2000L).build();
+
+    RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
+
+    assertEquals(
+        defaults.toBuilder()
+            .setInitialRpcTimeoutDuration(Duration.ofMillis(2000))
+            .setRpcTimeoutMultiplier(1.0)
+            .setMaxRpcTimeoutDuration(Duration.ofMillis(2000))
+            .setTotalTimeoutDuration(Duration.ZERO)
+            .build(),
+        settings);
+  }
+
+  @Test
+  public void testToGcpRetrySettings_UnsetTotalTimeoutIsUnbounded() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .maxAttempts(10)
+            .initialDelayMillis(5000L)
+            .maxDelayMillis(60000L)
+            .build();
+
+    RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
+
+    assertEquals(Duration.ZERO, settings.getTotalTimeoutDuration());
+    assertEquals(10, settings.getMaxAttempts());
   }
 
   @Test
@@ -2543,7 +2590,7 @@ class GcpTransformerTest {
     RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
 
     assertEquals(defaults.getMaxAttempts(), settings.getMaxAttempts());
-    assertEquals(defaults.getTotalTimeoutDuration(), settings.getTotalTimeoutDuration());
+    assertEquals(Duration.ZERO, settings.getTotalTimeoutDuration());
     assertEquals(defaults.getInitialRpcTimeoutDuration(), settings.getInitialRpcTimeoutDuration());
     assertEquals(defaults.getMaxRpcTimeoutDuration(), settings.getMaxRpcTimeoutDuration());
   }

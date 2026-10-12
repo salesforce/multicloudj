@@ -637,7 +637,7 @@ public class GcpTransformer {
 
   /**
    * Converts MultiCloudJ RetryConfig to GCP RetrySettings. Fields not set in {@code retryConfig}
-   * keep the GCS client defaults.
+   * keep the GCS client defaults, except an unset totalTimeout, which means no total time limit.
    *
    * @param retryConfig The retry configuration to convert
    * @return GCP RetrySettings
@@ -671,6 +671,13 @@ public class GcpTransformer {
             "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
                 + retryConfig.getMaxDelayMillis());
       }
+      if (retryConfig.getMaxDelayMillis() < retryConfig.getInitialDelayMillis()) {
+        throw new InvalidArgumentException(
+            "RetryConfig.maxDelayMillis must not be less than initialDelayMillis, got: "
+                + retryConfig.getMaxDelayMillis()
+                + " < "
+                + retryConfig.getInitialDelayMillis());
+      }
       settingsBuilder
           .setInitialRetryDelayDuration(Duration.ofMillis(retryConfig.getInitialDelayMillis()))
           .setRetryDelayMultiplier(toRetryDelayMultiplier(retryConfig.getMultiplier()))
@@ -688,7 +695,6 @@ public class GcpTransformer {
           .setMaxRetryDelayDuration(Duration.ofMillis(retryConfig.getFixedDelayMillis()));
     }
 
-    // Set total timeout if provided
     if (retryConfig.getTotalTimeout() != null) {
       if (retryConfig.getTotalTimeout() <= 0) {
         throw new InvalidArgumentException(
@@ -696,6 +702,10 @@ public class GcpTransformer {
                 + retryConfig.getTotalTimeout());
       }
       settingsBuilder.setTotalTimeoutDuration(Duration.ofMillis(retryConfig.getTotalTimeout()));
+    } else {
+      // RetryConfig documents an unset totalTimeout as no limit. The GCS client treats a zero total
+      // timeout as unbounded, so retries stop only at maxAttempts instead of the 50s default.
+      settingsBuilder.setTotalTimeoutDuration(Duration.ZERO);
     }
 
     // Set attempt timeout if provided
@@ -716,8 +726,8 @@ public class GcpTransformer {
   }
 
   // An unset multiplier is 0.0 on RetryConfig; treat it as 2.0 because RetrySettings rejects
-  // multipliers below 1.0. NaN and infinity are rejected explicitly because RetrySettings accepts
-  // them and then retries with no delay.
+  // multipliers below 1.0. NaN and infinity pass RetrySettings validation but break the GCS
+  // client's backoff calculation, so they are rejected here.
   private static double toRetryDelayMultiplier(double multiplier) {
     if (multiplier == 0.0) {
       return DEFAULT_RETRY_DELAY_MULTIPLIER;
