@@ -102,8 +102,6 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   private final S3TransferManager transferManager;
   private final AwsTransformer transformer;
 
-  // Transfer manager executor created by the builder; S3TransferManager never shuts down a
-  // caller-supplied executor, so close() does.
   private final ExecutorService transferManagerExecutor;
 
   private final AtomicLong streamReadThreadId = new AtomicLong();
@@ -618,6 +616,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       transferManager.close();
     }
     if (transferManagerExecutor != null) {
+      // S3TransferManager doesn't shut down an executor passed to its builder, so we do it here.
       transferManagerExecutor.shutdown();
     }
     if (client != null) {
@@ -629,7 +628,6 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     return new Builder();
   }
 
-  // Idle threads time out so a store that is never closed still lets the JVM exit.
   private static ExecutorService newTransferManagerExecutor(int poolSize) {
     AtomicLong threadId = new AtomicLong();
     ThreadPoolExecutor executor =
@@ -643,7 +641,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
               Thread thread =
                   new Thread(
                       runnable, "multicloudj-aws-transfer-manager-" + threadId.incrementAndGet());
-              // Set explicitly: a new thread inherits daemon status from the submitting thread.
+              // Non-daemon so the JVM waits for in-progress uploads and downloads to finish
+              // instead of cutting them off when the application exits.
               thread.setDaemon(false);
               return thread;
             });
