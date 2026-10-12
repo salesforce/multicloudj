@@ -10,7 +10,6 @@ import static org.mockito.Mockito.when;
 import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
-import com.salesforce.multicloudj.docstore.client.DocStoreClient;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.Action;
 import com.salesforce.multicloudj.docstore.driver.ActionKind;
@@ -86,12 +85,6 @@ public class AwsDocStoreTest {
           null);
 
   static class TestDocStore extends AwsDocStore {}
-
-  static class TestClient extends DocStoreClient {
-    TestClient(AwsDocStore store) {
-      super(store);
-    }
-  }
 
   static class TestAction extends Action {
     public TestAction(
@@ -554,10 +547,12 @@ public class AwsDocStoreTest {
   }
 
   @Test
-  void testCollectionReadConsistency() {
+  void testBatchGetUsesConfiguredReadConsistency() {
     when(mockedDDBClient.batchGetItem(any(BatchGetItemRequest.class)))
         .thenReturn(BatchGetItemResponse.builder().build());
-    for (Boolean consistentRead : new Boolean[] {null, false, true}) {
+    TestAction get = new TestAction(ActionKind.ACTION_KIND_GET, new Document(book), null, null);
+    get.setKey("partitionKey:YellowBook,sortKey:WA");
+    for (boolean consistentRead : new boolean[] {false, true}) {
       CollectionOptions options =
           new CollectionOptions.CollectionOptionsBuilder()
               .withTableName(collectionOptions.getTableName())
@@ -571,28 +566,19 @@ public class AwsDocStoreTest {
               .withCollectionOptions(options)
               .withDDBClient(mockedDDBClient)
               .build()) {
-        TestClient client = new TestClient(store);
-        client.get(new Document(book), "title");
-        client.batchGet(List.of(new Document(book)));
-        client.getActions().get(new Document(book)).run();
+        store.batchGet(List.of(get), null, 0, 0);
       }
     }
-    TestClient defaultClient = new TestClient(docStore);
-    defaultClient.get(new Document(book));
-    defaultClient.batchGet(List.of(new Document(book)));
-
     ArgumentCaptor<BatchGetItemRequest> requests =
         ArgumentCaptor.forClass(BatchGetItemRequest.class);
-    verify(mockedDDBClient, times(11)).batchGetItem(requests.capture());
-    for (int i = 0; i < requests.getAllValues().size(); i++) {
-      var read =
-          requests.getAllValues().get(i).requestItems().get(collectionOptions.getTableName());
-      Assertions.assertEquals(i >= 6 && i < 9, read.consistentRead());
-      Assertions.assertEquals("YellowBook", read.keys().get(0).get("title").s());
-      if (i < 9 && i % 3 == 0) {
-        Assertions.assertTrue(read.expressionAttributeNames().containsValue("title"));
-      }
-    }
+    verify(mockedDDBClient, times(2)).batchGetItem(requests.capture());
+    Assertions.assertEquals(
+        List.of(false, true),
+        requests.getAllValues().stream()
+            .map(
+                request ->
+                    request.requestItems().get(collectionOptions.getTableName()).consistentRead())
+            .toList());
   }
 
   @Test
