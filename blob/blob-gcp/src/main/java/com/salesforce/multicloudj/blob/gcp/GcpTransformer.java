@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.gcp;
 
 import com.google.api.gax.retrying.RetrySettings;
+import com.google.cloud.ServiceOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -62,6 +63,7 @@ public class GcpTransformer {
 
   private final String bucket;
   private static final String TAG_PREFIX = "gcp-tag-";
+  private static final double DEFAULT_RETRY_DELAY_MULTIPLIER = 2.0;
 
   /**
    * Object-metadata key under which the SDK persists the operation correlation id during upload, so
@@ -634,7 +636,8 @@ public class GcpTransformer {
   }
 
   /**
-   * Converts MultiCloudJ RetryConfig to GCP RetrySettings
+   * Converts MultiCloudJ RetryConfig to GCP RetrySettings. Fields not set in {@code retryConfig}
+   * keep the GCS client defaults.
    *
    * @param retryConfig The retry configuration to convert
    * @return GCP RetrySettings
@@ -649,16 +652,14 @@ public class GcpTransformer {
           "RetryConfig.maxAttempts must be greater than 0, got: " + retryConfig.getMaxAttempts());
     }
 
-    RetrySettings.Builder settingsBuilder = RetrySettings.newBuilder();
+    // StorageOptions applies these defaults only when no RetrySettings are set at all, and
+    // RetrySettings.newBuilder() starts every field at 0, so start from the defaults explicitly.
+    RetrySettings.Builder settingsBuilder = ServiceOptions.getDefaultRetrySettings().toBuilder();
 
-    // Only set maxAttempts if provided, otherwise use GCP SDK default
     if (retryConfig.getMaxAttempts() != null) {
       settingsBuilder.setMaxAttempts(retryConfig.getMaxAttempts());
     }
 
-    // If mode is not set, use GCP SDK's default backoff strategy
-
-    // Configure backoff strategy based on mode
     if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
       if (retryConfig.getInitialDelayMillis() <= 0) {
         throw new InvalidArgumentException(
@@ -672,7 +673,7 @@ public class GcpTransformer {
       }
       settingsBuilder
           .setInitialRetryDelayDuration(Duration.ofMillis(retryConfig.getInitialDelayMillis()))
-          .setRetryDelayMultiplier(retryConfig.getMultiplier())
+          .setRetryDelayMultiplier(toRetryDelayMultiplier(retryConfig.getMultiplier()))
           .setMaxRetryDelayDuration(Duration.ofMillis(retryConfig.getMaxDelayMillis()));
     } else if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
       if (retryConfig.getFixedDelayMillis() <= 0) {
@@ -712,6 +713,20 @@ public class GcpTransformer {
     }
 
     return settingsBuilder.build();
+  }
+
+  // An unset multiplier is 0.0 on RetryConfig; treat it as 2.0 because RetrySettings rejects
+  // multipliers below 1.0. NaN and infinity are rejected explicitly because RetrySettings accepts
+  // them and then retries with no delay.
+  private static double toRetryDelayMultiplier(double multiplier) {
+    if (multiplier == 0.0) {
+      return DEFAULT_RETRY_DELAY_MULTIPLIER;
+    }
+    if (!Double.isFinite(multiplier) || multiplier < 1.0) {
+      throw new InvalidArgumentException(
+          "RetryConfig.multiplier must be at least 1.0, got: " + multiplier);
+    }
+    return multiplier;
   }
 
   /**

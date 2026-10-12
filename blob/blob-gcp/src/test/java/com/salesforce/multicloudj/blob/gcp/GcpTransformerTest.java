@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import com.google.api.gax.retrying.RetrySettings;
+import com.google.cloud.ServiceOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -2510,6 +2511,70 @@ class GcpTransformerTest {
     assertEquals(Duration.ofMillis(2000), settings.getInitialRpcTimeoutDuration());
     assertEquals(1.0, settings.getRpcTimeoutMultiplier());
     assertEquals(Duration.ofMillis(2000), settings.getMaxRpcTimeoutDuration());
+  }
+
+  @Test
+  public void testToGcpRetrySettings_OnlyMaxAttemptsKeepsDefaults() {
+    RetrySettings defaults = ServiceOptions.getDefaultRetrySettings();
+    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(3).build();
+
+    RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
+
+    assertEquals(defaults.toBuilder().setMaxAttempts(3).build(), settings);
+  }
+
+  @Test
+  public void testToGcpRetrySettings_OnlyTotalTimeoutKeepsDefaults() {
+    RetrySettings defaults = ServiceOptions.getDefaultRetrySettings();
+    RetryConfig retryConfig = RetryConfig.builder().totalTimeout(10000L).build();
+
+    RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
+
+    assertEquals(
+        defaults.toBuilder().setTotalTimeoutDuration(Duration.ofMillis(10000)).build(), settings);
+  }
+
+  @Test
+  public void testToGcpRetrySettings_FixedKeepsDefaultTimeouts() {
+    RetrySettings defaults = ServiceOptions.getDefaultRetrySettings();
+    RetryConfig retryConfig =
+        RetryConfig.builder().mode(RetryConfig.Mode.FIXED).fixedDelayMillis(500L).build();
+
+    RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
+
+    assertEquals(defaults.getMaxAttempts(), settings.getMaxAttempts());
+    assertEquals(defaults.getTotalTimeoutDuration(), settings.getTotalTimeoutDuration());
+    assertEquals(defaults.getInitialRpcTimeoutDuration(), settings.getInitialRpcTimeoutDuration());
+    assertEquals(defaults.getMaxRpcTimeoutDuration(), settings.getMaxRpcTimeoutDuration());
+  }
+
+  @Test
+  public void testToGcpRetrySettings_ExponentialWithoutMultiplierDefaultsToTwo() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .initialDelayMillis(100L)
+            .maxDelayMillis(5000L)
+            .build();
+
+    RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
+
+    assertEquals(2.0, settings.getRetryDelayMultiplier());
+  }
+
+  @Test
+  public void testToGcpRetrySettings_InvalidMultiplier() {
+    for (double multiplier : new double[] {0.5, -1.0, Double.NaN, Double.POSITIVE_INFINITY}) {
+      RetryConfig retryConfig =
+          RetryConfig.builder()
+              .mode(RetryConfig.Mode.EXPONENTIAL)
+              .initialDelayMillis(100L)
+              .multiplier(multiplier)
+              .maxDelayMillis(5000L)
+              .build();
+      assertThrows(
+          InvalidArgumentException.class, () -> transformer.toGcpRetrySettings(retryConfig));
+    }
   }
 
   @Test
