@@ -7,12 +7,8 @@ import com.salesforce.multicloudj.docstore.client.AbstractDocstoreIT;
 import com.salesforce.multicloudj.docstore.client.CollectionKind;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIf;
 
 public class AliDocstoreIT extends AbstractDocstoreIT {
   // Switch it to https after table store can support https proxy and
@@ -21,26 +17,6 @@ public class AliDocstoreIT extends AbstractDocstoreIT {
   // either both connection should be http or https in order for wiremock setup to work.
   private static final String END_POINT = "http://chameleon-java.cn-shanghai.ots.aliyuncs.com";
   private static final String INSTANCE_NAME = "chameleon-java";
-
-  @Override
-  @Test
-  @EnabledIf(
-      value = "hasConsistentReadRecordings",
-      disabledReason = "Record testConsistentReads in the Tablestore environment before replay")
-  public void testConsistentReads() {
-    super.testConsistentReads();
-  }
-
-  boolean hasConsistentReadRecordings() throws java.io.IOException {
-    if (System.getProperty("record") != null) {
-      return true;
-    }
-    try (java.util.stream.Stream<Path> mappings =
-        Files.list(Path.of("src/test/resources/mappings"))) {
-      return mappings.anyMatch(
-          path -> path.getFileName().toString().startsWith("alidocstoreit_testconsistentreads-"));
-    }
-  }
 
   @Override
   protected Harness createHarness() {
@@ -132,9 +108,7 @@ public class AliDocstoreIT extends AbstractDocstoreIT {
 
     @Override
     public void close() {
-      if (client != null) {
-        client.shutdown();
-      }
+      client.shutdown();
     }
   }
 }

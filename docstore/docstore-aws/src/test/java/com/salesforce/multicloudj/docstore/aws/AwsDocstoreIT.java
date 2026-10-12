@@ -91,12 +91,8 @@ public class AwsDocstoreIT extends AbstractDocstoreIT {
 
     @Override
     public void close() {
-      if (client != null) {
-        client.close();
-      }
-      if (httpClient != null) {
-        httpClient.close();
-      }
+      client.close();
+      httpClient.close();
     }
   }
 }
