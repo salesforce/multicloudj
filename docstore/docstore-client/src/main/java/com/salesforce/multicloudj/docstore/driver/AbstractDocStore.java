@@ -105,7 +105,7 @@ public abstract class AbstractDocStore implements Provider, Collection, AutoClos
   }
 
   public void batchGet(
-      List<Document> documents, boolean consistentRead, String... fieldPaths) {
+      List<Document> documents, Boolean consistentRead, String... fieldPaths) {
     checkClosed();
     List<Action> actions = new ArrayList<>();
     Set<String> seenKeys = new HashSet<>();
@@ -119,16 +119,12 @@ public abstract class AbstractDocStore implements Provider, Collection, AutoClos
       action.setIndex(actions.size());
       actions.add(action);
     }
-    runReadActions(actions, consistentRead);
+    runActions(actions, null, consistentRead);
   }
 
-  /**
-   * Executes a read request. Drivers whose default reads are strongly consistent can use the
-   * existing action execution path. Drivers with configurable consistency must override this
-   * method to propagate the request's read option.
-   */
-  protected void runReadActions(List<Action> actions, boolean consistentRead) {
-    runActions(actions, null);
+  protected void runActions(
+      List<Action> actions, Consumer<Predicate<Object>> beforeDo, Boolean consistentRead) {
+    runActions(actions, beforeDo);
   }
 
   // Preprocess on one action including:
@@ -186,7 +182,7 @@ public abstract class AbstractDocStore implements Provider, Collection, AutoClos
       List<Action> actions,
       Consumer<Predicate<Object>> beforeDo,
       int batchSize,
-      boolean consistentRead)
+      Boolean consistentRead)
       throws ExecutionException, InterruptedException {
     if (actions.isEmpty()) {
       return;
@@ -220,7 +216,7 @@ public abstract class AbstractDocStore implements Provider, Collection, AutoClos
       Consumer<Predicate<Object>> beforeDo,
       int start,
       int end,
-      boolean consistentRead) {
+      Boolean consistentRead) {
     batchGet(actions, beforeDo, start, end);
   }
 

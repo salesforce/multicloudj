@@ -191,22 +191,19 @@ public class DocStoreClient {
    *     fields are retrieved
    */
   public void get(Document document, String... fieldPath) {
-    get(document, false, fieldPath);
+    docStore.getActions().get(document, fieldPath).run();
   }
 
   /**
-   * Retrieves a document by primary key. A consistent read reflects writes completed before the
-   * read within the substrate's native consistency scope. Otherwise, the substrate's existing
-   * default read behavior is preserved. The retrieved data is stored in the supplied document.
+   * Retrieves a document with optional read consistency.
    *
    * @param document the document to retrieve, must have a valid key. The result will be stored in
    *     this document
-   * @param consistentRead true to require a strongly consistent read; false to preserve the
-   *     default behavior
+   * @param consistentRead true for a strongly consistent read; false or null for the default
    * @param fieldPath optional field paths to retrieve specific fields only. If not provided, all
    *     fields are retrieved
    */
-  public void get(Document document, boolean consistentRead, String... fieldPath) {
+  public void get(Document document, Boolean consistentRead, String... fieldPath) {
     try {
       docStore.batchGet(List.of(document), consistentRead, fieldPath);
     } catch (Throwable t) {
@@ -234,20 +231,22 @@ public class DocStoreClient {
    *     stored in these documents
    */
   public void batchGet(List<Document> documents) {
-    batchGet(documents, false);
+    ActionList actionList = docStore.getActions();
+    for (Document document : documents) {
+      actionList.get(document);
+    }
+    actionList.run();
   }
 
   /**
-   * Retrieves multiple documents by primary key. Consistent reads reflect writes completed before
-   * each read within the substrate's native consistency scope. The batch is not an atomic
-   * snapshot. The retrieved data is stored in the supplied documents.
+   * Retrieves multiple documents with optional read consistency. The batch is not an atomic
+   * snapshot.
    *
    * @param documents the list of documents to retrieve, each must have a valid key. Results will
    *     be stored in these documents
-   * @param consistentRead true to require strongly consistent reads; false to preserve the
-   *     default behavior
+   * @param consistentRead true for strongly consistent reads; false or null for the default
    */
-  public void batchGet(List<Document> documents, boolean consistentRead) {
+  public void batchGet(List<Document> documents, Boolean consistentRead) {
     try {
       docStore.batchGet(documents, consistentRead);
     } catch (Throwable t) {

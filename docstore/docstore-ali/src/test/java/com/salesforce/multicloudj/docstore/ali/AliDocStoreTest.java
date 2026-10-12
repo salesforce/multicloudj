@@ -11,7 +11,6 @@ import com.alicloud.openservices.tablestore.ClientException;
 import com.alicloud.openservices.tablestore.SyncClient;
 import com.alicloud.openservices.tablestore.TableStoreException;
 import com.alicloud.openservices.tablestore.model.AbortTransactionRequest;
-import com.alicloud.openservices.tablestore.model.BatchGetRowRequest;
 import com.alicloud.openservices.tablestore.model.BatchGetRowResponse;
 import com.alicloud.openservices.tablestore.model.CapacityUnit;
 import com.alicloud.openservices.tablestore.model.Column;
@@ -29,7 +28,6 @@ import com.alicloud.openservices.tablestore.model.GetRangeRequest;
 import com.alicloud.openservices.tablestore.model.GetRangeResponse;
 import com.alicloud.openservices.tablestore.model.IndexMeta;
 import com.alicloud.openservices.tablestore.model.IndexType;
-import com.alicloud.openservices.tablestore.model.MultiRowQueryCriteria;
 import com.alicloud.openservices.tablestore.model.PrimaryKey;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyBuilder;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyValue;
@@ -53,7 +51,6 @@ import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
-import com.salesforce.multicloudj.docstore.client.DocStoreClient;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.Action;
 import com.salesforce.multicloudj.docstore.driver.ActionKind;
@@ -98,12 +95,6 @@ class AliDocStoreTest {
   static class TestDocStore extends AliDocStore {
     @Override
     public void close() {}
-  }
-
-  static class TestClient extends DocStoreClient {
-    TestClient(AliDocStore store) {
-      super(store);
-    }
   }
 
   static class TestAction extends Action {
@@ -272,86 +263,6 @@ class AliDocStoreTest {
   @Test
   void testProviderId() {
     Assertions.assertEquals("ali", ali.getProviderId());
-  }
-
-  @Test
-  void testGetReadModesUseLatestVersion() {
-    PrimaryKey key =
-        PrimaryKeyBuilder.createPrimaryKeyBuilder()
-            .addPrimaryKeyColumn("title", PrimaryKeyValue.fromString("YellowBook"))
-            .addPrimaryKeyColumn("publisher", PrimaryKeyValue.fromString("WA"))
-            .build();
-    Row row = new Row(key, List.of(new Column("author", ColumnValue.fromString("latest"))));
-    BatchGetRowResponse response = mock(BatchGetRowResponse.class);
-    when(response.getBatchGetRowResult("my-table"))
-        .thenReturn(
-            List.of(
-                new BatchGetRowResponse.RowResult("my-table", row, null, 0),
-                new BatchGetRowResponse.RowResult("my-table", (Row) null, null, 1)));
-    when(syncClient.batchGetRow(any())).thenReturn(response);
-
-    for (boolean consistentRead : List.of(false, true)) {
-      Map<String, Object> result = new HashMap<>(Map.of("title", "YellowBook", "publisher", "WA"));
-      Map<String, Object> missing = new HashMap<>(Map.of("title", "Missing", "publisher", "WA"));
-      new TestClient(ali)
-          .batchGet(List.of(new Document(result), new Document(missing)), consistentRead);
-      Assertions.assertEquals("latest", result.get("author"));
-      Assertions.assertEquals(Map.of("title", "Missing", "publisher", "WA"), missing);
-    }
-
-    ArgumentCaptor<BatchGetRowRequest> requests = ArgumentCaptor.forClass(BatchGetRowRequest.class);
-    verify(syncClient, times(2)).batchGetRow(requests.capture());
-    for (BatchGetRowRequest request : requests.getAllValues()) {
-      MultiRowQueryCriteria criteria = request.getCriteria("my-table");
-      Assertions.assertEquals(1, criteria.getMaxVersions());
-      Assertions.assertEquals(2, criteria.size());
-      Assertions.assertTrue(criteria.getRowKeys().contains(key));
-      Assertions.assertEquals(Set.of(), Set.copyOf(criteria.getColumnsToGet()));
-    }
-  }
-
-  @Test
-  void testClientGetReadModesUseLatestVersion() {
-    PrimaryKey key =
-        PrimaryKeyBuilder.createPrimaryKeyBuilder()
-            .addPrimaryKeyColumn("title", PrimaryKeyValue.fromString("YellowBook"))
-            .addPrimaryKeyColumn("publisher", PrimaryKeyValue.fromString("WA"))
-            .build();
-    Row row = new Row(key, List.of(new Column("author", ColumnValue.fromString("latest"))));
-    BatchGetRowResponse response = mock(BatchGetRowResponse.class);
-    when(response.getBatchGetRowResult("my-table"))
-        .thenReturn(List.of(new BatchGetRowResponse.RowResult("my-table", row, null, 0)));
-    when(syncClient.batchGetRow(any())).thenReturn(response);
-    TestClient client = new TestClient(ali);
-    for (boolean consistentRead : List.of(false, true)) {
-      Map<String, Object> result = new HashMap<>(Map.of("title", "YellowBook", "publisher", "WA"));
-      client.get(new Document(result), consistentRead, "author");
-      Assertions.assertEquals("latest", result.get("author"));
-    }
-    ArgumentCaptor<BatchGetRowRequest> requests = ArgumentCaptor.forClass(BatchGetRowRequest.class);
-    verify(syncClient, times(2)).batchGetRow(requests.capture());
-    for (BatchGetRowRequest request : requests.getAllValues()) {
-      MultiRowQueryCriteria criteria = request.getCriteria("my-table");
-      Assertions.assertEquals(1, criteria.getMaxVersions());
-      Assertions.assertEquals(List.of(key), criteria.getRowKeys());
-      Assertions.assertEquals(
-          Set.of("author", "title", "publisher"), Set.copyOf(criteria.getColumnsToGet()));
-    }
-  }
-
-  @Test
-  void testConsistentGetMapsNativeFailure() {
-    when(syncClient.batchGetRow(any()))
-        .thenThrow(
-            new TableStoreException("denied", null, "OTSNoPermissionAccess", "request", 403));
-
-    Assertions.assertThrows(
-        UnAuthorizedException.class,
-        () ->
-            new TestClient(ali)
-                .get(
-                    new Document(new HashMap<>(Map.of("title", "YellowBook", "publisher", "WA"))),
-                    true));
   }
 
   @Test

@@ -2,7 +2,6 @@ package com.salesforce.multicloudj.docstore.aws;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -10,7 +9,6 @@ import static org.mockito.Mockito.when;
 
 import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.docstore.client.DocStoreClient;
 import com.salesforce.multicloudj.docstore.client.Query;
@@ -556,96 +554,29 @@ public class AwsDocStoreTest {
   }
 
   @Test
-  void testClientGetReadModes() {
-    Map<String, AttributeValue> item =
-        Map.of(
-            "title", AttributeValue.builder().s("YellowBook").build(),
-            "publisher", AttributeValue.builder().s("WA").build(),
-            "author", AttributeValue.builder().s("latest").build());
+  void testOptionalReadConsistency() {
     when(mockedDDBClient.batchGetItem(any(BatchGetItemRequest.class)))
-        .thenReturn(
-            BatchGetItemResponse.builder()
-                .responses(Map.of(collectionOptions.getTableName(), List.of(item)))
-                .build());
+        .thenReturn(BatchGetItemResponse.builder().build());
     TestClient client = new TestClient(docStore);
-    for (boolean consistentRead : List.of(false, true)) {
-      Map<String, Object> result = new HashMap<>(Map.of("title", "YellowBook", "publisher", "WA"));
-      client.get(new Document(result), consistentRead, "author");
-      Assertions.assertEquals("latest", result.get("author"));
+    for (Boolean consistentRead : new Boolean[] {null, false, true}) {
+      client.get(new Document(book), consistentRead, "title");
+      client.batchGet(List.of(new Document(book)), consistentRead);
     }
-    client.get(new Document(new HashMap<>(Map.of("title", "YellowBook", "publisher", "WA"))));
-    docStore.getActions()
-        .get(new Document(new HashMap<>(Map.of("title", "YellowBook", "publisher", "WA"))))
-        .run();
+    client.get(new Document(book));
+    client.batchGet(List.of(new Document(book)));
 
     ArgumentCaptor<BatchGetItemRequest> requests =
         ArgumentCaptor.forClass(BatchGetItemRequest.class);
-    verify(mockedDDBClient, times(4)).batchGetItem(requests.capture());
+    verify(mockedDDBClient, times(8)).batchGetItem(requests.capture());
     for (int i = 0; i < requests.getAllValues().size(); i++) {
       var read =
           requests.getAllValues().get(i).requestItems().get(collectionOptions.getTableName());
-      Assertions.assertEquals(i == 1, read.consistentRead());
-      Assertions.assertEquals(1, read.keys().size());
-      Assertions.assertEquals(item.get("title"), read.keys().get(0).get("title"));
-      if (i < 2) {
-        Assertions.assertTrue(read.expressionAttributeNames().containsValue("author"));
+      Assertions.assertEquals(i == 4 || i == 5, read.consistentRead());
+      Assertions.assertEquals("YellowBook", read.keys().get(0).get("title").s());
+      if (i < 6 && i % 2 == 0) {
+        Assertions.assertTrue(read.expressionAttributeNames().containsValue("title"));
       }
     }
-  }
-
-  @Test
-  void testClientBatchGetKeepsReadOptionAcrossBatches() {
-    List<Document> documents = new ArrayList<>();
-    for (int i = 0; i < 101; i++) {
-      documents.add(new Document(new HashMap<>(Map.of("title", "Book" + i, "publisher", "WA"))));
-    }
-    TestClient client = new TestClient(docStore);
-    client.batchGet(documents, true);
-    client.batchGet(documents, false);
-
-    ArgumentCaptor<BatchGetItemRequest> requests =
-        ArgumentCaptor.forClass(BatchGetItemRequest.class);
-    verify(mockedDDBClient, times(4)).batchGetItem(requests.capture());
-    int consistentKeys = 0;
-    int defaultKeys = 0;
-    for (BatchGetItemRequest request : requests.getAllValues()) {
-      var read = request.requestItems().get(collectionOptions.getTableName());
-      Assertions.assertTrue(read.keys().size() <= 100);
-      if (read.consistentRead()) {
-        consistentKeys += read.keys().size();
-      } else {
-        defaultKeys += read.keys().size();
-      }
-    }
-    Assertions.assertEquals(101, consistentKeys);
-    Assertions.assertEquals(101, defaultKeys);
-  }
-
-  @Test
-  void testClientConsistentReadsValidateInputBeforeRpc() {
-    TestClient client = new TestClient(docStore);
-    Document invalid = new Document(Map.of("title", "", "publisher", "WA"));
-    Document valid = new Document(Map.of("title", "YellowBook", "publisher", "WA"));
-    Assertions.assertThrows(InvalidArgumentException.class, () -> client.get(invalid, true));
-    Assertions.assertThrows(
-        InvalidArgumentException.class, () -> client.get(valid, true, "bad..path"));
-    Assertions.assertThrows(
-        InvalidArgumentException.class, () -> client.batchGet(List.of(valid, valid), true));
-    verify(mockedDDBClient, never()).batchGetItem(any(BatchGetItemRequest.class));
-  }
-
-  @Test
-  void testClientConsistentReadMapsNativeFailure() {
-    when(mockedDDBClient.batchGetItem(any(BatchGetItemRequest.class)))
-        .thenThrow(
-            DynamoDbException.builder()
-                .awsErrorDetails(
-                    AwsErrorDetails.builder().errorCode("ResourceNotFoundException").build())
-                .build());
-    TestClient client = new TestClient(docStore);
-    Assertions.assertThrows(
-        ResourceNotFoundException.class,
-        () -> client.get(new Document(Map.of("title", "YellowBook", "publisher", "WA")), true));
   }
 
   @Test

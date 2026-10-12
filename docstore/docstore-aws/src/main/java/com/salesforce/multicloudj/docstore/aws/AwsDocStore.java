@@ -166,6 +166,12 @@ public class AwsDocStore extends AbstractDocStore {
   // beforeDo is a callback which is called once before each action or action group.
   @Override
   public void runActions(List<Action> actions, Consumer<Predicate<Object>> beforeDo) {
+    runActions(actions, beforeDo, null);
+  }
+
+  @Override
+  protected void runActions(
+      List<Action> actions, Consumer<Predicate<Object>> beforeDo, Boolean consistentRead) {
     // Separate action lists for different operation types
     List<Action> beforeGets = new ArrayList<>();
     List<Action> getList = new ArrayList<>();
@@ -178,7 +184,7 @@ public class AwsDocStore extends AbstractDocStore {
 
     try {
       // Execute "beforeGets" actions
-      runGets(beforeGets, beforeDo, batchSize);
+      runGets(beforeGets, beforeDo, batchSize, consistentRead);
 
       CompletableFuture<Void> writesTask =
           CompletableFuture.runAsync(() -> runWrites(writeList, beforeDo));
@@ -186,7 +192,7 @@ public class AwsDocStore extends AbstractDocStore {
           CompletableFuture.runAsync(() -> runTxWrites(atomicWriteList, beforeDo));
 
       // Execute "getList" actions while writes are running
-      runGets(getList, beforeDo, batchSize);
+      runGets(getList, beforeDo, batchSize, consistentRead);
 
       // Wait for all concurrent  to complete
       writesTask.get();
@@ -194,7 +200,7 @@ public class AwsDocStore extends AbstractDocStore {
       atomicWritesTask.get();
 
       // Execute "afterGets" actions
-      runGets(afterGets, beforeDo, batchSize);
+      runGets(afterGets, beforeDo, batchSize, consistentRead);
     } catch (ExecutionException e) {
       if (e.getCause() == null) {
         throw new SubstrateSdkException(e);
@@ -203,21 +209,6 @@ public class AwsDocStore extends AbstractDocStore {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new SubstrateSdkException("Interrupted while waiting for actions to complete.", e);
-    }
-  }
-
-  @Override
-  protected void runReadActions(List<Action> actions, boolean consistentRead) {
-    try {
-      runGets(actions, null, batchSize, consistentRead);
-    } catch (ExecutionException e) {
-      if (e.getCause() instanceof RuntimeException) {
-        throw (RuntimeException) e.getCause();
-      }
-      throw new SubstrateSdkException(e);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new SubstrateSdkException("Interrupted while waiting for reads to complete.", e);
     }
   }
 
@@ -233,7 +224,7 @@ public class AwsDocStore extends AbstractDocStore {
       Consumer<Predicate<Object>> beforeDo,
       int start,
       int end,
-      boolean consistentRead) {
+      Boolean consistentRead) {
     // AWS BatchGetItem expects a List<Map<String, AttributeValue>> where each Map represents one
     // document's key
     List<Map<String, AttributeValue>> keysList = new ArrayList<>();
@@ -252,7 +243,9 @@ public class AwsDocStore extends AbstractDocStore {
 
     // Create the KeysAndAttributes.
     KeysAndAttributes.Builder keysAndAttributes =
-        KeysAndAttributes.builder().keys(keysList).consistentRead(consistentRead);
+        KeysAndAttributes.builder()
+            .keys(keysList)
+            .consistentRead(Boolean.TRUE.equals(consistentRead));
     if (gets.get(start).getFieldPaths() != null && !gets.get(start).getFieldPaths().isEmpty()) {
       // Need to add the key fields if not included.
       boolean hasP = false;
