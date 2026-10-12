@@ -438,8 +438,6 @@ public class AliDocStore extends AbstractDocStore {
     }
 
     MultiRowQueryCriteria criteria = new MultiRowQueryCriteria(collectionOptions.getTableName());
-    // Base-table primary-key reads are read-after-write consistent. Both read modes use the
-    // latest version; no consistency selector is needed for an explicit consistent read.
     criteria.setMaxVersions(1);
 
     // Collect primary keys for criteria

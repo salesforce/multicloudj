@@ -2,9 +2,12 @@ package com.salesforce.multicloudj.docstore.client;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.ActionList;
@@ -102,24 +105,16 @@ public class DocStoreClientTest {
 
   @Test
   void testGet() {
-    ActionList actionList = new ActionList(mockDocStore);
     Document doc = mock(Document.class);
-    when(mockDocStore.getActions()).thenReturn(actionList);
     mockClient.get(doc, "path");
-    Assertions.assertEquals(1, actionList.getActions().size());
-    Assertions.assertFalse(actionList.getActions().get(0).isConsistentRead());
+    verify(mockDocStore).batchGet(List.of(doc), false, "path");
   }
 
   @Test
   void testGetWithConsistentRead() {
-    ActionList actionList = new ActionList(mockDocStore);
     Document doc = mock(Document.class);
-    when(mockDocStore.getActions()).thenReturn(actionList);
-
     mockClient.get(doc, true, "path");
-
-    Assertions.assertEquals(1, actionList.getActions().size());
-    Assertions.assertTrue(actionList.getActions().get(0).isConsistentRead());
+    verify(mockDocStore).batchGet(List.of(doc), true, "path");
   }
 
   @Test
@@ -134,23 +129,33 @@ public class DocStoreClientTest {
 
   @Test
   void testBatchGet() {
-    ActionList actionList = new ActionList(mockDocStore);
     Document doc = mock(Document.class);
-    when(mockDocStore.getActions()).thenReturn(actionList);
     mockClient.batchGet(List.of(doc));
+    verify(mockDocStore).batchGet(List.of(doc), false);
     mockClient.close();
   }
 
   @Test
   void testBatchGetWithConsistentRead() {
-    ActionList actionList = new ActionList(mockDocStore);
+    List<Document> docs = List.of(mock(Document.class), mock(Document.class));
+    mockClient.batchGet(docs, true);
+    verify(mockDocStore).batchGet(docs, true);
+  }
+
+  @Test
+  void testReadFailuresAreMappedAtClientBoundary() {
     Document doc = mock(Document.class);
-    when(mockDocStore.getActions()).thenReturn(actionList);
-
-    mockClient.batchGet(List.of(doc), true);
-
-    Assertions.assertEquals(1, actionList.getActions().size());
-    Assertions.assertTrue(actionList.getActions().get(0).isConsistentRead());
+    RuntimeException nativeFailure = new IllegalArgumentException("invalid key");
+    InvalidArgumentException mapped = new InvalidArgumentException("invalid key");
+    doThrow(nativeFailure).when(mockDocStore).batchGet(List.of(doc), true);
+    when(mockDocStore.mapException(nativeFailure)).thenReturn(mapped);
+    Assertions.assertSame(
+        mapped,
+        Assertions.assertThrows(InvalidArgumentException.class, () -> mockClient.get(doc, true)));
+    Assertions.assertSame(
+        mapped,
+        Assertions.assertThrows(
+            InvalidArgumentException.class, () -> mockClient.batchGet(List.of(doc), true)));
   }
 
   @Test

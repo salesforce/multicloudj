@@ -206,8 +206,34 @@ public class AwsDocStore extends AbstractDocStore {
     }
   }
 
+  @Override
+  protected void runReadActions(List<Action> actions, boolean consistentRead) {
+    try {
+      runGets(actions, null, batchSize, consistentRead);
+    } catch (ExecutionException e) {
+      if (e.getCause() instanceof RuntimeException) {
+        throw (RuntimeException) e.getCause();
+      }
+      throw new SubstrateSdkException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new SubstrateSdkException("Interrupted while waiting for reads to complete.", e);
+    }
+  }
+
+  @Override
   protected void batchGet(
       List<Action> gets, Consumer<Predicate<Object>> beforeDo, int start, int end) {
+    batchGet(gets, beforeDo, start, end, false);
+  }
+
+  @Override
+  protected void batchGet(
+      List<Action> gets,
+      Consumer<Predicate<Object>> beforeDo,
+      int start,
+      int end,
+      boolean consistentRead) {
     // AWS BatchGetItem expects a List<Map<String, AttributeValue>> where each Map represents one
     // document's key
     List<Map<String, AttributeValue>> keysList = new ArrayList<>();
@@ -226,9 +252,7 @@ public class AwsDocStore extends AbstractDocStore {
 
     // Create the KeysAndAttributes.
     KeysAndAttributes.Builder keysAndAttributes =
-        KeysAndAttributes.builder()
-            .keys(keysList)
-            .consistentRead(gets.get(start).isConsistentRead());
+        KeysAndAttributes.builder().keys(keysList).consistentRead(consistentRead);
     if (gets.get(start).getFieldPaths() != null && !gets.get(start).getFieldPaths().isEmpty()) {
       // Need to add the key fields if not included.
       boolean hasP = false;

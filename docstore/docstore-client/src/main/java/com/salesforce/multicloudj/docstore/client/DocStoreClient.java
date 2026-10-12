@@ -207,7 +207,11 @@ public class DocStoreClient {
    *     fields are retrieved
    */
   public void get(Document document, boolean consistentRead, String... fieldPath) {
-    docStore.getActions().get(document, consistentRead, fieldPath).run();
+    try {
+      docStore.batchGet(List.of(document), consistentRead, fieldPath);
+    } catch (Throwable t) {
+      throw docStore.mapException(t);
+    }
   }
 
   /**
@@ -244,11 +248,11 @@ public class DocStoreClient {
    *     default behavior
    */
   public void batchGet(List<Document> documents, boolean consistentRead) {
-    ActionList actionList = docStore.getActions();
-    for (Document document : documents) {
-      actionList.get(document, consistentRead);
+    try {
+      docStore.batchGet(documents, consistentRead);
+    } catch (Throwable t) {
+      throw docStore.mapException(t);
     }
-    actionList.run();
   }
 
   /**

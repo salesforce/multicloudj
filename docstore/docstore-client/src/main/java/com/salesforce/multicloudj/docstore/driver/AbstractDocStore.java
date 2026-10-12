@@ -5,8 +5,10 @@ import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -102,6 +104,33 @@ public abstract class AbstractDocStore implements Provider, Collection, AutoClos
     }
   }
 
+  public void batchGet(
+      List<Document> documents, boolean consistentRead, String... fieldPaths) {
+    checkClosed();
+    List<Action> actions = new ArrayList<>();
+    Set<String> seenKeys = new HashSet<>();
+    for (Document document : documents) {
+      Action action =
+          new Action(ActionKind.ACTION_KIND_GET, document, List.of(fieldPaths), null, false);
+      toDriverAction(action);
+      if (!seenKeys.add(action.getKey().toString())) {
+        throw new IllegalArgumentException("Duplicate key in read request: " + action.getKey());
+      }
+      action.setIndex(actions.size());
+      actions.add(action);
+    }
+    runReadActions(actions, consistentRead);
+  }
+
+  /**
+   * Executes a read request. Drivers whose default reads are strongly consistent can use the
+   * existing action execution path. Drivers with configurable consistency must override this
+   * method to propagate the request's read option.
+   */
+  protected void runReadActions(List<Action> actions, boolean consistentRead) {
+    runActions(actions, null);
+  }
+
   // Preprocess on one action including:
   // Calculate and store the key to avoid duplicate calculation
   // Validate the action.
@@ -150,6 +179,15 @@ public abstract class AbstractDocStore implements Provider, Collection, AutoClos
 
   public void runGets(List<Action> actions, Consumer<Predicate<Object>> beforeDo, int batchSize)
       throws ExecutionException, InterruptedException {
+    runGets(actions, beforeDo, batchSize, false);
+  }
+
+  protected void runGets(
+      List<Action> actions,
+      Consumer<Predicate<Object>> beforeDo,
+      int batchSize,
+      boolean consistentRead)
+      throws ExecutionException, InterruptedException {
     if (actions.isEmpty()) {
       return;
     }
@@ -165,7 +203,8 @@ public abstract class AbstractDocStore implements Provider, Collection, AutoClos
         int end = Math.min((index + 1) * batchSize, group.size()) - 1; // Avoid exceeding size
 
         // Submit each batchGet call as a task
-        Future<?> future = executorService.submit(() -> batchGet(group, beforeDo, start, end));
+        Future<?> future =
+            executorService.submit(() -> batchGet(group, beforeDo, start, end, consistentRead));
         futures.add(future);
       }
     }
@@ -175,6 +214,15 @@ public abstract class AbstractDocStore implements Provider, Collection, AutoClos
 
   protected abstract void batchGet(
       List<Action> actions, Consumer<Predicate<Object>> beforeDo, int start, int end);
+
+  protected void batchGet(
+      List<Action> actions,
+      Consumer<Predicate<Object>> beforeDo,
+      int start,
+      int end,
+      boolean consistentRead) {
+    batchGet(actions, beforeDo, start, end);
+  }
 
   private void waitTermination(List<Future<?>> futures)
       throws ExecutionException, InterruptedException {
