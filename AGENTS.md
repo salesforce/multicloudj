@@ -93,6 +93,16 @@ g. mvn test -pl blob/blob-aws -Dtest=AwsBlobStoreIT -Drecord
     - record mode: with `-Drecord` and the credentials are supplied. This mode uses wiremock as a forward proxy and record all the http transactions as request/response
     - replay mode: default mode with no credentials required. This mode uses wiremock as a forward proxy and replays the previously recorded responses by record mode.
 
+### Do Not Test the Test Code
+
+Tests cover production code only. Never add tests whose subject is itself test or
+non-production code. This includes:
+
+- Unit tests, conformance tests (`Abstract*IT`), and IT tests (`*IT`)
+- Test harnesses, fixtures, helpers,and utilities under `src/test`, wiremock setup
+- Benchmark code and benchmark harnesses
+- Code in the `examples` module
+
 ### Special instructions for Running Conformance Tests in record mode
 
 Conformance tests require valid cloud credentials:
@@ -157,6 +167,36 @@ public UploadResponse upload(UploadRequest request, byte[] content) {
     throw blobStore.mapException(t);
   }
 }
+```
+
+### Code Comments
+
+Do not add the comments if code is self-explanatory. Comments should be concise and are permanent and are written for a future reader of the code who has never seen
+the PR, the previous version of the file, or the conversation that produced the change.
+
+- Explain what the code does and why it is written that way: invariants, non-obvious
+  constraints, cloud SDK behavior being accommodated, and edge cases being handled.
+- Do not describe the change itself. Avoid comments such as "now uses X instead of Y",
+  "changed to fix ...", "previously this ...", "added for the new ...", "moved from ...",
+  or "no longer ...". Code that has been removed or replaced is not relevant to a new reader.
+- Do not address the PR reviewer or narrate the editing process. Put change rationale in
+  the commit message or PR description instead.
+- Do not reference tickets, review threads, or conversations as the only explanation; state
+  the reason directly in the comment.
+- When editing existing code, update or remove comments that no longer match the code
+  rather than appending notes about what changed.
+
+**Example - WRONG**
+```java
+// Changed to use a bounded queue instead of the unbounded one to fix the OOM
+private final BlockingQueue<Message> queue = new ArrayBlockingQueue<>(capacity);
+```
+
+**Example - CORRECT**
+```java
+// Bounded so a slow handler applies backpressure to the receiver instead of
+// buffering messages without limit.
+private final BlockingQueue<Message> queue = new ArrayBlockingQueue<>(capacity);
 ```
 
 ### Dependency management

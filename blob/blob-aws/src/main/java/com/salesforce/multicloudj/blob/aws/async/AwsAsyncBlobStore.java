@@ -54,7 +54,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -98,6 +102,24 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   private final S3TransferManager transferManager;
   private final AwsTransformer transformer;
 
+  private final ExecutorService transferManagerExecutor;
+
+  private final AtomicLong streamReadThreadId = new AtomicLong();
+
+  // Store-owned so stream-read threads are reused and released on close(). Non-daemon so an
+  // in-flight stream upload keeps the JVM alive; idle threads still exit after 60s.
+  private final ExecutorService streamReadExecutor =
+      Executors.newCachedThreadPool(
+          runnable -> {
+            Thread thread =
+                new Thread(
+                    runnable,
+                    "multicloudj-aws-async-stream-read-" + streamReadThreadId.incrementAndGet());
+            // Set explicitly: a new thread inherits daemon status from the submitting thread.
+            thread.setDaemon(false);
+            return thread;
+          });
+
   public AwsAsyncBlobStore(
       String bucket,
       String region,
@@ -106,16 +128,39 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       S3AsyncClient client,
       S3TransferManager transferManager,
       AwsTransformerSupplier transformerSupplier) {
+    this(
+        bucket,
+        region,
+        credentialsOverrider,
+        validator,
+        client,
+        transferManager,
+        transformerSupplier,
+        null);
+  }
+
+  AwsAsyncBlobStore(
+      String bucket,
+      String region,
+      CredentialsOverrider credentialsOverrider,
+      BlobStoreValidator validator,
+      S3AsyncClient client,
+      S3TransferManager transferManager,
+      AwsTransformerSupplier transformerSupplier,
+      ExecutorService transferManagerExecutor) {
     super(AwsConstants.PROVIDER_ID, bucket, region, credentialsOverrider, validator);
     this.client = client;
     this.transferManager = transferManager;
     this.transformer = transformerSupplier.get(bucket);
+    this.transferManagerExecutor = transferManagerExecutor;
   }
 
   @Override
   protected CompletableFuture<UploadResponse> doUpload(
       UploadRequest uploadRequest, InputStream inputStream) {
-    return doUpload(uploadRequest, transformer.toAsyncRequestBody(uploadRequest, inputStream));
+    return doUpload(
+        uploadRequest,
+        transformer.toAsyncRequestBody(uploadRequest, inputStream, streamReadExecutor));
   }
 
   @Override
@@ -356,7 +401,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     UploadPartRequest uploadPartRequest = transformer.toUploadPartRequest(mpu, mpp);
     AsyncRequestBody asyncRequestBody =
         AsyncRequestBody.fromInputStream(
-            mpp.getInputStream(), mpp.getContentLength(), Executors.newSingleThreadExecutor());
+            mpp.getInputStream(), mpp.getContentLength(), streamReadExecutor);
 
     return client
         .uploadPart(uploadPartRequest, asyncRequestBody)
@@ -501,7 +546,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
   @Override
   protected CompletableFuture<Void> doDeleteDirectory(String prefix) {
-    List<CompletableFuture> futures = new ArrayList<>();
+    List<CompletableFuture<Void>> deletes = new ArrayList<>();
 
     // When listed batches of blobs come in, partition them into groups, then delete them
     Consumer<ListBlobsBatch> consumer =
@@ -509,13 +554,13 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           List<List<BlobInfo>> partitionedBlobLists =
               transformer.partitionList(batch.getBlobs(), MAX_OBJECTS_PER_DELETE);
           for (List<BlobInfo> blobList : partitionedBlobLists) {
-            futures.add(doDelete(transformer.toBlobIdentifiers(blobList)));
+            deletes.add(doDelete(transformer.toBlobIdentifiers(blobList)));
           }
         };
-    CompletableFuture<Void> listFuture =
-        doList(ListBlobsRequest.builder().withPrefix(prefix).build(), consumer);
-    futures.add(listFuture);
-    return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+    // Deletes are only all known once listing completes, so wait on them after it.
+    return doList(ListBlobsRequest.builder().withPrefix(prefix).build(), consumer)
+        .thenCompose(
+            ignored -> CompletableFuture.allOf(deletes.toArray(new CompletableFuture[0])));
   }
 
   /**
@@ -566,8 +611,13 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   /** Closes the underlying S3 async client and transfer manager, releasing any resources. */
   @Override
   public void close() {
+    streamReadExecutor.shutdown();
     if (transferManager != null) {
       transferManager.close();
+    }
+    if (transferManagerExecutor != null) {
+      // S3TransferManager doesn't shut down an executor passed to its builder, so we do it here.
+      transferManagerExecutor.shutdown();
     }
     if (client != null) {
       client.close();
@@ -576,6 +626,28 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
   public static Builder builder() {
     return new Builder();
+  }
+
+  private static ExecutorService newTransferManagerExecutor(int poolSize) {
+    AtomicLong threadId = new AtomicLong();
+    ThreadPoolExecutor executor =
+        new ThreadPoolExecutor(
+            poolSize,
+            poolSize,
+            60L,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(),
+            runnable -> {
+              Thread thread =
+                  new Thread(
+                      runnable, "multicloudj-aws-transfer-manager-" + threadId.incrementAndGet());
+              // Non-daemon so the JVM waits for in-progress uploads and downloads to finish
+              // instead of cutting them off when the application exits.
+              thread.setDaemon(false);
+              return thread;
+            });
+    executor.allowCoreThreadTimeOut(true);
+    return executor;
   }
 
   @Getter
@@ -813,6 +885,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
         client = buildS3Client(this);
       }
       S3TransferManager tm = getTransferManager();
+      ExecutorService ownedTransferManagerExecutor = null;
       if (tm == null) {
         var transferManagerBuilder = S3TransferManager.builder().s3Client(client);
 
@@ -825,7 +898,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           Integer poolSize = getTransferManagerThreadPoolSize();
 
           if (poolSize != null) {
-            transferManagerBuilder.executor(Executors.newFixedThreadPool(poolSize));
+            ownedTransferManagerExecutor = newTransferManagerExecutor(poolSize);
+            transferManagerBuilder.executor(ownedTransferManagerExecutor);
           }
         }
 
@@ -845,7 +919,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           getValidator(),
           client,
           tm,
-          getTransformerSupplier());
+          getTransformerSupplier(),
+          ownedTransferManagerExecutor);
     }
   }
 }

@@ -1,0 +1,52 @@
+{
+  "id" : "c36d9453-e95e-49ab-9809-2080fd189983",
+  "name" : "AliBlobStoreIT_testList_WithDelimiter_IncludesMarkedCommonPrefixesWhenRequested-GET-2",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "4"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/list-common-prefixes/"
+        } ]
+      },
+      "delimiter" : {
+        "hasExactly" : [ {
+          "equalTo" : "/"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult>\n  <Name>chameleon-multicloudj-test</Name>\n  <Prefix>conformance-tests%2Flist-common-prefixes%2F</Prefix>\n  <MaxKeys>100</MaxKeys>\n  <Delimiter>%2F</Delimiter>\n  <EncodingType>url</EncodingType>\n  <IsTruncated>false</IsTruncated>\n  <Contents>\n    <Key>conformance-tests%2Flist-common-prefixes%2Froot.txt</Key>\n    <LastModified>2026-09-22T19:18:04.000Z</LastModified>\n    <ETag>\"098F6BCD4621D373CADE4E832627B4F6\"</ETag>\n    <Type>Normal</Type>\n    <Size>4</Size>\n    <StorageClass>Standard</StorageClass>\n  </Contents>\n  <CommonPrefixes>\n    <Prefix>conformance-tests%2Flist-common-prefixes%2Fdirectory%2F</Prefix>\n  </CommonPrefixes>\n  <KeyCount>2</KeyCount>\n</ListBucketResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6AB2D46D26F4193038BAA41F",
+      "x-oss-server-time" : "41",
+      "Server" : "AliyunOSS",
+      "Date" : "Tue, 22 Sep 2026 19:18:05 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "c36d9453-e95e-49ab-9809-2080fd189983",
+  "persistent" : true,
+  "insertionIndex" : 771
+}

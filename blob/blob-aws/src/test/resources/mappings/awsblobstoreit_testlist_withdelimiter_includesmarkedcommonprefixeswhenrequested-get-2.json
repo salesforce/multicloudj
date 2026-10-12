@@ -1,0 +1,50 @@
+{
+  "id" : "2c35f32c-9e1c-4a7d-ba9f-f333c0443e9d",
+  "name" : "AwsBlobStoreIT_testList_WithDelimiter_IncludesMarkedCommonPrefixesWhenRequested-GET-2",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "4"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "delimiter" : {
+        "hasExactly" : [ {
+          "equalTo" : "/"
+        } ]
+      },
+      "max-keys" : {
+        "hasExactly" : [ {
+          "equalTo" : "1000"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/list-common-prefixes/"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/list-common-prefixes/</Prefix><KeyCount>2</KeyCount><MaxKeys>1000</MaxKeys><Delimiter>/</Delimiter><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/list-common-prefixes/root.txt</Key><LastModified>2026-09-18T02:50:57.000Z</LastModified><ETag>&quot;098f6bcd4621d373cade4e832627b4f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>4</Size><StorageClass>STANDARD</StorageClass></Contents><CommonPrefixes><Prefix>conformance-tests/list-common-prefixes/directory/</Prefix></CommonPrefixes></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "AMTCNN120BD08J9A",
+      "x-amz-id-2" : "vkGZSAnh7A5otLK0WtvEdrCu2CvD0XWxw+16ukqxbAvQ96QUC3X8s31RVO3GN6GG9irzyxS0r0w=",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Fri, 18 Sep 2026 02:50:57 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "2c35f32c-9e1c-4a7d-ba9f-f333c0443e9d",
+  "persistent" : true,
+  "insertionIndex" : 794
+}

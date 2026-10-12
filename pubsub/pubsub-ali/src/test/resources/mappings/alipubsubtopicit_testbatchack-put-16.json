@@ -1,0 +1,32 @@
+{
+  "id" : "86341bb2-4839-4d52-8b75-1fee0d701e96",
+  "name" : "AliPubsubTopicIT_testBatchAck-PUT-16",
+  "request" : {
+    "url" : "/topics/test-smq-conf-t-testBatchAck/subscriptions/test-smq-conf-ts-testBatchAck",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><Subscription xmlns=\"http://mns.aliyuncs.com/doc/v1\"><Endpoint>acs:mns:cn-shanghai:account-id:queues/test-smq-conf-tq-testBatchAck</Endpoint><NotifyContentFormat>JSON</NotifyContentFormat></Subscription>"
+    } ]
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "13",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6ABAB9F23943350F0032F7F9",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Mon, 28 Sep 2026 19:03:14 GMT",
+      "Location" : "account-id.mns.cn-shanghai.aliyuncs.com/topics/test-smq-conf-t-testBatchAck/subscriptions/test-smq-conf-ts-testBatchAck",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "86341bb2-4839-4d52-8b75-1fee0d701e96",
+  "persistent" : true,
+  "scenarioName" : "scenario-4-topics-test-smq-conf-t-testBatchAck-subscriptions-test-smq-conf-ts-testBatchAck",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-4-topics-test-smq-conf-t-testBatchAck-subscriptions-test-smq-conf-ts-testBatchAck-2",
+  "insertionIndex" : 79
+}

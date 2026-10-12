@@ -1,0 +1,43 @@
+{
+  "id" : "c7f6102d-a359-434a-be4e-546aa8b1eb2d",
+  "name" : "AliPubsubTopicIT_testNackAfterReceive-PUT-0",
+  "request" : {
+    "urlPath" : "/queues/test-smq-conf-tq-testNackAfterReceive/messages",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "ReceiptHandle" : {
+        "hasExactly" : [ {
+          "equalTo" : "CBC9E43B33FD7FCD7FB790DAE2BB8CF9-NSAxNzkwNjIyMjY0NjIxIDMwMDAwIDcgMCBzaG1xbmluZTRzbXEtMTIgMCA1fDI4UkdseQ=="
+        } ]
+      },
+      "VisibilityTimeout" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" ?>\n<ChangeVisibility xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <ReceiptHandle>CBC9E43B33FD7FCD7FB790DAE2BB8CF9-NSAxNzkwNjIyMjY1NDU5IDEwMDAgNyAwIHNobXFuaW5lNHNtcS0xMiAwIDV8MjhSR2x5</ReceiptHandle>\n  <NextVisibleTime>1790622266459</NextVisibleTime>\n</ChangeVisibility>",
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "8",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6ABABA393646380F00AE643C",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Mon, 28 Sep 2026 19:04:25 GMT",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "c7f6102d-a359-434a-be4e-546aa8b1eb2d",
+  "persistent" : true,
+  "insertionIndex" : 126
+}

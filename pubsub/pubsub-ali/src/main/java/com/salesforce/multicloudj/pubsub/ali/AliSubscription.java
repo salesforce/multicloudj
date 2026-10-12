@@ -17,8 +17,10 @@ import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.AckInfo;
 import com.salesforce.multicloudj.pubsub.driver.Message;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,22 +117,56 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
   }
 
   /**
-   * Converts an SMQ SDK message into a multicloudj {@link Message}.
+   * Converts an SMQ SDK message into a multicloudj {@link Message}, handling both a message
+   * delivered directly to the queue and one fanned out from a topic (a JSON-format delivery whose
+   * wire body is the topic envelope).
    *
-   * <p>The body is base64-decoded when the reserved {@link AliBaseTopic#RESERVED_BASE64_FLAG_KEY}
-   * user property is present and true (the publisher base64-encoded it), and read as raw bytes
-   * otherwise. A body from a non-multicloudj producer carries no flag and is therefore returned as
-   * its raw wire bytes unchanged; the caller decodes it if that producer encoded it. SMQ user
-   * properties are decoded back into message metadata: each property key is
-   * un-escaped via {@link AliBaseTopic#decodeMetadataKey} and its value read with {@code
-   * getStringValueByType}; the reserved base64 flag is stripped so it never surfaces as metadata.
+   * <p>The two are distinguished authoritatively by the reserved
+   * {@link AliBaseTopic#RESERVED_TOPIC_ORIGINATED_KEY} marker the topic publisher stamps — NOT by
+   * sniffing the body shape. When the marker is present the effective body is the envelope's
+   * {@code "Message"} field (see {@link SmqTopicEnvelope}); a marked body that is not a valid
+   * envelope is corruption or a reserved-namespace spoof and fails closed (a mapped exception)
+   * rather than being returned raw. When the marker is absent the message is treated as direct and
+   * its body is read with NO envelope parsing at all — so a topic delivery from a producer that
+   * does not stamp the marker (a non-MultiCloudJ or foreign publisher) is returned with its JSON
+   * envelope intact rather than unwrapped.
+   *
+   * <p>On both paths the body is base64-decoded when the reserved
+   * {@link AliBaseTopic#RESERVED_BASE64_FLAG_KEY} user property is present and true (the publisher
+   * base64-encoded it), and read as its raw bytes otherwise; a direct body from a non-SDK producer
+   * carries no flag and is returned as its raw wire bytes unchanged, for the caller to decode.
+   *
+   * <p>Metadata is handled identically on both paths: it always rides as native SMQ user properties
+   * (a topic delivery envelopes only the body, not the properties). Each property key is un-escaped
+   * via {@link AliBaseTopic#decodeMetadataKey} and its value read with {@code
+   * getStringValueByType}; the reserved base64 flag and topic-originated marker are stripped so
+   * neither surfaces as metadata.
    */
   private Message toMessage(com.aliyun.mns.model.Message smqMessage) {
     Map<String, MessagePropertyValue> userProperties = smqMessage.getUserProperties();
-    byte[] body =
-        isBase64Flagged(userProperties)
-            ? smqMessage.getMessageBodyAsBytes()
-            : smqMessage.getMessageBodyAsRawBytes();
+    boolean base64 = isBase64Flagged(userProperties);
+    byte[] body;
+    if (isTopicOriginatedFlagged(userProperties)) {
+      // Topic delivery (authoritative marker): the wire body is a JSON envelope; extract its inner
+      // "Message". A marked body that is not a valid envelope is corruption / a reserved-namespace
+      // spoof — fail closed rather than guess at a raw body.
+      String inner =
+          SmqTopicEnvelope.extractBodyIfEnvelope(smqMessage.getMessageBodyAsRawString());
+      if (inner == null) {
+        throw new InvalidArgumentException(
+            "message carries the reserved topic-originated marker but its body is not a valid"
+                + " topic-delivery envelope");
+      }
+      body = topicBody(inner, base64);
+    } else {
+      // Direct message (no marker): no envelope parsing at all. A base64-flagged body is strictly
+      // decoded (like the topic path) so invalid base64 fails closed rather than silently returning
+      // the SDK accessor's lenient best-effort bytes.
+      body =
+          base64
+              ? decodeBase64OrMap(smqMessage.getMessageBodyAsRawString())
+              : smqMessage.getMessageBodyAsRawBytes();
+    }
     Message.Builder builder =
         Message.builder()
             .withBody(body == null ? new byte[0] : body)
@@ -143,6 +179,30 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
     return builder.build();
   }
 
+  /**
+   * Extracts the effective body bytes from a topic-envelope inner {@code "Message"} value:
+   * base64-decoded (see {@link #decodeBase64OrMap}) when the native base64 flag is present-and-true
+   * (the publisher base64-encoded the body), else the inner value's UTF-8 bytes.
+   */
+  private byte[] topicBody(String inner, boolean base64) {
+    return base64 ? decodeBase64OrMap(inner) : inner.getBytes(StandardCharsets.UTF_8);
+  }
+
+  /**
+   * Strictly base64-decodes {@code base64Text}, mapping the {@link IllegalArgumentException} the
+   * JDK decoder throws on malformed input to a {@link SubstrateSdkException} via
+   * {@link #mapException}. Both receive paths decode through this so a body flagged base64 that is
+   * not valid base64 fails closed consistently, rather than one path throwing while the other
+   * silently returns a lenient decoder's best-effort bytes.
+   */
+  private byte[] decodeBase64OrMap(String base64Text) {
+    try {
+      return Base64.getDecoder().decode(base64Text);
+    } catch (IllegalArgumentException e) {
+      throw mapException(e);
+    }
+  }
+
   /** True if the reserved base64 flag user property is present and set to {@code true}. */
   private static boolean isBase64Flagged(Map<String, MessagePropertyValue> userProperties) {
     if (userProperties == null) {
@@ -152,13 +212,23 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
     return flag != null && "true".equalsIgnoreCase(flag.getStringValueByType());
   }
 
+  /** True if the reserved topic-originated marker property is present and set to {@code true}. */
+  private static boolean isTopicOriginatedFlagged(
+      Map<String, MessagePropertyValue> userProperties) {
+    if (userProperties == null) {
+      return false;
+    }
+    MessagePropertyValue marker = userProperties.get(AliBaseTopic.RESERVED_TOPIC_ORIGINATED_KEY);
+    return marker != null && "true".equalsIgnoreCase(marker.getStringValueByType());
+  }
+
   /**
    * Decodes SMQ user properties back into message metadata: un-escapes each key via
    * {@link AliBaseTopic#decodeMetadataKey} and reads each value natively via {@code
    * getStringValueByType} (which returns a STRING property's text and a BINARY property's
    * UTF-8-decoded bytes uniformly, the reverse of the publisher's native encoding and coalescing a
-   * null value to the empty string), skipping the reserved base64 flag. Returns an empty map when
-   * the message carries no user metadata.
+   * null value to the empty string), skipping the reserved base64 flag and topic-originated marker.
+   * Returns an empty map when the message carries no user metadata.
    */
   private static Map<String, String> decodeMetadata(
       Map<String, MessagePropertyValue> userProperties) {
@@ -167,7 +237,8 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
       return metadata;
     }
     for (Map.Entry<String, MessagePropertyValue> entry : userProperties.entrySet()) {
-      if (AliBaseTopic.RESERVED_BASE64_FLAG_KEY.equals(entry.getKey())) {
+      if (AliBaseTopic.RESERVED_BASE64_FLAG_KEY.equals(entry.getKey())
+          || AliBaseTopic.RESERVED_TOPIC_ORIGINATED_KEY.equals(entry.getKey())) {
         continue;
       }
       MessagePropertyValue value = entry.getValue();

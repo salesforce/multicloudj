@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.sts;
 
+import com.salesforce.multicloudj.examples.AppConfig;
 import com.salesforce.multicloudj.sts.client.StsUtilities;
 import com.salesforce.multicloudj.sts.client.StsVerifier;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
@@ -8,6 +9,8 @@ import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * End-to-end Cloud Native Auth (CNA) example.
@@ -28,17 +31,20 @@ import java.util.Map;
  * can bind additional context (a request source, a tenant id, a federation target, ...) into the
  * signed proof and reject anything that does not match.
  *
- * <p>Run this against real credentials for {@code PROVIDER}/{@code REGION}. For {@code aws} the
- * verifier replays the presigned {@code GetCallerIdentity} request against AWS STS; the default
- * credential chain must resolve. Custom header names are lowercase because AWS SigV4 signs
- * canonical (lowercase) header names.
+ * <p>Run this against real credentials for the configured global {@code provider} and {@code
+ * region} (see {@code examples.properties}); the provider's default credential chain must
+ * resolve. Custom header names are lowercase because signers canonicalize header names to
+ * lowercase.
  */
 public class CloudNativeAuth {
-
-  private static final String PROVIDER = "gcp";
-  private static final String REGION = "us-east-2";
+  private static final Logger logger = LoggerFactory.getLogger(CloudNativeAuth.class);
 
   public static void main(String[] args) {
+    // Never hardcode the provider id or region; resolve them from configuration (see
+    // examples.properties).
+    String provider = AppConfig.provider();
+    String region = AppConfig.get("region");
+
     // Custom headers the client signs into its identity and the server asserts on validation.
     Map<String, String> customHeaders = new LinkedHashMap<>();
     customHeaders.put("x-request-source", "cloud-native-auth-example");
@@ -46,7 +52,7 @@ public class CloudNativeAuth {
 
     // Sign (client side)
     // StsUtilities produces a portable signedIdentity from the caller's own cloud credentials.
-    StsUtilities signer = StsUtilities.builder(PROVIDER).withRegion(REGION).build();
+    StsUtilities signer = StsUtilities.builder(provider).withRegion(region).build();
 
     SignOptions signOptions = SignOptions.builder().withCustomHeaders(customHeaders).build();
 
@@ -54,23 +60,23 @@ public class CloudNativeAuth {
     SignedAuthRequest signed = signer.newCloudNativeAuthSignedRequest(null, signOptions);
     String signedIdentity = signed.getSignedIdentity();
 
-    System.out.println("Signed auth request created successfully");
-    System.out.println("  SignedIdentity: " + preview(signedIdentity));
+    logger.info("Signed auth request created successfully");
+    logger.info("  SignedIdentity: {}", preview(signedIdentity));
 
     // Validate (server side)
     // StsVerifier proves the signedIdentity and returns who the caller is.
-    StsVerifier verifier = StsVerifier.builder(PROVIDER).withRegion(REGION).build();
+    StsVerifier verifier = StsVerifier.builder(provider).withRegion(region).build();
 
     ValidateOptions validateOptions =
         ValidateOptions.builder().withExpectedCustomHeaders(customHeaders).build();
 
     CallerIdentity identity = verifier.validateSignedAuthRequest(signedIdentity, validateOptions);
 
-    System.out.println();
-    System.out.println("Validation succeeded");
-    System.out.println("  CloudResourceName: " + identity.getCloudResourceName());
-    System.out.println("  UserId           : " + identity.getUserId());
-    System.out.println("  Account          : " + identity.getAccountId());
+    logger.info("");
+    logger.info("Validation succeeded");
+    logger.info("  CloudResourceName: {}", identity.getCloudResourceName());
+    logger.info("  UserId           : {}", identity.getUserId());
+    logger.info("  Account          : {}", identity.getAccountId());
   }
 
   /** Shortens the signed identity for display; the full string can be several hundred bytes. */

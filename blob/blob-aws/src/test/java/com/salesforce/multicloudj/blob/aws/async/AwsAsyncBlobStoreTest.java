@@ -7,11 +7,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Answers.RETURNS_SELF;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -57,12 +59,14 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -75,8 +79,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
@@ -86,6 +94,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.MockedStatic;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.ResponseBytes;
@@ -443,6 +453,69 @@ public class AwsAsyncBlobStoreTest {
   }
 
   @Test
+  void testClose_shutsDownBuilderCreatedTransferManagerExecutor() throws Exception {
+    S3TransferManager.Builder tmBuilder = mock(S3TransferManager.Builder.class, RETURNS_SELF);
+    when(tmBuilder.build()).thenReturn(mockS3TransferManager);
+    try (MockedStatic<S3TransferManager> tm = mockStatic(S3TransferManager.class)) {
+      tm.when(S3TransferManager::builder).thenReturn(tmBuilder);
+
+      var store =
+          new AwsAsyncBlobStoreProvider()
+              .builder()
+              .withBucket(BUCKET)
+              .withRegion(REGION)
+              .withTransferManagerThreadPoolSize(2)
+              .build();
+
+      ArgumentCaptor<Executor> captor = ArgumentCaptor.forClass(Executor.class);
+      verify(tmBuilder).executor(captor.capture());
+      ExecutorService executor = (ExecutorService) captor.getValue();
+      Thread worker = executor.submit(Thread::currentThread).get();
+      assertTrue(worker.getName().startsWith("multicloudj-aws-transfer-manager-"));
+      assertFalse(worker.isDaemon());
+
+      store.close();
+
+      verify(mockS3TransferManager).close();
+      assertTrue(executor.isShutdown());
+    }
+  }
+
+  @Test
+  void testClose_leavesCallerSuppliedExecutorRunning() throws Exception {
+    ExecutorService callerExecutor = Executors.newSingleThreadExecutor();
+    try {
+      var store =
+          new AwsAsyncBlobStoreProvider()
+              .builder()
+              .withBucket(BUCKET)
+              .withRegion(REGION)
+              .withExecutorService(callerExecutor)
+              .withTransferManagerThreadPoolSize(2)
+              .build();
+
+      store.close();
+
+      assertFalse(callerExecutor.isShutdown());
+    } finally {
+      callerExecutor.shutdownNow();
+    }
+  }
+
+  @Test
+  void testBuild_withoutPoolSize_leavesTransferManagerExecutorToSdk() {
+    S3TransferManager.Builder tmBuilder = mock(S3TransferManager.Builder.class, RETURNS_SELF);
+    when(tmBuilder.build()).thenReturn(mockS3TransferManager);
+    try (MockedStatic<S3TransferManager> tm = mockStatic(S3TransferManager.class)) {
+      tm.when(S3TransferManager::builder).thenReturn(tmBuilder);
+
+      new AwsAsyncBlobStoreProvider().builder().withBucket(BUCKET).withRegion(REGION).build();
+
+      verify(tmBuilder, never()).executor(any());
+    }
+  }
+
+  @Test
   void testProviderId() {
     assertEquals(AwsConstants.PROVIDER_ID, aws.getProviderId());
   }
@@ -499,6 +572,69 @@ public class AwsAsyncBlobStoreTest {
         .putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
     verifyUploadTestResults(
         aws.doUpload(generateTestUploadRequest(), mock(InputStream.class)).get());
+  }
+
+  @Test
+  void testDoUploadInputStream_readsStreamOnStoreOwnedNonDaemonThread() throws Exception {
+    AsyncRequestBody body = captureInputStreamUploadBody();
+
+    Thread reader = readFully(body).get(10, TimeUnit.SECONDS);
+
+    assertFalse(reader.isDaemon());
+    assertTrue(reader.getName().startsWith("multicloudj-aws-async-stream-read-"));
+  }
+
+  @Test
+  void testClose_shutsDownStreamReadExecutor() throws Exception {
+    AsyncRequestBody body = captureInputStreamUploadBody();
+
+    aws.close();
+
+    ExecutionException thrown =
+        assertThrows(ExecutionException.class, () -> readFully(body).get(10, TimeUnit.SECONDS));
+    assertInstanceOf(RejectedExecutionException.class, thrown.getCause());
+  }
+
+  private AsyncRequestBody captureInputStreamUploadBody() throws Exception {
+    doReturn(CompletableFuture.completedFuture(buildMockPutObjectResponse()))
+        .when(mockS3Client)
+        .putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
+    UploadRequest request =
+        new UploadRequest.Builder().withKey("object-1").withContentLength(3).build();
+    aws.doUpload(request, new ByteArrayInputStream(new byte[] {1, 2, 3})).get();
+    ArgumentCaptor<AsyncRequestBody> bodyCaptor = ArgumentCaptor.forClass(AsyncRequestBody.class);
+    verify(mockS3Client).putObject(any(PutObjectRequest.class), bodyCaptor.capture());
+    return bodyCaptor.getValue();
+  }
+
+  /** Drains the body and completes with the thread that delivered the last chunk. */
+  private static CompletableFuture<Thread> readFully(AsyncRequestBody body) {
+    CompletableFuture<Thread> result = new CompletableFuture<>();
+    body.subscribe(
+        new Subscriber<ByteBuffer>() {
+          private volatile Thread lastReader;
+
+          @Override
+          public void onSubscribe(Subscription subscription) {
+            subscription.request(Long.MAX_VALUE);
+          }
+
+          @Override
+          public void onNext(ByteBuffer buffer) {
+            lastReader = Thread.currentThread();
+          }
+
+          @Override
+          public void onError(Throwable t) {
+            result.completeExceptionally(t);
+          }
+
+          @Override
+          public void onComplete() {
+            result.complete(lastReader);
+          }
+        });
+    return result;
   }
 
   @Test
@@ -1926,6 +2062,61 @@ public class AwsAsyncBlobStoreTest {
     List<ObjectIdentifier> secondObjectsDeleted = actualDeleteRequests.get(1).delete().objects();
     assertEquals(1, secondObjectsDeleted.size());
     assertEquals(object3.key(), secondObjectsDeleted.get(0).key());
+  }
+
+  @Test
+  void doDeleteDirectory_completesOnlyAfterDeletesComplete() {
+    // The paginator delivers pages after subscribe() returns, as the SDK does.
+    AsyncListing listing = stubAsyncDeleteDirectoryListing();
+    CompletableFuture<DeleteObjectsResponse> pendingDelete = new CompletableFuture<>();
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class))).thenReturn(pendingDelete);
+
+    CompletableFuture<Void> result = aws.doDeleteDirectory("files");
+    listing.deliver(S3Object.builder().key("file1.txt").size(1L).build());
+
+    assertFalse(result.isDone());
+    pendingDelete.complete(mock(DeleteObjectsResponse.class));
+    assertTrue(result.isDone());
+    assertFalse(result.isCompletedExceptionally());
+  }
+
+  @Test
+  void doDeleteDirectory_propagatesDeleteFailure() {
+    AsyncListing listing = stubAsyncDeleteDirectoryListing();
+    RuntimeException failure = new RuntimeException("delete failed");
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(CompletableFuture.failedFuture(failure));
+
+    CompletableFuture<Void> result = aws.doDeleteDirectory("files");
+    listing.deliver(S3Object.builder().key("file1.txt").size(1L).build());
+
+    ExecutionException thrown = assertThrows(ExecutionException.class, result::get);
+    assertEquals(failure, thrown.getCause());
+  }
+
+  private AsyncListing stubAsyncDeleteDirectoryListing() {
+    AsyncListing listing = new AsyncListing();
+    ListObjectsV2Publisher publisher = mock(ListObjectsV2Publisher.class);
+    doAnswer(
+            invocation -> {
+              listing.consumer = invocation.getArgument(0);
+              return listing.done;
+            })
+        .when(publisher)
+        .subscribe(any(Consumer.class));
+    when(mockS3Client.listObjectsV2Paginator(any(ListObjectsV2Request.class)))
+        .thenReturn(publisher);
+    return listing;
+  }
+
+  private static class AsyncListing {
+    private final CompletableFuture<Void> done = new CompletableFuture<>();
+    private Consumer<ListObjectsV2Response> consumer;
+
+    void deliver(S3Object... objects) {
+      consumer.accept(ListObjectsV2Response.builder().contents(objects).build());
+      done.complete(null);
+    }
   }
 
   @Test

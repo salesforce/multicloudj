@@ -224,6 +224,7 @@ public abstract class AbstractPubsubIT {
   }
 
   @Test
+  @Timeout(120) // Integration test with batch operations - allow time for message delivery
   public void testBatchAck() throws Exception {
     try (AbstractTopic topic = harness.createTopicDriver();
         AbstractSubscription subscription = harness.createSubscriptionDriver()) {

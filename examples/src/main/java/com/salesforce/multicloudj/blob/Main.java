@@ -21,6 +21,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -28,6 +29,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
+import com.salesforce.multicloudj.examples.AppConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -40,6 +42,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -48,7 +54,10 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -88,7 +97,7 @@ public class Main {
    * Uploads an object while attaching an {@link OperationContext} that carries a service ID and
    * tenant ID. The SDK stamps these identifiers onto the stored object's metadata (under the
    * {@code sdk-logging-service-id} and {@code sdk-logging-tenant-id} keys) so that cloud audit
-   * logs (e.g. S3 server access logs / GCS data access logs) can be traced back to the calling
+   * logs (e.g. object access logs) can be traced back to the calling
    * service and tenant.
    *
    * <p>The {@code correlationId} is optional; when supplied it is echoed back on the {@link
@@ -349,7 +358,7 @@ public class Main {
         CopyRequest.builder()
             .srcKey("src-key")
             .srcVersionId("version-1")
-            .destBucket("destination-bucket")
+            .destBucket(AppConfig.get("blob.copy.dest.bucket"))
             .destKey("dest-key")
             .build();
 
@@ -394,6 +403,89 @@ public class Main {
 
     getLogger().info("Presigned URL: {}", presignedUrl.toString());
   }
+
+  /**
+   * Presigns upload and download URLs from a client that holds only short-lived session
+   * credentials, then uses them with a plain HTTP client, the way a caller without cloud
+   * credentials would.
+   *
+   * <p>The session identity needs three things: permission to sign as itself (through the cloud's
+   * remote signing API when the credentials carry no private key), the signing API enabled for its
+   * project, and write/read access to the bucket. Signing does not check bucket access; the cloud
+   * checks it when the URL is used.
+   *
+   * <p>Throws on any failure so {@code main} can report a clear pass or fail.
+   */
+  public static void presignWithSessionCredentials() throws Exception {
+    String provider = getProvider();
+
+    CredentialsOverrider overrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(getSessionCredentials())
+            .build();
+    String key = "bucket-path/presigned-session.txt";
+    byte[] content = "Uploaded through a presigned URL".getBytes(StandardCharsets.UTF_8);
+
+    try (BucketClient client = getBucketClient(provider, overrider)) {
+      PresignedUrlResponse upload =
+          client.presign(
+              PresignedUrlRequest.builder()
+                  .type(PresignedOperation.UPLOAD)
+                  .key(key)
+                  .contentType("text/plain")
+                  .duration(Duration.ofMinutes(5))
+                  .build());
+
+      // The URL is only valid if the uploader sends exactly the headers that were signed.
+      // java.net.http rejects headers it manages itself (such as Host and Content-Length); it
+      // sends those with the same values the signer saw.
+      HttpRequest.Builder put =
+          HttpRequest.newBuilder(URI.create(upload.getUrl().toString()))
+              .PUT(HttpRequest.BodyPublishers.ofByteArray(content));
+      upload.getSignedHeaders().forEach((name, value) -> {
+        if (!RESTRICTED_HTTP_HEADERS.contains(name.toLowerCase(Locale.ROOT))) {
+          put.header(name, value);
+        }
+      });
+
+      try {
+        HttpClient http = HttpClient.newHttpClient();
+        HttpResponse<String> putResponse =
+            http.send(put.build(), HttpResponse.BodyHandlers.ofString());
+        if (putResponse.statusCode() / 100 != 2) {
+          throw new IllegalStateException(
+              "Presigned upload failed: " + putResponse.statusCode() + " " + putResponse.body());
+        }
+
+        URL download =
+            client.generatePresignedUrl(
+                PresignedUrlRequest.builder()
+                    .type(PresignedOperation.DOWNLOAD)
+                    .key(key)
+                    .duration(Duration.ofMinutes(5))
+                    .build());
+        HttpResponse<byte[]> getResponse =
+            http.send(
+                HttpRequest.newBuilder(URI.create(download.toString())).GET().build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+        if (getResponse.statusCode() != 200 || !Arrays.equals(content, getResponse.body())) {
+          throw new IllegalStateException(
+              "Presigned download failed or returned different content: "
+                  + getResponse.statusCode());
+        }
+        getLogger().info("Uploaded and downloaded {} through presigned URLs", key);
+      } finally {
+        try {
+          client.delete(key, null);
+        } catch (RuntimeException e) {
+          getLogger().warn("Failed to delete {}: {}", key, e.getMessage());
+        }
+      }
+    }
+  }
+
+  private static final Set<String> RESTRICTED_HTTP_HEADERS =
+      Set.of("host", "content-length", "connection", "expect", "upgrade");
 
   /**
    * Retrieves the metadata for the specified object for which to retrieve the metadata t
@@ -656,9 +748,9 @@ public class Main {
       Map.of("env", "example", "owner", "multicloudj");
 
   // Single shared async client used by every directory-operation step in this example.
-  // Building two separate clients (sync + async) hits a known impersonated-SA ADC
-  // refresh quirk in google-auth-java where the second client's credentials chain
-  // cannot refresh on its own.
+  // Reusing one client avoids building separate sync + async clients, whose independent
+  // credential chains may not all be able to refresh on their own (for example with
+  // impersonated credentials).
   private static AsyncBucketClient SHARED_ASYNC_CLIENT;
 
   private static synchronized AsyncBucketClient sharedAsyncClient() {
@@ -671,11 +763,10 @@ public class Main {
   /**
    * Uploads the local test directory ({@value #LOCAL_SOURCE_DIRECTORY}) to the bucket
    * under prefix {@value #REMOTE_PREFIX}. This exercises the provider's directory-upload
-   * code path (on GCP, backed by {@code TransferManager.uploadFiles}) and includes the
-   * same set of tags on every file.
+   * code path and includes the same set of tags on every file.
    */
   public static void uploadDirectory() {
-    System.out.println("Using AsyncBucketClient for provider: " + getProvider());
+    getLogger().info("Using AsyncBucketClient for provider: {}", getProvider());
     AsyncBucketClient asyncClient = sharedAsyncClient();
 
     java.nio.file.Path testDir = java.nio.file.Paths.get(LOCAL_SOURCE_DIRECTORY);
@@ -693,23 +784,25 @@ public class Main {
             .build();
 
     try {
-      System.out.println("Calling asyncClient.uploadDirectory() with prefix=" + REMOTE_PREFIX);
+      getLogger().info("Calling asyncClient.uploadDirectory() with prefix={}", REMOTE_PREFIX);
       CompletableFuture<DirectoryUploadResponse> future = asyncClient.uploadDirectory(request);
       DirectoryUploadResponse response = future.get();
 
-      System.out.println(
-          "Directory upload completed; failedTransfers=" + response.getFailedTransfers().size());
+      getLogger()
+          .info(
+              "Directory upload completed; failedTransfers={}",
+              response.getFailedTransfers().size());
 
       if (!response.getFailedTransfers().isEmpty()) {
         response
             .getFailedTransfers()
             .forEach(
                 failure ->
-                    System.out.println(
-                        "Upload failed for "
-                            + failure.getSource()
-                            + ": "
-                            + failure.getException().getMessage()));
+                    getLogger()
+                        .error(
+                            "Upload failed for {}: {}",
+                            failure.getSource(),
+                            failure.getException().getMessage()));
         throw new IllegalStateException(
             "Directory upload produced "
                 + response.getFailedTransfers().size()
@@ -729,17 +822,18 @@ public class Main {
    * to set retention / legal hold.
    */
   public static void uploadDirectoryWithObjectLockAsync() {
-    System.out.println("Using AsyncBucketClient for provider: aws");
-    AsyncBucketClient asyncClient = getAsyncBucketClient("aws");
+    String provider = getProvider();
+    getLogger().info("Using AsyncBucketClient for provider: {}", provider);
+    AsyncBucketClient asyncClient = getAsyncBucketClient(provider);
     try {
       asyncClient.deleteDirectory(REMOTE_PREFIX_OBJECT_LOCK).get();
-      System.out.println("Cleaned existing prefix before upload: " + REMOTE_PREFIX_OBJECT_LOCK);
+      getLogger().info("Cleaned existing prefix before upload: {}", REMOTE_PREFIX_OBJECT_LOCK);
     } catch (Exception e) {
-      System.out.println(
-          "Prefix cleanup skipped/failed (continuing): "
-              + REMOTE_PREFIX_OBJECT_LOCK
-              + " - "
-              + e.getMessage());
+      getLogger()
+          .info(
+              "Prefix cleanup skipped/failed (continuing): {} - {}",
+              REMOTE_PREFIX_OBJECT_LOCK,
+              e.getMessage());
     }
 
     ObjectLockConfiguration objectLock =
@@ -762,19 +856,20 @@ public class Main {
     try {
       CompletableFuture<DirectoryUploadResponse> future = asyncClient.uploadDirectory(request);
       DirectoryUploadResponse response = future.get();
-      System.out.println(
-          "Directory upload (object lock) completed; failedTransfers="
-              + response.getFailedTransfers().size());
+      getLogger()
+          .info(
+              "Directory upload (object lock) completed; failedTransfers={}",
+              response.getFailedTransfers().size());
       if (!response.getFailedTransfers().isEmpty()) {
         response
             .getFailedTransfers()
             .forEach(
                 failure ->
-                    System.out.println(
-                        "Upload failed for "
-                            + failure.getSource()
-                            + ": "
-                            + failure.getException().getMessage()));
+                    getLogger()
+                        .error(
+                            "Upload failed for {}: {}",
+                            failure.getSource(),
+                            failure.getException().getMessage()));
         throw new IllegalStateException(
             "Directory upload with object lock produced "
                 + response.getFailedTransfers().size()
@@ -803,7 +898,7 @@ public class Main {
         throw new IllegalStateException(
             "Tags on " + key + " do not match. expected=" + DIRECTORY_TAGS + " actual=" + actual);
       }
-      System.out.println("Verified uploaded blob " + key + " with tags " + actual);
+      getLogger().info("Verified uploaded blob {} with tags {}", key, actual);
     }
   }
 
@@ -853,8 +948,7 @@ public class Main {
   /**
    * Downloads the prefix {@value #REMOTE_PREFIX} from the bucket into a clean local
    * directory and verifies each file landed with the expected content. This exercises
-   * the provider's directory-download code path (on GCP, backed by
-   * {@code TransferManager.downloadBlobs} with {@code stripPrefix}).
+   * the provider's directory-download code path.
    */
   public static void downloadDirectory() {
     AsyncBucketClient asyncClient = sharedAsyncClient();
@@ -874,20 +968,21 @@ public class Main {
       CompletableFuture<DirectoryDownloadResponse> future = asyncClient.downloadDirectory(request);
       DirectoryDownloadResponse response = future.get();
 
-      System.out.println(
-          "Directory download completed; failedTransfers="
-              + response.getFailedTransfers().size());
+      getLogger()
+          .info(
+              "Directory download completed; failedTransfers={}",
+              response.getFailedTransfers().size());
 
       if (!response.getFailedTransfers().isEmpty()) {
         response
             .getFailedTransfers()
             .forEach(
                 failure ->
-                    System.out.println(
-                        "Download failed for "
-                            + failure.getDestination()
-                            + ": "
-                            + failure.getException().getMessage()));
+                    getLogger()
+                        .error(
+                            "Download failed for {}: {}",
+                            failure.getDestination(),
+                            failure.getException().getMessage()));
         throw new IllegalStateException(
             "Directory download produced "
                 + response.getFailedTransfers().size()
@@ -925,8 +1020,7 @@ public class Main {
                 + actual
                 + "\"");
       }
-      System.out.println(
-          "Verified downloaded file " + localFile + " (" + actual.length() + " bytes)");
+      getLogger().info("Verified downloaded file {} ({} bytes)", localFile, actual.length());
     }
   }
 
@@ -940,7 +1034,7 @@ public class Main {
     try {
       CompletableFuture<Void> future = asyncClient.deleteDirectory(REMOTE_PREFIX);
       future.get();
-      System.out.println("Directory deleted; verifying every uploaded key is gone");
+      getLogger().info("Directory deleted; verifying every uploaded key is gone");
 
       for (String relative : EXPECTED_FILE_CONTENT.keySet()) {
         String key = REMOTE_PREFIX + relative;
@@ -1031,78 +1125,90 @@ public class Main {
     return bucketClient.initiateMultipartUpload(request);
   }
 
-  private static BucketClient getBucketClient(String provider) {
-    // Get configuration from environment variables or system properties
-    String bucketName = System.getProperty("bucket.name", "palsfdc");
-    String region = System.getProperty("bucket.region", System.getenv("BUCKET_REGION"));
-    String endpoint = System.getProperty("bucket.endpoint", System.getenv("BUCKET_ENDPOINT"));
-    String proxyEndpoint =
-        System.getProperty("bucket.proxy.endpoint", System.getenv("BUCKET_PROXY_ENDPOINT"));
+  /**
+   * Returns the session credentials from the {@code SESSION_TOKEN}, {@code
+   * SESSION_ACCESS_KEY_ID} and {@code SESSION_SECRET_ACCESS_KEY} environment variables.
+   * They are read only from the environment, never from examples.properties or system properties,
+   * so secrets are not committed or exposed in process listings. The token is required; the access
+   * key id and secret are optional because some substrates' session credentials consist of the
+   * token alone.
+   */
+  private static StsCredentials getSessionCredentials() {
+    String token = System.getenv("SESSION_TOKEN");
+    if (token == null || token.isBlank()) {
+      throw new IllegalStateException(
+          "Set the SESSION_TOKEN environment variable (and SESSION_ACCESS_KEY_ID /"
+              + " SESSION_SECRET_ACCESS_KEY if the substrate needs them).");
+    }
+    return new StsCredentials(
+        Objects.toString(System.getenv("SESSION_ACCESS_KEY_ID"), ""),
+        Objects.toString(System.getenv("SESSION_SECRET_ACCESS_KEY"), ""),
+        token);
+  }
 
-    if (bucketName == null || bucketName.trim().isEmpty()) {
-      throw new IllegalArgumentException(
-          "Bucket name must be provided via 'bucket.name' system property or 'BUCKET_NAME'"
-              + " environment variable");
+  private static BucketClient getBucketClient(String provider) {
+    return getBucketClient(provider, null);
+  }
+
+  private static BucketClient getBucketClient(String provider, CredentialsOverrider overrider) {
+    // Environment-specific values come from configuration (see examples.properties)
+    String region = AppConfig.getOptional("region");
+    String endpoint = AppConfig.getOptional("endpoint");
+    String proxyEndpoint = AppConfig.getOptional("proxy.endpoint");
+
+    BucketClient.BlobBuilder builder =
+        BucketClient.builder(provider)
+            .withBucket(AppConfig.get("blob.bucket"));
+
+    if (overrider != null) {
+      builder.withCredentialsOverrider(overrider);
     }
 
-    BucketClient.BlobBuilder builder = BucketClient.builder(provider).withBucket(bucketName);
-
-    if (region != null && !region.trim().isEmpty()) {
+    if (region != null) {
       builder.withRegion(region);
     }
 
-    if (endpoint != null && !endpoint.trim().isEmpty()) {
+    if (endpoint != null) {
       builder.withEndpoint(URI.create(endpoint));
     }
 
-    if (proxyEndpoint != null && !proxyEndpoint.trim().isEmpty()) {
+    if (proxyEndpoint != null) {
       builder.withProxyEndpoint(URI.create(proxyEndpoint));
-    }
-
-    // Add credentials if available (for providers that need them)
-    String accessKeyId = System.getenv("AWS_ACCESS_KEY_ID");
-    String secretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY");
-    String sessionToken = System.getenv("AWS_SESSION_TOKEN");
-
-    if (accessKeyId != null && secretAccessKey != null) {
-      StsCredentials credentials = new StsCredentials(accessKeyId, secretAccessKey, sessionToken);
-      CredentialsOverrider credsOverrider =
-          new CredentialsOverrider.Builder(CredentialsType.SESSION)
-              .withSessionCredentials(credentials)
-              .build();
-      builder.withCredentialsOverrider(credsOverrider);
     }
 
     return builder.build();
   }
 
   private static AsyncBucketClient getAsyncBucketClient(String provider) {
-    // Get configuration from environment variables or system properties
-    String bucketName = System.getProperty("bucket.name", System.getenv("BUCKET_NAME"));
-    String region = System.getProperty("bucket.region", System.getenv("BUCKET_REGION"));
-
-    if (bucketName == null || bucketName.trim().isEmpty()) {
-      throw new IllegalArgumentException(
-          "Bucket name must be provided via 'bucket.name' system property or 'BUCKET_NAME'"
-              + " environment variable");
-    }
+    // Environment-specific values come from configuration (see examples.properties)
+    String region = AppConfig.getOptional("region");
+    String endpoint = AppConfig.getOptional("endpoint");
+    String proxyEndpoint = AppConfig.getOptional("proxy.endpoint");
 
     ExecutorService executorService = Executors.newFixedThreadPool(4);
     AsyncBucketClient.Builder builder =
         AsyncBucketClient.builder(provider)
-            .withBucket(bucketName)
+            .withBucket(AppConfig.get("blob.bucket"))
             .withExecutorService(executorService);
 
-    if (region != null && !region.trim().isEmpty()) {
+    if (region != null) {
       builder.withRegion(region);
+    }
+
+    if (endpoint != null) {
+      builder.withEndpoint(URI.create(endpoint));
+    }
+
+    if (proxyEndpoint != null) {
+      builder.withProxyEndpoint(URI.create(proxyEndpoint));
     }
 
     return builder.build();
   }
 
   private static String getProvider() {
-    // Change this to test different providers
-    return "gcp"; // or "aws" or "ali"
+    // Never hardcode the provider id; resolve it from configuration (see examples.properties)
+    return AppConfig.provider();
   }
 
   private static InputStream getInputStream() {
@@ -1131,55 +1237,72 @@ public class Main {
             file, entry.getValue().getBytes(java.nio.charset.StandardCharsets.UTF_8));
       }
 
-      System.out.println("Test directory created at: " + testDir);
+      getLogger().info("Test directory created at: {}", testDir);
     } catch (Exception e) {
       throw new RuntimeException("Failed to create test directory: " + e.getMessage(), e);
     }
+  }
+
+  private static void runPresignWithSessionCredentials() {
+    getLogger().info("=== TESTING PRESIGN WITH SESSION CREDENTIALS ===");
+    getLogger().info("Provider: {}", getProvider());
+    boolean success = false;
+    try {
+      presignWithSessionCredentials();
+      success = true;
+      getLogger().info("presignWithSessionCredentials: PASS");
+    } catch (Exception e) {
+      getLogger().error("presignWithSessionCredentials: FAIL: {}", e.getMessage(), e);
+    }
+    System.exit(success ? 0 : 1);
   }
 
   /**
    * Walks through an upload/verify + download/verify + delete/verify cycle against the
    * configured provider. Each step throws on failure so that the overall script exits
    * non-zero if any assertion is violated, giving a clear pass/fail signal for the
-   * directory-operation code paths (e.g. the GCP {@code TransferManager} integration).
+   * directory-operation code paths.
    *
-   * <p>Uses {@link System#out} directly (in addition to the SLF4J logger) so that progress
-   * is visible when the example is launched via {@code mvn exec:java} where no SLF4J
-   * provider is configured in the examples classpath.
+   * <p>Pass {@code presign-session} as the first argument to run only the session-credentials
+   * presign check ({@link #presignWithSessionCredentials()}) instead.
    */
   public static void main(String[] args) {
-    System.out.println("=== STARTING DIRECTORY OPERATIONS TEST ===");
-    System.out.println("Provider: " + getProvider());
+    if (args.length > 0 && "presign-session".equals(args[0])) {
+      runPresignWithSessionCredentials();
+      return;
+    }
+
+    getLogger().info("=== STARTING DIRECTORY OPERATIONS TEST ===");
+    getLogger().info("Provider: {}", getProvider());
 
     boolean success = false;
     try {
-      System.out.println("=== Test Archived ===");
+      getLogger().info("=== Test Archived ===");
       downloadArchivedBlob();
 
-      System.out.println("=== Creating Test Directory ===");
+      getLogger().info("=== Creating Test Directory ===");
       createTestDirectory();
 
-      System.out.println("=== Testing Directory Upload (with tags) ===");
+      getLogger().info("=== Testing Directory Upload (with tags) ===");
       uploadDirectory();
-      System.out.println("uploadDirectory: PASS");
+      getLogger().info("uploadDirectory: PASS");
 
-      System.out.println("=== Testing Directory Upload (with object lock) ===");
+      getLogger().info("=== Testing Directory Upload (with object lock) ===");
       uploadDirectoryWithObjectLockAsync();
-      System.out.println("uploadDirectoryWithObjectLockAsync: PASS");
+      getLogger().info("uploadDirectoryWithObjectLockAsync: PASS");
 
-      System.out.println("=== Testing Directory Download (with content verification) ===");
+      getLogger().info("=== Testing Directory Download (with content verification) ===");
       downloadDirectory();
-      System.out.println("downloadDirectory: PASS");
+      getLogger().info("downloadDirectory: PASS");
 
-      System.out.println("=== Testing Directory Delete (with existence verification) ===");
+      getLogger().info("=== Testing Directory Delete (with existence verification) ===");
       deleteDirectory();
-      System.out.println("deleteDirectory: PASS");
+      getLogger().info("deleteDirectory: PASS");
 
       success = true;
-      System.out.println("=== ALL DIRECTORY OPERATIONS TESTS PASSED ===");
+      getLogger().info("=== ALL DIRECTORY OPERATIONS TESTS PASSED ===");
     } catch (Exception e) {
-      System.out.println("Directory operations test FAILED: " + e.getMessage());
-      e.printStackTrace(System.out);
+      getLogger().error("Directory operations test FAILED: {}", e.getMessage(), e);
     } finally {
       // Always clean up local temp directories so repeated runs start clean.
       safeDeleteLocalDirectory(java.nio.file.Paths.get(LOCAL_SOURCE_DIRECTORY));

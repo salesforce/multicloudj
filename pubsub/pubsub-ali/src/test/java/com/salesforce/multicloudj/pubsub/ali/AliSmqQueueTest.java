@@ -478,7 +478,7 @@ public class AliSmqQueueTest {
     int totalSent = 0;
     for (List<com.aliyun.mns.model.Message> subBatch : subBatches) {
       // Every sub-batch handed to SMQ stays within the per-request byte limit.
-      assertTrue(wireSize(subBatch) <= AliBaseTopic.MAX_BATCH_BYTE_SIZE);
+      assertTrue(wireSize(subBatch) <= AliBaseTopic.MAX_REQUEST_BYTE_SIZE);
       totalSent += subBatch.size();
     }
     // No message is dropped by the split: all three are published across the sub-batches.
