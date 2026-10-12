@@ -554,26 +554,42 @@ public class AwsDocStoreTest {
   }
 
   @Test
-  void testOptionalReadConsistency() {
+  void testCollectionReadConsistency() {
     when(mockedDDBClient.batchGetItem(any(BatchGetItemRequest.class)))
         .thenReturn(BatchGetItemResponse.builder().build());
-    TestClient client = new TestClient(docStore);
     for (Boolean consistentRead : new Boolean[] {null, false, true}) {
-      client.get(new Document(book), consistentRead, "title");
-      client.batchGet(List.of(new Document(book)), consistentRead);
+      CollectionOptions options =
+          new CollectionOptions.CollectionOptionsBuilder()
+              .withTableName(collectionOptions.getTableName())
+              .withPartitionKey("title")
+              .withSortKey("publisher")
+              .withConsistentRead(consistentRead)
+              .build();
+      try (AwsDocStore store =
+          new AwsDocStore.Builder()
+              .withRegion("us-east-1")
+              .withCollectionOptions(options)
+              .withDDBClient(mockedDDBClient)
+              .build()) {
+        TestClient client = new TestClient(store);
+        client.get(new Document(book), "title");
+        client.batchGet(List.of(new Document(book)));
+        client.getActions().get(new Document(book)).run();
+      }
     }
-    client.get(new Document(book));
-    client.batchGet(List.of(new Document(book)));
+    TestClient defaultClient = new TestClient(docStore);
+    defaultClient.get(new Document(book));
+    defaultClient.batchGet(List.of(new Document(book)));
 
     ArgumentCaptor<BatchGetItemRequest> requests =
         ArgumentCaptor.forClass(BatchGetItemRequest.class);
-    verify(mockedDDBClient, times(8)).batchGetItem(requests.capture());
+    verify(mockedDDBClient, times(11)).batchGetItem(requests.capture());
     for (int i = 0; i < requests.getAllValues().size(); i++) {
       var read =
           requests.getAllValues().get(i).requestItems().get(collectionOptions.getTableName());
-      Assertions.assertEquals(i == 4 || i == 5, read.consistentRead());
+      Assertions.assertEquals(i >= 6 && i < 9, read.consistentRead());
       Assertions.assertEquals("YellowBook", read.keys().get(0).get("title").s());
-      if (i < 6 && i % 2 == 0) {
+      if (i < 9 && i % 3 == 0) {
         Assertions.assertTrue(read.expressionAttributeNames().containsValue("title"));
       }
     }

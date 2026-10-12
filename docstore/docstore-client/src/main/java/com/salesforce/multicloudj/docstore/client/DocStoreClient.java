@@ -195,23 +195,6 @@ public class DocStoreClient {
   }
 
   /**
-   * Retrieves a document with optional read consistency.
-   *
-   * @param document the document to retrieve, must have a valid key. The result will be stored in
-   *     this document
-   * @param consistentRead true for a strongly consistent read; false or null for the default
-   * @param fieldPath optional field paths to retrieve specific fields only. If not provided, all
-   *     fields are retrieved
-   */
-  public void get(Document document, Boolean consistentRead, String... fieldPath) {
-    try {
-      docStore.batchGet(List.of(document), consistentRead, fieldPath);
-    } catch (Throwable t) {
-      throw docStore.mapException(t);
-    }
-  }
-
-  /**
    * Updates specific fields of an existing document in the document store. This operation is not
    * yet supported and will throw an UnSupportedOperationException.
    *
@@ -236,22 +219,6 @@ public class DocStoreClient {
       actionList.get(document);
     }
     actionList.run();
-  }
-
-  /**
-   * Retrieves multiple documents with optional read consistency. The batch is not an atomic
-   * snapshot.
-   *
-   * @param documents the list of documents to retrieve, each must have a valid key. Results will
-   *     be stored in these documents
-   * @param consistentRead true for strongly consistent reads; false or null for the default
-   */
-  public void batchGet(List<Document> documents, Boolean consistentRead) {
-    try {
-      docStore.batchGet(documents, consistentRead);
-    } catch (Throwable t) {
-      throw docStore.mapException(t);
-    }
   }
 
   /**

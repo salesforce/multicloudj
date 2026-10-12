@@ -3,7 +3,6 @@ package com.salesforce.multicloudj.docstore.client;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
@@ -108,17 +107,6 @@ public class DocStoreClientTest {
     when(mockDocStore.getActions()).thenReturn(actionList);
     mockClient.get(doc, "path");
     Assertions.assertEquals(1, actionList.getActions().size());
-  }
-
-  @Test
-  void testOptionalReadConsistency() {
-    Document doc = mock(Document.class);
-    for (Boolean consistentRead : new Boolean[] {null, false, true}) {
-      mockClient.get(doc, consistentRead, "path");
-      mockClient.batchGet(List.of(doc), consistentRead);
-      verify(mockDocStore).batchGet(List.of(doc), consistentRead, "path");
-      verify(mockDocStore).batchGet(List.of(doc), consistentRead);
-    }
   }
 
   @Test
