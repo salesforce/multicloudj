@@ -831,10 +831,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
    * wire-transfer benefit of asking for fewer fields.
    */
   @Benchmark
-  @Threads(4)
+  @Threads(1)
   public void benchmarkGetWithProjection(Blackhole bh) {
     try {
-      String key = smallPlayerKeys.get(ThreadLocalRandom.current().nextInt(smallPlayerKeys.size()));
+      String key = largePlayerKeys.get(ThreadLocalRandom.current().nextInt(largePlayerKeys.size()));
       Player getPlayer = new Player();
       getPlayer.setPName(key);
       Document doc = new Document(getPlayer);
