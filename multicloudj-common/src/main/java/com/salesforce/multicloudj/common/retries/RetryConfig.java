@@ -18,6 +18,9 @@ import lombok.Getter;
  *   <li><b>FIXED</b>: Constant delay between retries using {@code fixedDelayMillis}
  * </ul>
  *
+ * <p>The configured delays are base values. A provider may add random jitter to each delay and
+ * grow later delays from the jittered values, so actual delays can be longer than the formula.
+ *
  * <p>Example usage:
  *
  * <pre>{@code
@@ -47,7 +50,8 @@ public final class RetryConfig {
   public enum Mode {
     /**
      * Exponential backoff mode where delay grows exponentially between retries. Uses formula:
-     * {@code delay = min(maxDelayMillis, initialDelayMillis * multiplier^(attempt-1))}
+     * {@code delay = min(maxDelayMillis, initialDelayMillis * multiplier^(attempt-1))}. The
+     * formula gives the base delay; provider jitter can make actual delays longer.
      *
      * <p>Requires: {@code initialDelayMillis}, {@code multiplier}, {@code maxDelayMillis}
      */
