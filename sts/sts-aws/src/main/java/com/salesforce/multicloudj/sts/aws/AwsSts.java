@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.AwsRetryClassifier;
+import com.salesforce.multicloudj.common.aws.AwsRetryStrategies;
 import com.salesforce.multicloudj.common.aws.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -58,6 +59,12 @@ public class AwsSts extends AbstractSts {
         || builder.getUseSystemPropertyProxyValues() != null
         || builder.getUseEnvironmentVariableProxyValues() != null) {
       sb = sb.httpClient(buildHttpClient(builder));
+    }
+
+    if (builder.getRetryConfig() != null) {
+      sb =
+          sb.overrideConfiguration(
+              config -> AwsRetryStrategies.applyRetryConfig(config, builder.getRetryConfig()));
     }
 
     this.stsClient = sb.build();

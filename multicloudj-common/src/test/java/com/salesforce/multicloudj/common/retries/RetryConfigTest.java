@@ -1,9 +1,12 @@
 package com.salesforce.multicloudj.common.retries;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import org.junit.jupiter.api.Test;
 
 class RetryConfigTest {
@@ -102,5 +105,107 @@ class RetryConfigTest {
     assertEquals(2, RetryConfig.Mode.values().length);
     assertEquals(RetryConfig.Mode.EXPONENTIAL, RetryConfig.Mode.valueOf("EXPONENTIAL"));
     assertEquals(RetryConfig.Mode.FIXED, RetryConfig.Mode.valueOf("FIXED"));
+  }
+
+  private static void assertInvalid(RetryConfig config, String message) {
+    InvalidArgumentException e = assertThrows(InvalidArgumentException.class, config::validate);
+    assertEquals(message, e.getMessage());
+  }
+
+  @Test
+  void validate_acceptsValidConfigs() {
+    assertDoesNotThrow(() -> RetryConfig.builder().build().validate());
+    assertDoesNotThrow(
+        () ->
+            RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(1)
+                .initialDelayMillis(100L)
+                .maxDelayMillis(100L)
+                .multiplier(1.0)
+                .attemptTimeout(1L)
+                .totalTimeout(1L)
+                .build()
+                .validate());
+    assertDoesNotThrow(
+        () ->
+            RetryConfig.builder()
+                .mode(RetryConfig.Mode.FIXED)
+                .fixedDelayMillis(50L)
+                .build()
+                .validate());
+  }
+
+  @Test
+  void validate_rejectsNonPositiveMaxAttempts() {
+    assertInvalid(
+        RetryConfig.builder().maxAttempts(0).build(),
+        "RetryConfig.maxAttempts must be greater than 0, got: 0");
+    assertInvalid(
+        RetryConfig.builder().maxAttempts(-1).build(),
+        "RetryConfig.maxAttempts must be greater than 0, got: -1");
+  }
+
+  @Test
+  void validate_rejectsNonPositiveExponentialInitialDelay() {
+    assertInvalid(
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .initialDelayMillis(0L)
+            .maxDelayMillis(5000L)
+            .build(),
+        "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0");
+  }
+
+  @Test
+  void validate_rejectsNonPositiveExponentialMaxDelay() {
+    assertInvalid(
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .initialDelayMillis(100L)
+            .maxDelayMillis(0L)
+            .build(),
+        "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0");
+  }
+
+  @Test
+  void validate_rejectsExponentialMultiplierBelowOne() {
+    assertInvalid(
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .initialDelayMillis(100L)
+            .maxDelayMillis(5000L)
+            .multiplier(0.5)
+            .build(),
+        "RetryConfig.multiplier must be at least 1 for EXPONENTIAL mode, got: 0.5");
+  }
+
+  @Test
+  void validate_rejectsExponentialMaxDelayBelowInitialDelay() {
+    assertInvalid(
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .initialDelayMillis(500L)
+            .maxDelayMillis(100L)
+            .build(),
+        "RetryConfig.maxDelayMillis must not be less than initialDelayMillis for EXPONENTIAL"
+            + " mode, got maxDelayMillis: 100, initialDelayMillis: 500");
+  }
+
+  @Test
+  void validate_rejectsNonPositiveFixedDelay() {
+    assertInvalid(
+        RetryConfig.builder().mode(RetryConfig.Mode.FIXED).fixedDelayMillis(0L).build(),
+        "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: 0");
+  }
+
+  @Test
+  void validate_rejectsNonPositiveTimeouts() {
+    assertInvalid(
+        RetryConfig.builder().attemptTimeout(0L).build(),
+        "RetryConfig.attemptTimeout must be greater than 0, got: 0");
+    assertInvalid(
+        RetryConfig.builder().totalTimeout(-1L).build(),
+        "RetryConfig.totalTimeout must be greater than 0, got: -1");
   }
 }

@@ -30,6 +30,7 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
+import com.salesforce.multicloudj.common.aws.AwsRetryStrategies;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
@@ -41,7 +42,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
@@ -759,21 +759,8 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
         b.httpClient(generateHttpClient(builder));
       }
       if (builder.getRetryConfig() != null) {
-        // Create a temporary transformer instance for retry strategy conversion
-        AwsTransformer transformer = builder.getTransformerSupplier().get(builder.getBucket());
         b.overrideConfiguration(
-            config -> {
-              config.retryStrategy(transformer.toAwsRetryStrategy(builder.getRetryConfig()));
-              // Set API call timeouts if provided
-              if (builder.getRetryConfig().getAttemptTimeout() != null) {
-                config.apiCallAttemptTimeout(
-                    Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout()));
-              }
-              if (builder.getRetryConfig().getTotalTimeout() != null) {
-                config.apiCallTimeout(
-                    Duration.ofMillis(builder.getRetryConfig().getTotalTimeout()));
-              }
-            });
+            config -> AwsRetryStrategies.applyRetryConfig(config, builder.getRetryConfig()));
       }
 
       return b.build();

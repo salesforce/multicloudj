@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.driver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -16,6 +17,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -96,6 +98,15 @@ public class AbstractBlobStoreTest {
     assertEquals("secret-1", sessionCreds.getAccessKeySecret());
     assertEquals("token-1", sessionCreds.getSecurityToken());
     assertNotNull(blobStore.validator);
+  }
+
+  @Test
+  void testBuilderRejectsInvalidRetryConfig() {
+    RetryConfig invalid = RetryConfig.builder().maxAttempts(0).build();
+    TestBlobStore.Builder builder = new TestBlobStore.Builder();
+
+    assertThrows(InvalidArgumentException.class, () -> builder.withRetryConfig(invalid));
+    assertNull(builder.withRetryConfig(null).getRetryConfig());
   }
 
   private UploadRequest getTestUploadRequest() {
