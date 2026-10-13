@@ -639,6 +639,10 @@ public class GcpTransformer {
    * RetrySettings. Fields not set in {@code retryConfig} keep the GCS client defaults, except an
    * unset totalTimeout, which means no total time limit.
    *
+   * <p>attemptTimeout is mapped to the RPC timeout, which the GCS client applies only on the gRPC
+   * transport. On the HTTP/JSON transport the GCS client ignores it, so attemptTimeout has no
+   * effect there.
+   *
    * @param retryConfig The retry configuration to convert
    * @return GCP RetrySettings
    * @throws InvalidArgumentException if retryConfig is null
