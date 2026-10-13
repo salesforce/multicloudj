@@ -761,15 +761,14 @@ public abstract class AbstractDocstoreBenchmarkTest {
   }
 
   /**
-   * Get with field projection — partial-field read. Each provider implements projection
-   * differently (DynamoDB ProjectionExpression, Firestore DocumentMask), so this quantifies the
-   * wire-transfer benefit of asking for fewer fields.
+   * Two-field projection of the large (~100 KB) Player; compare with benchmarkGetLarge, which
+   * shares its keys and thread count, to see the wire-transfer saved by asking for fewer fields.
    */
   @Benchmark
-  @Threads(4)
+  @Threads(1)
   public void benchmarkGetWithProjection(Blackhole bh) {
     try {
-      String key = smallPlayerKeys.get(ThreadLocalRandom.current().nextInt(smallPlayerKeys.size()));
+      String key = largePlayerKeys.get(ThreadLocalRandom.current().nextInt(largePlayerKeys.size()));
       Player getPlayer = new Player();
       getPlayer.setPName(key);
       Document doc = new Document(getPlayer);
