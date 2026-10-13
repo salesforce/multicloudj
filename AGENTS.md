@@ -93,6 +93,13 @@ g. mvn test -pl blob/blob-aws -Dtest=AwsBlobStoreIT -Drecord
     - record mode: with `-Drecord` and the credentials are supplied. This mode uses wiremock as a forward proxy and record all the http transactions as request/response
     - replay mode: default mode with no credentials required. This mode uses wiremock as a forward proxy and replays the previously recorded responses by record mode.
 
+### Unit Test Scope and Review
+
+- Add unit tests only for production behavior changed by the PR. Do not add unrelated tests.
+- Check existing coverage before adding tests, and extend it where appropriate instead of
+  duplicating tests for unchanged behavior.
+- Review every unit test added or modified to ensure its assertions verify the relevant change.
+
 ### Do Not Test the Test Code
 
 Tests cover production code only. Never add tests whose subject is itself test or
@@ -176,6 +183,8 @@ the PR, the previous version of the file, or the conversation that produced the 
 
 - Explain what the code does and why it is written that way: invariants, non-obvious
   constraints, cloud SDK behavior being accommodated, and edge cases being handled.
+- Do not add comments to code sections that are otherwise unchanged in the PR, even when
+  another section of the same file is modified.
 - Do not describe the change itself. Avoid comments such as "now uses X instead of Y",
   "changed to fix ...", "previously this ...", "added for the new ...", "moved from ...",
   or "no longer ...". Code that has been removed or replaced is not relevant to a new reader.

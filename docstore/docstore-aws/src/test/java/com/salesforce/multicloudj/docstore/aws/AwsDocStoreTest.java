@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.docstore.aws;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -543,6 +544,41 @@ public class AwsDocStoreTest {
 
     when(mockResponse.responses()).thenReturn(responses);
     Assertions.assertDoesNotThrow(() -> docStore.batchGet(gets, null, 0, 0));
+  }
+
+  @Test
+  void testBatchGetUsesConfiguredReadConsistency() {
+    when(mockedDDBClient.batchGetItem(any(BatchGetItemRequest.class)))
+        .thenReturn(BatchGetItemResponse.builder().build());
+    TestAction get = new TestAction(ActionKind.ACTION_KIND_GET, new Document(book), null, null);
+    get.setKey("partitionKey:YellowBook,sortKey:WA");
+    for (boolean consistentRead : new boolean[] {false, true}) {
+      CollectionOptions options =
+          new CollectionOptions.CollectionOptionsBuilder()
+              .withTableName(collectionOptions.getTableName())
+              .withPartitionKey("title")
+              .withSortKey("publisher")
+              .withConsistentRead(consistentRead)
+              .build();
+      try (AwsDocStore store =
+          new AwsDocStore.Builder()
+              .withRegion("us-east-1")
+              .withCollectionOptions(options)
+              .withDDBClient(mockedDDBClient)
+              .build()) {
+        store.batchGet(List.of(get), null, 0, 0);
+      }
+    }
+    ArgumentCaptor<BatchGetItemRequest> requests =
+        ArgumentCaptor.forClass(BatchGetItemRequest.class);
+    verify(mockedDDBClient, times(2)).batchGetItem(requests.capture());
+    Assertions.assertEquals(
+        List.of(false, true),
+        requests.getAllValues().stream()
+            .map(
+                request ->
+                    request.requestItems().get(collectionOptions.getTableName()).consistentRead())
+            .toList());
   }
 
   @Test

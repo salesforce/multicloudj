@@ -17,5 +17,19 @@ public class CollectionOptionsTest {
             .build();
 
     Assertions.assertEquals("table", collectionOptions.getTableName());
+    Assertions.assertFalse(collectionOptions.isConsistentRead());
+  }
+
+  @Test
+  void testConsistentReadOption() {
+    Assertions.assertTrue(
+        new CollectionOptions.CollectionOptionsBuilder().withConsistentRead(true).build()
+            .isConsistentRead());
+    Assertions.assertFalse(
+        new CollectionOptions.CollectionOptionsBuilder().withConsistentRead(false).build()
+            .isConsistentRead());
+    Assertions.assertFalse(
+        new CollectionOptions.CollectionOptionsBuilder().withConsistentRead(null).build()
+            .isConsistentRead());
   }
 }
