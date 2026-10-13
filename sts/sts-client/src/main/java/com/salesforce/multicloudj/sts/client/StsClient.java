@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.sts.client;
 import com.google.common.collect.ImmutableSet;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
@@ -228,6 +229,17 @@ public class StsClient {
     public StsBuilder withUseEnvironmentVariableProxyValues(
         Boolean useEnvironmentVariableProxyValues) {
       this.stsBuilder.withUseEnvironmentVariableProxyValues(useEnvironmentVariableProxyValues);
+      return this;
+    }
+
+    /**
+     * Sets the retry configuration applied to every request the STS client makes.
+     *
+     * @param retryConfig The retry configuration, or null to use the provider's defaults.
+     * @return This StsBuilder instance.
+     */
+    public StsBuilder withRetryConfig(RetryConfig retryConfig) {
+      this.stsBuilder.withRetryConfig(retryConfig);
       return this;
     }
 

@@ -1,6 +1,8 @@
 package com.salesforce.multicloudj.sts.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.provider.Provider;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
@@ -142,6 +144,7 @@ public abstract class AbstractSts implements Provider {
     @Getter protected URI proxyEndpoint;
     @Getter protected Boolean useSystemPropertyProxyValues;
     @Getter protected Boolean useEnvironmentVariableProxyValues;
+    @Getter protected RetryConfig retryConfig;
     protected String providerId;
 
     /**
@@ -203,6 +206,23 @@ public abstract class AbstractSts implements Provider {
     public T withUseEnvironmentVariableProxyValues(
         Boolean useEnvironmentVariableProxyValues) {
       this.useEnvironmentVariableProxyValues = useEnvironmentVariableProxyValues;
+      return self();
+    }
+
+    /**
+     * Sets the retry configuration applied to every request the STS client makes. When not set,
+     * the provider's default retry behavior is used.
+     *
+     * @param retryConfig The retry configuration, or null to use the provider's defaults.
+     * @return This Builder instance.
+     * @throws InvalidArgumentException if the configuration has non-positive attempts, delays, or
+     *     timeouts for the selected mode.
+     */
+    public T withRetryConfig(RetryConfig retryConfig) {
+      if (retryConfig != null) {
+        retryConfig.validate();
+      }
+      this.retryConfig = retryConfig;
       return self();
     }
 

@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.sts.ali;
 
+import com.aliyuncs.AcsRequest;
 import com.aliyuncs.DefaultAcsClient;
 import com.aliyuncs.IAcsClient;
 import com.aliyuncs.auth.AlibabaCloudCredentialsProvider;
@@ -7,6 +8,9 @@ import com.aliyuncs.auth.BasicSessionCredentials;
 import com.aliyuncs.auth.DefaultCredentialsProvider;
 import com.aliyuncs.exceptions.ClientException;
 import com.aliyuncs.http.HttpClientConfig;
+import com.aliyuncs.policy.retry.RetryPolicy;
+import com.aliyuncs.policy.retry.RetryPolicyContext;
+import com.aliyuncs.policy.retry.backoff.BackoffStrategy;
 import com.aliyuncs.profile.DefaultProfile;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleRequest;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleResponse;
@@ -23,6 +27,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
@@ -35,6 +40,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -44,6 +50,13 @@ public class AliSts extends AbstractSts {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private IAcsClient stsClient;
+
+  private static final int DEFAULT_MAX_ATTEMPTS = 3;
+
+  private RetryPolicy retryPolicy;
+
+  /** Per-request connect and read timeout derived from RetryConfig.attemptTimeout, or null. */
+  private Integer attemptTimeoutMillis;
 
   public AliSts(Builder builder) {
     super(builder);
@@ -55,7 +68,8 @@ public class AliSts extends AbstractSts {
       clientProfile = DefaultProfile.getProfile(builder.getRegion());
     }
 
-    // Configure proxy if any proxy settings are provided
+    // Configure the HTTP client if any proxy settings are provided
+    RetryConfig retryConfig = builder.getRetryConfig();
     if (builder.getProxyEndpoint() != null
         || builder.getUseSystemPropertyProxyValues() != null
         || builder.getUseEnvironmentVariableProxyValues() != null) {
@@ -77,15 +91,112 @@ public class AliSts extends AbstractSts {
     // per request across system properties, env vars (long-term AK/SK), OIDC/RRSA (re-reads the
     // token file), profile file, and ECS instance RAM role.
     this.stsClient = new DefaultAcsClient(clientProfile, buildCredentialsProvider());
+    this.retryPolicy = retryConfig != null ? toRetryPolicy(retryConfig) : null;
+    this.attemptTimeoutMillis = toAttemptTimeoutMillis(retryConfig);
   }
 
   public AliSts(Builder builder, IAcsClient stsClient) {
     super(builder);
+    RetryConfig retryConfig = builder.getRetryConfig();
     this.stsClient = stsClient;
+    this.retryPolicy = retryConfig != null ? toRetryPolicy(retryConfig) : null;
+    this.attemptTimeoutMillis = toAttemptTimeoutMillis(retryConfig);
   }
 
   public AliSts() {
     super(new Builder());
+  }
+
+  /**
+   * Translates a RetryConfig into the SDK's RetryPolicy. The SDK otherwise defaults to no retries.
+   * Unset maxAttempts defaults to 3 attempts; other unset fields keep the SDK's RetryPolicy
+   * builder defaults.
+   *
+   * <p>The SDK stops retrying when a computed delay exceeds {@code maxDelayTimeMillis}, so that
+   * limit is set to the largest delay the configured mode can produce.
+   *
+   * <p>RetryConfig.totalTimeout is not applied: the SDK's retry loop has no deadline across
+   * attempts.
+   */
+  static RetryPolicy toRetryPolicy(RetryConfig retryConfig) {
+    RetryPolicy.Builder policy = RetryPolicy.builder();
+    // The SDK always makes the initial attempt, then up to maxNumberOfRetries more. The default is
+    // 3 total attempts.
+    int maxAttempts =
+        retryConfig.getMaxAttempts() != null ? retryConfig.getMaxAttempts() : DEFAULT_MAX_ATTEMPTS;
+    policy.maxNumberOfRetries(maxAttempts - 1);
+    if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
+      policy.backoffStrategy(new RetryConfigBackoffStrategy(retryConfig));
+      policy.maxDelayTimeMillis(toIntMillis(retryConfig.getMaxDelayMillis()));
+    } else if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
+      policy.backoffStrategy(new RetryConfigBackoffStrategy(retryConfig));
+      policy.maxDelayTimeMillis(toIntMillis(retryConfig.getFixedDelayMillis()));
+    }
+    return policy.build();
+  }
+
+  /**
+   * Upper bound of the delay before the given retry (1 for the first retry). EXPONENTIAL grows as
+   * {@code initialDelayMillis * multiplier^(retry-1)} capped at maxDelayMillis, with the multiplier
+   * defaulting to 2.0 when unset.
+   */
+  static long retryDelayMillis(RetryConfig retryConfig, int retryNumber) {
+    if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
+      return retryConfig.getFixedDelayMillis();
+    }
+    double multiplier = retryConfig.getMultiplier() > 0 ? retryConfig.getMultiplier() : 2.0;
+    double delay =
+        retryConfig.getInitialDelayMillis() * Math.pow(multiplier, Math.max(0, retryNumber - 1));
+    return (long) Math.min(retryConfig.getMaxDelayMillis(), delay);
+  }
+
+  private static Integer toAttemptTimeoutMillis(RetryConfig retryConfig) {
+    if (retryConfig == null || retryConfig.getAttemptTimeout() == null) {
+      return null;
+    }
+    return toIntMillis(retryConfig.getAttemptTimeout());
+  }
+
+  /**
+   * Applies the retry policy and per-attempt timeouts to a single request. The SDK's HTTP client
+   * is a JVM-wide singleton initialized once from the first HttpClientConfig, so settings carried
+   * there cannot be relied on; request-level settings are honored on every call. The wait for a
+   * pooled connection is governed only by that shared client configuration and is not capped by
+   * attemptTimeout.
+   */
+  private void applyRetryConfig(AcsRequest<?> request) {
+    if (retryPolicy == null) {
+      return;
+    }
+    request.setSysRetryPolicy(retryPolicy);
+    if (attemptTimeoutMillis != null) {
+      request.setSysConnectTimeout(attemptTimeoutMillis);
+      request.setSysReadTimeout(attemptTimeoutMillis);
+    }
+  }
+
+  private static int toIntMillis(long millis) {
+    return (int) Math.min(millis, Integer.MAX_VALUE);
+  }
+
+  private static final class RetryConfigBackoffStrategy extends BackoffStrategy {
+    private final RetryConfig retryConfig;
+
+    RetryConfigBackoffStrategy(RetryConfig retryConfig) {
+      this.retryConfig = retryConfig;
+    }
+
+    @Override
+    public int computeDelayBeforeNextRetry(RetryPolicyContext context) {
+      long delay = retryDelayMillis(retryConfig, context.retriesAttempted());
+      if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
+        // Equal jitter: wait between half and all of the computed delay so clients that failed
+        // together do not retry in lockstep. The result never exceeds the computed delay, so the
+        // SDK's maxDelayTimeMillis stop condition is unaffected.
+        delay = delay / 2 + ThreadLocalRandom.current().nextLong(delay / 2 + 1);
+      }
+      return toIntMillis(delay);
+    }
   }
 
   /**
@@ -208,6 +319,7 @@ public class AliSts extends AbstractSts {
       roleRequest.setPolicy(convertToRamPolicy(request.getCredentialScope()));
     }
 
+    applyRetryConfig(roleRequest);
     try {
       AssumeRoleResponse response = stsClient.getAcsResponse(roleRequest);
       AssumeRoleResponse.Credentials credentials = response.getCredentials();
@@ -365,6 +477,7 @@ public class AliSts extends AbstractSts {
   protected CallerIdentity getCallerIdentityFromProvider(
       com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest request) {
     GetCallerIdentityRequest callerIdentityRequest = new GetCallerIdentityRequest();
+    applyRetryConfig(callerIdentityRequest);
     try {
       GetCallerIdentityResponse response = stsClient.getAcsResponse(callerIdentityRequest);
       return new CallerIdentity(
@@ -425,6 +538,7 @@ public class AliSts extends AbstractSts {
       oidcRequest.setDurationSeconds((long) request.getExpiration());
     }
 
+    applyRetryConfig(oidcRequest);
     try {
       AssumeRoleWithOIDCResponse response = stsClient.getAcsResponse(oidcRequest);
       AssumeRoleWithOIDCResponse.Credentials credentials = response.getCredentials();

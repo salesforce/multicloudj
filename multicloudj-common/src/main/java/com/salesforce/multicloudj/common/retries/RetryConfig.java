@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.common.retries;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -108,4 +109,55 @@ public final class RetryConfig {
    * reached. If null, no total timeout limit is applied.
    */
   private final Long totalTimeout;
+
+  /**
+   * Checks that the configuration is internally consistent: attempts, delays, and timeouts are
+   * positive when set, and the EXPONENTIAL multiplier and delay cap do not shrink the delay. The
+   * values themselves are not range-limited, so each service can tune them for its own workload.
+   *
+   * @throws InvalidArgumentException if any value is invalid for the selected mode
+   */
+  public void validate() {
+    if (maxAttempts != null && maxAttempts <= 0) {
+      throw new InvalidArgumentException(
+          "RetryConfig.maxAttempts must be greater than 0, got: " + maxAttempts);
+    }
+    if (mode == Mode.EXPONENTIAL) {
+      if (initialDelayMillis <= 0) {
+        throw new InvalidArgumentException(
+            "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
+                + initialDelayMillis);
+      }
+      if (maxDelayMillis <= 0) {
+        throw new InvalidArgumentException(
+            "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
+                + maxDelayMillis);
+      }
+      // 0 means unset, in which case the provider's default multiplier applies.
+      if (multiplier != 0 && multiplier < 1) {
+        throw new InvalidArgumentException(
+            "RetryConfig.multiplier must be at least 1 for EXPONENTIAL mode, got: " + multiplier);
+      }
+      if (maxDelayMillis < initialDelayMillis) {
+        throw new InvalidArgumentException(
+            "RetryConfig.maxDelayMillis must not be less than initialDelayMillis for EXPONENTIAL"
+                + " mode, got maxDelayMillis: "
+                + maxDelayMillis
+                + ", initialDelayMillis: "
+                + initialDelayMillis);
+      }
+    } else if (mode == Mode.FIXED && fixedDelayMillis <= 0) {
+      throw new InvalidArgumentException(
+          "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: "
+              + fixedDelayMillis);
+    }
+    if (attemptTimeout != null && attemptTimeout <= 0) {
+      throw new InvalidArgumentException(
+          "RetryConfig.attemptTimeout must be greater than 0, got: " + attemptTimeout);
+    }
+    if (totalTimeout != null && totalTimeout <= 0) {
+      throw new InvalidArgumentException(
+          "RetryConfig.totalTimeout must be greater than 0, got: " + totalTimeout);
+    }
+  }
 }
