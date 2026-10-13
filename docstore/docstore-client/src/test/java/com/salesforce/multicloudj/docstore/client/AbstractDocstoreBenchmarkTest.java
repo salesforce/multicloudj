@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.BenchmarkParams;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.results.format.ResultFormatType;
 import org.openjdk.jmh.runner.Runner;
@@ -67,6 +69,39 @@ public abstract class AbstractDocstoreBenchmarkTest {
   // ConcurrentHashMap.newKeySet() uses bucket-level locking — no global monitor contention
   // under @Threads(4) unlike Collections.synchronizedSet().
   private final Set<String> benchmarkCreatedKeys = ConcurrentHashMap.newKeySet();
+
+  // Put and BatchPut reuse these keys so teardown has a fixed number of documents to delete.
+  private static final int WRITE_KEY_POOL_SIZE = 20_000;
+  private final AtomicLong writeKeySeq = new AtomicLong();
+
+  private static final String BENCHMARK_PUT = "benchmarkPut";
+  private static final String BENCHMARK_GET = "benchmarkGet";
+  private static final String BENCHMARK_BATCH_PUT = "benchmarkBatchPut";
+  private static final String BENCHMARK_BATCH_GET = "benchmarkBatchGet";
+  private static final String BENCHMARK_WRITE_READ_DELETE = "benchmarkWriteReadDelete";
+  private static final String BENCHMARK_GET_LARGE = "benchmarkGetLarge";
+  private static final String BENCHMARK_CREATE = "benchmarkCreate";
+  private static final String BENCHMARK_REPLACE = "benchmarkReplace";
+  private static final String BENCHMARK_ATOMIC_WRITES = "benchmarkAtomicWrites";
+  private static final String BENCHMARK_PARTITION_KEY_QUERY = "benchmarkPartitionKeyQuery";
+  private static final String BENCHMARK_COMPOSITE_KEY_QUERY = "benchmarkCompositeKeyQuery";
+  private static final String BENCHMARK_RANGE_QUERY = "benchmarkRangeQuery";
+  private static final String BENCHMARK_QUERY_WITH_LIMIT = "benchmarkQueryWithLimit";
+  private static final String BENCHMARK_QUERY_WITH_ORDER_BY = "benchmarkQueryWithOrderBy";
+  private static final String BENCHMARK_QUERY_WITH_PAGINATION = "benchmarkQueryWithPagination";
+  private static final String BENCHMARK_GET_WITH_PROJECTION = "benchmarkGetWithProjection";
+
+  // Setup skips seeding data that these benchmarks never read.
+  private static final Set<String> SKIP_PLAYER_SEED = Set.of(
+      BENCHMARK_PUT, BENCHMARK_BATCH_PUT, BENCHMARK_WRITE_READ_DELETE, BENCHMARK_CREATE,
+      BENCHMARK_ATOMIC_WRITES, BENCHMARK_PARTITION_KEY_QUERY, BENCHMARK_COMPOSITE_KEY_QUERY,
+      BENCHMARK_RANGE_QUERY, BENCHMARK_QUERY_WITH_LIMIT, BENCHMARK_QUERY_WITH_ORDER_BY,
+      BENCHMARK_QUERY_WITH_PAGINATION);
+
+  private static final Set<String> SKIP_HIGHSCORE_SEED = Set.of(
+      BENCHMARK_PUT, BENCHMARK_BATCH_PUT, BENCHMARK_WRITE_READ_DELETE, BENCHMARK_CREATE,
+      BENCHMARK_ATOMIC_WRITES, BENCHMARK_GET, BENCHMARK_GET_LARGE, BENCHMARK_BATCH_GET,
+      BENCHMARK_REPLACE, BENCHMARK_GET_WITH_PROJECTION);
 
   // Pre-filtered key lists to avoid O(n) stream allocation in the benchmark hot path.
   private List<String> smallPlayerKeys;
@@ -117,8 +152,9 @@ public abstract class AbstractDocstoreBenchmarkTest {
   }
 
   @Setup(Level.Trial)
-  public void setupBenchmark() throws Exception {
+  public void setupBenchmark(BenchmarkParams params) throws Exception {
     try {
+      String method = benchmarkMethod(params);
       harness = createHarness();
 
       documentKeys = new ArrayList<>();
@@ -133,8 +169,12 @@ public abstract class AbstractDocstoreBenchmarkTest {
       AbstractDocStore queryDocStore = harness.createQueryDocStore();
       queryDocStoreClient = new DocStoreClient(queryDocStore);
 
-      generateTestPlayers();
-      generateTestHighScores();
+      if (!SKIP_PLAYER_SEED.contains(method)) {
+        generateTestPlayers();
+      }
+      if (!SKIP_HIGHSCORE_SEED.contains(method)) {
+        generateTestHighScores();
+      }
       setupTestData();
 
       // Pre-filter key lists once so hot-path lookups are O(1)
@@ -151,6 +191,16 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
   }
 
+  private static String benchmarkMethod(BenchmarkParams params) {
+    String fqn = params.getBenchmark();
+    int lastDot = fqn.lastIndexOf('.');
+    return lastDot >= 0 ? fqn.substring(lastDot + 1) : fqn;
+  }
+
+  private String nextPooledKey(String prefix) {
+    return prefix + Math.floorMod(writeKeySeq.getAndIncrement(), WRITE_KEY_POOL_SIZE);
+  }
+
   @TearDown(Level.Trial)
   public void teardownBenchmark() throws Exception {
     try {
@@ -162,6 +212,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
         // — the per-provider runWritesBatched does the wire-level batching from there.
         List<String> keys = new ArrayList<>(benchmarkCreatedKeys);
         int chunkSize = 400;
+        int failedKeys = 0;
+        String firstError = null;
         for (int start = 0; start < keys.size(); start += chunkSize) {
           int end = Math.min(start + chunkSize, keys.size());
           ActionList deletes = docStoreClient.getActions();
@@ -173,9 +225,17 @@ public abstract class AbstractDocstoreBenchmarkTest {
           try {
             deletes.run();
           } catch (Exception e) {
-            logger.warn(
-                "Failed to bulk-delete benchmark keys [{}..{}]: {}", start, end, e.getMessage());
+            failedKeys += end - start;
+            if (firstError == null) {
+              firstError = e.toString();
+            }
           }
+        }
+        // Benchmark forks have no logger output, so print to stderr.
+        if (failedKeys > 0) {
+          System.err.printf(
+              "Teardown failed to delete up to %d of %d benchmark keys; first error: %s%n",
+              failedKeys, keys.size(), firstError);
         }
         benchmarkCreatedKeys.clear();
       }
@@ -261,13 +321,17 @@ public abstract class AbstractDocstoreBenchmarkTest {
   private void setupTestData() {
     try {
       // Use batchPut to seed all data in 2 RPCs instead of 140 serial puts
-      List<Document> playerDocs =
-          testPlayers.stream().map(Document::new).collect(Collectors.toList());
-      docStoreClient.batchPut(playerDocs);
+      if (!testPlayers.isEmpty()) {
+        List<Document> playerDocs =
+            testPlayers.stream().map(Document::new).collect(Collectors.toList());
+        docStoreClient.batchPut(playerDocs);
+      }
 
-      List<Document> scoreDocs =
-          testHighScores.stream().map(Document::new).collect(Collectors.toList());
-      queryDocStoreClient.batchPut(scoreDocs);
+      if (!testHighScores.isEmpty()) {
+        List<Document> scoreDocs =
+            testHighScores.stream().map(Document::new).collect(Collectors.toList());
+        queryDocStoreClient.batchPut(scoreDocs);
+      }
     } catch (Exception e) {
       throw new RuntimeException("Failed to setup test data", e);
     }
@@ -275,7 +339,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
   private void cleanupTestData() {
     // Cleanup Player data from single key table
-    if (documentKeys != null && docStoreClient != null) {
+    if (documentKeys != null && !documentKeys.isEmpty() && docStoreClient != null) {
       try {
         ActionList actionList = docStoreClient.getActions();
         for (String key : documentKeys) {
@@ -300,7 +364,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
 
     // Cleanup HighScore data from composite key table
-    if (testHighScores != null && queryDocStoreClient != null) {
+    if (testHighScores != null && !testHighScores.isEmpty() && queryDocStoreClient != null) {
       try {
         ActionList actionList = queryDocStoreClient.getActions();
         for (HighScore highScore : testHighScores) {
@@ -335,7 +399,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
     final String baseKey = "benchmarkput-player-";
     final int docSize = 500;
     try {
-      String key = baseKey + ThreadLocalRandom.current().nextLong();
+      String key = nextPooledKey(baseKey);
       benchmarkCreatedKeys.add(key);
       Player player = createPlayer(key, 0, docSize);
       docStoreClient.put(new Document(player));
@@ -383,7 +447,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
     try {
       List<Document> documents = new ArrayList<>();
       for (int i = 0; i < p.batchSize; i++) {
-        String key = baseKey + ThreadLocalRandom.current().nextLong();
+        String key = nextPooledKey(baseKey);
         benchmarkCreatedKeys.add(key);
         Player player = createPlayer(key, i, docSize);
         documents.add(new Document(player));
@@ -454,6 +518,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
       bh.consume(doc.getField("pName"));
 
       docStoreClient.delete(doc);
+      benchmarkCreatedKeys.remove(key);
 
     } catch (Exception e) {
       throw new RuntimeException("Benchmark write-read-delete failed", e);
@@ -587,7 +652,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
           queryDocStoreClient
               .query()
               .where("Game", FilterOperation.EQUAL, game1)
-              .where("Player", FilterOperation.EQUAL, "andy")
+              .where("Player", FilterOperation.EQUAL, "andy0")
               .get();
 
       int count = 0;
