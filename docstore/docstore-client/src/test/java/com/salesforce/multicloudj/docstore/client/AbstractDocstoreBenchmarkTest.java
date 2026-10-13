@@ -761,8 +761,9 @@ public abstract class AbstractDocstoreBenchmarkTest {
   }
 
   /**
-   * Two-field projection of the large (~100 KB) Player; compare with benchmarkGetLarge, which
-   * shares its keys and thread count, to see the wire-transfer saved by asking for fewer fields.
+   * Get with field projection — partial-field read. Each provider implements projection
+   * differently (DynamoDB ProjectionExpression, Firestore DocumentMask), so this quantifies the
+   * wire-transfer benefit of asking for fewer fields.
    */
   @Benchmark
   @Threads(1)
