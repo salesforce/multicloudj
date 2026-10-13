@@ -220,6 +220,9 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
     }
 
     public Builder<T> withRetryConfig(RetryConfig retryConfig) {
+      if (retryConfig != null) {
+        retryConfig.validate();
+      }
       this.retryConfig = retryConfig;
       return this;
     }

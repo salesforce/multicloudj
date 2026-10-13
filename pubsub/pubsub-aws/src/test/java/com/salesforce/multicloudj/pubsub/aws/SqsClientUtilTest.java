@@ -1,7 +1,6 @@
 package com.salesforce.multicloudj.pubsub.aws;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -9,7 +8,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
@@ -61,15 +59,5 @@ public class SqsClientUtilTest {
     SqsClientUtil.buildSqsClient("us-east-1", null, null);
 
     verify(mockBuilder, never()).overrideConfiguration(any(ClientOverrideConfiguration.class));
-  }
-
-  @Test
-  void testBuildSqsClient_WithInvalidRetryConfig_Throws() {
-    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(0).build();
-
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> SqsClientUtil.buildSqsClient("us-east-1", null, null, retryConfig));
-    verify(mockBuilder, never()).build();
   }
 }

@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.pubsub.client;
 
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
@@ -140,6 +141,7 @@ public class TopicClient implements AutoCloseable {
      *
      * @param retryConfig The retry configuration
      * @return This builder instance
+     * @throws InvalidArgumentException if the configuration has invalid values for its mode
      */
     public TopicClientBuilder withRetryConfig(RetryConfig retryConfig) {
       this.topicBuilder.withRetryConfig(retryConfig);

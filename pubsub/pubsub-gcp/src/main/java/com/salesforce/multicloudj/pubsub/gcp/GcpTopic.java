@@ -225,9 +225,6 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
     @Override
     public GcpTopic build() {
       validateTopicName(this.topicName);
-      if (this.retryConfig != null) {
-        RetrySettingsUtil.validate(this.retryConfig);
-      }
       return new GcpTopic(this);
     }
   }

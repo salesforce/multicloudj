@@ -809,6 +809,9 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     }
 
     public Builder<T> withRetryConfig(RetryConfig retryConfig) {
+      if (retryConfig != null) {
+        retryConfig.validate();
+      }
       this.retryConfig = retryConfig;
       return this;
     }

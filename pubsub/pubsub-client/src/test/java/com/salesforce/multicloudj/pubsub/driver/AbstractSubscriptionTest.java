@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import java.net.URI;
@@ -368,6 +369,26 @@ public class AbstractSubscriptionTest {
     assertEquals(URI.create("https://custom-endpoint.example.com"), builder.endpoint);
     assertEquals(URI.create("https://proxy.example.com:8080"), builder.proxyEndpoint);
     assertEquals(Duration.ofSeconds(30), builder.nackVisibilityTimeout);
+  }
+
+  @Test
+  void testWithRetryConfigStoresValidConfig() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(3)
+            .fixedDelayMillis(100)
+            .build();
+    TestBuilder builder = new TestBuilder();
+    builder.withRetryConfig(retryConfig);
+    assertSame(retryConfig, builder.retryConfig);
+  }
+
+  @Test
+  void testWithRetryConfigRejectsInvalidConfig() {
+    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(0).build();
+    assertThrows(
+        InvalidArgumentException.class, () -> new TestBuilder().withRetryConfig(retryConfig));
   }
 
   @Test

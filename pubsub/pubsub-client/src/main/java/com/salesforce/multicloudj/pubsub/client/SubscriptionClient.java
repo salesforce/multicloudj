@@ -309,6 +309,7 @@ public class SubscriptionClient implements AutoCloseable {
      *
      * @param retryConfig The retry configuration
      * @return This builder instance
+     * @throws InvalidArgumentException if the configuration has invalid values for its mode
      */
     public SubscriptionClientBuilder withRetryConfig(RetryConfig retryConfig) {
       this.subscriptionBuilder.withRetryConfig(retryConfig);

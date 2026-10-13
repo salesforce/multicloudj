@@ -1,9 +1,7 @@
 package com.salesforce.multicloudj.pubsub.gcp;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.api.gax.retrying.RetrySettings;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -101,54 +99,6 @@ public class RetrySettingsUtilTest {
   @Test
   void testNullConfigRejected() {
     assertThrows(InvalidArgumentException.class, () -> RetrySettingsUtil.apply(BASE, null));
-    assertThrows(InvalidArgumentException.class, () -> RetrySettingsUtil.validate(null));
-  }
-
-  @Test
-  void testMultiplierBelowOneRejected() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .initialDelayMillis(100L)
-            .multiplier(0.5)
-            .maxDelayMillis(1000L)
-            .build();
-
-    InvalidArgumentException e =
-        assertThrows(InvalidArgumentException.class, () -> RetrySettingsUtil.validate(config));
-    assertTrue(e.getMessage().contains("multiplier"));
-  }
-
-  @Test
-  void testNonFiniteMultiplierRejected() {
-    for (double multiplier :
-        new double[] {Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY}) {
-      RetryConfig config =
-          RetryConfig.builder()
-              .mode(RetryConfig.Mode.EXPONENTIAL)
-              .initialDelayMillis(100L)
-              .multiplier(multiplier)
-              .maxDelayMillis(1000L)
-              .build();
-
-      InvalidArgumentException e =
-          assertThrows(InvalidArgumentException.class, () -> RetrySettingsUtil.validate(config));
-      assertTrue(e.getMessage().contains("multiplier"));
-    }
-  }
-
-  @Test
-  void testMaxDelayBelowInitialDelayRejected() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .initialDelayMillis(1000L)
-            .maxDelayMillis(500L)
-            .build();
-
-    InvalidArgumentException e =
-        assertThrows(InvalidArgumentException.class, () -> RetrySettingsUtil.validate(config));
-    assertTrue(e.getMessage().contains("maxDelayMillis"));
   }
 
   @Test
@@ -163,66 +113,5 @@ public class RetrySettingsUtilTest {
     RetrySettings settings = RetrySettingsUtil.apply(BASE, config);
 
     assertEquals(Duration.ofMillis(500L), settings.getMaxRetryDelayDuration());
-  }
-
-  @Test
-  void testExponentialModeRequiresDelays() {
-    RetryConfig config =
-        RetryConfig.builder().mode(RetryConfig.Mode.EXPONENTIAL).maxDelayMillis(1000L).build();
-
-    InvalidArgumentException e =
-        assertThrows(InvalidArgumentException.class, () -> RetrySettingsUtil.validate(config));
-    assertTrue(e.getMessage().contains("initialDelayMillis"));
-  }
-
-  @Test
-  void testFixedModeRequiresDelay() {
-    RetryConfig config = RetryConfig.builder().mode(RetryConfig.Mode.FIXED).build();
-
-    InvalidArgumentException e =
-        assertThrows(InvalidArgumentException.class, () -> RetrySettingsUtil.validate(config));
-    assertTrue(e.getMessage().contains("fixedDelayMillis"));
-  }
-
-  @Test
-  void testBackoffFieldsWithoutModeRejected() {
-    RetryConfig[] configs = {
-      RetryConfig.builder().initialDelayMillis(100L).build(),
-      RetryConfig.builder().maxDelayMillis(1000L).build(),
-      RetryConfig.builder().fixedDelayMillis(100L).build(),
-      RetryConfig.builder().maxAttempts(3).multiplier(2.0).build()
-    };
-    for (RetryConfig config : configs) {
-      InvalidArgumentException e =
-          assertThrows(InvalidArgumentException.class, () -> RetrySettingsUtil.validate(config));
-      assertTrue(e.getMessage().contains("RetryConfig.mode must be set"));
-    }
-  }
-
-  @Test
-  void testNonPositiveValuesRejected() {
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> RetrySettingsUtil.validate(RetryConfig.builder().maxAttempts(0).build()));
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> RetrySettingsUtil.validate(RetryConfig.builder().attemptTimeout(0L).build()));
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> RetrySettingsUtil.validate(RetryConfig.builder().totalTimeout(-1L).build()));
-  }
-
-  @Test
-  void testValidConfigAccepted() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.FIXED)
-            .maxAttempts(3)
-            .fixedDelayMillis(100L)
-            .attemptTimeout(1000L)
-            .totalTimeout(5000L)
-            .build();
-
-    assertDoesNotThrow(() -> RetrySettingsUtil.validate(config));
   }
 }

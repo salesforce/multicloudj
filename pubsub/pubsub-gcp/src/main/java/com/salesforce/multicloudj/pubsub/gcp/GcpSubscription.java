@@ -419,9 +419,6 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
     @Override
     public GcpSubscription build() {
       validateSubscriptionName(this.subscriptionName);
-      if (this.retryConfig != null) {
-        RetrySettingsUtil.validate(this.retryConfig);
-      }
       return new GcpSubscription(this);
     }
   }
