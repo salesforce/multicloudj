@@ -181,6 +181,21 @@ class RetryConfigTest {
   }
 
   @Test
+  void validate_rejectsNonFiniteExponentialMultiplier() {
+    for (double multiplier :
+        new double[] {Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY}) {
+      assertInvalid(
+          RetryConfig.builder()
+              .mode(RetryConfig.Mode.EXPONENTIAL)
+              .initialDelayMillis(100L)
+              .maxDelayMillis(5000L)
+              .multiplier(multiplier)
+              .build(),
+          "RetryConfig.multiplier must be at least 1 for EXPONENTIAL mode, got: " + multiplier);
+    }
+  }
+
+  @Test
   void validate_rejectsExponentialMaxDelayBelowInitialDelay() {
     assertInvalid(
         RetryConfig.builder()

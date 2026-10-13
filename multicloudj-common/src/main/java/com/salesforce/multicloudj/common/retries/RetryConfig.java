@@ -137,8 +137,9 @@ public final class RetryConfig {
             "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
                 + maxDelayMillis);
       }
-      // 0 means unset, in which case the provider's default multiplier applies.
-      if (multiplier != 0 && multiplier < 1) {
+      // 0 means unset, in which case the provider's default multiplier applies. NaN and positive
+      // infinity are not less than 1, so they need the explicit finiteness check.
+      if (multiplier != 0 && (!Double.isFinite(multiplier) || multiplier < 1)) {
         throw new InvalidArgumentException(
             "RetryConfig.multiplier must be at least 1 for EXPONENTIAL mode, got: " + multiplier);
       }

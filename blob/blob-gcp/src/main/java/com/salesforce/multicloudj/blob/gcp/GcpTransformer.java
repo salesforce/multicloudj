@@ -63,7 +63,6 @@ public class GcpTransformer {
 
   private final String bucket;
   private static final String TAG_PREFIX = "gcp-tag-";
-  private static final double DEFAULT_RETRY_DELAY_MULTIPLIER = 2.0;
 
   /**
    * Object-metadata key under which the SDK persists the operation correlation id during upload, so
@@ -659,8 +658,11 @@ public class GcpTransformer {
     if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
       settingsBuilder
           .setInitialRetryDelayDuration(Duration.ofMillis(retryConfig.getInitialDelayMillis()))
-          .setRetryDelayMultiplier(toRetryDelayMultiplier(retryConfig.getMultiplier()))
           .setMaxRetryDelayDuration(Duration.ofMillis(retryConfig.getMaxDelayMillis()));
+      // 0 means unset, so the GCS default multiplier is kept.
+      if (retryConfig.getMultiplier() != 0) {
+        settingsBuilder.setRetryDelayMultiplier(retryConfig.getMultiplier());
+      }
     } else if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
       // FIXED mode is simulated by setting multiplier to 1.0 and both delays to the same value
       settingsBuilder
@@ -687,20 +689,6 @@ public class GcpTransformer {
     }
 
     return settingsBuilder.build();
-  }
-
-  // An unset multiplier is 0.0 on RetryConfig; treat it as 2.0 because RetrySettings rejects
-  // multipliers below 1.0. NaN and infinity pass RetrySettings validation but break the GCS
-  // client's backoff calculation, so they are rejected here.
-  private static double toRetryDelayMultiplier(double multiplier) {
-    if (multiplier == 0.0) {
-      return DEFAULT_RETRY_DELAY_MULTIPLIER;
-    }
-    if (!Double.isFinite(multiplier) || multiplier < 1.0) {
-      throw new InvalidArgumentException(
-          "RetryConfig.multiplier must be at least 1.0, got: " + multiplier);
-    }
-    return multiplier;
   }
 
   /**
