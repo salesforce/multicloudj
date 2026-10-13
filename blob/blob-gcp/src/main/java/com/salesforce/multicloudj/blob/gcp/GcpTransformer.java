@@ -634,21 +634,17 @@ public class GcpTransformer {
   }
 
   /**
-   * Converts MultiCloudJ RetryConfig to GCP RetrySettings
+   * Converts a MultiCloudJ RetryConfig, already checked by {@link RetryConfig#validate()}, to GCP
+   * RetrySettings
    *
    * @param retryConfig The retry configuration to convert
    * @return GCP RetrySettings
-   * @throws InvalidArgumentException if retryConfig is null or has invalid values
+   * @throws InvalidArgumentException if retryConfig is null
    */
   public RetrySettings toGcpRetrySettings(RetryConfig retryConfig) {
     if (retryConfig == null) {
       throw new InvalidArgumentException("RetryConfig cannot be null");
     }
-    if (retryConfig.getMaxAttempts() != null && retryConfig.getMaxAttempts() <= 0) {
-      throw new InvalidArgumentException(
-          "RetryConfig.maxAttempts must be greater than 0, got: " + retryConfig.getMaxAttempts());
-    }
-
     RetrySettings.Builder settingsBuilder = RetrySettings.newBuilder();
 
     // Only set maxAttempts if provided, otherwise use GCP SDK default
@@ -660,26 +656,11 @@ public class GcpTransformer {
 
     // Configure backoff strategy based on mode
     if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
-      if (retryConfig.getInitialDelayMillis() <= 0) {
-        throw new InvalidArgumentException(
-            "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
-                + retryConfig.getInitialDelayMillis());
-      }
-      if (retryConfig.getMaxDelayMillis() <= 0) {
-        throw new InvalidArgumentException(
-            "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
-                + retryConfig.getMaxDelayMillis());
-      }
       settingsBuilder
           .setInitialRetryDelayDuration(Duration.ofMillis(retryConfig.getInitialDelayMillis()))
           .setRetryDelayMultiplier(retryConfig.getMultiplier())
           .setMaxRetryDelayDuration(Duration.ofMillis(retryConfig.getMaxDelayMillis()));
     } else if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
-      if (retryConfig.getFixedDelayMillis() <= 0) {
-        throw new InvalidArgumentException(
-            "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: "
-                + retryConfig.getFixedDelayMillis());
-      }
       // FIXED mode is simulated by setting multiplier to 1.0 and both delays to the same value
       settingsBuilder
           .setInitialRetryDelayDuration(Duration.ofMillis(retryConfig.getFixedDelayMillis()))
@@ -689,21 +670,11 @@ public class GcpTransformer {
 
     // Set total timeout if provided
     if (retryConfig.getTotalTimeout() != null) {
-      if (retryConfig.getTotalTimeout() <= 0) {
-        throw new InvalidArgumentException(
-            "RetryConfig.totalTimeout must be greater than 0, got: "
-                + retryConfig.getTotalTimeout());
-      }
       settingsBuilder.setTotalTimeoutDuration(Duration.ofMillis(retryConfig.getTotalTimeout()));
     }
 
     // Set attempt timeout if provided
     if (retryConfig.getAttemptTimeout() != null) {
-      if (retryConfig.getAttemptTimeout() <= 0) {
-        throw new InvalidArgumentException(
-            "RetryConfig.attemptTimeout must be greater than 0, got: "
-                + retryConfig.getAttemptTimeout());
-      }
       Duration attemptTimeout = Duration.ofMillis(retryConfig.getAttemptTimeout());
       settingsBuilder
           .setInitialRpcTimeoutDuration(attemptTimeout)

@@ -1044,80 +1044,10 @@ public class AliTransformerTest {
         "Default backoff should produce a positive delay, got: " + delay.toMillis());
   }
 
-  @Test
-  void testToAliRetryerInvalidMaxAttempts() {
-    RetryConfig config = RetryConfig.builder()
-        .mode(RetryConfig.Mode.EXPONENTIAL)
-        .maxAttempts(0)
-        .initialDelayMillis(100L)
-        .maxDelayMillis(5000L)
-        .build();
 
-    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
-        () -> AliTransformer.toAliRetryer(config));
-    assertEquals("RetryConfig.maxAttempts must be greater than 0, got: 0", ex.getMessage());
-  }
 
-  @Test
-  void testToAliRetryerNegativeMaxAttempts() {
-    RetryConfig config = RetryConfig.builder()
-        .mode(RetryConfig.Mode.EXPONENTIAL)
-        .maxAttempts(-1)
-        .initialDelayMillis(100L)
-        .maxDelayMillis(5000L)
-        .build();
 
-    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
-        () -> AliTransformer.toAliRetryer(config));
-    assertEquals("RetryConfig.maxAttempts must be greater than 0, got: -1", ex.getMessage());
-  }
 
-  @Test
-  void testToAliRetryerExponentialInvalidInitialDelay() {
-    RetryConfig config = RetryConfig.builder()
-        .mode(RetryConfig.Mode.EXPONENTIAL)
-        .maxAttempts(3)
-        .initialDelayMillis(0L)
-        .maxDelayMillis(5000L)
-        .build();
-
-    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
-        () -> AliTransformer.toAliRetryer(config));
-    assertEquals(
-        "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0",
-        ex.getMessage());
-  }
-
-  @Test
-  void testToAliRetryerExponentialInvalidMaxDelay() {
-    RetryConfig config = RetryConfig.builder()
-        .mode(RetryConfig.Mode.EXPONENTIAL)
-        .maxAttempts(3)
-        .initialDelayMillis(100L)
-        .maxDelayMillis(0L)
-        .build();
-
-    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
-        () -> AliTransformer.toAliRetryer(config));
-    assertEquals(
-        "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0",
-        ex.getMessage());
-  }
-
-  @Test
-  void testToAliRetryerFixedInvalidDelay() {
-    RetryConfig config = RetryConfig.builder()
-        .mode(RetryConfig.Mode.FIXED)
-        .maxAttempts(3)
-        .fixedDelayMillis(0L)
-        .build();
-
-    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
-        () -> AliTransformer.toAliRetryer(config));
-    assertEquals(
-        "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: 0",
-        ex.getMessage());
-  }
 
   @Test
   void testToBlobMetadata_locked_populatesObjectLockInfoFromHeaders() {

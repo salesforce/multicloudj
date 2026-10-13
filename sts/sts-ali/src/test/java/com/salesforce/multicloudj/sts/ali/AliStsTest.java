@@ -1,13 +1,17 @@
 package com.salesforce.multicloudj.sts.ali;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 
 import com.aliyuncs.DefaultAcsClient;
 import com.aliyuncs.auth.AlibabaCloudCredentialsProvider;
 import com.aliyuncs.exceptions.ClientException;
 import com.aliyuncs.http.HttpClientConfig;
+import com.aliyuncs.policy.retry.RetryPolicy;
+import com.aliyuncs.policy.retry.RetryPolicyContext;
 import com.aliyuncs.profile.IClientProfile;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleRequest;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleResponse;
@@ -20,13 +24,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
+import java.util.HashSet;
+import java.util.Set;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -462,5 +470,249 @@ public class AliStsTest {
   private static void assertJsonEquals(String expected, String actual) throws Exception {
     ObjectMapper mapper = new ObjectMapper();
     Assertions.assertEquals(mapper.readTree(expected), mapper.readTree(actual));
+  }
+
+  private static int delayBeforeRetry(RetryPolicy policy, int retriesAttempted) {
+    return policy
+        .backoffStrategy()
+        .computeDelayBeforeNextRetry(
+            RetryPolicyContext.builder().retriesAttempted(retriesAttempted).build());
+  }
+
+  @Test
+  public void testToRetryPolicyExponential() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .maxAttempts(5)
+            .initialDelayMillis(100)
+            .multiplier(3.0)
+            .maxDelayMillis(1000)
+            .build();
+
+    RetryPolicy policy = AliSts.toRetryPolicy(retryConfig);
+
+    assertEquals(4, policy.maxNumberOfRetries());
+    assertEquals(1000, policy.maxDelayTimeMillis());
+    assertEquals(100, AliSts.retryDelayMillis(retryConfig, 1));
+    assertEquals(300, AliSts.retryDelayMillis(retryConfig, 2));
+    assertEquals(900, AliSts.retryDelayMillis(retryConfig, 3));
+    assertEquals(1000, AliSts.retryDelayMillis(retryConfig, 4));
+  }
+
+  @Test
+  public void testToRetryPolicyExponentialAppliesEqualJitter() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .initialDelayMillis(1000)
+            .multiplier(2.0)
+            .maxDelayMillis(8000)
+            .build();
+    RetryPolicy policy = AliSts.toRetryPolicy(retryConfig);
+    for (int retry = 1; retry <= 5; retry++) {
+      long upperBound = AliSts.retryDelayMillis(retryConfig, retry);
+      Set<Integer> delays = new HashSet<>();
+      for (int i = 0; i < 50; i++) {
+        int delay = delayBeforeRetry(policy, retry);
+        assertTrue(
+            delay >= upperBound / 2 && delay <= upperBound,
+            "retry " + retry + " delay " + delay + " outside [" + upperBound / 2 + ", "
+                + upperBound + "]");
+        delays.add(delay);
+      }
+      assertTrue(delays.size() > 1, "retry " + retry + " delay was not jittered");
+    }
+  }
+
+  @Test
+  public void testToRetryPolicyExponentialDefaultsMultiplierToTwo() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .initialDelayMillis(50)
+            .maxDelayMillis(10000)
+            .build();
+
+    assertEquals(50, AliSts.retryDelayMillis(retryConfig, 1));
+    assertEquals(100, AliSts.retryDelayMillis(retryConfig, 2));
+    assertEquals(200, AliSts.retryDelayMillis(retryConfig, 3));
+  }
+
+  @Test
+  public void testToRetryPolicyFixed() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(3)
+            .fixedDelayMillis(250)
+            .build();
+
+    RetryPolicy policy = AliSts.toRetryPolicy(retryConfig);
+
+    assertEquals(2, policy.maxNumberOfRetries());
+    assertEquals(250, policy.maxDelayTimeMillis());
+    assertEquals(250, delayBeforeRetry(policy, 1));
+    assertEquals(250, delayBeforeRetry(policy, 2));
+  }
+
+  @Test
+  public void testToRetryPolicyWithoutModeKeepsSdkBackoff() {
+    RetryPolicy defaults = RetryPolicy.builder().build();
+    RetryPolicy policy = AliSts.toRetryPolicy(RetryConfig.builder().maxAttempts(2).build());
+    assertEquals(defaults.maxDelayTimeMillis(), policy.maxDelayTimeMillis());
+    int delay = delayBeforeRetry(policy, 1);
+    assertTrue(delay >= 0 && delay <= defaults.maxDelayTimeMillis(), "delay " + delay);
+  }
+
+  /**
+   * Runs the SDK's retry loop for one call in which every attempt fails with an IOException, which
+   * the SDK's default conditions treat as retryable.
+   *
+   * @return the number of attempts made
+   */
+  private static int attemptsUntilGivingUp(RetryConfig retryConfig) {
+    RetryPolicy policy = AliSts.toRetryPolicy(retryConfig);
+    RetryPolicyContext context =
+        RetryPolicyContext.builder().coordinate("test").retriesAttempted(0).build();
+    int attempts = 0;
+    while (policy.shouldRetry(context)) {
+      attempts++;
+      context =
+          RetryPolicyContext.builder()
+              .coordinate("test")
+              .retriesAttempted(attempts)
+              .exception(new IOException("connection reset"))
+              .build();
+    }
+    return attempts;
+  }
+
+  @Test
+  public void testToRetryPolicyUsesAllAttempts() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(4)
+            .fixedDelayMillis(400)
+            .build();
+
+    assertEquals(4, attemptsUntilGivingUp(retryConfig));
+  }
+
+  @Test
+  public void testToRetryPolicyDefaultsToThreeAttemptsWhenMaxAttemptsUnset() {
+    RetryPolicy policy = AliSts.toRetryPolicy(RetryConfig.builder().build());
+    assertEquals(2, policy.maxNumberOfRetries());
+  }
+
+  private static AliSts stsWithAttemptTimeout(DefaultAcsClient client, Long attemptTimeout) {
+    return new AliSts()
+        .builder()
+        .withRetryConfig(RetryConfig.builder().attemptTimeout(attemptTimeout).build())
+        .build(client);
+  }
+
+  @Test
+  public void testAssumeRoleRequestCarriesAttemptTimeout() throws Exception {
+    DefaultAcsClient client = Mockito.mock(DefaultAcsClient.class);
+    AssumeRoleResponse.Credentials creds = new AssumeRoleResponse.Credentials();
+    creds.setAccessKeyId("k");
+    creds.setAccessKeySecret("s");
+    creds.setSecurityToken("t");
+    AssumeRoleResponse response = new AssumeRoleResponse();
+    response.setCredentials(creds);
+    Mockito.when(client.getAcsResponse(any(AssumeRoleRequest.class))).thenReturn(response);
+
+    stsWithAttemptTimeout(client, 4321L)
+        .assumeRole(AssumedRoleRequest.newBuilder().withRole("r").withSessionName("s").build());
+
+    ArgumentCaptor<AssumeRoleRequest> captor = ArgumentCaptor.forClass(AssumeRoleRequest.class);
+    Mockito.verify(client).getAcsResponse(captor.capture());
+    assertEquals(4321, captor.getValue().getSysReadTimeout());
+    assertEquals(4321, captor.getValue().getSysConnectTimeout());
+  }
+
+  @Test
+  public void testAssumeRoleWithOidcRequestCarriesAttemptTimeout() throws Exception {
+    DefaultAcsClient client = Mockito.mock(DefaultAcsClient.class);
+    AssumeRoleWithOIDCResponse.Credentials creds = new AssumeRoleWithOIDCResponse.Credentials();
+    creds.setAccessKeyId("k");
+    creds.setAccessKeySecret("s");
+    creds.setSecurityToken("t");
+    AssumeRoleWithOIDCResponse response = new AssumeRoleWithOIDCResponse();
+    response.setCredentials(creds);
+    Mockito.when(client.getAcsResponse(any(AssumeRoleWithOIDCRequest.class))).thenReturn(response);
+
+    stsWithAttemptTimeout(client, 1500L)
+        .assumeRoleWithWebIdentity(
+            AssumeRoleWebIdentityRequest.builder()
+                .role("r")
+                .webIdentityToken("tok")
+                .sessionName("s")
+                .webIdentityProviderArn("acs:ram::123:oidc-provider/test")
+                .build());
+
+    ArgumentCaptor<AssumeRoleWithOIDCRequest> captor =
+        ArgumentCaptor.forClass(AssumeRoleWithOIDCRequest.class);
+    Mockito.verify(client).getAcsResponse(captor.capture());
+    assertEquals(1500, captor.getValue().getSysReadTimeout());
+    assertEquals(1500, captor.getValue().getSysConnectTimeout());
+  }
+
+  @Test
+  public void testGetCallerIdentityRequestCarriesAttemptTimeout() throws Exception {
+    DefaultAcsClient client = Mockito.mock(DefaultAcsClient.class);
+    GetCallerIdentityResponse response = new GetCallerIdentityResponse();
+    Mockito.when(client.getAcsResponse(any(GetCallerIdentityRequest.class))).thenReturn(response);
+
+    stsWithAttemptTimeout(client, 2500L)
+        .getCallerIdentity(
+            com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest.builder().build());
+
+    ArgumentCaptor<GetCallerIdentityRequest> captor =
+        ArgumentCaptor.forClass(GetCallerIdentityRequest.class);
+    Mockito.verify(client).getAcsResponse(captor.capture());
+    assertEquals(2500, captor.getValue().getSysReadTimeout());
+    assertEquals(2500, captor.getValue().getSysConnectTimeout());
+  }
+
+  @Test
+  public void testRequestHasNoTimeoutOverrideWithoutAttemptTimeout() throws Exception {
+    AssumeRoleRequest captured =
+        capturedAssumeRoleRequest(
+            AssumedRoleRequest.newBuilder().withRole("r").withSessionName("s").build());
+    Assertions.assertNull(captured.getSysReadTimeout());
+    Assertions.assertNull(captured.getSysConnectTimeout());
+    Assertions.assertNull(captured.getSysRetryPolicy());
+  }
+
+  @Test
+  public void testRequestCarriesRetryPolicyFromRetryConfig() throws Exception {
+    DefaultAcsClient client = Mockito.mock(DefaultAcsClient.class);
+    GetCallerIdentityResponse response = new GetCallerIdentityResponse();
+    Mockito.when(client.getAcsResponse(any(GetCallerIdentityRequest.class))).thenReturn(response);
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(4)
+            .fixedDelayMillis(100)
+            .build();
+
+    new AliSts()
+        .builder()
+        .withRetryConfig(retryConfig)
+        .build(client)
+        .getCallerIdentity(
+            com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest.builder().build());
+
+    ArgumentCaptor<GetCallerIdentityRequest> captor =
+        ArgumentCaptor.forClass(GetCallerIdentityRequest.class);
+    Mockito.verify(client).getAcsResponse(captor.capture());
+    RetryPolicy policy = captor.getValue().getSysRetryPolicy();
+    assertEquals(3, policy.maxNumberOfRetries());
+    assertEquals(100, policy.maxDelayTimeMillis());
+    Assertions.assertNull(captor.getValue().getSysReadTimeout());
+    Assertions.assertNull(captor.getValue().getSysConnectTimeout());
   }
 }

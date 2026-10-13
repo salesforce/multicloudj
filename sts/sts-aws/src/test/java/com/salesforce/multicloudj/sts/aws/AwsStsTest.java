@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.sts.aws;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
@@ -298,5 +300,18 @@ public class AwsStsTest {
     SubstrateSdkException mapped = sts.mapException(serviceException);
 
     assertTrue(mapped.isRetryable());
+  }
+
+  @Test
+  public void testBuildWithRetryConfig() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(2)
+            .fixedDelayMillis(50)
+            .attemptTimeout(1000L)
+            .build();
+    AwsSts sts = new AwsSts.Builder().withRegion("us-west-2").withRetryConfig(retryConfig).build();
+    assertEquals("aws", sts.getProviderId());
   }
 }

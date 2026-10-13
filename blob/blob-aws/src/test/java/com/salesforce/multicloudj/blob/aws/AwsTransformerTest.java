@@ -36,7 +36,6 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
-import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.file.Path;
@@ -54,7 +53,6 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
 import software.amazon.awssdk.services.s3.model.ChecksumMode;
@@ -2046,168 +2044,6 @@ public class AwsTransformerTest {
         "req-abc-123",
         handleMetadata.get("sdk-logging-correlation-id"),
         "correlation id must be echoed onto the multipart upload handle metadata");
-  }
-
-  @Test
-  void testToAwsRetryStrategyWithExponentialMode() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .maxAttempts(3)
-            .initialDelayMillis(100L)
-            .multiplier(2.0)
-            .maxDelayMillis(5000L)
-            .build();
-
-    RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
-
-    assertNotNull(strategy);
-  }
-
-  @Test
-  void testToAwsRetryStrategyWithFixedMode() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.FIXED)
-            .maxAttempts(5)
-            .fixedDelayMillis(1000L)
-            .build();
-
-    RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
-
-    assertNotNull(strategy);
-  }
-
-  @Test
-  void testToAwsRetryStrategyWithNullConfig() {
-    InvalidArgumentException exception =
-        assertThrows(InvalidArgumentException.class, () -> transformer.toAwsRetryStrategy(null));
-    assertEquals("RetryConfig cannot be null", exception.getMessage());
-  }
-
-  @Test
-  void testToAwsRetryStrategyWithInvalidMaxAttempts() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .maxAttempts(0)
-            .initialDelayMillis(100L)
-            .maxDelayMillis(5000L)
-            .build();
-
-    InvalidArgumentException exception =
-        assertThrows(InvalidArgumentException.class, () -> transformer.toAwsRetryStrategy(config));
-    assertEquals("RetryConfig.maxAttempts must be greater than 0, got: 0", exception.getMessage());
-  }
-
-  @Test
-  void testToAwsRetryStrategyWithNegativeMaxAttempts() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .maxAttempts(-1)
-            .initialDelayMillis(100L)
-            .maxDelayMillis(5000L)
-            .build();
-
-    InvalidArgumentException exception =
-        assertThrows(InvalidArgumentException.class, () -> transformer.toAwsRetryStrategy(config));
-    assertEquals("RetryConfig.maxAttempts must be greater than 0, got: -1", exception.getMessage());
-  }
-
-  @Test
-  void testToAwsRetryStrategyExponentialWithInvalidInitialDelay() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .maxAttempts(3)
-            .initialDelayMillis(0L)
-            .maxDelayMillis(5000L)
-            .build();
-
-    InvalidArgumentException exception =
-        assertThrows(InvalidArgumentException.class, () -> transformer.toAwsRetryStrategy(config));
-    assertEquals(
-        "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0",
-        exception.getMessage());
-  }
-
-  @Test
-  void testToAwsRetryStrategyExponentialWithInvalidMaxDelay() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .maxAttempts(3)
-            .initialDelayMillis(100L)
-            .maxDelayMillis(0L)
-            .build();
-
-    InvalidArgumentException exception =
-        assertThrows(InvalidArgumentException.class, () -> transformer.toAwsRetryStrategy(config));
-    assertEquals(
-        "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0",
-        exception.getMessage());
-  }
-
-  @Test
-  void testToAwsRetryStrategyFixedWithInvalidFixedDelay() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.FIXED)
-            .maxAttempts(3)
-            .fixedDelayMillis(0L)
-            .build();
-
-    InvalidArgumentException exception =
-        assertThrows(InvalidArgumentException.class, () -> transformer.toAwsRetryStrategy(config));
-    assertEquals(
-        "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: 0",
-        exception.getMessage());
-  }
-
-  @Test
-  void testToAwsRetryStrategyWithNullMaxAttempts() {
-    // Test that null maxAttempts uses AWS SDK default
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .maxAttempts(null)
-            .initialDelayMillis(100L)
-            .maxDelayMillis(5000L)
-            .build();
-
-    RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
-
-    assertNotNull(strategy);
-  }
-
-  @Test
-  void testToAwsRetryStrategyExponentialWithMinimalValues() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .maxAttempts(1)
-            .initialDelayMillis(1L)
-            .maxDelayMillis(1L)
-            .build();
-
-    RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
-
-    assertNotNull(strategy);
-  }
-
-  @Test
-  void testToAwsRetryStrategyFixedWithMinimalValues() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.FIXED)
-            .maxAttempts(1)
-            .fixedDelayMillis(1L)
-            .build();
-
-    RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
-
-    assertNotNull(strategy);
   }
 
   @Test
