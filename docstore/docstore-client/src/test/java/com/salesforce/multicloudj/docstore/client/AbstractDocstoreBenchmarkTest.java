@@ -70,12 +70,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
   // under @Threads(4) unlike Collections.synchronizedSet().
   private final Set<String> benchmarkCreatedKeys = ConcurrentHashMap.newKeySet();
 
-  // Put/BatchPut reuse this many keys, which bounds what teardown deletes. Must be a multiple of
-  // every batch size so one batch never writes the same key twice.
+  // Put and BatchPut reuse these keys so teardown has a fixed number of documents to delete.
   private static final int WRITE_KEY_POOL_SIZE = 20_000;
   private final AtomicLong writeKeySeq = new AtomicLong();
 
-  // @Benchmark method names, shared by the seed skip-lists below.
   private static final String BENCHMARK_PUT = "benchmarkPut";
   private static final String BENCHMARK_GET = "benchmarkGet";
   private static final String BENCHMARK_BATCH_PUT = "benchmarkBatchPut";
@@ -93,14 +91,13 @@ public abstract class AbstractDocstoreBenchmarkTest {
   private static final String BENCHMARK_QUERY_WITH_PAGINATION = "benchmarkQueryWithPagination";
   private static final String BENCHMARK_GET_WITH_PROJECTION = "benchmarkGetWithProjection";
 
-  /** Benchmarks that don't read the seeded players; every other benchmark seeds them. */
+  // Setup skips seeding data that these benchmarks never read.
   private static final Set<String> SKIP_PLAYER_SEED = Set.of(
       BENCHMARK_PUT, BENCHMARK_BATCH_PUT, BENCHMARK_WRITE_READ_DELETE, BENCHMARK_CREATE,
       BENCHMARK_ATOMIC_WRITES, BENCHMARK_PARTITION_KEY_QUERY, BENCHMARK_COMPOSITE_KEY_QUERY,
       BENCHMARK_RANGE_QUERY, BENCHMARK_QUERY_WITH_LIMIT, BENCHMARK_QUERY_WITH_ORDER_BY,
       BENCHMARK_QUERY_WITH_PAGINATION);
 
-  /** Benchmarks that don't read the seeded high scores; every other benchmark seeds them. */
   private static final Set<String> SKIP_HIGHSCORE_SEED = Set.of(
       BENCHMARK_PUT, BENCHMARK_BATCH_PUT, BENCHMARK_WRITE_READ_DELETE, BENCHMARK_CREATE,
       BENCHMARK_ATOMIC_WRITES, BENCHMARK_GET, BENCHMARK_GET_LARGE, BENCHMARK_BATCH_GET,
@@ -194,7 +191,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
   }
 
-  /** Extracts the short {@code @Benchmark} method name from the fully-qualified JMH id. */
   private static String benchmarkMethod(BenchmarkParams params) {
     String fqn = params.getBenchmark();
     int lastDot = fqn.lastIndexOf('.');
@@ -235,7 +231,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
             }
           }
         }
-        // Forked benchmark JVMs have no SLF4J binding, so stderr is the only place this shows up.
+        // Benchmark forks have no logger output, so print to stderr.
         if (failedKeys > 0) {
           System.err.printf(
               "Teardown failed to delete up to %d of %d benchmark keys; first error: %s%n",
