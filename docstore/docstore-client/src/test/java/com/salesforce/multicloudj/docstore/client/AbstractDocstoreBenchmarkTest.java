@@ -70,39 +70,41 @@ public abstract class AbstractDocstoreBenchmarkTest {
   // under @Threads(4) unlike Collections.synchronizedSet().
   private final Set<String> benchmarkCreatedKeys = ConcurrentHashMap.newKeySet();
 
-  // Put/BatchPut overwrite a rotating key set so teardown and table growth stay bounded at any
-  // throughput. A multiple of every batch size so a batch never wraps onto its own keys, and large
-  // enough that no single document is rewritten more than about once a second.
+  // Put/BatchPut reuse this many keys, which bounds what teardown deletes. Must be a multiple of
+  // every batch size so one batch never writes the same key twice.
   private static final int WRITE_KEY_POOL_SIZE = 20_000;
   private final AtomicLong writeKeySeq = new AtomicLong();
 
-  // Benchmarks that never read a seeded dataset. Unlisted benchmarks seed it, so a new benchmark
-  // can't silently run against an empty table.
-  private static final Set<String> SKIP_PLAYER_SEED =
-      Set.of(
-          "benchmarkPut",
-          "benchmarkBatchPut",
-          "benchmarkWriteReadDelete",
-          "benchmarkCreate",
-          "benchmarkAtomicWrites",
-          "benchmarkPartitionKeyQuery",
-          "benchmarkCompositeKeyQuery",
-          "benchmarkRangeQuery",
-          "benchmarkQueryWithLimit",
-          "benchmarkQueryWithOrderBy",
-          "benchmarkQueryWithPagination");
-  private static final Set<String> SKIP_HIGHSCORE_SEED =
-      Set.of(
-          "benchmarkPut",
-          "benchmarkBatchPut",
-          "benchmarkWriteReadDelete",
-          "benchmarkCreate",
-          "benchmarkAtomicWrites",
-          "benchmarkGet",
-          "benchmarkGetLarge",
-          "benchmarkBatchGet",
-          "benchmarkReplace",
-          "benchmarkGetWithProjection");
+  // @Benchmark method names, shared by the seed skip-lists below.
+  private static final String BENCHMARK_PUT = "benchmarkPut";
+  private static final String BENCHMARK_GET = "benchmarkGet";
+  private static final String BENCHMARK_BATCH_PUT = "benchmarkBatchPut";
+  private static final String BENCHMARK_BATCH_GET = "benchmarkBatchGet";
+  private static final String BENCHMARK_WRITE_READ_DELETE = "benchmarkWriteReadDelete";
+  private static final String BENCHMARK_GET_LARGE = "benchmarkGetLarge";
+  private static final String BENCHMARK_CREATE = "benchmarkCreate";
+  private static final String BENCHMARK_REPLACE = "benchmarkReplace";
+  private static final String BENCHMARK_ATOMIC_WRITES = "benchmarkAtomicWrites";
+  private static final String BENCHMARK_PARTITION_KEY_QUERY = "benchmarkPartitionKeyQuery";
+  private static final String BENCHMARK_COMPOSITE_KEY_QUERY = "benchmarkCompositeKeyQuery";
+  private static final String BENCHMARK_RANGE_QUERY = "benchmarkRangeQuery";
+  private static final String BENCHMARK_QUERY_WITH_LIMIT = "benchmarkQueryWithLimit";
+  private static final String BENCHMARK_QUERY_WITH_ORDER_BY = "benchmarkQueryWithOrderBy";
+  private static final String BENCHMARK_QUERY_WITH_PAGINATION = "benchmarkQueryWithPagination";
+  private static final String BENCHMARK_GET_WITH_PROJECTION = "benchmarkGetWithProjection";
+
+  /** Benchmarks that don't read the seeded players; every other benchmark seeds them. */
+  private static final Set<String> SKIP_PLAYER_SEED = Set.of(
+      BENCHMARK_PUT, BENCHMARK_BATCH_PUT, BENCHMARK_WRITE_READ_DELETE, BENCHMARK_CREATE,
+      BENCHMARK_ATOMIC_WRITES, BENCHMARK_PARTITION_KEY_QUERY, BENCHMARK_COMPOSITE_KEY_QUERY,
+      BENCHMARK_RANGE_QUERY, BENCHMARK_QUERY_WITH_LIMIT, BENCHMARK_QUERY_WITH_ORDER_BY,
+      BENCHMARK_QUERY_WITH_PAGINATION);
+
+  /** Benchmarks that don't read the seeded high scores; every other benchmark seeds them. */
+  private static final Set<String> SKIP_HIGHSCORE_SEED = Set.of(
+      BENCHMARK_PUT, BENCHMARK_BATCH_PUT, BENCHMARK_WRITE_READ_DELETE, BENCHMARK_CREATE,
+      BENCHMARK_ATOMIC_WRITES, BENCHMARK_GET, BENCHMARK_GET_LARGE, BENCHMARK_BATCH_GET,
+      BENCHMARK_REPLACE, BENCHMARK_GET_WITH_PROJECTION);
 
   // Pre-filtered key lists to avoid O(n) stream allocation in the benchmark hot path.
   private List<String> smallPlayerKeys;
