@@ -214,6 +214,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
         // — the per-provider runWritesBatched does the wire-level batching from there.
         List<String> keys = new ArrayList<>(benchmarkCreatedKeys);
         int chunkSize = 400;
+        int failedKeys = 0;
+        String firstError = null;
         for (int start = 0; start < keys.size(); start += chunkSize) {
           int end = Math.min(start + chunkSize, keys.size());
           ActionList deletes = docStoreClient.getActions();
@@ -225,9 +227,17 @@ public abstract class AbstractDocstoreBenchmarkTest {
           try {
             deletes.run();
           } catch (Exception e) {
-            logger.warn(
-                "Failed to bulk-delete benchmark keys [{}..{}]: {}", start, end, e.getMessage());
+            failedKeys += end - start;
+            if (firstError == null) {
+              firstError = e.toString();
+            }
           }
+        }
+        // Forked benchmark JVMs have no SLF4J binding, so stderr is the only place this shows up.
+        if (failedKeys > 0) {
+          System.err.printf(
+              "Teardown failed to delete up to %d of %d benchmark keys; first error: %s%n",
+              failedKeys, keys.size(), firstError);
         }
         benchmarkCreatedKeys.clear();
       }
