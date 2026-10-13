@@ -12,6 +12,7 @@ import com.aliyuncs.exceptions.ClientException;
 import com.aliyuncs.http.HttpClientConfig;
 import com.aliyuncs.policy.retry.RetryPolicy;
 import com.aliyuncs.policy.retry.RetryPolicyContext;
+import com.aliyuncs.policy.retry.backoff.EqualJitterBackoffStrategy;
 import com.aliyuncs.profile.IClientProfile;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleRequest;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleResponse;
@@ -33,8 +34,6 @@ import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
-import java.util.HashSet;
-import java.util.Set;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -480,13 +479,12 @@ public class AliStsTest {
   }
 
   @Test
-  public void testToRetryPolicyExponential() {
+  public void testToRetryPolicyExponentialUsesSdkEqualJitterBackoff() {
     RetryConfig retryConfig =
         RetryConfig.builder()
             .mode(RetryConfig.Mode.EXPONENTIAL)
             .maxAttempts(5)
             .initialDelayMillis(100)
-            .multiplier(3.0)
             .maxDelayMillis(1000)
             .build();
 
@@ -494,49 +492,13 @@ public class AliStsTest {
 
     assertEquals(4, policy.maxNumberOfRetries());
     assertEquals(1000, policy.maxDelayTimeMillis());
-    assertEquals(100, AliSts.retryDelayMillis(retryConfig, 1));
-    assertEquals(300, AliSts.retryDelayMillis(retryConfig, 2));
-    assertEquals(900, AliSts.retryDelayMillis(retryConfig, 3));
-    assertEquals(1000, AliSts.retryDelayMillis(retryConfig, 4));
-  }
-
-  @Test
-  public void testToRetryPolicyExponentialAppliesEqualJitter() {
-    RetryConfig retryConfig =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .initialDelayMillis(1000)
-            .multiplier(2.0)
-            .maxDelayMillis(8000)
-            .build();
-    RetryPolicy policy = AliSts.toRetryPolicy(retryConfig);
-    for (int retry = 1; retry <= 5; retry++) {
-      long upperBound = AliSts.retryDelayMillis(retryConfig, retry);
-      Set<Integer> delays = new HashSet<>();
-      for (int i = 0; i < 50; i++) {
-        int delay = delayBeforeRetry(policy, retry);
-        assertTrue(
-            delay >= upperBound / 2 && delay <= upperBound,
-            "retry " + retry + " delay " + delay + " outside [" + upperBound / 2 + ", "
-                + upperBound + "]");
-        delays.add(delay);
-      }
-      assertTrue(delays.size() > 1, "retry " + retry + " delay was not jittered");
+    assertTrue(policy.backoffStrategy() instanceof EqualJitterBackoffStrategy);
+    for (int i = 0; i < 50; i++) {
+      int first = delayBeforeRetry(policy, 1);
+      assertTrue(first >= 100 && first <= 200, "first retry delay " + first);
+      int capped = delayBeforeRetry(policy, 4);
+      assertTrue(capped >= 500 && capped <= 1000, "capped retry delay " + capped);
     }
-  }
-
-  @Test
-  public void testToRetryPolicyExponentialDefaultsMultiplierToTwo() {
-    RetryConfig retryConfig =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .initialDelayMillis(50)
-            .maxDelayMillis(10000)
-            .build();
-
-    assertEquals(50, AliSts.retryDelayMillis(retryConfig, 1));
-    assertEquals(100, AliSts.retryDelayMillis(retryConfig, 2));
-    assertEquals(200, AliSts.retryDelayMillis(retryConfig, 3));
   }
 
   @Test

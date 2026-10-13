@@ -8,10 +8,14 @@ import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.http.HttpTransportFactory;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.CredentialAccessBoundary;
+import com.google.auth.oauth2.ExternalAccountAuthorizedUserCredentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdToken;
 import com.google.auth.oauth2.IdTokenProvider;
+import com.google.auth.oauth2.IdentityPoolCredentials;
+import com.google.auth.oauth2.ImpersonatedCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.auth.oauth2.UserCredentials;
 import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -30,9 +34,13 @@ import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.KeyPairGenerator;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,6 +50,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
@@ -320,26 +329,165 @@ public class GcpStsTest {
     Assertions.assertSame(source, sts.getCredentials());
   }
 
+  /**
+   * Records the requested URLs and serves an OAuth token response, or the default service account
+   * for the metadata server's service-account listing.
+   */
+  private static MockHttpTransport tokenTransport(List<String> requestedUrls, String token) {
+    return new MockHttpTransport() {
+      @Override
+      public MockLowLevelHttpRequest buildRequest(String method, String url) {
+        requestedUrls.add(url);
+        return new MockLowLevelHttpRequest() {
+          @Override
+          public MockLowLevelHttpResponse execute() {
+            String content =
+                url.contains("recursive=true")
+                    ? "{\"default\":{\"email\":\"sa@example.iam.gserviceaccount.com\"}}"
+                    : "{\"access_token\":\"" + token + "\",\"expires_in\":3600,"
+                        + "\"token_type\":\"Bearer\",\"issued_token_type\":"
+                        + "\"urn:ietf:params:oauth:token-type:access_token\"}";
+            return new MockLowLevelHttpResponse()
+                .setStatusCode(200)
+                .setContentType("application/json")
+                .addHeader("Metadata-Flavor", "Google")
+                .setContent(content);
+          }
+        };
+      }
+    };
+  }
+
   @Test
-  public void testApplicationDefaultCredentialsUseConfiguredTransportFactory() throws Exception {
-    HttpTransportFactory factory = () -> new MockHttpTransport();
+  public void testApplicationDefaultCredentialsRefreshThroughConfiguredTransport()
+      throws Exception {
+    List<String> requestedUrls = new ArrayList<>();
+    MockHttpTransport transport = tokenTransport(requestedUrls, "adc-token");
+    ServiceAccountCredentials cached = newServiceAccountCredentials();
     try (MockedStatic<GoogleCredentials> mockedGoogleCreds =
         Mockito.mockStatic(GoogleCredentials.class)) {
-      mockedGoogleCreds
-          .when(
-              () ->
-                  GoogleCredentials.getApplicationDefault(
-                      Mockito.any(HttpTransportFactory.class)))
-          .thenReturn(mockGoogleCredentials);
-      Mockito.when(mockGoogleCredentials.createScopedRequired()).thenReturn(false);
+      mockedGoogleCreds.when(GoogleCredentials::getApplicationDefault).thenReturn(cached);
 
-      GcpSts sts = new GcpSts().builder().build(factory);
-      StsCredentials credentials =
-          sts.getAccessToken(GetAccessTokenRequest.newBuilder().withDurationSeconds(60).build());
+      GcpSts sts = new GcpSts().builder().build(() -> transport);
+      GetAccessTokenRequest request =
+          GetAccessTokenRequest.newBuilder().withDurationSeconds(60).build();
+      StsCredentials credentials = sts.getAccessToken(request);
+      sts.getAccessToken(request);
 
-      Assertions.assertEquals("testAccessTokenValue", credentials.getSecurityToken());
-      mockedGoogleCreds.verify(() -> GoogleCredentials.getApplicationDefault(factory));
+      Assertions.assertEquals("adc-token", credentials.getSecurityToken());
+      // One token request: the rebound copy is kept and its unexpired token reused.
+      Assertions.assertEquals(1, requestedUrls.size());
+      // The JVM-wide cached instance is never rebound or refreshed by this client.
+      Assertions.assertNull(cached.getAccessToken());
+      mockedGoogleCreds.verify(
+          () -> GoogleCredentials.getApplicationDefault(Mockito.any(HttpTransportFactory.class)),
+          Mockito.never());
     }
+  }
+
+  @Test
+  public void testWithTransportKeepsCredentialsWithoutFactory() throws Exception {
+    ServiceAccountCredentials source = newServiceAccountCredentials();
+
+    Assertions.assertSame(source, GcpSts.withTransport(source, null));
+  }
+
+  @Test
+  public void testWithTransportRebindsUserAndImpersonatedCredentials() throws Exception {
+    HttpTransportFactory factory = MockHttpTransport::new;
+    UserCredentials user =
+        UserCredentials.newBuilder()
+            .setClientId("client-id")
+            .setClientSecret("client-secret")
+            .setRefreshToken("refresh-token")
+            .build();
+    ImpersonatedCredentials impersonated =
+        ImpersonatedCredentials.newBuilder()
+            .setSourceCredentials(newServiceAccountCredentials())
+            .setTargetPrincipal("target@test-project.iam.gserviceaccount.com")
+            .setScopes(List.of(CLOUD_PLATFORM_SCOPE))
+            .build();
+
+    UserCredentials reboundUser = (UserCredentials) GcpSts.withTransport(user, factory);
+    ImpersonatedCredentials reboundImpersonated =
+        (ImpersonatedCredentials) GcpSts.withTransport(impersonated, factory);
+
+    Assertions.assertSame(factory, reboundUser.toBuilder().getHttpTransportFactory());
+    Assertions.assertNotSame(factory, user.toBuilder().getHttpTransportFactory());
+    Assertions.assertSame(factory, reboundImpersonated.toBuilder().getHttpTransportFactory());
+    Assertions.assertNotSame(factory, impersonated.toBuilder().getHttpTransportFactory());
+  }
+
+  @Test
+  public void testWithTransportRebindsExternalAccountCredentials(@TempDir Path tempDir)
+      throws Exception {
+    Path subjectToken = Files.writeString(tempDir.resolve("subject-token"), "oidc-token");
+    String tokenUrl = "https://sts.example.test/v1/token";
+    GoogleCredentials identityPool =
+        GoogleCredentials.fromStream(
+            new ByteArrayInputStream(
+                ("{\"type\":\"external_account\","
+                        + "\"audience\":\"//iam.googleapis.com/projects/1/locations/global/"
+                        + "workloadIdentityPools/pool/providers/provider\","
+                        + "\"subject_token_type\":\"urn:ietf:params:oauth:token-type:jwt\","
+                        + "\"token_url\":\"" + tokenUrl + "\","
+                        + "\"credential_source\":{\"file\":\"" + subjectToken + "\"}}")
+                    .getBytes(StandardCharsets.UTF_8)));
+    GoogleCredentials externalUser =
+        ExternalAccountAuthorizedUserCredentials.newBuilder()
+            .setAudience("//iam.googleapis.com/locations/global/workforcePools/pool/providers/p")
+            .setTokenUrl(tokenUrl)
+            .setClientId("client-id")
+            .setClientSecret("client-secret")
+            .setRefreshToken("refresh-token")
+            .build();
+    Assertions.assertInstanceOf(IdentityPoolCredentials.class, identityPool);
+
+    for (GoogleCredentials credentials : List.of(identityPool, externalUser)) {
+      List<String> requestedUrls = new ArrayList<>();
+      MockHttpTransport transport = tokenTransport(requestedUrls, "federated-token");
+
+      AccessToken token =
+          GcpSts.withTransport(credentials, () -> transport).refreshAccessToken();
+
+      Assertions.assertEquals("federated-token", token.getTokenValue());
+      Assertions.assertEquals(List.of(tokenUrl), requestedUrls);
+    }
+  }
+
+  @Test
+  public void testWithTransportKeepsUnsupportedCredentialTypes() {
+    GoogleCredentials other = Mockito.mock(GoogleCredentials.class);
+
+    Assertions.assertSame(other, GcpSts.withTransport(other, MockHttpTransport::new));
+  }
+
+  @Test
+  public void testApplicationDefaultLookupFailureIsReported() {
+    try (MockedStatic<GoogleCredentials> mockedGoogleCreds =
+        Mockito.mockStatic(GoogleCredentials.class)) {
+      IOException cause = new IOException("no credentials");
+      mockedGoogleCreds.when(GoogleCredentials::getApplicationDefault).thenThrow(cause);
+
+      GcpSts sts = new GcpSts().builder().build();
+
+      SubstrateSdkException e =
+          Assertions.assertThrows(SubstrateSdkException.class, sts::getCredentials);
+      Assertions.assertSame(cause, e.getCause());
+    }
+  }
+
+  @Test
+  public void testComputeEngineCredentialsRefreshThroughConfiguredTransport() throws Exception {
+    List<String> requestedUrls = new ArrayList<>();
+    MockHttpTransport transport = tokenTransport(requestedUrls, "metadata-token");
+
+    AccessToken token = GcpSts.computeEngineCredentials(() -> transport).refreshAccessToken();
+
+    Assertions.assertEquals("metadata-token", token.getTokenValue());
+    Assertions.assertTrue(
+        requestedUrls.stream().anyMatch(url -> url.contains("/service-accounts/default/token")),
+        "requested " + requestedUrls);
   }
 
   @Test

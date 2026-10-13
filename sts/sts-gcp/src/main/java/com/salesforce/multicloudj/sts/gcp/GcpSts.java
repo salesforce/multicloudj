@@ -16,11 +16,14 @@ import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.ComputeEngineCredentials;
 import com.google.auth.oauth2.CredentialAccessBoundary;
 import com.google.auth.oauth2.DownscopedCredentials;
+import com.google.auth.oauth2.ExternalAccountAuthorizedUserCredentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdTokenCredentials;
 import com.google.auth.oauth2.IdTokenProvider;
+import com.google.auth.oauth2.IdentityPoolCredentials;
 import com.google.auth.oauth2.ImpersonatedCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.auth.oauth2.UserCredentials;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
@@ -118,8 +121,8 @@ public class GcpSts extends AbstractSts {
   /**
    * Initializes the HTTP transport factory if any proxy settings or a per-attempt timeout are
    * provided. The factory carries impersonation, downscoping and token-exchange requests, and the
-   * token refreshes of application-default credentials this class loads itself. Caller-supplied
-   * credentials keep the transport they were created with.
+   * token refreshes of application-default credentials this class loads itself (see {@link
+   * #withTransport}). Caller-supplied credentials keep the transport they were created with.
    *
    * @param builder The builder containing proxy and retry configuration
    */
@@ -435,25 +438,51 @@ public class GcpSts extends AbstractSts {
       return googleCredentials;
     }
     try {
-      GoogleCredentials credentials;
       if (System.getenv("KUBERNETES_SERVICE_HOST") != null) {
-        ComputeEngineCredentials.Builder computeBuilder = ComputeEngineCredentials.newBuilder();
-        if (httpTransportFactory != null) {
-          computeBuilder.setHttpTransportFactory(httpTransportFactory);
-        }
-        return computeBuilder.build();
+        return computeEngineCredentials(httpTransportFactory);
       }
-      credentials =
-          httpTransportFactory != null
-              ? GoogleCredentials.getApplicationDefault(httpTransportFactory)
-              : GoogleCredentials.getApplicationDefault();
+      // google-auth caches the application-default credentials JVM-wide together with the
+      // transport of the first lookup, so they are looked up with the default transport and
+      // rebound to this client's transport on a copy. The copy is kept so its token is reused.
+      GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
       if (credentials.createScopedRequired()) {
         credentials = credentials.createScoped(List.of(SCOPE));
       }
-      return withoutLibraryRetries(credentials);
+      googleCredentials = withoutLibraryRetries(withTransport(credentials, httpTransportFactory));
+      return googleCredentials;
     } catch (IOException e) {
       throw new SubstrateSdkException("Could not create credentials in given environment", e);
     }
+  }
+
+  static GoogleCredentials computeEngineCredentials(HttpTransportFactory factory) {
+    return withTransport(ComputeEngineCredentials.create(), factory);
+  }
+
+  /**
+   * Returns a copy of the credentials that refreshes tokens through the given transport. Service
+   * account, user, impersonated, Compute Engine, identity pool and external account authorized user
+   * credentials are rebound; any other type is returned unchanged and keeps its own transport.
+   */
+  static GoogleCredentials withTransport(
+      GoogleCredentials credentials, HttpTransportFactory factory) {
+    if (factory == null) {
+      return credentials;
+    }
+    if (credentials instanceof ServiceAccountCredentials serviceAccount) {
+      return serviceAccount.toBuilder().setHttpTransportFactory(factory).build();
+    } else if (credentials instanceof UserCredentials user) {
+      return user.toBuilder().setHttpTransportFactory(factory).build();
+    } else if (credentials instanceof ImpersonatedCredentials impersonated) {
+      return impersonated.toBuilder().setHttpTransportFactory(factory).build();
+    } else if (credentials instanceof ComputeEngineCredentials computeEngine) {
+      return computeEngine.toBuilder().setHttpTransportFactory(factory).build();
+    } else if (credentials instanceof IdentityPoolCredentials identityPool) {
+      return identityPool.toBuilder().setHttpTransportFactory(factory).build();
+    } else if (credentials instanceof ExternalAccountAuthorizedUserCredentials externalUser) {
+      return externalUser.toBuilder().setHttpTransportFactory(factory).build();
+    }
+    return credentials;
   }
 
   /**

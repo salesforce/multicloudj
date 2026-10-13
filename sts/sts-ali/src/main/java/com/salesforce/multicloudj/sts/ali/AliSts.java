@@ -11,6 +11,7 @@ import com.aliyuncs.http.HttpClientConfig;
 import com.aliyuncs.policy.retry.RetryPolicy;
 import com.aliyuncs.policy.retry.RetryPolicyContext;
 import com.aliyuncs.policy.retry.backoff.BackoffStrategy;
+import com.aliyuncs.policy.retry.backoff.EqualJitterBackoffStrategy;
 import com.aliyuncs.profile.DefaultProfile;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleRequest;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleResponse;
@@ -40,7 +41,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -112,6 +113,10 @@ public class AliSts extends AbstractSts {
    * Unset maxAttempts defaults to 3 attempts; other unset fields keep the SDK's RetryPolicy
    * builder defaults.
    *
+   * <p>EXPONENTIAL uses the SDK's EqualJitterBackoffStrategy, which waits between half and all of
+   * {@code min(initialDelayMillis * 2^retry, maxDelayMillis)} before each retry (1 for the first
+   * retry). The SDK always doubles, so RetryConfig.multiplier is not applied.
+   *
    * <p>The SDK stops retrying when a computed delay exceeds {@code maxDelayTimeMillis}, so that
    * limit is set to the largest delay the configured mode can produce.
    *
@@ -126,28 +131,17 @@ public class AliSts extends AbstractSts {
         retryConfig.getMaxAttempts() != null ? retryConfig.getMaxAttempts() : DEFAULT_MAX_ATTEMPTS;
     policy.maxNumberOfRetries(maxAttempts - 1);
     if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
-      policy.backoffStrategy(new RetryConfigBackoffStrategy(retryConfig));
-      policy.maxDelayTimeMillis(toIntMillis(retryConfig.getMaxDelayMillis()));
+      int maxDelayMillis = toIntMillis(retryConfig.getMaxDelayMillis());
+      policy.backoffStrategy(
+          new EqualJitterBackoffStrategy(
+              toIntMillis(retryConfig.getInitialDelayMillis()), maxDelayMillis, new Random()));
+      policy.maxDelayTimeMillis(maxDelayMillis);
     } else if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
-      policy.backoffStrategy(new RetryConfigBackoffStrategy(retryConfig));
-      policy.maxDelayTimeMillis(toIntMillis(retryConfig.getFixedDelayMillis()));
+      int fixedDelayMillis = toIntMillis(retryConfig.getFixedDelayMillis());
+      policy.backoffStrategy(new FixedBackoffStrategy(fixedDelayMillis));
+      policy.maxDelayTimeMillis(fixedDelayMillis);
     }
     return policy.build();
-  }
-
-  /**
-   * Upper bound of the delay before the given retry (1 for the first retry). EXPONENTIAL grows as
-   * {@code initialDelayMillis * multiplier^(retry-1)} capped at maxDelayMillis, with the multiplier
-   * defaulting to 2.0 when unset.
-   */
-  static long retryDelayMillis(RetryConfig retryConfig, int retryNumber) {
-    if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
-      return retryConfig.getFixedDelayMillis();
-    }
-    double multiplier = retryConfig.getMultiplier() > 0 ? retryConfig.getMultiplier() : 2.0;
-    double delay =
-        retryConfig.getInitialDelayMillis() * Math.pow(multiplier, Math.max(0, retryNumber - 1));
-    return (long) Math.min(retryConfig.getMaxDelayMillis(), delay);
   }
 
   private static Integer toAttemptTimeoutMillis(RetryConfig retryConfig) {
@@ -179,23 +173,17 @@ public class AliSts extends AbstractSts {
     return (int) Math.min(millis, Integer.MAX_VALUE);
   }
 
-  private static final class RetryConfigBackoffStrategy extends BackoffStrategy {
-    private final RetryConfig retryConfig;
+  /** The SDK ships no constant-delay strategy, so FIXED mode supplies one. */
+  private static final class FixedBackoffStrategy extends BackoffStrategy {
+    private final int delayMillis;
 
-    RetryConfigBackoffStrategy(RetryConfig retryConfig) {
-      this.retryConfig = retryConfig;
+    FixedBackoffStrategy(int delayMillis) {
+      this.delayMillis = delayMillis;
     }
 
     @Override
     public int computeDelayBeforeNextRetry(RetryPolicyContext context) {
-      long delay = retryDelayMillis(retryConfig, context.retriesAttempted());
-      if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
-        // Equal jitter: wait between half and all of the computed delay so clients that failed
-        // together do not retry in lockstep. The result never exceeds the computed delay, so the
-        // SDK's maxDelayTimeMillis stop condition is unaffected.
-        delay = delay / 2 + ThreadLocalRandom.current().nextLong(delay / 2 + 1);
-      }
-      return toIntMillis(delay);
+      return delayMillis;
     }
   }
 
