@@ -2444,59 +2444,9 @@ class GcpTransformerTest {
         });
   }
 
-  @Test
-  public void testToGcpRetrySettings_InvalidMaxAttempts() {
-    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(0).build();
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> {
-          transformer.toGcpRetrySettings(retryConfig);
-        });
-  }
 
-  @Test
-  public void testToGcpRetrySettings_InvalidExponentialDelays() {
-    RetryConfig retryConfig1 =
-        RetryConfig.builder().mode(RetryConfig.Mode.EXPONENTIAL).initialDelayMillis(0).build();
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> {
-          transformer.toGcpRetrySettings(retryConfig1);
-        });
 
-    RetryConfig retryConfig2 =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .initialDelayMillis(100)
-            .maxDelayMillis(0)
-            .build();
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> {
-          transformer.toGcpRetrySettings(retryConfig2);
-        });
-  }
 
-  @Test
-  public void testToGcpRetrySettings_InvalidFixedDelay() {
-    RetryConfig retryConfig =
-        RetryConfig.builder().mode(RetryConfig.Mode.FIXED).fixedDelayMillis(0).build();
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> {
-          transformer.toGcpRetrySettings(retryConfig);
-        });
-  }
-
-  @Test
-  public void testToGcpRetrySettings_InvalidTotalTimeout() {
-    RetryConfig retryConfig = RetryConfig.builder().totalTimeout(0L).build();
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> {
-          transformer.toGcpRetrySettings(retryConfig);
-        });
-  }
 
   @Test
   public void testToGcpRetrySettings_AttemptTimeout() {
@@ -2512,15 +2462,6 @@ class GcpTransformerTest {
     assertEquals(Duration.ofMillis(2000), settings.getMaxRpcTimeoutDuration());
   }
 
-  @Test
-  public void testToGcpRetrySettings_InvalidAttemptTimeout() {
-    RetryConfig retryConfig = RetryConfig.builder().attemptTimeout(0L).build();
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> {
-          transformer.toGcpRetrySettings(retryConfig);
-        });
-  }
 
   @Test
   public void testToGenerationId_WithInvalidFormat() {

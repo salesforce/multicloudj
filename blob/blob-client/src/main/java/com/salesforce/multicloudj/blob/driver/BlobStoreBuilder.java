@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.observability.TracingPolicy;
 import com.salesforce.multicloudj.common.provider.SdkProvider;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
@@ -314,8 +315,12 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
    *
    * @param retryConfig The retry configuration to use for retrying failed requests
    * @return An instance of self
+   * @throws InvalidArgumentException if the configuration has invalid values for its mode
    */
   public BlobStoreBuilder<T> withRetryConfig(RetryConfig retryConfig) {
+    if (retryConfig != null) {
+      retryConfig.validate();
+    }
     this.retryConfig = retryConfig;
     return this;
   }

@@ -33,6 +33,7 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
+import com.salesforce.multicloudj.common.aws.AwsRetryStrategies;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -45,7 +46,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -787,21 +787,9 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
       // Configure retry strategy if specified
       if (config.getRetryConfig() != null) {
-        // Create a temporary transformer instance for retry strategy conversion
-        AwsTransformer transformer = config.getTransformerSupplier().get(config.getBucket());
         builder.overrideConfiguration(
-            overrideConfig -> {
-              overrideConfig.retryStrategy(transformer.toAwsRetryStrategy(config.getRetryConfig()));
-              // Set API call timeouts if provided
-              if (config.getRetryConfig().getAttemptTimeout() != null) {
-                overrideConfig.apiCallAttemptTimeout(
-                    Duration.ofMillis(config.getRetryConfig().getAttemptTimeout()));
-              }
-              if (config.getRetryConfig().getTotalTimeout() != null) {
-                overrideConfig.apiCallTimeout(
-                    Duration.ofMillis(config.getRetryConfig().getTotalTimeout()));
-              }
-            });
+            overrideConfig ->
+                AwsRetryStrategies.applyRetryConfig(overrideConfig, config.getRetryConfig()));
       }
 
       // Configure async configuration if executor service is specified

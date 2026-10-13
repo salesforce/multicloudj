@@ -11,6 +11,7 @@ import com.google.auth.oauth2.CredentialAccessBoundary;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdToken;
 import com.google.auth.oauth2.IdTokenProvider;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -21,6 +22,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
@@ -31,6 +33,7 @@ import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.security.KeyPairGenerator;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -277,6 +280,112 @@ public class GcpStsTest {
         () -> {
           sts.assumeRoleWithWebIdentity(request);
         });
+  }
+
+  private static ServiceAccountCredentials newServiceAccountCredentials() throws Exception {
+    KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+    generator.initialize(2048);
+    return ServiceAccountCredentials.newBuilder()
+        .setClientEmail("sa@test-project.iam.gserviceaccount.com")
+        .setPrivateKey(generator.generateKeyPair().getPrivate())
+        .setPrivateKeyId("key-id")
+        .build();
+  }
+
+  private static RetryConfig singleRetryConfig() {
+    return RetryConfig.builder().mode(RetryConfig.Mode.FIXED).fixedDelayMillis(1).build();
+  }
+
+  @Test
+  public void testServiceAccountDefaultRetriesDisabledWhenRetryConfigPresent() throws Exception {
+    ServiceAccountCredentials source = newServiceAccountCredentials();
+    Assertions.assertTrue(source.toBuilder().isDefaultRetriesEnabled());
+
+    GcpSts sts = new GcpSts().builder().withRetryConfig(singleRetryConfig()).build(source);
+
+    GoogleCredentials resolved = sts.getCredentials();
+    Assertions.assertFalse(
+        ((ServiceAccountCredentials) resolved).toBuilder().isDefaultRetriesEnabled());
+    Assertions.assertEquals(
+        source.getClientEmail(), ((ServiceAccountCredentials) resolved).getClientEmail());
+    Assertions.assertSame(resolved, sts.getCredentials());
+  }
+
+  @Test
+  public void testServiceAccountDefaultRetriesKeptWithoutRetryConfig() throws Exception {
+    ServiceAccountCredentials source = newServiceAccountCredentials();
+
+    GcpSts sts = new GcpSts().builder().build(source);
+
+    Assertions.assertSame(source, sts.getCredentials());
+  }
+
+  @Test
+  public void testApplicationDefaultCredentialsUseConfiguredTransportFactory() throws Exception {
+    HttpTransportFactory factory = () -> new MockHttpTransport();
+    try (MockedStatic<GoogleCredentials> mockedGoogleCreds =
+        Mockito.mockStatic(GoogleCredentials.class)) {
+      mockedGoogleCreds
+          .when(
+              () ->
+                  GoogleCredentials.getApplicationDefault(
+                      Mockito.any(HttpTransportFactory.class)))
+          .thenReturn(mockGoogleCredentials);
+      Mockito.when(mockGoogleCredentials.createScopedRequired()).thenReturn(false);
+
+      GcpSts sts = new GcpSts().builder().build(factory);
+      StsCredentials credentials =
+          sts.getAccessToken(GetAccessTokenRequest.newBuilder().withDurationSeconds(60).build());
+
+      Assertions.assertEquals("testAccessTokenValue", credentials.getSecurityToken());
+      mockedGoogleCreds.verify(() -> GoogleCredentials.getApplicationDefault(factory));
+    }
+  }
+
+  @Test
+  public void testDownscopingUsesConfiguredTransportFactory() throws Exception {
+    List<String> requestedUrls = new ArrayList<>();
+    MockHttpTransport transport =
+        new MockHttpTransport() {
+          @Override
+          public MockLowLevelHttpRequest buildRequest(String method, String url) {
+            requestedUrls.add(url);
+            return new MockLowLevelHttpRequest() {
+              @Override
+              public MockLowLevelHttpResponse execute() {
+                return new MockLowLevelHttpResponse()
+                    .setStatusCode(200)
+                    .setContentType("application/json")
+                    .setContent(
+                        "{\"access_token\":\"downscoped-token\",\"expires_in\":3600,"
+                            + "\"token_type\":\"Bearer\","
+                            + "\"issued_token_type\":"
+                            + "\"urn:ietf:params:oauth:token-type:access_token\"}");
+              }
+            };
+          }
+        };
+    GoogleCredentials source = Mockito.mock(GoogleCredentials.class);
+    AccessToken sourceToken = Mockito.mock(AccessToken.class);
+    Mockito.when(sourceToken.getTokenValue()).thenReturn("source-token");
+    Mockito.when(source.getAccessToken()).thenReturn(sourceToken);
+    Mockito.when(source.getUniverseDomain()).thenReturn("googleapis.com");
+    GcpSts sts = new GcpSts().builder().build(source, () -> transport);
+
+    CredentialScope scope =
+        CredentialScope.builder()
+            .rule(
+                CredentialScope.ScopeRule.builder()
+                    .availableResource("storage://my-bucket")
+                    .availablePermission("storage:GetObject")
+                    .build())
+            .build();
+    StsCredentials credentials =
+        sts.assumeRole(AssumedRoleRequest.newBuilder().withCredentialScope(scope).build());
+
+    Assertions.assertEquals("downscoped-token", credentials.getSecurityToken());
+    Assertions.assertEquals(1, requestedUrls.size());
+    Assertions.assertTrue(requestedUrls.get(0).contains("sts.googleapis.com"));
   }
 
   @Test
