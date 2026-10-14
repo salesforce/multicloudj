@@ -137,7 +137,9 @@ public class AliSmqTopic extends AliBaseTopic<AliSmqTopic> {
         throw new InvalidArgumentException("Topic name cannot be null or empty");
       }
       if (smqClient == null) {
-        smqClient = SmqClientFactory.buildSmqClient(endpoint, credentialsOverrider, proxyEndpoint);
+        smqClient =
+            SmqClientFactory.buildSmqClient(
+                endpoint, credentialsOverrider, proxyEndpoint, retryConfig, 0);
       }
       topic = smqClient.getTopicRef(topicName);
       return new AliSmqTopic(this);

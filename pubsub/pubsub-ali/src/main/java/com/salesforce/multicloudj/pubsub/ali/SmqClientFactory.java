@@ -8,6 +8,7 @@ import com.aliyuncs.auth.DefaultCredentialsProvider;
 import com.aliyuncs.exceptions.ClientException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
 import java.util.Locale;
@@ -25,13 +26,31 @@ public final class SmqClientFactory {
   private SmqClientFactory() {}
 
   /**
+   * Builds an {@link MNSClient} with no {@link RetryConfig}.
+   *
+   * @see #buildSmqClient(URI, CredentialsOverrider, URI, RetryConfig, long)
+   */
+  public static MNSClient buildSmqClient(
+      URI endpoint, CredentialsOverrider credentialsOverrider, URI proxyEndpoint) {
+    return buildSmqClient(endpoint, credentialsOverrider, proxyEndpoint, null, 0);
+  }
+
+  /**
    * Builds an {@link MNSClient}.
+   *
+   * <p>See {@link #buildClientConfiguration(URI, RetryConfig, long)} for which {@code RetryConfig}
+   * fields the SMQ SDK can honor.
    *
    * @param endpoint the account-scoped SMQ endpoint (required)
    * @param credentialsOverrider the credentials override, or {@code null} to use the Alibaba
    *     default credential chain; an explicit override that cannot be honored is rejected rather
    *     than silently falling back to ambient credentials
    * @param proxyEndpoint an optional HTTP proxy ({@code http://host:port}); may be {@code null}
+   * @param retryConfig an optional retry configuration, already checked by {@link
+   *     RetryConfig#validate()}; may be {@code null} to keep the SDK defaults
+   * @param minSocketTimeoutMillis a lower bound on the socket timeout derived from {@code
+   *     attemptTimeout}, so a call that legitimately holds the connection open (a long-poll
+   *     receive) is not cut short; 0 for no lower bound
    * @return a configured {@link MNSClient}
    * @throws InvalidArgumentException if the endpoint or proxy is missing/malformed, or a {@code
    *     SESSION} override carries no session credentials
@@ -39,8 +58,14 @@ public final class SmqClientFactory {
    *     ({@code ASSUME_ROLE} / {@code ASSUME_ROLE_WEB_IDENTITY})
    */
   public static MNSClient buildSmqClient(
-      URI endpoint, CredentialsOverrider credentialsOverrider, URI proxyEndpoint) {
-    return buildCloudAccount(endpoint, credentialsOverrider, proxyEndpoint).getMNSClient();
+      URI endpoint,
+      CredentialsOverrider credentialsOverrider,
+      URI proxyEndpoint,
+      RetryConfig retryConfig,
+      long minSocketTimeoutMillis) {
+    return buildCloudAccount(
+            endpoint, credentialsOverrider, proxyEndpoint, retryConfig, minSocketTimeoutMillis)
+        .getMNSClient();
   }
 
   /**
@@ -49,8 +74,18 @@ public final class SmqClientFactory {
    */
   static CloudAccount buildCloudAccount(
       URI endpoint, CredentialsOverrider credentialsOverrider, URI proxyEndpoint) {
+    return buildCloudAccount(endpoint, credentialsOverrider, proxyEndpoint, null, 0);
+  }
+
+  private static CloudAccount buildCloudAccount(
+      URI endpoint,
+      CredentialsOverrider credentialsOverrider,
+      URI proxyEndpoint,
+      RetryConfig retryConfig,
+      long minSocketTimeoutMillis) {
     validateEndpoint(endpoint);
-    ClientConfiguration clientConfiguration = buildClientConfiguration(proxyEndpoint);
+    ClientConfiguration clientConfiguration =
+        buildClientConfiguration(proxyEndpoint, retryConfig, minSocketTimeoutMillis);
     AlibabaCloudCredentialsProvider credentialsProvider =
         SmqCredentialsProvider.getCredentialsProvider(credentialsOverrider);
     if (credentialsProvider == null) {
@@ -66,7 +101,33 @@ public final class SmqClientFactory {
    * tests can assert the proxy wiring directly.
    */
   static ClientConfiguration buildClientConfiguration(URI proxyEndpoint) {
+    return buildClientConfiguration(proxyEndpoint, null, 0);
+  }
+
+  /**
+   * Builds the SDK client configuration, applying the proxy and the {@code RetryConfig} fields the
+   * SMQ SDK can honor; package-private so unit tests can assert the wiring directly.
+   *
+   * <p>Only {@code attemptTimeout} is applied. It sets the connection timeout and the socket
+   * timeout; the socket timeout is raised to {@code minSocketTimeoutMillis} when lower. The SDK
+   * also uses the socket timeout as the time a synchronous call waits for its result.
+   *
+   * <p>The remaining fields are ignored. The SDK's {@code maxErrorRetry} only covers failures
+   * raised while handing a request to its asynchronous HTTP client; connection failures, timeouts
+   * and 5xx responses complete the returned future and are never retried, so {@code maxAttempts}
+   * cannot be honored. The retry pause is fixed by the SDK and cannot be replaced through its
+   * public API, so {@code mode}, the delay fields and {@code multiplier} are not applied. The SDK
+   * has no deadline across attempts, so {@code totalTimeout} is not applied.
+   */
+  static ClientConfiguration buildClientConfiguration(
+      URI proxyEndpoint, RetryConfig retryConfig, long minSocketTimeoutMillis) {
     ClientConfiguration clientConfiguration = new ClientConfiguration();
+    if (retryConfig != null && retryConfig.getAttemptTimeout() != null) {
+      long attemptTimeout = retryConfig.getAttemptTimeout();
+      clientConfiguration.setConnectionTimeout(toIntMillis(attemptTimeout));
+      clientConfiguration.setSocketTimeout(
+          toIntMillis(Math.max(attemptTimeout, minSocketTimeoutMillis)));
+    }
     if (proxyEndpoint != null) {
       validateProxy(proxyEndpoint);
       // The SMQ ClientConfiguration applies an HTTP host:port proxy only: it has no proxy-scheme
@@ -138,6 +199,10 @@ public final class SmqClientFactory {
           "Proxy endpoint must be host:port only, with no user-info, path, query, or fragment: "
               + proxyEndpoint);
     }
+  }
+
+  private static int toIntMillis(long millis) {
+    return (int) Math.min(millis, Integer.MAX_VALUE);
   }
 
   private static boolean isHttpOrHttps(String scheme) {

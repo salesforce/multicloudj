@@ -27,7 +27,11 @@ import java.util.Map;
  * and error translation ({@link #mapException}). Concrete subclasses implement {@code doSendBatch}
  * with the queue- or topic-specific SMQ call.
  *
- * <p>{@code RetryConfig} is not supported yet and is ignored.
+ * <p>Of {@code RetryConfig}, only {@code attemptTimeout} is applied, as the SMQ client's connection
+ * and socket timeouts. {@code maxAttempts}, {@code mode}, the delay fields, {@code multiplier} and
+ * {@code totalTimeout} are ignored because the SMQ SDK cannot honor them; see {@link
+ * SmqClientFactory#buildClientConfiguration(java.net.URI,
+ * com.salesforce.multicloudj.common.retries.RetryConfig, long)}.
  */
 public abstract class AliBaseTopic<T extends AliBaseTopic<T>> extends AbstractTopic<T> {
 

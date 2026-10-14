@@ -32,7 +32,12 @@ import java.util.Map;
  * batchDeleteMessage}, and nacks them via {@code changeMessageVisibility}. Receipt
  * handles are modelled as {@link AliAckID}. Registered under the {@code ali} provider id.
  *
- * <p>{@code RetryConfig} is not supported yet and is ignored.
+ * <p>Of {@code RetryConfig}, only {@code attemptTimeout} is applied, as the SMQ client's connection
+ * and socket timeouts; with a long-poll wait the socket timeout is raised to the wait plus a 5s
+ * margin. {@code maxAttempts}, {@code mode}, the delay fields, {@code multiplier} and {@code
+ * totalTimeout} are ignored because the SMQ SDK cannot honor them; see {@link
+ * SmqClientFactory#buildClientConfiguration(java.net.URI,
+ * com.salesforce.multicloudj.common.retries.RetryConfig, long)}.
  */
 @AutoService(AbstractSubscription.class)
 public class AliSubscription extends AbstractSubscription<AliSubscription> {
@@ -45,6 +50,9 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
 
   // SMQ long-poll waits at most 30s per receive call.
   private static final int MAX_WAIT_SECONDS = 30;
+
+  // Headroom above the long-poll wait for the response to arrive before the socket times out.
+  private static final long LONG_POLL_SOCKET_TIMEOUT_MARGIN_MS = 5000;
 
   // SMQ ChangeMessageVisibility accepts a 1..43200s (12h) timeout; 0 is rejected.
   private static final int MIN_VISIBILITY_TIMEOUT_SECONDS = 1;
@@ -69,7 +77,23 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
     super(builder);
     this.smqClient = builder.smqClient;
     this.queue = builder.queue;
-    this.waitSeconds = (int) Math.min(Math.max(builder.waitSeconds, 0), MAX_WAIT_SECONDS);
+    this.waitSeconds = clampWaitSeconds(builder.waitSeconds);
+  }
+
+  private static int clampWaitSeconds(long waitSeconds) {
+    return (int) Math.min(Math.max(waitSeconds, 0), MAX_WAIT_SECONDS);
+  }
+
+  /**
+   * Lower bound on the SMQ socket timeout for the given long-poll wait. A long-poll receive holds
+   * the socket idle for up to the wait, so a shorter {@code attemptTimeout} would fail every
+   * receive that finds no message. A short poll needs no lower bound.
+   */
+  static long minSocketTimeoutMillis(long waitSeconds) {
+    int clampedWaitSeconds = clampWaitSeconds(waitSeconds);
+    return clampedWaitSeconds > 0
+        ? clampedWaitSeconds * 1000L + LONG_POLL_SOCKET_TIMEOUT_MARGIN_MS
+        : 0;
   }
 
   @Override
@@ -521,7 +545,13 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
         throw new InvalidArgumentException("Subscription name cannot be null or empty");
       }
       if (smqClient == null) {
-        smqClient = SmqClientFactory.buildSmqClient(endpoint, credentialsOverrider, proxyEndpoint);
+        smqClient =
+            SmqClientFactory.buildSmqClient(
+                endpoint,
+                credentialsOverrider,
+                proxyEndpoint,
+                retryConfig,
+                minSocketTimeoutMillis(waitSeconds));
       }
       queue = smqClient.getQueueRef(subscriptionName);
       return new AliSubscription(this);
