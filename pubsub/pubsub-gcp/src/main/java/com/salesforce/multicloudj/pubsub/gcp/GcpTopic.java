@@ -6,6 +6,7 @@ import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.httpjson.InstantiatingHttpJsonChannelProvider;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.TransportChannelProvider;
+import com.google.api.gax.rpc.UnaryCallSettings;
 import com.google.auth.Credentials;
 import com.google.auto.service.AutoService;
 import com.google.cloud.pubsub.v1.TopicAdminClient;
@@ -208,11 +209,9 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
     if (retryConfig == null) {
       return;
     }
-    settingsBuilder
-        .publishSettings()
-        .setRetrySettings(
-            RetrySettingsUtil.apply(
-                settingsBuilder.publishSettings().getRetrySettings(), retryConfig));
+    UnaryCallSettings.Builder<?, ?> publishSettings = settingsBuilder.publishSettings();
+    publishSettings.setRetrySettings(
+        RetrySettingsUtil.apply(publishSettings.getRetrySettings(), retryConfig));
   }
 
   /** Builder for creating GcpTopic instances. */

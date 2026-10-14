@@ -136,15 +136,15 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
     if (retryConfig == null) {
       return;
     }
-    applyRetrySettings(settingsBuilder.pullSettings());
-    applyRetrySettings(settingsBuilder.acknowledgeSettings());
-    applyRetrySettings(settingsBuilder.modifyAckDeadlineSettings());
-    applyRetrySettings(settingsBuilder.getSubscriptionSettings());
-  }
-
-  private void applyRetrySettings(UnaryCallSettings.Builder<?, ?> callSettings) {
-    callSettings.setRetrySettings(
-        RetrySettingsUtil.apply(callSettings.getRetrySettings(), retryConfig));
+    for (UnaryCallSettings.Builder<?, ?> callSettings :
+        List.of(
+            settingsBuilder.pullSettings(),
+            settingsBuilder.acknowledgeSettings(),
+            settingsBuilder.modifyAckDeadlineSettings(),
+            settingsBuilder.getSubscriptionSettings())) {
+      callSettings.setRetrySettings(
+          RetrySettingsUtil.apply(callSettings.getRetrySettings(), retryConfig));
+    }
   }
 
   @Override
