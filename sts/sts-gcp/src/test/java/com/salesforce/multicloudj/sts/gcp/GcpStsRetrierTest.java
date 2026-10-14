@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongUnaryOperator;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.message.BasicHttpRequest;
@@ -35,6 +36,7 @@ import org.mockito.Mockito;
 
 public class GcpStsRetrierTest {
   private static final GcpStsRetrier.Sleeper NO_SLEEP = millis -> {};
+  private static final LongUnaryOperator NO_JITTER = millis -> millis;
 
   private static HttpResponseException httpError(int status) {
     return new HttpResponseException.Builder(status, "status " + status, new HttpHeaders())
@@ -57,7 +59,8 @@ public class GcpStsRetrierTest {
   public void testUnsetModeUsesDefaultExponentialBackoff() throws Exception {
     List<Long> sleeps = new ArrayList<>();
     RetryConfig retryConfig = RetryConfig.builder().maxAttempts(10).build();
-    GcpStsRetrier retrier = new GcpStsRetrier(retryConfig, sleeps::add, System::nanoTime);
+    GcpStsRetrier retrier =
+        new GcpStsRetrier(retryConfig, sleeps::add, System::nanoTime, NO_JITTER);
     AtomicInteger calls = new AtomicInteger();
     IOException[] errors = new IOException[9];
     java.util.Arrays.fill(errors, httpError(503));
@@ -127,13 +130,34 @@ public class GcpStsRetrierTest {
             .multiplier(3.0)
             .maxDelayMillis(500)
             .build();
-    GcpStsRetrier retrier = new GcpStsRetrier(retryConfig, sleeps::add, System::nanoTime);
+    GcpStsRetrier retrier =
+        new GcpStsRetrier(retryConfig, sleeps::add, System::nanoTime, NO_JITTER);
 
     retrier.execute(
         failingThenOk(
             new AtomicInteger(), httpError(503), httpError(503), httpError(503), httpError(503)));
 
     assertEquals(List.of(100L, 300L, 500L, 500L), sleeps);
+  }
+
+  @Test
+  public void testExponentialBackoffAppliesEqualJitter() throws IOException {
+    List<Long> sleeps = new ArrayList<>();
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .maxAttempts(51)
+            .initialDelayMillis(1000)
+            .maxDelayMillis(1000)
+            .build();
+    GcpStsRetrier retrier = new GcpStsRetrier(retryConfig, sleeps::add, System::nanoTime);
+    IOException[] errors = new IOException[50];
+    java.util.Arrays.fill(errors, httpError(503));
+
+    retrier.execute(failingThenOk(new AtomicInteger(), errors));
+
+    assertTrue(sleeps.stream().allMatch(s -> s >= 500 && s <= 1000), "sleeps were " + sleeps);
+    assertTrue(sleeps.stream().distinct().count() > 1, "sleeps were not jittered: " + sleeps);
   }
 
   @Test
