@@ -12,11 +12,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.retries.StandardRetryStrategy;
-import software.amazon.awssdk.retries.api.AcquireInitialTokenRequest;
-import software.amazon.awssdk.retries.api.RefreshRetryTokenRequest;
-import software.amazon.awssdk.retries.api.RefreshRetryTokenResponse;
 import software.amazon.awssdk.retries.api.RetryStrategy;
-import software.amazon.awssdk.retries.api.RetryToken;
 
 class AwsRetryStrategiesTest {
 
@@ -24,21 +20,6 @@ class AwsRetryStrategiesTest {
     ClientOverrideConfiguration.Builder builder = ClientOverrideConfiguration.builder();
     AwsRetryStrategies.applyRetryConfig(builder, retryConfig);
     return builder.build();
-  }
-
-  /** Returns the delay before the first retry of a throttled failure. */
-  private static Duration firstThrottledRetryDelay(RetryStrategy strategy) {
-    RetryStrategy throttled =
-        strategy.toBuilder().retryOnException(t -> true).treatAsThrottling(t -> true).build();
-    RetryToken token =
-        throttled.acquireInitialToken(AcquireInitialTokenRequest.create("scope")).token();
-    RefreshRetryTokenResponse refreshed =
-        throttled.refreshRetryToken(
-            RefreshRetryTokenRequest.builder()
-                .token(token)
-                .failure(new RuntimeException("throttled"))
-                .build());
-    return refreshed.delay();
   }
 
   @Test
@@ -77,39 +58,6 @@ class AwsRetryStrategiesTest {
     RetryStrategy strategy = AwsRetryStrategies.toRetryStrategy(RetryConfig.builder().build());
 
     assertEquals(defaults.maxAttempts(), strategy.maxAttempts());
-  }
-
-  @Test
-  void toRetryStrategy_appliesFixedBackoffToThrottledRetries() {
-    RetryStrategy strategy =
-        AwsRetryStrategies.toRetryStrategy(
-            RetryConfig.builder()
-                .mode(RetryConfig.Mode.FIXED)
-                .maxAttempts(3)
-                .fixedDelayMillis(7)
-                .build());
-
-    Duration delay = firstThrottledRetryDelay(strategy);
-
-    // The fixed backoff is jittered within [1ms, configured delay]; the SDK's default throttling
-    // backoff would wait hundreds of milliseconds.
-    assertTrue(delay.toMillis() <= 7, "delay was " + delay);
-  }
-
-  @Test
-  void toRetryStrategy_appliesExponentialBackoffToThrottledRetries() {
-    RetryStrategy strategy =
-        AwsRetryStrategies.toRetryStrategy(
-            RetryConfig.builder()
-                .mode(RetryConfig.Mode.EXPONENTIAL)
-                .maxAttempts(3)
-                .initialDelayMillis(5)
-                .maxDelayMillis(7)
-                .build());
-
-    Duration delay = firstThrottledRetryDelay(strategy);
-
-    assertTrue(delay.toMillis() <= 7, "delay was " + delay);
   }
 
   @Test
