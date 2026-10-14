@@ -330,8 +330,8 @@ public class GcpStsTest {
   }
 
   /**
-   * Records the requested URLs and serves an OAuth token response, or the default service account
-   * for the metadata server's service-account listing.
+   * Records the requested URLs and serves an OAuth token response, an IAM generateAccessToken
+   * response, or the default service account for the metadata server's service-account listing.
    */
   private static MockHttpTransport tokenTransport(List<String> requestedUrls, String token) {
     return new MockHttpTransport() {
@@ -344,6 +344,8 @@ public class GcpStsTest {
             String content =
                 url.contains("recursive=true")
                     ? "{\"default\":{\"email\":\"sa@example.iam.gserviceaccount.com\"}}"
+                    : url.contains(":generateAccessToken")
+                    ? "{\"accessToken\":\"" + token + "\",\"expireTime\":\"2099-01-01T00:00:00Z\"}"
                     : "{\"access_token\":\"" + token + "\",\"expires_in\":3600,"
                         + "\"token_type\":\"Bearer\",\"issued_token_type\":"
                         + "\"urn:ietf:params:oauth:token-type:access_token\"}";
@@ -393,7 +395,7 @@ public class GcpStsTest {
   }
 
   @Test
-  public void testWithTransportRebindsUserAndImpersonatedCredentials() throws Exception {
+  public void testWithTransportRebindsUserCredentials() {
     HttpTransportFactory factory = MockHttpTransport::new;
     UserCredentials user =
         UserCredentials.newBuilder()
@@ -401,6 +403,43 @@ public class GcpStsTest {
             .setClientSecret("client-secret")
             .setRefreshToken("refresh-token")
             .build();
+
+    UserCredentials reboundUser = (UserCredentials) GcpSts.withTransport(user, factory);
+
+    Assertions.assertSame(factory, reboundUser.toBuilder().getHttpTransportFactory());
+    Assertions.assertNotSame(factory, user.toBuilder().getHttpTransportFactory());
+  }
+
+  @Test
+  public void testWithTransportRebindsImpersonatedCredentialsAndTheirSource() throws Exception {
+    // Loaded like an application-default credentials file, so the source is built with the
+    // default transport.
+    GoogleCredentials impersonated =
+        GoogleCredentials.fromStream(
+            new ByteArrayInputStream(
+                ("{\"type\":\"impersonated_service_account\","
+                        + "\"service_account_impersonation_url\":"
+                        + "\"https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/"
+                        + "target@test-project.iam.gserviceaccount.com:generateAccessToken\","
+                        + "\"source_credentials\":{\"type\":\"authorized_user\","
+                        + "\"client_id\":\"client-id\",\"client_secret\":\"client-secret\","
+                        + "\"refresh_token\":\"refresh-token\"}}")
+                    .getBytes(StandardCharsets.UTF_8)));
+    List<String> requestedUrls = new ArrayList<>();
+    MockHttpTransport transport = tokenTransport(requestedUrls, "impersonated-token");
+
+    AccessToken token =
+        GcpSts.withTransport(impersonated, () -> transport).refreshAccessToken();
+
+    Assertions.assertEquals("impersonated-token", token.getTokenValue());
+    Assertions.assertEquals(2, requestedUrls.size(), requestedUrls.toString());
+    Assertions.assertTrue(requestedUrls.get(0).startsWith("https://oauth2.googleapis.com/token"));
+    Assertions.assertTrue(requestedUrls.get(1).endsWith(":generateAccessToken"));
+  }
+
+  @Test
+  public void testImpersonatedSourceDefaultRetriesDisabledWhenRetryConfigPresent()
+      throws Exception {
     ImpersonatedCredentials impersonated =
         ImpersonatedCredentials.newBuilder()
             .setSourceCredentials(newServiceAccountCredentials())
@@ -408,14 +447,13 @@ public class GcpStsTest {
             .setScopes(List.of(CLOUD_PLATFORM_SCOPE))
             .build();
 
-    UserCredentials reboundUser = (UserCredentials) GcpSts.withTransport(user, factory);
-    ImpersonatedCredentials reboundImpersonated =
-        (ImpersonatedCredentials) GcpSts.withTransport(impersonated, factory);
+    GcpSts sts = new GcpSts().builder().withRetryConfig(singleRetryConfig()).build(impersonated);
 
-    Assertions.assertSame(factory, reboundUser.toBuilder().getHttpTransportFactory());
-    Assertions.assertNotSame(factory, user.toBuilder().getHttpTransportFactory());
-    Assertions.assertSame(factory, reboundImpersonated.toBuilder().getHttpTransportFactory());
-    Assertions.assertNotSame(factory, impersonated.toBuilder().getHttpTransportFactory());
+    GoogleCredentials resolved = sts.getCredentials();
+    GoogleCredentials source = ((ImpersonatedCredentials) resolved).getSourceCredentials();
+    Assertions.assertFalse(
+        ((ServiceAccountCredentials) source).toBuilder().isDefaultRetriesEnabled());
+    Assertions.assertSame(resolved, sts.getCredentials());
   }
 
   @Test

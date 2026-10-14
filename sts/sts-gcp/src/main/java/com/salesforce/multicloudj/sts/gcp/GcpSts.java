@@ -438,6 +438,9 @@ public class GcpSts extends AbstractSts {
       return googleCredentials;
     }
     try {
+      // Deliberately not cached: a fresh credential per call takes every token from the metadata
+      // server, which caches and refreshes tokens itself. Holding one instance across calls left a
+      // production workload with tokens that were never refreshed.
       if (System.getenv("KUBERNETES_SERVICE_HOST") != null) {
         return computeEngineCredentials(httpTransportFactory);
       }
@@ -463,6 +466,10 @@ public class GcpSts extends AbstractSts {
    * Returns a copy of the credentials that refreshes tokens through the given transport. Service
    * account, user, impersonated, Compute Engine, identity pool and external account authorized user
    * credentials are rebound; any other type is returned unchanged and keeps its own transport.
+   *
+   * <p>Impersonated credentials refresh their source credentials through the source's own
+   * transport, and a source loaded from an application-default credentials file was built with the
+   * default transport, so the source is rebound too.
    */
   static GoogleCredentials withTransport(
       GoogleCredentials credentials, HttpTransportFactory factory) {
@@ -474,7 +481,10 @@ public class GcpSts extends AbstractSts {
     } else if (credentials instanceof UserCredentials user) {
       return user.toBuilder().setHttpTransportFactory(factory).build();
     } else if (credentials instanceof ImpersonatedCredentials impersonated) {
-      return impersonated.toBuilder().setHttpTransportFactory(factory).build();
+      return impersonated.toBuilder()
+          .setSourceCredentials(withTransport(impersonated.getSourceCredentials(), factory))
+          .setHttpTransportFactory(factory)
+          .build();
     } else if (credentials instanceof ComputeEngineCredentials computeEngine) {
       return computeEngine.toBuilder().setHttpTransportFactory(factory).build();
     } else if (credentials instanceof IdentityPoolCredentials identityPool) {
@@ -488,9 +498,16 @@ public class GcpSts extends AbstractSts {
   /**
    * Service account credentials retry token requests internally by default, which would multiply
    * with the configured retry loop. When a RetryConfig is present the internal retries are turned
-   * off so the loop alone governs attempts.
+   * off so the loop alone governs attempts, including for the source of impersonated credentials.
    */
   private GoogleCredentials withoutLibraryRetries(GoogleCredentials credentials) {
+    if (retrier.isEnabled() && credentials instanceof ImpersonatedCredentials impersonated) {
+      GoogleCredentials source = impersonated.getSourceCredentials();
+      GoogleCredentials rebuiltSource = withoutLibraryRetries(source);
+      if (rebuiltSource != source) {
+        return impersonated.toBuilder().setSourceCredentials(rebuiltSource).build();
+      }
+    }
     if (retrier.isEnabled() && credentials instanceof ServiceAccountCredentials) {
       ServiceAccountCredentials.Builder rebuilt =
           ((ServiceAccountCredentials) credentials).toBuilder();

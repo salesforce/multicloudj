@@ -495,8 +495,10 @@ public class AliStsTest {
     assertTrue(policy.backoffStrategy() instanceof EqualJitterBackoffStrategy);
     for (int i = 0; i < 50; i++) {
       int first = delayBeforeRetry(policy, 1);
-      assertTrue(first >= 100 && first <= 200, "first retry delay " + first);
-      int capped = delayBeforeRetry(policy, 4);
+      assertTrue(first >= 50 && first <= 100, "first retry delay " + first);
+      int fourth = delayBeforeRetry(policy, 4);
+      assertTrue(fourth >= 400 && fourth <= 800, "fourth retry delay " + fourth);
+      int capped = delayBeforeRetry(policy, 5);
       assertTrue(capped >= 500 && capped <= 1000, "capped retry delay " + capped);
     }
   }

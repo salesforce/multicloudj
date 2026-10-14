@@ -114,8 +114,10 @@ public class AliSts extends AbstractSts {
    * builder defaults.
    *
    * <p>EXPONENTIAL uses the SDK's EqualJitterBackoffStrategy, which waits between half and all of
-   * {@code min(initialDelayMillis * 2^retry, maxDelayMillis)} before each retry (1 for the first
-   * retry). The SDK always doubles, so RetryConfig.multiplier is not applied.
+   * {@code min(base * 2^retry, maxDelayMillis)} before each retry, counting the first retry as 1.
+   * The base is half of initialDelayMillis so the first retry waits at most initialDelayMillis and
+   * each later retry at most {@code initialDelayMillis * 2^(retry - 1)}. The SDK always doubles, so
+   * RetryConfig.multiplier is not applied.
    *
    * <p>The SDK stops retrying when a computed delay exceeds {@code maxDelayTimeMillis}, so that
    * limit is set to the largest delay the configured mode can produce.
@@ -132,9 +134,9 @@ public class AliSts extends AbstractSts {
     policy.maxNumberOfRetries(maxAttempts - 1);
     if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
       int maxDelayMillis = toIntMillis(retryConfig.getMaxDelayMillis());
+      int baseDelayMillis = Math.max(1, toIntMillis(retryConfig.getInitialDelayMillis()) / 2);
       policy.backoffStrategy(
-          new EqualJitterBackoffStrategy(
-              toIntMillis(retryConfig.getInitialDelayMillis()), maxDelayMillis, new Random()));
+          new EqualJitterBackoffStrategy(baseDelayMillis, maxDelayMillis, new Random()));
       policy.maxDelayTimeMillis(maxDelayMillis);
     } else if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
       int fixedDelayMillis = toIntMillis(retryConfig.getFixedDelayMillis());
