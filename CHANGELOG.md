@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.11](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.10...multicloudj-v0.4.11) (2026-10-14)
+
+
+### STS
+
+* address retry configuration review feedback ([#680](https://github.com/salesforce/multicloudj/issues/680)) ([ade03df](https://github.com/salesforce/multicloudj/commit/ade03dff9906d8939c8352435f5da7315f6aa3fd))
+
 ## [0.4.10](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.9...multicloudj-v0.4.10) (2026-10-13)
 
 
