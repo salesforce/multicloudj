@@ -193,13 +193,7 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
       TransportChannelProvider channelProvider = httpJson.build();
       settingsBuilder.setTransportChannelProvider(channelProvider);
 
-      if (retryConfig != null) {
-        settingsBuilder
-            .publishSettings()
-            .setRetrySettings(
-                RetrySettingsUtil.apply(
-                    settingsBuilder.publishSettings().getRetrySettings(), retryConfig));
-      }
+      applyRetryConfig(settingsBuilder);
 
       topicAdminClient = TopicAdminClient.create(settingsBuilder.build());
       return topicAdminClient;
@@ -208,6 +202,17 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
       throw new SubstrateSdkException(
           "Failed to create topicAdminClient for topic: " + this.topicName, e);
     }
+  }
+
+  private void applyRetryConfig(TopicAdminSettings.Builder settingsBuilder) {
+    if (retryConfig == null) {
+      return;
+    }
+    settingsBuilder
+        .publishSettings()
+        .setRetrySettings(
+            RetrySettingsUtil.apply(
+                settingsBuilder.publishSettings().getRetrySettings(), retryConfig));
   }
 
   /** Builder for creating GcpTopic instances. */

@@ -120,12 +120,7 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
             TransportChannelProvider channelProvider = httpJson.build();
             settingsBuilder.setTransportChannelProvider(channelProvider);
 
-            if (retryConfig != null) {
-              applyRetryConfig(settingsBuilder.pullSettings());
-              applyRetryConfig(settingsBuilder.acknowledgeSettings());
-              applyRetryConfig(settingsBuilder.modifyAckDeadlineSettings());
-              applyRetryConfig(settingsBuilder.getSubscriptionSettings());
-            }
+            applyRetryConfig(settingsBuilder);
 
             subscriptionAdminClient = SubscriptionAdminClient.create(settingsBuilder.build());
           } catch (IOException e) {
@@ -137,7 +132,17 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
     return subscriptionAdminClient;
   }
 
-  private void applyRetryConfig(UnaryCallSettings.Builder<?, ?> callSettings) {
+  private void applyRetryConfig(SubscriptionAdminSettings.Builder settingsBuilder) {
+    if (retryConfig == null) {
+      return;
+    }
+    applyRetrySettings(settingsBuilder.pullSettings());
+    applyRetrySettings(settingsBuilder.acknowledgeSettings());
+    applyRetrySettings(settingsBuilder.modifyAckDeadlineSettings());
+    applyRetrySettings(settingsBuilder.getSubscriptionSettings());
+  }
+
+  private void applyRetrySettings(UnaryCallSettings.Builder<?, ?> callSettings) {
     callSettings.setRetrySettings(
         RetrySettingsUtil.apply(callSettings.getRetrySettings(), retryConfig));
   }
