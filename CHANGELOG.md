@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.10](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.9...multicloudj-v0.4.10) (2026-10-13)
+
+
+### Blob Store
+
+* fix AWS async stream-upload thread leak with a store-owned executor ([#663](https://github.com/salesforce/multicloudj/issues/663)) ([663be99](https://github.com/salesforce/multicloudj/commit/663be990a29bb897d02d5d22f18b413b58253dd8))
+* shut down the AWS async transfer-manager thread pool on close ([#670](https://github.com/salesforce/multicloudj/issues/670)) ([c146a98](https://github.com/salesforce/multicloudj/commit/c146a9847bdf409f1499bd35bd506e42d2ac52d2))
+
+
+### Document Store
+
+* configure consistent reads through collection options ([#675](https://github.com/salesforce/multicloudj/issues/675)) ([5c9b5ca](https://github.com/salesforce/multicloudj/commit/5c9b5ca6491acf35fa14e33d91df483d4a5cb1dc))
+
+
+### STS
+
+* add retry configuration support for sts interface ([#672](https://github.com/salesforce/multicloudj/issues/672)) ([8d76a44](https://github.com/salesforce/multicloudj/commit/8d76a440d4cc5557b3e01032af145c5ccbde7bff))
+
 ## [0.4.9](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.8...multicloudj-v0.4.9) (2026-10-08)
 
 
