@@ -19,6 +19,10 @@ import lombok.Getter;
  *   <li><b>FIXED</b>: Constant delay between retries using {@code fixedDelayMillis}
  * </ul>
  *
+ * <p>The configured delays are base values. A provider may add random jitter to each delay and
+ * grow later delays from the jittered values, so actual delays can be shorter or longer than the
+ * formula.
+ *
  * <p>Example usage:
  *
  * <pre>{@code
@@ -48,7 +52,8 @@ public final class RetryConfig {
   public enum Mode {
     /**
      * Exponential backoff mode where delay grows exponentially between retries. Uses formula:
-     * {@code delay = min(maxDelayMillis, initialDelayMillis * multiplier^(attempt-1))}
+     * {@code delay = min(maxDelayMillis, initialDelayMillis * multiplier^(attempt-1))}. The
+     * formula gives the base delay; provider jitter can make actual delays shorter or longer.
      *
      * <p>Requires: {@code initialDelayMillis}, {@code multiplier}, {@code maxDelayMillis}
      */
@@ -133,8 +138,9 @@ public final class RetryConfig {
             "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
                 + maxDelayMillis);
       }
-      // 0 means unset, in which case the provider's default multiplier applies.
-      if (multiplier != 0 && multiplier < 1) {
+      // 0 means unset, in which case the provider's default multiplier applies. NaN and positive
+      // infinity are not less than 1, so they need the explicit finiteness check.
+      if (multiplier != 0 && (!Double.isFinite(multiplier) || multiplier < 1)) {
         throw new InvalidArgumentException(
             "RetryConfig.multiplier must be at least 1 for EXPONENTIAL mode, got: " + multiplier);
       }
