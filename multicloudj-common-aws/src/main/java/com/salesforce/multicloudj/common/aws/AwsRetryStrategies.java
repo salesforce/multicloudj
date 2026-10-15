@@ -35,7 +35,9 @@ public final class AwsRetryStrategies {
   /**
    * Builds a StandardRetryStrategy from a RetryConfig already checked by {@link
    * RetryConfig#validate()}. Unset fields keep the SDK defaults. The SDK's exponential backoff
-   * always doubles, so RetryConfig.multiplier is not applied.
+   * always doubles, so RetryConfig.multiplier is not applied. Throttled requests (such as S3
+   * SlowDown) keep the SDK's throttling backoff, which starts at 1 s, so a short configured delay
+   * cannot make clients retry faster while the service is asking them to slow down.
    *
    * @param retryConfig the retry configuration to convert
    * @return the AWS SDK retry strategy
@@ -59,8 +61,7 @@ public final class AwsRetryStrategies {
       backoff = BackoffStrategy.fixedDelay(Duration.ofMillis(retryConfig.getFixedDelayMillis()));
     }
     if (backoff != null) {
-      // Throttled responses use a separate backoff strategy that must be set explicitly.
-      strategy.backoffStrategy(backoff).throttlingBackoffStrategy(backoff);
+      strategy.backoffStrategy(backoff);
     }
     return strategy.build();
   }
