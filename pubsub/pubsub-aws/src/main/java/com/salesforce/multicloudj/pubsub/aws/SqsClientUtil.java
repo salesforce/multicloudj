@@ -1,10 +1,12 @@
 package com.salesforce.multicloudj.pubsub.aws;
 
+import com.salesforce.multicloudj.common.aws.AwsRetryStrategies;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.SqsClientBuilder;
@@ -47,8 +49,9 @@ public final class SqsClientUtil {
     }
 
     if (retryConfig != null) {
-      clientBuilder.overrideConfiguration(
-          RetryConfigUtil.toClientOverrideConfiguration(retryConfig));
+      ClientOverrideConfiguration.Builder overrideConfig = ClientOverrideConfiguration.builder();
+      AwsRetryStrategies.applyRetryConfig(overrideConfig, retryConfig);
+      clientBuilder.overrideConfiguration(overrideConfig.build());
     }
 
     return clientBuilder.build();
