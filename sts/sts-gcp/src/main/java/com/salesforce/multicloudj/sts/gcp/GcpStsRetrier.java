@@ -7,8 +7,10 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
+import java.util.function.LongUnaryOperator;
 import org.apache.http.NoHttpResponseException;
 
 /**
@@ -19,7 +21,10 @@ import org.apache.http.NoHttpResponseException;
  * <p>Only transient failures are retried: errors the auth library marks retryable, HTTP 408, 429
  * and 5xx responses, and connection-level I/O failures. With no RetryConfig every operation runs
  * exactly once; a RetryConfig that leaves maxAttempts unset allows up to 3 attempts, and one that
- * leaves the mode unset backs off exponentially from 100 ms, doubling up to 20 s.
+ * leaves the mode unset backs off exponentially from 100 ms, doubling up to 20 s. Exponential
+ * delays get equal jitter (between half and all of the computed delay) so clients that failed
+ * together, such as every pod hitting the same token endpoint outage, do not retry in lockstep;
+ * fixed delays are used as configured.
  *
  * <p>totalTimeout is checked between attempts: no retry starts once the elapsed time plus the next
  * delay reaches it, but an attempt already in flight is not interrupted (attemptTimeout bounds a
@@ -46,15 +51,22 @@ final class GcpStsRetrier {
   private final RetryConfig retryConfig;
   private final Sleeper sleeper;
   private final LongSupplier nanoClock;
+  private final LongUnaryOperator jitter;
 
   GcpStsRetrier(RetryConfig retryConfig) {
     this(retryConfig, Thread::sleep, System::nanoTime);
   }
 
   GcpStsRetrier(RetryConfig retryConfig, Sleeper sleeper, LongSupplier nanoClock) {
+    this(retryConfig, sleeper, nanoClock, GcpStsRetrier::equalJitter);
+  }
+
+  GcpStsRetrier(
+      RetryConfig retryConfig, Sleeper sleeper, LongSupplier nanoClock, LongUnaryOperator jitter) {
     this.retryConfig = retryConfig;
     this.sleeper = sleeper;
     this.nanoClock = nanoClock;
+    this.jitter = jitter;
   }
 
   boolean isEnabled() {
@@ -86,10 +98,14 @@ final class GcpStsRetrier {
   }
 
   /** Delay before the retry that follows the given failed attempt (1 for the first failure). */
-  long delayBeforeRetryMillis(int failedAttempt) {
+  private long delayBeforeRetryMillis(int failedAttempt) {
     if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
       return retryConfig.getFixedDelayMillis();
     }
+    return jitter.applyAsLong(exponentialDelayMillis(failedAttempt));
+  }
+
+  private long exponentialDelayMillis(int failedAttempt) {
     boolean exponential = retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL;
     double multiplier =
         exponential && retryConfig.getMultiplier() > 0
@@ -100,6 +116,12 @@ final class GcpStsRetrier {
     long maxDelay = exponential ? retryConfig.getMaxDelayMillis() : DEFAULT_MAX_DELAY_MILLIS;
     double delay = initialDelay * Math.pow(multiplier, failedAttempt - 1);
     return (long) Math.min(maxDelay, delay);
+  }
+
+  /** A uniformly random delay between half of the given delay and the full delay, inclusive. */
+  private static long equalJitter(long delayMillis) {
+    long half = delayMillis / 2;
+    return half + ThreadLocalRandom.current().nextLong(delayMillis - half + 1);
   }
 
   private static void throwIfInterrupted(IOException lastError) throws IOException {
