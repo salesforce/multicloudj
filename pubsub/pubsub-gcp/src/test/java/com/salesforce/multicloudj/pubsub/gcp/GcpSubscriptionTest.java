@@ -11,13 +11,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.api.gax.rpc.UnaryCallable;
 import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
+import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Empty;
@@ -35,6 +38,7 @@ import com.google.pubsub.v1.Subscription;
 import com.google.pubsub.v1.Subscription.State;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
@@ -53,6 +57,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -984,5 +989,45 @@ public class GcpSubscriptionTest {
     assertNotNull(testSubscription);
     // Verify the subscription was created successfully by checking it can be used
     assertNotNull(testSubscription.getProviderId());
+  }
+
+  @Test
+  void testRetryConfigAppliedToAllSubscriptionCallSettings() throws Exception {
+    @SuppressWarnings("unchecked")
+    UnaryCallable<com.google.pubsub.v1.AcknowledgeRequest, Empty> mockCallable =
+        mock(UnaryCallable.class);
+    when(mockSubscriptionAdminClient.acknowledgeCallable()).thenReturn(mockCallable);
+
+    GcpSubscription subscriptionWithRetry =
+        new GcpSubscription(
+            (GcpSubscription.Builder)
+                new GcpSubscription.Builder()
+                    .withSubscriptionName(VALID_SUBSCRIPTION_NAME)
+                    .withRetryConfig(
+                        RetryConfig.builder().maxAttempts(7).totalTimeout(9000L).build()));
+
+    try (MockedStatic<SubscriptionAdminClient> clientStatic =
+        mockStatic(SubscriptionAdminClient.class)) {
+      ArgumentCaptor<SubscriptionAdminSettings> captor =
+          ArgumentCaptor.forClass(SubscriptionAdminSettings.class);
+      clientStatic
+          .when(() -> SubscriptionAdminClient.create(captor.capture()))
+          .thenReturn(mockSubscriptionAdminClient);
+
+      subscriptionWithRetry.doSendAcks(List.of(new GcpSubscription.GcpAckID("ack-id")));
+
+      SubscriptionAdminSettings settings = captor.getValue();
+      for (RetrySettings retrySettings :
+          List.of(
+              settings.pullSettings().getRetrySettings(),
+              settings.acknowledgeSettings().getRetrySettings(),
+              settings.modifyAckDeadlineSettings().getRetrySettings(),
+              settings.getSubscriptionSettings().getRetrySettings())) {
+        assertEquals(7, retrySettings.getMaxAttempts());
+        assertEquals(9000L, retrySettings.getTotalTimeoutDuration().toMillis());
+      }
+    } finally {
+      subscriptionWithRetry.close();
+    }
   }
 }
