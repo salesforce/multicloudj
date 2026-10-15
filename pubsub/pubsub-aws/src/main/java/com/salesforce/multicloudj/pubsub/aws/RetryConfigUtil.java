@@ -62,8 +62,6 @@ public final class RetryConfigUtil {
     if (retryConfig == null) {
       throw new InvalidArgumentException("RetryConfig cannot be null");
     }
-    // A bare StandardRetryStrategy.builder() has no retry conditions and retries nothing. The AWS
-    // standard strategy carries the SDK's conditions for retryable, throttling and 5xx errors.
     StandardRetryStrategy.Builder strategyBuilder =
         AwsRetryStrategy.standardRetryStrategy().toBuilder();
 
