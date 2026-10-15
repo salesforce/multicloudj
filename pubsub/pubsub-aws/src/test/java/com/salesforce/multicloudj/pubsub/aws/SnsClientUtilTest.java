@@ -11,19 +11,23 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
+import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.SnsClientBuilder;
@@ -286,5 +290,27 @@ public class SnsClientUtilTest {
             });
 
     assertEquals("Build failed", exception.getMessage());
+  }
+
+  @Test
+  void testBuildSnsClient_WithRetryConfig_AppliesOverrideConfiguration() {
+    when(mockBuilder.overrideConfiguration(any(ClientOverrideConfiguration.class)))
+        .thenReturn(mockBuilder);
+    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(5).totalTimeout(3000L).build();
+
+    SnsClientUtil.buildSnsClient("us-east-1", null, null, retryConfig);
+
+    ArgumentCaptor<ClientOverrideConfiguration> captor =
+        ArgumentCaptor.forClass(ClientOverrideConfiguration.class);
+    verify(mockBuilder).overrideConfiguration(captor.capture());
+    assertEquals(5, captor.getValue().retryStrategy().orElseThrow().maxAttempts());
+    assertEquals(Duration.ofMillis(3000L), captor.getValue().apiCallTimeout().orElseThrow());
+  }
+
+  @Test
+  void testBuildSnsClient_WithoutRetryConfig_KeepsSdkDefaults() {
+    SnsClientUtil.buildSnsClient("us-east-1", null, null, null);
+
+    verify(mockBuilder, never()).overrideConfiguration(any(ClientOverrideConfiguration.class));
   }
 }

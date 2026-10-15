@@ -10,6 +10,7 @@ import com.aliyun.mns.client.MNSClient;
 import com.aliyun.mns.common.http.ClientConfiguration;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -142,6 +143,56 @@ public class SmqClientFactoryTest {
   void buildClientConfigurationWithoutProxyLeavesHostUnset() {
     ClientConfiguration config = SmqClientFactory.buildClientConfiguration(null);
     assertNull(config.getProxyHost());
+  }
+
+  @Test
+  void buildClientConfigurationWithoutRetryConfigKeepsSdkTimeouts() {
+    ClientConfiguration sdkDefaults = new ClientConfiguration();
+    ClientConfiguration config = SmqClientFactory.buildClientConfiguration(null, null, 35000);
+    assertEquals(sdkDefaults.getConnectionTimeout(), config.getConnectionTimeout());
+    assertEquals(sdkDefaults.getSocketTimeout(), config.getSocketTimeout());
+    assertEquals(sdkDefaults.getMaxErrorRetry(), config.getMaxErrorRetry());
+  }
+
+  @Test
+  void buildClientConfigurationAppliesAttemptTimeout() {
+    RetryConfig retryConfig = RetryConfig.builder().attemptTimeout(2000L).build();
+    ClientConfiguration config = SmqClientFactory.buildClientConfiguration(null, retryConfig, 0);
+    assertEquals(2000, config.getConnectionTimeout());
+    assertEquals(2000, config.getSocketTimeout());
+  }
+
+  @Test
+  void buildClientConfigurationRaisesSocketTimeoutToMinimum() {
+    RetryConfig retryConfig = RetryConfig.builder().attemptTimeout(2000L).build();
+    ClientConfiguration config =
+        SmqClientFactory.buildClientConfiguration(null, retryConfig, 35000);
+    assertEquals(2000, config.getConnectionTimeout());
+    assertEquals(35000, config.getSocketTimeout());
+  }
+
+  @Test
+  void buildClientConfigurationIgnoresUnsupportedRetryFields() {
+    ClientConfiguration sdkDefaults = new ClientConfiguration();
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .fixedDelayMillis(100)
+            .maxAttempts(7)
+            .totalTimeout(9000L)
+            .build();
+    ClientConfiguration config = SmqClientFactory.buildClientConfiguration(null, retryConfig, 0);
+    assertEquals(sdkDefaults.getMaxErrorRetry(), config.getMaxErrorRetry());
+    assertEquals(sdkDefaults.getConnectionTimeout(), config.getConnectionTimeout());
+    assertEquals(sdkDefaults.getSocketTimeout(), config.getSocketTimeout());
+  }
+
+  @Test
+  void buildClientConfigurationCapsAttemptTimeoutAtIntMax() {
+    RetryConfig retryConfig = RetryConfig.builder().attemptTimeout(Long.MAX_VALUE).build();
+    ClientConfiguration config = SmqClientFactory.buildClientConfiguration(null, retryConfig, 0);
+    assertEquals(Integer.MAX_VALUE, config.getConnectionTimeout());
+    assertEquals(Integer.MAX_VALUE, config.getSocketTimeout());
   }
 
   @Test

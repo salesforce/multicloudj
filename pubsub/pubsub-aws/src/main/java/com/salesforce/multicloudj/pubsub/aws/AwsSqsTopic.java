@@ -212,7 +212,7 @@ public class AwsSqsTopic extends AwsBaseTopic<AwsSqsTopic> {
 
     private static SqsClient buildSqsClient(Builder builder) {
       return SqsClientUtil.buildSqsClient(
-          builder.region, builder.endpoint, builder.credentialsOverrider);
+          builder.region, builder.endpoint, builder.credentialsOverrider, builder.retryConfig);
     }
 
     @Override

@@ -1039,4 +1039,19 @@ public class AliSubscriptionTest {
         received.getMetadata().get("meta"),
         "metadata value must round-trip losslessly through the XML wire: [" + value + "]");
   }
+
+  @Test
+  void minSocketTimeoutIsZeroForShortPoll() {
+    assertEquals(0, AliSubscription.minSocketTimeoutMillis(0));
+  }
+
+  @Test
+  void minSocketTimeoutCoversLongPollWaitPlusMargin() {
+    assertEquals(15000, AliSubscription.minSocketTimeoutMillis(10));
+  }
+
+  @Test
+  void minSocketTimeoutUsesClampedLongPollWait() {
+    assertEquals(35000, AliSubscription.minSocketTimeoutMillis(120));
+  }
 }

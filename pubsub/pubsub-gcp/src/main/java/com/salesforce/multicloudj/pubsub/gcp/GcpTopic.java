@@ -6,6 +6,7 @@ import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.httpjson.InstantiatingHttpJsonChannelProvider;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.TransportChannelProvider;
+import com.google.api.gax.rpc.UnaryCallSettings;
 import com.google.auth.Credentials;
 import com.google.auto.service.AutoService;
 import com.google.cloud.pubsub.v1.TopicAdminClient;
@@ -193,6 +194,8 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
       TransportChannelProvider channelProvider = httpJson.build();
       settingsBuilder.setTransportChannelProvider(channelProvider);
 
+      applyRetryConfig(settingsBuilder);
+
       topicAdminClient = TopicAdminClient.create(settingsBuilder.build());
       return topicAdminClient;
 
@@ -200,6 +203,15 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
       throw new SubstrateSdkException(
           "Failed to create topicAdminClient for topic: " + this.topicName, e);
     }
+  }
+
+  private void applyRetryConfig(TopicAdminSettings.Builder settingsBuilder) {
+    if (retryConfig == null) {
+      return;
+    }
+    UnaryCallSettings.Builder<?, ?> publishSettings = settingsBuilder.publishSettings();
+    publishSettings.setRetrySettings(
+        RetrySettingsUtil.apply(publishSettings.getRetrySettings(), retryConfig));
   }
 
   /** Builder for creating GcpTopic instances. */
