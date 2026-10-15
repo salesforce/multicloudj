@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.12](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.11...multicloudj-v0.4.12) (2026-10-15)
+
+
+### Blob Store
+
+* preserve GCS retry defaults for unset GCP RetryConfig fields ([#677](https://github.com/salesforce/multicloudj/issues/677)) ([16c4932](https://github.com/salesforce/multicloudj/commit/16c493249fc6630d1b39009a73586950ea27b838))
+
+
+### PubSub
+
+* add configurable RetryConfig for topics and subscriptions ([#668](https://github.com/salesforce/multicloudj/issues/668)) ([45e476d](https://github.com/salesforce/multicloudj/commit/45e476da629411981a7f6249a62fb283a9c99969))
+
 ## [0.4.11](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.10...multicloudj-v0.4.11) (2026-10-14)
 
 
