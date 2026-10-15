@@ -20,7 +20,8 @@ import lombok.Getter;
  * </ul>
  *
  * <p>The configured delays are base values. A provider may add random jitter to each delay and
- * grow later delays from the jittered values, so actual delays can be longer than the formula.
+ * grow later delays from the jittered values, so actual delays can be shorter or longer than the
+ * formula.
  *
  * <p>Example usage:
  *
@@ -52,7 +53,7 @@ public final class RetryConfig {
     /**
      * Exponential backoff mode where delay grows exponentially between retries. Uses formula:
      * {@code delay = min(maxDelayMillis, initialDelayMillis * multiplier^(attempt-1))}. The
-     * formula gives the base delay; provider jitter can make actual delays longer.
+     * formula gives the base delay; provider jitter can make actual delays shorter or longer.
      *
      * <p>Requires: {@code initialDelayMillis}, {@code multiplier}, {@code maxDelayMillis}
      */
