@@ -14,6 +14,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.http.HttpResponseException;
+import com.google.api.gax.httpjson.HttpJsonStatusCode;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.AlreadyExistsException;
 import com.google.api.gax.rpc.ApiException;
@@ -156,6 +159,35 @@ class GcpKmsTest {
     assertMapped(StatusCode.Code.UNIMPLEMENTED, UnSupportedOperationException.class);
     assertMapped(StatusCode.Code.INTERNAL, UnknownException.class);
     assertMapped(StatusCode.Code.UNAVAILABLE, UnknownException.class);
+  }
+
+  @Test
+  void mapExceptionPrefersCanonicalStatusFromHttpJsonBody() {
+    String body =
+        "{\"error\":{\"code\":400,\"message\":\"version is not enabled\","
+            + "\"status\":\"FAILED_PRECONDITION\"}}";
+    HttpResponseException httpFailure =
+        new HttpResponseException.Builder(400, "Bad Request", new HttpHeaders())
+            .setContent(body)
+            .build();
+    ApiException exception =
+        ApiExceptionFactory.createException(
+            httpFailure, HttpJsonStatusCode.of(StatusCode.Code.INVALID_ARGUMENT), false);
+
+    assertEquals(FailedPreconditionException.class, kms.mapException(exception).getClass());
+  }
+
+  @Test
+  void mapExceptionFallsBackToStatusCodeWhenBodyHasNoStatus() {
+    HttpResponseException httpFailure =
+        new HttpResponseException.Builder(400, "Bad Request", new HttpHeaders())
+            .setContent("not json")
+            .build();
+    ApiException exception =
+        ApiExceptionFactory.createException(
+            httpFailure, HttpJsonStatusCode.of(StatusCode.Code.INVALID_ARGUMENT), false);
+
+    assertEquals(InvalidArgumentException.class, kms.mapException(exception).getClass());
   }
 
   @Test

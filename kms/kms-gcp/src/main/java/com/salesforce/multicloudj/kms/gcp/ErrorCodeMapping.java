@@ -1,5 +1,9 @@
 package com.salesforce.multicloudj.kms.gcp;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.client.http.HttpResponseException;
+import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
@@ -33,12 +37,47 @@ final class ErrorCodeMapping {
     MAPPING.put(StatusCode.Code.UNIMPLEMENTED, UnSupportedOperationException.class);
   }
 
+  private static final ObjectMapper MAPPER = new ObjectMapper();
+
   private ErrorCodeMapping() {}
+
+  static Class<? extends SubstrateSdkException> getException(ApiException exception) {
+    StatusCode.Code bodyCode = canonicalCodeFromBody(exception);
+    if (bodyCode != null) {
+      return getException(bodyCode);
+    }
+    return exception.getStatusCode() == null
+        ? UnknownException.class
+        : getException(exception.getStatusCode().getCode());
+  }
 
   static Class<? extends SubstrateSdkException> getException(StatusCode.Code code) {
     if (code == null) {
       return UnknownException.class;
     }
     return MAPPING.getOrDefault(code, UnknownException.class);
+  }
+
+  /**
+   * Over HTTP/JSON, gax derives the status code from the HTTP status alone, so distinct canonical
+   * codes that share an HTTP status (for example FAILED_PRECONDITION and INVALID_ARGUMENT, both
+   * 400) collapse into one. The response body carries the canonical code in {@code error.status}.
+   */
+  private static StatusCode.Code canonicalCodeFromBody(ApiException exception) {
+    for (Throwable cause = exception.getCause(); cause != null; cause = cause.getCause()) {
+      if (cause instanceof HttpResponseException) {
+        String content = ((HttpResponseException) cause).getContent();
+        if (content == null || content.isBlank()) {
+          return null;
+        }
+        try {
+          JsonNode status = MAPPER.readTree(content).path("error").path("status");
+          return status.isTextual() ? StatusCode.Code.valueOf(status.asText()) : null;
+        } catch (Exception e) {
+          return null;
+        }
+      }
+    }
+    return null;
   }
 }

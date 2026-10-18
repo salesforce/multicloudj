@@ -1,0 +1,65 @@
+{
+  "id" : "92e49985-601f-4742-ba6e-88f9974f354e",
+  "name" : "GcpKmsIT_testDisableAndEnableKey-GET-4",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-toggle-r2/cryptoKeyVersions",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "6"
+      }
+    },
+    "queryParameters" : {
+      "filter" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "view" : {
+        "hasExactly" : [ {
+          "equalTo" : "0"
+        } ]
+      },
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      },
+      "orderBy" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "pageSize" : {
+        "hasExactly" : [ {
+          "equalTo" : "0"
+        } ]
+      },
+      "pageToken" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"cryptoKeyVersions\": [\n    {\n      \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-toggle-r2/cryptoKeyVersions/1\",\n      \"state\": 2,\n      \"createTime\": \"2026-10-18T06:15:52.913223551Z\",\n      \"protectionLevel\": 1,\n      \"algorithm\": 1,\n      \"generateTime\": \"2026-10-18T06:15:52.913223551Z\"\n    }\n  ],\n  \"totalSize\": 1\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sun, 18 Oct 2026 06:15:55 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "92e49985-601f-4742-ba6e-88f9974f354e",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-locations-us-west1-keyRings-multicloudj-kms-it-cryptoKeys-kms-it-toggle-r2-cryptoKeyVersions",
+  "requiredScenarioState" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-locations-us-west1-keyRings-multicloudj-kms-it-cryptoKeys-kms-it-toggle-r2-cryptoKeyVersions-2",
+  "newScenarioState" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-locations-us-west1-keyRings-multicloudj-kms-it-cryptoKeys-kms-it-toggle-r2-cryptoKeyVersions-3",
+  "insertionIndex" : 28
+}
