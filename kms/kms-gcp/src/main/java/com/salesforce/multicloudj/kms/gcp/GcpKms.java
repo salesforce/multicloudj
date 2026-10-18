@@ -122,8 +122,8 @@ public class GcpKms extends AbstractKms {
       return (SubstrateSdkException) t;
     }
     Class<? extends SubstrateSdkException> exceptionClass = UnknownException.class;
-    if (t instanceof ApiException && ((ApiException) t).getStatusCode() != null) {
-      exceptionClass = ErrorCodeMapping.getException(((ApiException) t).getStatusCode().getCode());
+    if (t instanceof ApiException) {
+      exceptionClass = ErrorCodeMapping.getException((ApiException) t);
     }
     return ExceptionHandler.build(exceptionClass, t, GcpRetryClassifier.classify(t));
   }

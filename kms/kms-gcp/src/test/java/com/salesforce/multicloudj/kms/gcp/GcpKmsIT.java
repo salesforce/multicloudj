@@ -17,11 +17,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
-// Runs only in record mode until its WireMock recordings are committed; CI runs mvn verify and
-// replay without recordings would fail.
-@EnabledIfSystemProperty(named = "record", matches = ".*")
 public class GcpKmsIT extends AbstractKmsIT {
 
   @Override
@@ -39,15 +35,14 @@ public class GcpKmsIT extends AbstractKmsIT {
 
     // Crypto key ids can never be reused, even after their versions are destroyed, so this suffix
     // must change whenever the suite is re-recorded.
-    private static final String RECORDING_SUFFIX = "r1";
+    private static final String RECORDING_SUFFIX = "r2";
 
     private static final String KMS_ENDPOINT = "https://cloudkms.googleapis.com";
     private static final String ADMIN_SERVICE_ACCOUNT =
         "chameleon@" + PROJECT_ID + ".iam.gserviceaccount.com";
-    // Placeholder: must be an existing service account in the project when recording, because IAM
-    // rejects policy members that do not exist.
-    private static final String PLACEHOLDER_GRANTEE_SERVICE_ACCOUNT =
-        "kms-it-grantee@" + PROJECT_ID + ".iam.gserviceaccount.com";
+    // Must be an existing service account: IAM rejects policy members that do not exist.
+    private static final String GRANTEE_SERVICE_ACCOUNT =
+        "test-multicloudj-sa@" + PROJECT_ID + ".iam.gserviceaccount.com";
 
     private final int port = ThreadLocalRandom.current().nextInt(2000, 20000);
     private final List<KeyManagementServiceClient> clients = new ArrayList<>();
@@ -110,7 +105,7 @@ public class GcpKmsIT extends AbstractKmsIT {
 
     @Override
     public KeyPrincipal getGranteePrincipal() {
-      return KeyPrincipal.of(PrincipalType.IAM_ROLE, PLACEHOLDER_GRANTEE_SERVICE_ACCOUNT);
+      return KeyPrincipal.of(PrincipalType.IAM_ROLE, GRANTEE_SERVICE_ACCOUNT);
     }
 
     @Override
