@@ -657,13 +657,12 @@ public class AwsDocStore extends AbstractDocStore {
     // Find the best thing to query (table or index).
     Queryable queryable = getBestQueryable(query);
 
-    boolean consistentRead = query.isConsistentRead();
+    boolean consistentRead = resolveConsistentRead(query.getConsistentRead());
     if (consistentRead
         && queryable.getIndexName() != null
         && getTableDescription().globalSecondaryIndexes().stream()
             .anyMatch(index -> index.indexName().equals(queryable.getIndexName()))) {
-      throw new InvalidArgumentException(
-          "Strongly consistent reads are not supported on global secondary indexes");
+      consistentRead = false;
     }
 
     // Collect keys required for pagination. If table is used, the list contains primary keys of

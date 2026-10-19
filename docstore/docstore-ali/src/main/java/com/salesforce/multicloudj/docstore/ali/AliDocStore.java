@@ -653,16 +653,6 @@ public class AliDocStore extends AbstractDocStore {
   // Rejects query plans that cannot be served: a full-table scan when ordering is requested (a scan
   // yields primary-key order only), or a scan when Options.AllowScans is disabled.
   private void checkPlan(Query query, Queryable queryable) {
-    if (query.isConsistentRead()
-        && queryable.getIndexName() != null
-        && getTableDescription().getIndexMeta().stream()
-            .anyMatch(
-                index ->
-                    index.getIndexName().equals(queryable.getIndexName())
-                        && index.getIndexType() == IndexType.IT_GLOBAL_INDEX)) {
-      throw new InvalidArgumentException(
-          "Strongly consistent reads are not supported on global secondary indexes");
-    }
     boolean isScan = queryable.getIndexName() == null && queryable.getKey() == null;
     if (!isScan) {
       return;

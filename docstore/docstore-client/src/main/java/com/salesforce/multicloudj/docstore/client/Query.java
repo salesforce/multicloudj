@@ -9,7 +9,6 @@ import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.Filter;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
 import com.salesforce.multicloudj.docstore.driver.PaginationToken;
-import com.salesforce.multicloudj.docstore.driver.ReadOptions;
 import com.salesforce.multicloudj.docstore.driver.Util;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -68,11 +67,29 @@ public class Query {
   /** The underlying document store implementation used to execute queries. */
   private final AbstractDocStore docStore;
 
-  private ReadOptions readOptions;
+  /** Optional consistency override; null inherits the client setting. */
+  private Boolean consistentRead;
 
-  /** Returns the effective consistency for this query execution. */
-  public boolean isConsistentRead() {
-    return docStore.resolveConsistentRead(readOptions);
+  /**
+   * Requests strong consistency for this query where supported by the underlying access path.
+   *
+   * @return this query for chaining
+   */
+  public Query consistentRead() {
+    return consistentRead(true);
+  }
+
+  /**
+   * Sets this query's consistency override without changing the client configuration. The override
+   * applies to subsequent executions of this query and their iterator pages until changed.
+   *
+   * @param consistentRead true requests strong consistency where supported; false uses normal read
+   *     behavior; null restores inheritance from the client setting
+   * @return this query for chaining
+   */
+  public Query consistentRead(Boolean consistentRead) {
+    this.consistentRead = consistentRead;
+    return this;
   }
 
   /**
@@ -331,19 +348,7 @@ public class Query {
    * @return a DocumentIterator for iterating over the query results
    */
   public DocumentIterator get(String... fieldPath) {
-    return get(null, fieldPath);
-  }
-
-  /**
-   * Executes this query with per-call read options, including any pages fetched by the iterator.
-   *
-   * @param readOptions per-read options; null or unset values inherit the client setting
-   * @param fieldPath optional fields to retrieve
-   * @return an iterator over the matching documents
-   */
-  public DocumentIterator get(ReadOptions readOptions, String... fieldPath) {
     try {
-      this.readOptions = readOptions;
       initGet(List.of(fieldPath));
       return docStore.runGetQuery(this);
     } catch (Throwable t) {

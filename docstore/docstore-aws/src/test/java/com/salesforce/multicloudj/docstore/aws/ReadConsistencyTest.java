@@ -3,14 +3,12 @@ package com.salesforce.multicloudj.docstore.aws;
 import static com.salesforce.multicloudj.docstore.driver.FilterOperation.EQUAL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.docstore.client.DocStoreClient;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
@@ -143,25 +141,35 @@ class ReadConsistencyTest {
     when(nativeClient.query(any(QueryRequest.class))).thenReturn(QueryResponse.builder().build());
     try (AwsDocStore store = store(nativeClient, true)) {
       Query query = query(store, "pk");
-      query.get(DEFAULT);
+      query.consistentRead(false).get("pk");
       assertFalse(Boolean.TRUE.equals(store.planQuery(query).getQueryRequest().consistentRead()));
       query.get();
-      assertTrue(store.planQuery(query).getQueryRequest().consistentRead());
-      query.get(ReadOptions.builder().build());
+      assertFalse(Boolean.TRUE.equals(store.planQuery(query).getQueryRequest().consistentRead()));
+      query.consistentRead(null).get();
       assertTrue(store.planQuery(query).getQueryRequest().consistentRead());
       assertTrue(store.planQuery(new Query(store)).getScanRequest().consistentRead());
+      assertFalse(
+          Boolean.TRUE.equals(
+              store
+                  .planQuery(new Query(store).consistentRead(false))
+                  .getScanRequest()
+                  .consistentRead()));
     }
     try (AwsDocStore store = store(nativeClient, false)) {
       Query query = query(store, "pk");
-      query.get(STRONG);
+      query.consistentRead().get();
       assertTrue(store.planQuery(query).getQueryRequest().consistentRead());
       query.get();
+      assertTrue(store.planQuery(query).getQueryRequest().consistentRead());
+      query.consistentRead(null).get();
       assertFalse(Boolean.TRUE.equals(store.planQuery(query).getQueryRequest().consistentRead()));
+      assertTrue(
+          store.planQuery(new Query(store).consistentRead(true)).getScanRequest().consistentRead());
     }
   }
 
   @Test
-  void strongQueriesRejectGlobalIndexesButAllowLocalIndexes() {
+  void strongQueriesIgnoreConsistencyForGlobalIndexesButAllowLocalIndexes() {
     DynamoDbClient nativeClient = mock(DynamoDbClient.class);
     when(nativeClient.describeTable(
             any(software.amazon.awssdk.services.dynamodb.model.DescribeTableRequest.class)))
@@ -199,16 +207,23 @@ class ReadConsistencyTest {
                 .build());
     when(nativeClient.query(any(QueryRequest.class))).thenReturn(QueryResponse.builder().build());
     try (AwsDocStore store = store(nativeClient, true)) {
-      assertThrows(InvalidArgumentException.class, () -> query(store, "gpk").get());
+      query(store, "gpk").get();
+      query(store, "gpk").consistentRead().get();
       Query eventual = query(store, "gpk");
-      eventual.get(DEFAULT);
+      eventual.consistentRead(false).get();
       assertEquals("global", store.planQuery(eventual).getQueryRequest().indexName());
       assertFalse(
           Boolean.TRUE.equals(store.planQuery(eventual).getQueryRequest().consistentRead()));
       Query local = query(store, "pk").where("lsk", EQUAL, "value");
-      local.get(STRONG);
+      local.consistentRead().get();
       assertEquals("local", store.planQuery(local).getQueryRequest().indexName());
       assertTrue(store.planQuery(local).getQueryRequest().consistentRead());
+      ArgumentCaptor<QueryRequest> requests = ArgumentCaptor.forClass(QueryRequest.class);
+      verify(nativeClient, org.mockito.Mockito.times(4)).query(requests.capture());
+      for (QueryRequest request : requests.getAllValues()) {
+        assertEquals(
+            "local".equals(request.indexName()), Boolean.TRUE.equals(request.consistentRead()));
+      }
     }
   }
 
@@ -232,8 +247,8 @@ class ReadConsistencyTest {
             ScanResponse.builder().build());
     try (AwsDocStore store = store(nativeClient, false)) {
       Query query = new Query(store);
-      DocumentIterator iterator = query.get(STRONG);
-      query.get();
+      DocumentIterator iterator = query.consistentRead().get();
+      query.consistentRead(null).get();
       while (iterator.hasNext()) {
         iterator.next(new Document(new HashMap<>()));
       }
@@ -264,7 +279,7 @@ class ReadConsistencyTest {
             QueryResponse.builder().items(key).lastEvaluatedKey(key).build(),
             QueryResponse.builder().items(key).build());
     try (AwsDocStore store = store(nativeClient, false)) {
-      DocumentIterator iterator = query(store, "pk").get(STRONG);
+      DocumentIterator iterator = query(store, "pk").consistentRead(true).get();
       while (iterator.hasNext()) {
         iterator.next(new Document(new HashMap<>()));
       }

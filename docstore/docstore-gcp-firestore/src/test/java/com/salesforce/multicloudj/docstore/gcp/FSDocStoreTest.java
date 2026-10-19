@@ -23,7 +23,6 @@ import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.Action;
 import com.salesforce.multicloudj.docstore.driver.ActionKind;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
-import com.salesforce.multicloudj.docstore.driver.ReadOptions;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -246,27 +245,6 @@ public class FSDocStoreTest {
     when(callable.call(any())).thenReturn(stream);
     when(stream.iterator()).thenReturn(null);
     Assertions.assertInstanceOf(FSDocumentIterator.class, docStore.runGetQuery(query));
-  }
-
-  @Test
-  void testPerCallQueryOptionsRetainNativeStrongConsistency() {
-    ServerStream stream = Mockito.mock(ServerStream.class);
-    ServerStreamingCallable callable = Mockito.mock(ServerStreamingCallable.class);
-    when(mockFirestoreClient.runQueryCallable()).thenReturn(callable);
-    when(callable.call(any())).thenReturn(stream);
-    when(stream.iterator()).thenReturn(null);
-    for (boolean consistentRead : new boolean[] {true, false}) {
-      new Query(docStore).get(ReadOptions.builder().consistentRead(consistentRead).build());
-    }
-    ArgumentCaptor<com.google.firestore.v1.RunQueryRequest> requests =
-        ArgumentCaptor.forClass(com.google.firestore.v1.RunQueryRequest.class);
-    verify(callable, Mockito.times(2)).call(requests.capture());
-    for (com.google.firestore.v1.RunQueryRequest request : requests.getAllValues()) {
-      Assertions.assertEquals(
-          com.google.firestore.v1.RunQueryRequest.ConsistencySelectorCase
-              .CONSISTENCYSELECTOR_NOT_SET,
-          request.getConsistencySelectorCase());
-    }
   }
 
   @Test
