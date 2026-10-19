@@ -603,6 +603,12 @@ class AwsKmsTest {
         UnknownException.class,
         kms.mapException(AwsServiceException.builder().message("no details").build()));
     assertInstanceOf(
+        UnknownException.class,
+        kms.mapException(
+            AwsServiceException.builder()
+                .awsErrorDetails(AwsErrorDetails.builder().errorMessage("no code").build())
+                .build()));
+    assertInstanceOf(
         InvalidArgumentException.class, kms.mapException(SdkClientException.create("bad config")));
     assertInstanceOf(UnknownException.class, kms.mapException(new RuntimeException("boom")));
   }

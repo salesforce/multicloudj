@@ -9,9 +9,7 @@ import com.salesforce.multicloudj.kms.model.PrincipalType;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.regions.Region;
@@ -22,9 +20,6 @@ import software.amazon.awssdk.services.kms.model.DeleteAliasRequest;
 import software.amazon.awssdk.services.kms.model.ListAliasesRequest;
 import software.amazon.awssdk.services.kms.model.ScheduleKeyDeletionRequest;
 
-// Runs only in record mode until its WireMock recordings are committed; CI runs mvn verify and
-// replay without recordings would fail.
-@EnabledIfSystemProperty(named = "record", matches = ".*")
 public class AwsKmsIT extends AbstractKmsIT {
 
   @Override
@@ -58,10 +53,6 @@ public class AwsKmsIT extends AbstractKmsIT {
                               .getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY"),
                           System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN"))))
               .endpointOverride(URI.create(ENDPOINT));
-
-      if (System.getProperty("record") != null) {
-        builder.credentialsProvider(ProfileCredentialsProvider.create());
-      }
 
       client = builder.build();
       return new AwsKms.Builder().withKmsClient(client).withRegion("us-west-2").build();
