@@ -71,15 +71,6 @@ public class Query {
   private Boolean consistentRead;
 
   /**
-   * Requests strong consistency for this query where supported by the underlying access path.
-   *
-   * @return this query for chaining
-   */
-  public Query consistentRead() {
-    return consistentRead(true);
-  }
-
-  /**
    * Sets this query's consistency override without changing the client configuration. The override
    * applies to subsequent executions of this query and their iterator pages until changed.
    *

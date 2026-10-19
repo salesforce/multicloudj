@@ -157,7 +157,7 @@ class ReadConsistencyTest {
     }
     try (AwsDocStore store = store(nativeClient, false)) {
       Query query = query(store, "pk");
-      query.consistentRead().get();
+      query.consistentRead(true).get();
       assertTrue(store.planQuery(query).getQueryRequest().consistentRead());
       query.get();
       assertTrue(store.planQuery(query).getQueryRequest().consistentRead());
@@ -208,14 +208,14 @@ class ReadConsistencyTest {
     when(nativeClient.query(any(QueryRequest.class))).thenReturn(QueryResponse.builder().build());
     try (AwsDocStore store = store(nativeClient, true)) {
       query(store, "gpk").get();
-      query(store, "gpk").consistentRead().get();
+      query(store, "gpk").consistentRead(true).get();
       Query eventual = query(store, "gpk");
       eventual.consistentRead(false).get();
       assertEquals("global", store.planQuery(eventual).getQueryRequest().indexName());
       assertFalse(
           Boolean.TRUE.equals(store.planQuery(eventual).getQueryRequest().consistentRead()));
       Query local = query(store, "pk").where("lsk", EQUAL, "value");
-      local.consistentRead().get();
+      local.consistentRead(true).get();
       assertEquals("local", store.planQuery(local).getQueryRequest().indexName());
       assertTrue(store.planQuery(local).getQueryRequest().consistentRead());
       ArgumentCaptor<QueryRequest> requests = ArgumentCaptor.forClass(QueryRequest.class);
@@ -247,7 +247,7 @@ class ReadConsistencyTest {
             ScanResponse.builder().build());
     try (AwsDocStore store = store(nativeClient, false)) {
       Query query = new Query(store);
-      DocumentIterator iterator = query.consistentRead().get();
+      DocumentIterator iterator = query.consistentRead(true).get();
       query.consistentRead(null).get();
       while (iterator.hasNext()) {
         iterator.next(new Document(new HashMap<>()));
