@@ -15,6 +15,7 @@ import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
 import com.salesforce.multicloudj.docstore.driver.PaginationToken;
+import com.salesforce.multicloudj.docstore.driver.ReadOptions;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -297,6 +298,7 @@ public abstract class AbstractDocstoreIT {
   public void testGet() {
     AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.SINGLE_KEY);
     DocStoreClient docStoreClient = new DocStoreClient(docStore);
+    ReadOptions readOptions = ReadOptions.builder().consistentRead(false).build();
     class TestCase {
       final String name;
       final Object doc;
@@ -460,13 +462,16 @@ public abstract class AbstractDocstoreIT {
       if (testCase.wantErr != null) {
         assertThrowsAndNotRetryable(
             testCase.wantErr,
-            () -> docStoreClient.get(new Document(got), testCase.fieldPaths.toArray(new String[0])),
+            () ->
+                docStoreClient.get(
+                    new Document(got), readOptions, testCase.fieldPaths.toArray(new String[0])),
             String.format("Test %s failed", testCase.name));
       } else {
         if (ObjectUtils.isEmpty(testCase.fieldPaths)) {
-          docStoreClient.get(new Document(got));
+          docStoreClient.get(new Document(got), readOptions);
         } else {
-          docStoreClient.get(new Document(got), testCase.fieldPaths.toArray(new String[0]));
+          docStoreClient.get(
+              new Document(got), readOptions, testCase.fieldPaths.toArray(new String[0]));
         }
         if (got instanceof Map) {
           Assertions.assertTrue(compareMaps((Map) got, (Map) testCase.want));
@@ -933,6 +938,7 @@ public abstract class AbstractDocstoreIT {
   public void testGetQuery() {
     AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.TWO_KEYS);
     DocStoreClient docStoreClient = new DocStoreClient(docStore);
+    ReadOptions readOptions = ReadOptions.builder().build();
     // Create test data
     List<HighScore> allScores =
         List.of(
@@ -949,14 +955,14 @@ public abstract class AbstractDocstoreIT {
     }
 
     // 1. Query all
-    DocumentIterator iter = docStoreClient.query().get();
+    DocumentIterator iter = docStoreClient.query().get(readOptions);
     List<HighScore> actualScores = getQueryResult(iter);
     Assertions.assertEquals(8, actualScores.size());
     Assertions.assertTrue(allScores.containsAll(actualScores));
 
     // 2. Query a Game
     DocumentIterator iter2 =
-        docStoreClient.query().where("Game", FilterOperation.EQUAL, game2).get();
+        docStoreClient.query().where("Game", FilterOperation.EQUAL, game2).get(readOptions);
     List<HighScore> game2Scores = getQueryResult(iter2);
     Assertions.assertEquals(4, game2Scores.size());
     Assertions.assertTrue(

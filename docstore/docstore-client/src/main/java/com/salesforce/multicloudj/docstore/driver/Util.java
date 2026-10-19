@@ -7,6 +7,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public class Util {
   private static final ObjectMapper mapper = new ObjectMapper();
@@ -94,8 +95,7 @@ public class Util {
     }
   }
 
-  // GroupByFieldPath collect the Get actions into groups with the same set of
-  // field paths.
+  // Batch-wide read settings must match for every action in a group.
   public static List<List<Action>> groupByFieldPath(List<Action> gets) {
     List<List<Action>> groups = new ArrayList<>();
     Map<Action, Boolean> seen = new HashMap<>();
@@ -103,7 +103,9 @@ public class Util {
       List<Action> g = new ArrayList<>();
       for (Action a : gets) {
         if (seen.get(a) == null
-            && (g.isEmpty() || fpsEqual(g.get(0).getFieldPaths(), a.getFieldPaths()))) {
+            && (g.isEmpty()
+                || (fpsEqual(g.get(0).getFieldPaths(), a.getFieldPaths())
+                    && Objects.equals(g.get(0).getReadOptions(), a.getReadOptions())))) {
           g.add(a);
           seen.put(a, Boolean.TRUE);
         }

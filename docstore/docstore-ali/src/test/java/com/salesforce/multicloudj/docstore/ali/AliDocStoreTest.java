@@ -59,6 +59,7 @@ import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
+import com.salesforce.multicloudj.docstore.driver.ReadOptions;
 import com.salesforce.multicloudj.docstore.driver.testtypes.Book;
 import com.salesforce.multicloudj.docstore.driver.testtypes.BookWithoutNest;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -1110,6 +1111,28 @@ class AliDocStoreTest {
     ArgumentCaptor<GetRangeRequest> captor = ArgumentCaptor.forClass(GetRangeRequest.class);
     verify(syncClient, times(1)).getRange(captor.capture());
     return captor.getValue().getRangeRowQueryCriteria();
+  }
+
+  @Test
+  void testStrongQueryRejectsGlobalIndexWithoutReading() {
+    wireMockClient();
+    Query query = new Query(ali).where("author", FilterOperation.EQUAL, "value");
+    Assertions.assertThrows(
+        InvalidArgumentException.class,
+        () -> query.get(ReadOptions.builder().consistentRead(true).build(), "price"));
+    verify(syncClient, never()).getRange(any(GetRangeRequest.class));
+  }
+
+  @Test
+  void testStrongQueryAllowsLocalIndex() {
+    wireMockClient();
+    Query query =
+        new Query(ali)
+            .where("title", FilterOperation.EQUAL, "value")
+            .where("price", FilterOperation.EQUAL, 3.99)
+            .orderBy("price", true);
+    query.get(ReadOptions.builder().consistentRead(true).build(), "price");
+    Assertions.assertEquals("local_index_1", capturedRangeCriteria(query).getTableName());
   }
 
   @Test

@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.ActionList;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import com.salesforce.multicloudj.docstore.driver.Document;
+import com.salesforce.multicloudj.docstore.driver.ReadOptions;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
 import java.util.List;
@@ -195,6 +196,17 @@ public class DocStoreClient {
   }
 
   /**
+   * Retrieves a document by key with per-call read options.
+   *
+   * @param document document with a valid key; receives the result
+   * @param readOptions per-read options; null or unset values inherit the client setting
+   * @param fieldPath optional fields to retrieve
+   */
+  public void get(Document document, ReadOptions readOptions, String... fieldPath) {
+    docStore.getActions().get(document, readOptions, fieldPath).run();
+  }
+
+  /**
    * Updates specific fields of an existing document in the document store. This operation is not
    * yet supported and will throw an UnSupportedOperationException.
    *
@@ -214,9 +226,19 @@ public class DocStoreClient {
    *     stored in these documents
    */
   public void batchGet(List<Document> documents) {
+    batchGet(documents, null);
+  }
+
+  /**
+   * Retrieves documents by key with options shared by this batch only.
+   *
+   * @param documents documents with valid keys; receive the results
+   * @param readOptions per-read options; null or unset values inherit the client setting
+   */
+  public void batchGet(List<Document> documents, ReadOptions readOptions) {
     ActionList actionList = docStore.getActions();
     for (Document document : documents) {
-      actionList.get(document);
+      actionList.get(document, readOptions);
     }
     actionList.run();
   }

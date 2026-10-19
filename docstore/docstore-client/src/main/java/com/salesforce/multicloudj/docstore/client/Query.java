@@ -9,6 +9,7 @@ import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.Filter;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
 import com.salesforce.multicloudj.docstore.driver.PaginationToken;
+import com.salesforce.multicloudj.docstore.driver.ReadOptions;
 import com.salesforce.multicloudj.docstore.driver.Util;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -66,6 +67,13 @@ public class Query {
 
   /** The underlying document store implementation used to execute queries. */
   private final AbstractDocStore docStore;
+
+  private ReadOptions readOptions;
+
+  /** Returns the effective consistency for this query execution. */
+  public boolean isConsistentRead() {
+    return docStore.resolveConsistentRead(readOptions);
+  }
 
   /**
    * A list of field paths to retrieve. Each field path is a dot-separated string (e.g.,
@@ -323,7 +331,19 @@ public class Query {
    * @return a DocumentIterator for iterating over the query results
    */
   public DocumentIterator get(String... fieldPath) {
+    return get(null, fieldPath);
+  }
+
+  /**
+   * Executes this query with per-call read options, including any pages fetched by the iterator.
+   *
+   * @param readOptions per-read options; null or unset values inherit the client setting
+   * @param fieldPath optional fields to retrieve
+   * @return an iterator over the matching documents
+   */
+  public DocumentIterator get(ReadOptions readOptions, String... fieldPath) {
     try {
+      this.readOptions = readOptions;
       initGet(List.of(fieldPath));
       return docStore.runGetQuery(this);
     } catch (Throwable t) {

@@ -94,6 +94,14 @@ public abstract class AbstractDocStore implements Provider, Collection, AutoClos
     return new ActionList(this);
   }
 
+  /** Resolves a per-read override against this client's configured consistency. */
+  public boolean resolveConsistentRead(ReadOptions options) {
+    if (options != null && options.getConsistentRead() != null) {
+      return options.getConsistentRead();
+    }
+    return collectionOptions != null && collectionOptions.isConsistentRead();
+  }
+
   public void checkClosed() {
     synchronized (dsLock) {
       if (closed) {

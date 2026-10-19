@@ -49,7 +49,22 @@ public class ActionList {
   }
 
   public ActionList get(Document document, String... fieldPaths) {
-    actions.add(new Action(ActionKind.ACTION_KIND_GET, document, List.of(fieldPaths), null, false));
+    return get(document, null, fieldPaths);
+  }
+
+  /**
+   * Adds a key read with options scoped to this action.
+   *
+   * @param document document with a valid key; receives the result
+   * @param readOptions per-read options; null or unset values inherit the client setting
+   * @param fieldPaths optional fields to retrieve
+   * @return this action list
+   */
+  public ActionList get(Document document, ReadOptions readOptions, String... fieldPaths) {
+    Action action =
+        new Action(ActionKind.ACTION_KIND_GET, document, List.of(fieldPaths), null, false);
+    action.setReadOptions(readOptions);
+    actions.add(action);
     return this;
   }
 

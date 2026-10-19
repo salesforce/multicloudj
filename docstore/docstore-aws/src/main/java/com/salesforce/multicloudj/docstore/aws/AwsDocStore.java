@@ -228,7 +228,7 @@ public class AwsDocStore extends AbstractDocStore {
     KeysAndAttributes.Builder keysAndAttributes =
         KeysAndAttributes.builder()
             .keys(keysList)
-            .consistentRead(collectionOptions.isConsistentRead());
+            .consistentRead(resolveConsistentRead(gets.get(start).getReadOptions()));
     if (gets.get(start).getFieldPaths() != null && !gets.get(start).getFieldPaths().isEmpty()) {
       // Need to add the key fields if not included.
       boolean hasP = false;
@@ -657,6 +657,15 @@ public class AwsDocStore extends AbstractDocStore {
     // Find the best thing to query (table or index).
     Queryable queryable = getBestQueryable(query);
 
+    boolean consistentRead = query.isConsistentRead();
+    if (consistentRead
+        && queryable.getIndexName() != null
+        && getTableDescription().globalSecondaryIndexes().stream()
+            .anyMatch(index -> index.indexName().equals(queryable.getIndexName()))) {
+      throw new InvalidArgumentException(
+          "Strongly consistent reads are not supported on global secondary indexes");
+    }
+
     // Collect keys required for pagination. If table is used, the list contains primary keys of
     // base
     // table. If index is used, the list contains both base table primary keys and index primary
@@ -682,7 +691,8 @@ public class AwsDocStore extends AbstractDocStore {
                 + " Options.RunQueryFallback");
       }
 
-      ScanRequest.Builder scanRequestBuilder = ScanRequest.builder();
+      ScanRequest.Builder scanRequestBuilder =
+          ScanRequest.builder().consistentRead(consistentRead ? Boolean.TRUE : null);
       if (query.getLimit() > 0) {
         scanRequestBuilder.limit(query.getLimit());
       }
@@ -716,7 +726,8 @@ public class AwsDocStore extends AbstractDocStore {
     }
 
     // Do a query.
-    QueryRequest.Builder queryRequestBuilder = QueryRequest.builder();
+    QueryRequest.Builder queryRequestBuilder =
+        QueryRequest.builder().consistentRead(consistentRead ? Boolean.TRUE : null);
     if (query.getLimit() > 0) {
       queryRequestBuilder.limit(query.getLimit());
     }
