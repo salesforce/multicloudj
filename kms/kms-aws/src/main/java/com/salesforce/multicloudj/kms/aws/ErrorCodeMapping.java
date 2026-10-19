@@ -51,6 +51,9 @@ final class ErrorCodeMapping {
   }
 
   static Class<? extends SubstrateSdkException> getException(String errorCode) {
+    if (errorCode == null) {
+      return UnknownException.class;
+    }
     return ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
   }
 }

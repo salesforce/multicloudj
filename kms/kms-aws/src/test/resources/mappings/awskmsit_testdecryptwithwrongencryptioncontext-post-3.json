@@ -1,0 +1,33 @@
+{
+  "id" : "04a3a8f6-ca06-4bab-9e3d-f933e0deae37",
+  "name" : "AwsKmsIT_testDecryptWithWrongEncryptionContext-POST-3",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.Decrypt"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"CiphertextBlob\":\"AQICAHhOcRWdDoACQF9D7jS3WxS16pkmoy7G7MoWqwm1Qo1fZAHqtTX6ADC9RoXtoGMwTIqKAAAAeTB3BgkqhkiG9w0BBwagajBoAgEAMGMGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMWUQGHZfKb0RAnBvMAgEQgDZ7lBjpY5DpISIi9VMLg6GzCsIh8W11xCM8t9jr7Nn2whaAQ7NObtd6VOf90iyi99PlJ+U/lhU=\",\"EncryptionContext\":{\"purpose\":\"something-else\"},\"KeyId\":\"arn:aws:kms:us-west-2:654654370895:key/bf02f5af-a70e-489a-aa16-d33e4cc3be55\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "{\"__type\":\"InvalidCiphertextException\"}",
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "8f864149-2579-4c62-a049-d85d09fa5af1",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Mon, 19 Oct 2026 17:45:53 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "04a3a8f6-ca06-4bab-9e3d-f933e0deae37",
+  "persistent" : true,
+  "insertionIndex" : 42
+}

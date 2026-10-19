@@ -1,0 +1,33 @@
+{
+  "id" : "68a551be-674e-4939-86cb-7dd9b8709287",
+  "name" : "AwsKmsIT_testSetAndGetKeyPolicy-POST-3",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.GetKeyPolicy"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"KeyId\":\"arn:aws:kms:us-west-2:654654370895:key/288b2f4d-0bd5-4568-bd6d-847ab33dcb44\",\"PolicyName\":\"default\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Policy\":\"{\\n  \\\"Version\\\" : \\\"2012-10-17\\\",\\n  \\\"Statement\\\" : [ {\\n    \\\"Sid\\\" : \\\"Grant0Part0\\\",\\n    \\\"Effect\\\" : \\\"Allow\\\",\\n    \\\"Principal\\\" : {\\n      \\\"AWS\\\" : \\\"arn:aws:iam::654654370895:root\\\"\\n    },\\n    \\\"Action\\\" : [ \\\"kms:DescribeKey\\\", \\\"kms:Create*\\\", \\\"kms:Describe*\\\", \\\"kms:Enable*\\\", \\\"kms:List*\\\", \\\"kms:Put*\\\", \\\"kms:Update*\\\", \\\"kms:Revoke*\\\", \\\"kms:Disable*\\\", \\\"kms:Get*\\\", \\\"kms:Delete*\\\", \\\"kms:TagResource\\\", \\\"kms:UntagResource\\\", \\\"kms:ScheduleKeyDeletion\\\", \\\"kms:CancelKeyDeletion\\\" ],\\n    \\\"Resource\\\" : \\\"*\\\"\\n  }, {\\n    \\\"Sid\\\" : \\\"Grant1Part0\\\",\\n    \\\"Effect\\\" : \\\"Allow\\\",\\n    \\\"Principal\\\" : {\\n      \\\"AWS\\\" : \\\"arn:aws:iam::654654370895:role/chameleon-jcloud-test\\\"\\n    },\\n    \\\"Action\\\" : [ \\\"kms:Encrypt\\\", \\\"kms:Decrypt\\\" ],\\n    \\\"Resource\\\" : \\\"*\\\"\\n  } ]\\n}\",\"PolicyName\":\"default\"}",
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "c312eaf6-8c64-41d1-8819-9232ee88d3ed",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Mon, 19 Oct 2026 17:45:39 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "68a551be-674e-4939-86cb-7dd9b8709287",
+  "persistent" : true,
+  "insertionIndex" : 4
+}

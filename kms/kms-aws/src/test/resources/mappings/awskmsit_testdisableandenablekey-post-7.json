@@ -1,0 +1,32 @@
+{
+  "id" : "3b747c07-8f6e-4ec2-929b-d5a69de1f846",
+  "name" : "AwsKmsIT_testDisableAndEnableKey-POST-7",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.CreateAlias"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"AliasName\":\"alias/multicloudj-kms-it-toggle\",\"TargetKeyId\":\"440e9d59-1c2d-4115-a07a-0a3f27e0c938\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "ade466b6-063f-48a9-8f6b-91c21dcf87e8",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Mon, 19 Oct 2026 17:45:45 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "3b747c07-8f6e-4ec2-929b-d5a69de1f846",
+  "persistent" : true,
+  "insertionIndex" : 28
+}

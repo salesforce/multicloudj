@@ -8,7 +8,7 @@ import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner;
@@ -84,7 +84,7 @@ public class ReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
     return AwsV4HttpSigner.create()
         .sign(
             r ->
-                r.identity(ProfileCredentialsProvider.create().resolveCredentials())
+                r.identity(EnvironmentVariableCredentialsProvider.create().resolveCredentials())
                     .request(requestToSign.build())
                     .payload(requestToSign.contentStreamProvider())
                     .putProperty(AwsV4HttpSigner.SERVICE_SIGNING_NAME, "kms")

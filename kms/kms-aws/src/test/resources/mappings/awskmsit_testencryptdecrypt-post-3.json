@@ -1,0 +1,33 @@
+{
+  "id" : "2e7c74aa-8307-4c67-bb94-550e7fd1fc15",
+  "name" : "AwsKmsIT_testEncryptDecrypt-POST-3",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.Decrypt"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"CiphertextBlob\":\"AQICAHhAPYc064J6AjZeBvLmP63Xft4StywLePc5Y4Ao/liczwFST+DpqcgpWRGU70zid/x0AAAAeTB3BgkqhkiG9w0BBwagajBoAgEAMGMGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMS9sffC1MFPRps++yAgEQgDbczEHelZr30YELNkqx3Dw472Fr1U6xafygn7+8Dod7P2KpK30OM4l+8R2bYnuJ1G9bvVcl9N4=\",\"EncryptionContext\":{\"purpose\":\"conformance\"},\"KeyId\":\"arn:aws:kms:us-west-2:654654370895:key/bb4e9133-5b98-46f1-ae0d-cdc5e1ed6e2c\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"EncryptionAlgorithm\":\"SYMMETRIC_DEFAULT\",\"KeyId\":\"arn:aws:kms:us-west-2:654654370895:key/bb4e9133-5b98-46f1-ae0d-cdc5e1ed6e2c\",\"KeyMaterialId\":\"403d8734eb827a02365e06f2e63fadd77ede12b72c0b78f739638028fe589ccf\",\"KeyOrigin\":\"AWS_KMS\",\"Plaintext\":\"bXVsdGljbG91ZGota21zLWNvbmZvcm1hbmNl\"}",
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "51822b23-4d4d-4b7b-9902-78949ffa6950",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Mon, 19 Oct 2026 17:45:50 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "2e7c74aa-8307-4c67-bb94-550e7fd1fc15",
+  "persistent" : true,
+  "insertionIndex" : 34
+}

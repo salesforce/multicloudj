@@ -350,7 +350,9 @@ public abstract class AbstractKmsIT {
             CreateKeyRequest.builder()
                 .keyName(harness.getKeyName(testName))
                 .origin(origin)
-                .description("multicloudj kms conformance test key")
+                // Per-test description keeps each test's create request distinct, so replay serves
+                // every test the key it recorded rather than another test's identical request.
+                .description("multicloudj kms conformance test key: " + testName)
                 .tag("suite", "multicloudj-conformance")
                 .build());
     createdKeys.add(response.getKeyRef());
