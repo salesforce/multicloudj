@@ -53,6 +53,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -297,6 +298,63 @@ class GcpTransformerTest {
     sentinel.put("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "Never");
     transformer.applyLifecycleExpiration(never, sentinel);
     assertNull(never.build().getCustomTimeOffsetDateTime());
+  }
+
+  @Test
+  void testToPresignTagHeaders_withTagsAndExpiration() {
+    Map<String, String> tags = new HashMap<>();
+    tags.put("environment", "production");
+    tags.put(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "10");
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key(TEST_KEY)
+            .duration(Duration.ofHours(1))
+            .tags(tags)
+            .build();
+
+    Instant before = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+    Map<String, String> headers = transformer.toPresignTagHeaders(request);
+    Instant after = Instant.now();
+
+    assertEquals(3, headers.size());
+    assertEquals("production", headers.get("x-goog-meta-gcp-tag-environment"));
+    assertEquals(
+        "10", headers.get("x-goog-meta-gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
+    Instant customTime = Instant.parse(headers.get("x-goog-custom-time"));
+    assertFalse(customTime.isBefore(before.plus(Duration.ofDays(10))));
+    assertFalse(customTime.isAfter(after.plus(Duration.ofDays(10))));
+  }
+
+  @Test
+  void testToPresignTagHeaders_withoutPositiveExpiration_omitsCustomTime() {
+    for (String value : new String[] {"Never", "0", "-5"}) {
+      PresignedUrlRequest request =
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(TEST_KEY)
+              .duration(Duration.ofHours(1))
+              .tags(Map.of(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, value))
+              .build();
+
+      Map<String, String> headers = transformer.toPresignTagHeaders(request);
+
+      assertEquals(
+          Map.of("x-goog-meta-gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, value),
+          headers);
+    }
+  }
+
+  @Test
+  void testToPresignTagHeaders_withoutTags_returnsEmpty() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key(TEST_KEY)
+            .duration(Duration.ofHours(1))
+            .build();
+
+    assertTrue(transformer.toPresignTagHeaders(request).isEmpty());
   }
 
   @Test

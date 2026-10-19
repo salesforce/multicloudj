@@ -1,0 +1,33 @@
+{
+  "id" : "603b7491-7701-4155-acf2-a2a425e806d2",
+  "name" : "AwsBlobStoreIT_testPresignV2_tagsBinding-GET-1",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/presign-v2/tags-binding",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPFRhZ2dpbmcgeG1sbnM9Imh0dHA6Ly9zMy5hbWF6b25hd3MuY29tL2RvYy8yMDA2LTAzLTAxLyI+PFRhZ1NldD48VGFnPjxLZXk+cHJlc2lnbi10YWc8L0tleT48VmFsdWU+cHJlc2lnbi12YWx1ZTwvVmFsdWU+PC9UYWc+PFRhZz48S2V5PmV4cGlyYXRpb24tZGF5czwvS2V5PjxWYWx1ZT4zMDwvVmFsdWU+PC9UYWc+PC9UYWdTZXQ+PC9UYWdnaW5nPg==",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "6BJXDGZRZDY7VEG9",
+      "x-amz-id-2" : "4zDNtAZf8T93cOG9HW7EJaN6+gC77/CXzzT2yvebxEgblA5iVpRegzr5JZ6swmQ1sOlDs13eXiM=",
+      "Date" : "Mon, 19 Oct 2026 16:24:33 GMT"
+    }
+  },
+  "uuid" : "603b7491-7701-4155-acf2-a2a425e806d2",
+  "persistent" : true,
+  "insertionIndex" : 807
+}

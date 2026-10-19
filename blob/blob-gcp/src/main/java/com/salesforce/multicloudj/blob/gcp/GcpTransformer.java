@@ -46,9 +46,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -63,6 +66,8 @@ public class GcpTransformer {
 
   private final String bucket;
   private static final String TAG_PREFIX = "gcp-tag-";
+  private static final String METADATA_HEADER_PREFIX = "x-goog-meta-";
+  private static final String CUSTOM_TIME_HEADER = "x-goog-custom-time";
 
   /**
    * Object-metadata key under which the SDK persists the operation correlation id during upload, so
@@ -353,6 +358,35 @@ public class GcpTransformer {
         presignedUrlRequest.getChecksumAlgorithm(),
         null,
         presignedUrlRequest.getContentType());
+  }
+
+  /**
+   * Builds the tag headers a presigned upload URL must sign. V4 URL signing does not cover the
+   * metadata or custom time carried on the {@link BlobInfo}, so tags are bound as {@code
+   * x-goog-meta-gcp-tag-*} headers and the lifecycle-expiration marker as {@code
+   * x-goog-custom-time}. The custom time is computed when the URL is signed, so the expiration is
+   * anchored at signing time rather than at the time the object is actually uploaded.
+   *
+   * @param presignedUrlRequest the presigned upload request
+   * @return the headers to sign, empty when the request carries no tags
+   */
+  public Map<String, String> toPresignTagHeaders(PresignedUrlRequest presignedUrlRequest) {
+    Map<String, String> tags = presignedUrlRequest.getTags();
+    if (tags == null || tags.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    Map<String, String> headers = new LinkedHashMap<>();
+    tags.forEach(
+        (tagName, tagValue) ->
+            headers.put(METADATA_HEADER_PREFIX + TAG_PREFIX + tagName, tagValue));
+    Integer days = parseExpirationDays(tags.get(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
+    if (days != null) {
+      headers.put(
+          CUSTOM_TIME_HEADER,
+          DateTimeFormatter.ISO_INSTANT.format(
+              Instant.now().plus(Duration.ofDays(days)).truncatedTo(ChronoUnit.SECONDS)));
+    }
+    return headers;
   }
 
   public BlobInfo toBlobInfo(MultipartUploadRequest request) {

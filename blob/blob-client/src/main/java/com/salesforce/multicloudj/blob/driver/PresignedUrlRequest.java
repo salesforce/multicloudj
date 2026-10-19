@@ -26,7 +26,13 @@ public class PresignedUrlRequest {
   /** Optional: Specify the metadata to be used in a presignedUrl upload */
   private final Map<String, String> metadata;
 
-  /** Optional: Specify the tags to be used in a presignedUrl upload */
+  /**
+   * Optional: Specify the tags to be used in a presignedUrl upload. The tags are bound into the
+   * signature, so the uploader must send every header returned in {@link
+   * PresignedUrlResponse#getSignedHeaders()}. When the reserved {@code expiration-days} tag is set,
+   * the expiration may be measured from the time the URL is generated rather than from the time
+   * the object is uploaded.
+   */
   private final Map<String, String> tags;
 
   /** Optional: Specify the KMS key ID to be used for encryption in a presignedUrl upload */

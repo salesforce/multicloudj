@@ -1,0 +1,39 @@
+{
+  "id" : "c4eb3caf-cf9d-465b-be02-45d4e39dcd1e",
+  "name" : "GcpBlobStoreIT_testPresignV2_tagsBinding-GET-2",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fpresign-v2%2Ftags-binding",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/presign-v2/tags-binding/1792424094079484\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fpresign-v2%2Ftags-binding\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fpresign-v2%2Ftags-binding?generation=1792424094079484&alt=media\",\n  \"name\": \"conformance-tests/presign-v2/tags-binding\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1792424094079484\",\n  \"metageneration\": \"1\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"23\",\n  \"md5Hash\": \"ljj4MAsFKDLuDcoyHONnBA==\",\n  \"crc32c\": \"trYQRA==\",\n  \"etag\": \"CPyzqIu0xpcDEAE=\",\n  \"timeCreated\": \"2026-10-19T15:34:54.148Z\",\n  \"updated\": \"2026-10-19T15:34:54.148Z\",\n  \"timeStorageClassUpdated\": \"2026-10-19T15:34:54.148Z\",\n  \"customTime\": \"2026-11-18T15:34:52Z\",\n  \"timeFinalized\": \"2026-10-19T15:34:54.148Z\",\n  \"metadata\": {\n    \"gcp-tag-expiration-days\": \"30\",\n    \"gcp-tag-presign-tag\": \"presign-value\"\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CPyzqIu0xpcDEAE=",
+      "X-GUploader-UploadID" : "AP6rU810Cs_uqzfsPOpEYycEibRTPJCyqJtpac7_pbpyvykFO2ON9ds4wc5ucoJMePoUokYL21KpbX2e5ooJ",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 19 Oct 2026 15:34:54 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a154cd2c23",
+      "Date" : "Mon, 19 Oct 2026 15:34:54 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "c4eb3caf-cf9d-465b-be02-45d4e39dcd1e",
+  "persistent" : true,
+  "insertionIndex" : 1557
+}
