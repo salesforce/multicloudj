@@ -271,6 +271,101 @@ public class AliTransformerTest {
             + " precedence over the SDK's even with custom key");
   }
 
+  private Map<String, String> putMetadataFor(
+      OperationContext ctx, Map<String, String> userMetadata) {
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withMetadata(userMetadata)
+        .withOperationContext(ctx)
+        .build();
+    return transformer
+        .toPutObjectRequest(request, BinaryData.fromBytes("data".getBytes()))
+        .metadata();
+  }
+
+  @Test
+  void testToPutObjectRequest_serviceAndTenantIdStamped() {
+    var ctx = OperationContext.builder()
+        .serviceId("svc-1")
+        .tenantId("tenant-1")
+        .correlationId("req-abc-123")
+        .build();
+
+    var metadata = putMetadataFor(ctx, Map.of("user-key", "user-value"));
+
+    assertEquals("svc-1", metadata.get("sdk-logging-service-id"));
+    assertEquals("tenant-1", metadata.get("sdk-logging-tenant-id"));
+    assertEquals("req-abc-123", metadata.get("sdk-logging-correlation-id"));
+    assertEquals("user-value", metadata.get("user-key"));
+  }
+
+  @Test
+  void testToPutObjectRequest_onlyServiceIdStampedWhenTenantIdMissing() {
+    var ctx = OperationContext.builder().serviceId("svc-1").build();
+
+    var metadata = putMetadataFor(ctx, Map.of());
+
+    assertEquals("svc-1", metadata.get("sdk-logging-service-id"));
+    assertFalse(metadata.containsKey("sdk-logging-tenant-id"));
+  }
+
+  @Test
+  void testToPutObjectRequest_onlyTenantIdStampedWhenServiceIdMissing() {
+    var ctx = OperationContext.builder().tenantId("tenant-1").build();
+
+    var metadata = putMetadataFor(ctx, Map.of());
+
+    assertEquals("tenant-1", metadata.get("sdk-logging-tenant-id"));
+    assertFalse(metadata.containsKey("sdk-logging-service-id"));
+  }
+
+  @Test
+  void testToPutObjectRequest_blankServiceAndTenantIdSkipped() {
+    var ctx = OperationContext.builder()
+        .serviceId("   ")
+        .tenantId("")
+        .build();
+
+    var metadata = putMetadataFor(ctx, Map.of("user-key", "user-value"));
+
+    assertEquals(Map.of("user-key", "user-value"), metadata);
+  }
+
+  @Test
+  void testToPutObjectRequest_userSuppliedServiceAndTenantIdNotOverwritten() {
+    var ctx = OperationContext.builder()
+        .serviceId("sdk-service")
+        .tenantId("sdk-tenant")
+        .build();
+
+    var metadata = putMetadataFor(ctx, Map.of(
+        "sdk-logging-service-id", "user-service",
+        "sdk-logging-tenant-id", "user-tenant"));
+
+    assertEquals("user-service", metadata.get("sdk-logging-service-id"));
+    assertEquals("user-tenant", metadata.get("sdk-logging-tenant-id"));
+  }
+
+  @Test
+  void testToPutObjectRequest_userSuppliedServiceIdDoesNotBlockTenantId() {
+    var ctx = OperationContext.builder()
+        .serviceId("sdk-service")
+        .tenantId("sdk-tenant")
+        .build();
+
+    var metadata = putMetadataFor(ctx, Map.of("sdk-logging-service-id", "user-service"));
+
+    assertEquals("user-service", metadata.get("sdk-logging-service-id"));
+    assertEquals("sdk-tenant", metadata.get("sdk-logging-tenant-id"));
+  }
+
+  @Test
+  void testToPutObjectRequest_serviceAndTenantIdNotInjectedWhenContextMissing() {
+    var metadata = putMetadataFor(null, Map.of("user-key", "user-value"));
+
+    assertEquals(Map.of("user-key", "user-value"), metadata);
+  }
+
   @Test
   void testToUploadResponse() {
     UploadRequest request =
@@ -388,6 +483,163 @@ public class AliTransformerTest {
     assertEquals(BUCKET, actual.bucket());
     assertEquals("key", actual.key());
     assertEquals(metadata, actual.metadata());
+  }
+
+  private Map<String, String> initiateMetadataFor(
+      OperationContext ctx, Map<String, String> userMetadata) {
+    var request = new MultipartUploadRequest.Builder()
+        .withKey("some-key")
+        .withMetadata(userMetadata)
+        .withOperationContext(ctx)
+        .build();
+    return transformer.toInitiateMultipartUploadRequest(request).metadata();
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_serviceTenantAndCorrelationIdStamped() {
+    var ctx = OperationContext.builder()
+        .serviceId("svc-1")
+        .tenantId("tenant-1")
+        .correlationId("req-abc-123")
+        .build();
+
+    var metadata = initiateMetadataFor(ctx, Map.of("user-key", "user-value"));
+
+    assertEquals("svc-1", metadata.get("sdk-logging-service-id"));
+    assertEquals("tenant-1", metadata.get("sdk-logging-tenant-id"));
+    assertEquals("req-abc-123", metadata.get("sdk-logging-correlation-id"));
+    assertEquals("user-value", metadata.get("user-key"));
+    assertEquals(4, metadata.size());
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_onlyServiceIdStamped() {
+    var ctx = OperationContext.builder().serviceId("svc-1").build();
+
+    var metadata = initiateMetadataFor(ctx, Map.of());
+
+    assertEquals(Map.of("sdk-logging-service-id", "svc-1"), metadata);
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_onlyTenantIdStamped() {
+    var ctx = OperationContext.builder().tenantId("tenant-1").build();
+
+    var metadata = initiateMetadataFor(ctx, Map.of());
+
+    assertEquals(Map.of("sdk-logging-tenant-id", "tenant-1"), metadata);
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_blankIdsSkipped() {
+    var ctx = OperationContext.builder()
+        .serviceId("   ")
+        .tenantId("")
+        .correlationId(" ")
+        .build();
+
+    var metadata = initiateMetadataFor(ctx, Map.of("user-key", "user-value"));
+
+    assertEquals(Map.of("user-key", "user-value"), metadata);
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_callerSuppliedKeysNotOverwritten() {
+    var ctx = OperationContext.builder()
+        .serviceId("svc-1")
+        .tenantId("tenant-1")
+        .correlationId("req-abc-123")
+        .build();
+
+    var metadata = initiateMetadataFor(ctx, Map.of(
+        "sdk-logging-service-id", "app-svc",
+        "sdk-logging-tenant-id", "app-tenant",
+        "sdk-logging-correlation-id", "app-corr"));
+
+    assertEquals("app-svc", metadata.get("sdk-logging-service-id"));
+    assertEquals("app-tenant", metadata.get("sdk-logging-tenant-id"));
+    assertEquals("app-corr", metadata.get("sdk-logging-correlation-id"));
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_oneCallerKeyDoesNotBlockOthers() {
+    var ctx = OperationContext.builder()
+        .serviceId("svc-1")
+        .tenantId("tenant-1")
+        .correlationId("req-abc-123")
+        .build();
+
+    var metadata = initiateMetadataFor(ctx, Map.of("sdk-logging-service-id", "app-svc"));
+
+    assertEquals("app-svc", metadata.get("sdk-logging-service-id"));
+    assertEquals("tenant-1", metadata.get("sdk-logging-tenant-id"));
+    assertEquals("req-abc-123", metadata.get("sdk-logging-correlation-id"));
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_nullContextLeavesMetadataUnchanged() {
+    var metadata = initiateMetadataFor(null, Map.of("user-key", "user-value"));
+
+    assertEquals(Map.of("user-key", "user-value"), metadata);
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_noContextAndNoMetadataYieldsEmptyMetadata() {
+    var request = new MultipartUploadRequest.Builder().withKey("some-key").build();
+
+    assertTrue(transformer.toInitiateMultipartUploadRequest(request).metadata().isEmpty());
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_customCorrelationIdKeyUsed() {
+    var ctx = OperationContext.builder()
+        .correlationId("req-abc-123")
+        .correlationIdKey("x-custom-corr")
+        .build();
+
+    var metadata = initiateMetadataFor(ctx, Map.of());
+
+    assertEquals(Map.of("x-custom-corr", "req-abc-123"), metadata);
+    assertFalse(metadata.containsKey("sdk-logging-correlation-id"));
+  }
+
+  @Test
+  void testToMultipartUpload_handleMetadataIsStampedMap() {
+    var ctx = OperationContext.builder().serviceId("svc-1").tenantId("tenant-1").build();
+    var request = new MultipartUploadRequest.Builder()
+        .withKey("key")
+        .withMetadata(Map.of("user-key", "user-value"))
+        .withOperationContext(ctx)
+        .build();
+
+    var actual = transformer.toMultipartUpload(mockInitiateResult(), request);
+
+    assertEquals(
+        Map.of("user-key", "user-value",
+            "sdk-logging-service-id", "svc-1",
+            "sdk-logging-tenant-id", "tenant-1"),
+        actual.getMetadata());
+  }
+
+  @Test
+  void testToMultipartUpload_nullContextHandleMetadataEqualsInput() {
+    Map<String, String> metadata = Map.of("user-key", "user-value");
+    var request = new MultipartUploadRequest.Builder()
+        .withKey("key").withMetadata(metadata).build();
+
+    var actual = transformer.toMultipartUpload(mockInitiateResult(), request);
+
+    assertEquals(metadata, actual.getMetadata());
+  }
+
+  private InitiateMultipartUploadResult mockInitiateResult() {
+    InitiateMultipartUploadResult result = mock(InitiateMultipartUploadResult.class);
+    InitiateMultipartUpload upload = mock(InitiateMultipartUpload.class);
+    doReturn(upload).when(result).initiateMultipartUpload();
+    doReturn(BUCKET).when(upload).bucket();
+    doReturn("key").when(upload).key();
+    doReturn("uploadId").when(upload).uploadId();
+    return result;
   }
 
   @Test

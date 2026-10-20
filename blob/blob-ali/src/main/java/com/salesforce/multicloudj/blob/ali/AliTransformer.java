@@ -118,6 +118,35 @@ public class AliTransformer {
     this.bucket = bucket;
   }
 
+  /**
+   * Returns a new mutable copy of the given application metadata with the context's correlation,
+   * service and tenant ids stamped under their {@code sdk-logging-*} keys. Each id is skipped
+   * independently when the context is null, the value is blank, or the key is already present, so
+   * caller-supplied metadata always wins.
+   */
+  private static Map<String, String> stampContextMetadata(
+      Map<String, String> appMetadata, OperationContext ctx) {
+    Map<String, String> metadata =
+        appMetadata != null ? new HashMap<>(appMetadata) : new HashMap<>();
+    if (ctx == null) {
+      return metadata;
+    }
+    String correlationIdKey = ctx.getEffectiveCorrelationIdMetadataKey();
+    if (StringUtils.isNotBlank(ctx.getCorrelationId())
+        && !metadata.containsKey(correlationIdKey)) {
+      metadata.put(correlationIdKey, ctx.getCorrelationId());
+    }
+    if (StringUtils.isNotBlank(ctx.getServiceId())
+        && !metadata.containsKey(SdkLoggingMetadataKeys.SERVICE_ID)) {
+      metadata.put(SdkLoggingMetadataKeys.SERVICE_ID, ctx.getServiceId());
+    }
+    if (StringUtils.isNotBlank(ctx.getTenantId())
+        && !metadata.containsKey(SdkLoggingMetadataKeys.TENANT_ID)) {
+      metadata.put(SdkLoggingMetadataKeys.TENANT_ID, ctx.getTenantId());
+    }
+    return metadata;
+  }
+
   public PutObjectRequest toPutObjectRequest(
       UploadRequest uploadRequest,
       BinaryData body) {
@@ -133,21 +162,10 @@ public class AliTransformer {
       builder.forbidOverwrite(true);
     }
 
-    // Copy the application-supplied metadata and stamp the SDK's correlation
-    // id onto the stored object so it persists in OSS alongside the user's
-    // metadata. Skipped when the request carries no operation context, or
-    // when the app has supplied the same key explicitly.
-    Map<String, String> metadata = uploadRequest.getMetadata() != null
-        ? new HashMap<>(uploadRequest.getMetadata())
-        : new HashMap<>();
-    if (uploadRequest.getOperationContext() != null) {
-      OperationContext ctx = uploadRequest.getOperationContext();
-      String correlationIdKey = ctx.getEffectiveCorrelationIdMetadataKey();
-      if (StringUtils.isNotBlank(ctx.getCorrelationId())
-          && !metadata.containsKey(correlationIdKey)) {
-        metadata.put(correlationIdKey, ctx.getCorrelationId());
-      }
-    }
+    // Application metadata plus the SDK's correlation, service and tenant ids, so they persist
+    // in OSS alongside the user's metadata.
+    Map<String, String> metadata =
+        stampContextMetadata(uploadRequest.getMetadata(), uploadRequest.getOperationContext());
     if (!metadata.isEmpty()) {
       builder.metadata(metadata);
     }
@@ -533,8 +551,10 @@ public class AliTransformer {
             .bucket(bucket)
             .key(request.getKey());
 
-    if (request.getMetadata() != null && !request.getMetadata().isEmpty()) {
-      builder.metadata(request.getMetadata());
+    Map<String, String> metadata =
+        stampContextMetadata(request.getMetadata(), request.getOperationContext());
+    if (!metadata.isEmpty()) {
+      builder.metadata(metadata);
     }
 
     if (StringUtils.isNotEmpty(request.getKmsKeyId())) {
@@ -586,7 +606,7 @@ public class AliTransformer {
         .bucket(upload.bucket())
         .key(upload.key())
         .id(upload.uploadId())
-        .metadata(request.getMetadata())
+        .metadata(stampContextMetadata(request.getMetadata(), request.getOperationContext()))
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
         .checksumAlgorithm(algorithm)

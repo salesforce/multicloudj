@@ -109,6 +109,7 @@ import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -1012,6 +1013,43 @@ public class AliBlobStoreTest {
     assertEquals("object-1", actualRequest.key());
     assertEquals("bucket-1", actualRequest.bucket());
     assertEquals(metadata, actualRequest.metadata());
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_withOperationContext_stampsMetadata() {
+    InitiateMultipartUploadResult mockResult = mock(InitiateMultipartUploadResult.class);
+    InitiateMultipartUpload mockUpload = mock(InitiateMultipartUpload.class);
+    when(mockResult.initiateMultipartUpload()).thenReturn(mockUpload);
+    when(mockUpload.bucket()).thenReturn("bucket-1");
+    when(mockUpload.key()).thenReturn("object-1");
+    when(mockUpload.uploadId()).thenReturn("mpu-id");
+    when(mockOssClient.initiateMultipartUpload(
+        any(InitiateMultipartUploadRequest.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
+    OperationContext ctx = OperationContext.builder()
+        .serviceId("svc-1")
+        .tenantId("tenant-1")
+        .correlationId("corr-1")
+        .build();
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("object-1")
+        .withMetadata(Map.of("key-1", "value-1"))
+        .withOperationContext(ctx)
+        .build();
+
+    MultipartUpload handle = ali.initiateMultipartUpload(request);
+
+    ArgumentCaptor<InitiateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(InitiateMultipartUploadRequest.class);
+    verify(mockOssClient, times(1)).initiateMultipartUpload(captor.capture(),
+        any(OperationOptions.class));
+    Map<String, String> expected = Map.of(
+        "key-1", "value-1",
+        "sdk-logging-service-id", "svc-1",
+        "sdk-logging-tenant-id", "tenant-1",
+        "sdk-logging-correlation-id", "corr-1");
+    assertEquals(expected, captor.getValue().metadata());
+    assertEquals(expected, handle.getMetadata());
   }
 
   @Test
