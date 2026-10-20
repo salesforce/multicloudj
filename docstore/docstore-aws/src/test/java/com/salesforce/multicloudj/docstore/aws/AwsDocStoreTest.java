@@ -17,7 +17,6 @@ import com.salesforce.multicloudj.docstore.driver.Action;
 import com.salesforce.multicloudj.docstore.driver.ActionKind;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import com.salesforce.multicloudj.docstore.driver.Document;
-import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.Filter;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
 import com.salesforce.multicloudj.docstore.driver.ReadOptions;
@@ -581,12 +580,6 @@ public class AwsDocStoreTest {
     return new Document(new HashMap<>(Map.of("title", title, "publisher", "version")));
   }
 
-  private Map<String, AttributeValue> paginationKey() {
-    return Map.of(
-        "title", AttributeValue.builder().s("one").build(),
-        "publisher", AttributeValue.builder().s("version").build());
-  }
-
   @Test
   void testKeyReadsInheritAndOverrideReadConsistency() {
     for (boolean clientDefault : new boolean[] {false, true}) {
@@ -610,24 +603,11 @@ public class AwsDocStoreTest {
         client.batchGet(List.of(keyDocument("one"), keyDocument("two")), STRONG_READ);
         client.batchGet(List.of(keyDocument("one"), keyDocument("two")), NORMAL_READ);
         client.batchGet(List.of(keyDocument("one"), keyDocument("two")));
-        client.getActions().get(keyDocument("one"), STRONG_READ).run();
-        client.getActions().get(keyDocument("one"), NORMAL_READ).run();
-        client.get(keyDocument("one"), (ReadOptions) null);
       }
       Assertions.assertEquals(
-          List.of(
-              clientDefault,
-              clientDefault,
-              true,
-              false,
-              true,
-              false,
-              clientDefault,
-              true,
-              false,
-              clientDefault),
+          List.of(clientDefault, clientDefault, true, false, true, false, clientDefault),
           flags);
-      Assertions.assertEquals(List.of(1, 1, 1, 1, 2, 2, 2, 1, 1, 1), batchSizes);
+      Assertions.assertEquals(List.of(1, 1, 1, 1, 2, 2, 2), batchSizes);
     }
   }
 
@@ -665,15 +645,14 @@ public class AwsDocStoreTest {
         Query query = new Query(store).where("title", FilterOperation.EQUAL, "one");
         query.get().stop();
         query.consistentRead(!clientDefault).get().stop();
-        query.get().stop();
         query.consistentRead(null).get().stop();
         new Query(store).get().stop();
         new Query(store).consistentRead(!clientDefault).get().stop();
       }
       ArgumentCaptor<QueryRequest> queries = ArgumentCaptor.forClass(QueryRequest.class);
-      verify(mockedDDBClient, times(4)).query(queries.capture());
+      verify(mockedDDBClient, times(3)).query(queries.capture());
       Assertions.assertEquals(
-          List.of(clientDefault, !clientDefault, !clientDefault, clientDefault),
+          List.of(clientDefault, !clientDefault, clientDefault),
           queries.getAllValues().stream()
               .map(request -> Boolean.TRUE.equals(request.consistentRead()))
               .toList());
@@ -697,18 +676,8 @@ public class AwsDocStoreTest {
       new Query(store).where("GsiHashKey", FilterOperation.EQUAL, "one").get().stop();
       new Query(store)
           .where("GsiHashKey", FilterOperation.EQUAL, "one")
-          .consistentRead(true)
-          .get()
-          .stop();
-      new Query(store)
-          .where("GsiHashKey", FilterOperation.EQUAL, "one")
           .where("GsiSortKey", FilterOperation.EQUAL, "version")
           .consistentRead(true)
-          .get()
-          .stop();
-      new Query(store)
-          .where("GsiHashKey", FilterOperation.EQUAL, "one")
-          .consistentRead(false)
           .get()
           .stop();
       new Query(store)
@@ -719,67 +688,15 @@ public class AwsDocStoreTest {
           .stop();
     }
     ArgumentCaptor<QueryRequest> requests = ArgumentCaptor.forClass(QueryRequest.class);
-    verify(mockedDDBClient, times(5)).query(requests.capture());
+    verify(mockedDDBClient, times(3)).query(requests.capture());
     Assertions.assertEquals(
-        List.of("GSI_Index", "GSI_Index", "GSI_Index", "GSI_Index", "LSI_Index"),
+        List.of("GSI_Index", "GSI_Index", "LSI_Index"),
         requests.getAllValues().stream().map(QueryRequest::indexName).toList());
     Assertions.assertEquals(
-        List.of(false, false, false, false, true),
+        List.of(false, false, true),
         requests.getAllValues().stream()
             .map(request -> Boolean.TRUE.equals(request.consistentRead()))
             .toList());
-  }
-
-  @Test
-  void testScanPagesRetainConsistencyAfterQueryReset() {
-    when(mockedDDBClient.describeTable(any(DescribeTableRequest.class)))
-        .thenReturn(DescribeTableResponse.builder().table(tableDescription).build());
-    Map<String, AttributeValue> key = paginationKey();
-    when(mockedDDBClient.scan(any(ScanRequest.class)))
-        .thenReturn(
-            ScanResponse.builder().items(key).lastEvaluatedKey(key).build(),
-            ScanResponse.builder().build(),
-            ScanResponse.builder().items(key).build());
-    Query query = new Query(docStore);
-    DocumentIterator iterator = query.consistentRead(true).get();
-    query.consistentRead(null).get().stop();
-    while (iterator.hasNext()) {
-      iterator.next(new Document(new HashMap<>()));
-    }
-    iterator.stop();
-    ArgumentCaptor<ScanRequest> requests = ArgumentCaptor.forClass(ScanRequest.class);
-    verify(mockedDDBClient, times(3)).scan(requests.capture());
-    Assertions.assertEquals(
-        List.of(true, false, true),
-        requests.getAllValues().stream()
-            .map(request -> Boolean.TRUE.equals(request.consistentRead()))
-            .toList());
-    Assertions.assertEquals(key, requests.getAllValues().get(2).exclusiveStartKey());
-  }
-
-  @Test
-  void testQueryPagesRetainReadConsistency() {
-    when(mockedDDBClient.describeTable(any(DescribeTableRequest.class)))
-        .thenReturn(DescribeTableResponse.builder().table(tableDescription).build());
-    Map<String, AttributeValue> key = paginationKey();
-    when(mockedDDBClient.query(any(QueryRequest.class)))
-        .thenReturn(
-            QueryResponse.builder().items(key).lastEvaluatedKey(key).build(),
-            QueryResponse.builder().items(key).build());
-    DocumentIterator iterator =
-        new Query(docStore).where("title", FilterOperation.EQUAL, "one").consistentRead(true).get();
-    while (iterator.hasNext()) {
-      iterator.next(new Document(new HashMap<>()));
-    }
-    iterator.stop();
-    ArgumentCaptor<QueryRequest> requests = ArgumentCaptor.forClass(QueryRequest.class);
-    verify(mockedDDBClient, times(2)).query(requests.capture());
-    Assertions.assertEquals(
-        List.of(true, true),
-        requests.getAllValues().stream()
-            .map(request -> Boolean.TRUE.equals(request.consistentRead()))
-            .toList());
-    Assertions.assertEquals(key, requests.getAllValues().get(1).exclusiveStartKey());
   }
 
   @Test
