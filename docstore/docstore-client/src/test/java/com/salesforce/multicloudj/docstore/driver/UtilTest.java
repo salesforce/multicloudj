@@ -126,9 +126,6 @@ public class UtilTest {
 
     List<List<Action>> groups = Util.groupByFieldPath(gets);
     Assertions.assertEquals(5, groups.size());
-    get3.setReadOptions(ReadOptions.builder().consistentRead(true).build());
-    get4.setReadOptions(ReadOptions.builder().consistentRead(false).build());
-    Assertions.assertEquals(6, Util.groupByFieldPath(gets).size());
   }
 
   @Test

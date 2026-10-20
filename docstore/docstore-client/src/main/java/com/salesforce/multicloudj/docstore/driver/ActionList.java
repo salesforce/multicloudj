@@ -18,6 +18,7 @@ public class ActionList {
   private final AbstractDocStore docStore;
 
   private Consumer<Predicate<Object>> beforeDo;
+  private ReadOptions readOptions;
 
   public ActionList(AbstractDocStore docStore) {
     this.docStore = docStore;
@@ -49,22 +50,7 @@ public class ActionList {
   }
 
   public ActionList get(Document document, String... fieldPaths) {
-    return get(document, null, fieldPaths);
-  }
-
-  /**
-   * Adds a key read with options scoped to this action.
-   *
-   * @param document document with a valid key; receives the result
-   * @param readOptions per-read options; null or unset values inherit the client setting
-   * @param fieldPaths optional fields to retrieve
-   * @return this action list
-   */
-  public ActionList get(Document document, ReadOptions readOptions, String... fieldPaths) {
-    Action action =
-        new Action(ActionKind.ACTION_KIND_GET, document, List.of(fieldPaths), null, false);
-    action.setReadOptions(readOptions);
-    actions.add(action);
+    actions.add(new Action(ActionKind.ACTION_KIND_GET, document, List.of(fieldPaths), null, false));
     return this;
   }
 
@@ -88,6 +74,17 @@ public class ActionList {
     return this;
   }
 
+  /**
+   * Sets the same read options for every read action in this batch. Writes are unaffected.
+   *
+   * @param readOptions batch-wide read options; null or unset values inherit the client setting
+   * @return this action list
+   */
+  public ActionList withReadOptions(ReadOptions readOptions) {
+    this.readOptions = readOptions;
+    return this;
+  }
+
   public void run() {
     try {
       docStore.checkClosed();
@@ -105,6 +102,9 @@ public class ActionList {
     Set<String> seenList = new HashSet<>();
     int index = 0;
     for (Action action : actions) {
+      if (action.getKind() == ActionKind.ACTION_KIND_GET) {
+        action.setReadOptions(readOptions);
+      }
       docStore.toDriverAction(action);
       if (action.getKey() != null) {
         String keyAndKind = action.getKey() + ":" + action.getKind();

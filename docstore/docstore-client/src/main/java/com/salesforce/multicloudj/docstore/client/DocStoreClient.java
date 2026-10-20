@@ -203,7 +203,7 @@ public class DocStoreClient {
    * @param fieldPath optional fields to retrieve
    */
   public void get(Document document, ReadOptions readOptions, String... fieldPath) {
-    docStore.getActions().get(document, readOptions, fieldPath).run();
+    docStore.getActions().get(document, fieldPath).withReadOptions(readOptions).run();
   }
 
   /**
@@ -238,9 +238,9 @@ public class DocStoreClient {
   public void batchGet(List<Document> documents, ReadOptions readOptions) {
     ActionList actionList = docStore.getActions();
     for (Document document : documents) {
-      actionList.get(document, readOptions);
+      actionList.get(document);
     }
-    actionList.run();
+    actionList.withReadOptions(readOptions).run();
   }
 
   /**
