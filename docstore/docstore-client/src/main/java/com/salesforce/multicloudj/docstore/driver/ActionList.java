@@ -18,6 +18,7 @@ public class ActionList {
   private final AbstractDocStore docStore;
 
   private Consumer<Predicate<Object>> beforeDo;
+  private ReadOptions readOptions;
 
   public ActionList(AbstractDocStore docStore) {
     this.docStore = docStore;
@@ -73,6 +74,17 @@ public class ActionList {
     return this;
   }
 
+  /**
+   * Sets the same read options for every read action in this batch. Writes are unaffected.
+   *
+   * @param readOptions batch-wide read options; null or unset values inherit the client setting
+   * @return this action list
+   */
+  public ActionList withReadOptions(ReadOptions readOptions) {
+    this.readOptions = readOptions;
+    return this;
+  }
+
   public void run() {
     try {
       docStore.checkClosed();
@@ -90,6 +102,9 @@ public class ActionList {
     Set<String> seenList = new HashSet<>();
     int index = 0;
     for (Action action : actions) {
+      if (action.getKind() == ActionKind.ACTION_KIND_GET) {
+        action.setReadOptions(readOptions);
+      }
       docStore.toDriverAction(action);
       if (action.getKey() != null) {
         String keyAndKind = action.getKey() + ":" + action.getKind();

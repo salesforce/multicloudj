@@ -67,6 +67,22 @@ public class Query {
   /** The underlying document store implementation used to execute queries. */
   private final AbstractDocStore docStore;
 
+  /** Optional consistency override; null inherits the client setting. */
+  private Boolean consistentRead;
+
+  /**
+   * Sets this query's consistency override without changing the client configuration. The override
+   * applies to subsequent executions of this query and their iterator pages until changed.
+   *
+   * @param consistentRead true requests strong consistency where supported; false uses normal read
+   *     behavior; null restores inheritance from the client setting
+   * @return this query for chaining
+   */
+  public Query consistentRead(Boolean consistentRead) {
+    this.consistentRead = consistentRead;
+    return this;
+  }
+
   /**
    * A list of field paths to retrieve. Each field path is a dot-separated string (e.g.,
    * "user.name", "address.city").

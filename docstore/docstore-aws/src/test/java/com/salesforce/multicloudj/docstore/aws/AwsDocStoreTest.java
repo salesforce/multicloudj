@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.docstore.client.DocStoreClient;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.Action;
 import com.salesforce.multicloudj.docstore.driver.ActionKind;
@@ -17,6 +18,7 @@ import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.Filter;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
+import com.salesforce.multicloudj.docstore.driver.ReadOptions;
 import com.salesforce.multicloudj.docstore.driver.testtypes.Book;
 import com.salesforce.multicloudj.docstore.driver.testtypes.Person;
 import java.io.IOException;
@@ -85,6 +87,12 @@ public class AwsDocStoreTest {
           null);
 
   static class TestDocStore extends AwsDocStore {}
+
+  private static class TestDocStoreClient extends DocStoreClient {
+    TestDocStoreClient(AwsDocStore store) {
+      super(store);
+    }
+  }
 
   static class TestAction extends Action {
     public TestAction(
@@ -550,8 +558,6 @@ public class AwsDocStoreTest {
   void testBatchGetUsesConfiguredReadConsistency() {
     when(mockedDDBClient.batchGetItem(any(BatchGetItemRequest.class)))
         .thenReturn(BatchGetItemResponse.builder().build());
-    TestAction get = new TestAction(ActionKind.ACTION_KIND_GET, new Document(book), null, null);
-    get.setKey("partitionKey:YellowBook,sortKey:WA");
     for (boolean consistentRead : new boolean[] {false, true}) {
       CollectionOptions options =
           new CollectionOptions.CollectionOptionsBuilder()
@@ -566,14 +572,33 @@ public class AwsDocStoreTest {
               .withCollectionOptions(options)
               .withDDBClient(mockedDDBClient)
               .build()) {
-        store.batchGet(List.of(get), null, 0, 0);
+        DocStoreClient client = new TestDocStoreClient(store);
+        ReadOptions override = ReadOptions.builder().consistentRead(!consistentRead).build();
+        client.get(new Document(book), override);
+        client.batchGet(
+            List.of(
+                new Document(book),
+                new Document(new HashMap<>(Map.of("title", "other", "publisher", "WA")))),
+            override);
+        client.get(new Document(book));
+        Query query =
+            new Query(store)
+                .where("title", FilterOperation.EQUAL, "value")
+                .where("publisher", FilterOperation.EQUAL, "value");
+        Assertions.assertEquals(
+            consistentRead,
+            Boolean.TRUE.equals(store.planQuery(query).getQueryRequest().consistentRead()));
+        query.consistentRead(!consistentRead);
+        Assertions.assertEquals(
+            !consistentRead,
+            Boolean.TRUE.equals(store.planQuery(query).getQueryRequest().consistentRead()));
       }
     }
     ArgumentCaptor<BatchGetItemRequest> requests =
         ArgumentCaptor.forClass(BatchGetItemRequest.class);
-    verify(mockedDDBClient, times(2)).batchGetItem(requests.capture());
+    verify(mockedDDBClient, times(6)).batchGetItem(requests.capture());
     Assertions.assertEquals(
-        List.of(false, true),
+        List.of(true, true, false, false, false, true),
         requests.getAllValues().stream()
             .map(
                 request ->
@@ -1006,19 +1031,26 @@ public class AwsDocStoreTest {
     Query query = new Query(docStore).where("field", FilterOperation.EQUAL, "value");
     QueryRunner queryRunner = docStore.planQuery(query);
     Assertions.assertNotNull(queryRunner.getScanRequest());
+    Assertions.assertFalse(Boolean.TRUE.equals(queryRunner.getScanRequest().consistentRead()));
 
     int limit = 3;
     Query query2 =
-        new Query(docStore).where("GsiHashKey", FilterOperation.EQUAL, "value").limit(limit);
+        new Query(docStore)
+            .where("GsiHashKey", FilterOperation.EQUAL, "value")
+            .limit(limit)
+            .consistentRead(true);
     queryRunner = docStore.planQuery(query2);
     Assertions.assertNotNull(queryRunner.getQueryRequest());
     Assertions.assertEquals(limit, queryRunner.getQueryRequest().limit());
+    Assertions.assertFalse(Boolean.TRUE.equals(queryRunner.getQueryRequest().consistentRead()));
 
     Query query3 = new Query(docStore).where("field", FilterOperation.EQUAL, "value").limit(limit);
+    query3.consistentRead(true);
     query3.initGet(List.of("field.a", "field.b"));
     queryRunner = docStore.planQuery(query3);
     Assertions.assertNotNull(queryRunner.getScanRequest());
     Assertions.assertEquals(limit, queryRunner.getScanRequest().limit());
+    Assertions.assertTrue(queryRunner.getScanRequest().consistentRead());
   }
 
   @Test
@@ -1043,20 +1075,25 @@ public class AwsDocStoreTest {
     Query queryLsi =
         new Query(docStore)
             .where("title", FilterOperation.EQUAL, "value")
-            .where("LsiSortKey", FilterOperation.LESS_THAN, "value2");
+            .where("LsiSortKey", FilterOperation.LESS_THAN, "value2")
+            .consistentRead(true);
     queryable = docStore.getBestQueryable(queryLsi);
     Assertions.assertNotNull(queryable);
     Assertions.assertNotNull(queryable.getKey());
     Assertions.assertNotNull(queryable.getIndexName());
+    Assertions.assertTrue(docStore.planQuery(queryLsi).getQueryRequest().consistentRead());
 
     Query queryGsiPkSk =
         new Query(docStore)
             .where("GsiHashKey", FilterOperation.EQUAL, "value")
-            .where("GsiSortKey", FilterOperation.LESS_THAN, "value2");
+            .where("GsiSortKey", FilterOperation.LESS_THAN, "value2")
+            .consistentRead(true);
     queryable = docStore.getBestQueryable(queryGsiPkSk);
     Assertions.assertNotNull(queryable);
     Assertions.assertNotNull(queryable.getKey());
     Assertions.assertNotNull(queryable.getIndexName());
+    Assertions.assertFalse(
+        Boolean.TRUE.equals(docStore.planQuery(queryGsiPkSk).getQueryRequest().consistentRead()));
 
     Query queryPk = new Query(docStore).where("title", FilterOperation.EQUAL, "value");
     queryable = docStore.getBestQueryable(queryPk);
