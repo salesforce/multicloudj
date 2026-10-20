@@ -51,9 +51,13 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Getter;
@@ -68,6 +72,11 @@ public class GcpTransformer {
   private static final String TAG_PREFIX = "gcp-tag-";
   private static final String METADATA_HEADER_PREFIX = "x-goog-meta-";
   private static final String CUSTOM_TIME_HEADER = "x-goog-custom-time";
+  // RFC 9110 token characters.
+  private static final Pattern HEADER_TOKEN = Pattern.compile("[A-Za-z0-9!#$%&'*+.^_`|~-]+");
+  // Visible ASCII with optional inner spaces. HTTP strips leading and trailing whitespace from
+  // header values, so such a value would not be stored as given.
+  private static final Pattern HEADER_VALUE = Pattern.compile("([!-~]([ !-~]*[!-~])?)?");
 
   /**
    * Object-metadata key under which the SDK persists the operation correlation id during upload, so
@@ -361,14 +370,17 @@ public class GcpTransformer {
   }
 
   /**
-   * Builds the tag headers a presigned upload URL must sign. V4 URL signing does not cover the
-   * metadata or custom time carried on the {@link BlobInfo}, so tags are bound as {@code
-   * x-goog-meta-gcp-tag-*} headers and the lifecycle-expiration marker as {@code
-   * x-goog-custom-time}. The custom time is computed when the URL is signed, so the expiration is
-   * anchored at signing time rather than at the time the object is actually uploaded.
+   * Builds the headers that bind tags to a presigned upload URL, since V4 signing ignores {@link
+   * BlobInfo} metadata and custom time. Tags become {@code x-goog-meta-gcp-tag-*} headers, and the
+   * expiration tag becomes {@code x-goog-custom-time}, anchored at signing time.
+   *
+   * <p>Tags that cannot be sent as HTTP headers are rejected, including keys that differ only by
+   * case, since header names are case-insensitive.
    *
    * @param presignedUrlRequest the presigned upload request
    * @return the headers to sign, empty when the request carries no tags
+   * @throws InvalidArgumentException if a tag key is not an HTTP header token, a tag value is not
+   *     visible ASCII or has leading or trailing whitespace, or two keys differ only by case
    */
   public Map<String, String> toPresignTagHeaders(PresignedUrlRequest presignedUrlRequest) {
     Map<String, String> tags = presignedUrlRequest.getTags();
@@ -376,9 +388,16 @@ public class GcpTransformer {
       return Collections.emptyMap();
     }
     Map<String, String> headers = new LinkedHashMap<>();
+    Set<String> lowercaseNames = new HashSet<>();
     tags.forEach(
-        (tagName, tagValue) ->
-            headers.put(METADATA_HEADER_PREFIX + TAG_PREFIX + tagName, tagValue));
+        (tagName, tagValue) -> {
+          validatePresignTag(tagName, tagValue);
+          if (!lowercaseNames.add(tagName.toLowerCase(Locale.ROOT))) {
+            throw new InvalidArgumentException(
+                "Presigned upload tag keys must be unique ignoring case: " + tagName);
+          }
+          headers.put(METADATA_HEADER_PREFIX + TAG_PREFIX + tagName, tagValue);
+        });
     Integer days = parseExpirationDays(tags.get(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
     if (days != null) {
       headers.put(
@@ -387,6 +406,18 @@ public class GcpTransformer {
               Instant.now().plus(Duration.ofDays(days)).truncatedTo(ChronoUnit.SECONDS)));
     }
     return headers;
+  }
+
+  private static void validatePresignTag(String tagName, String tagValue) {
+    if (!HEADER_TOKEN.matcher(tagName).matches()) {
+      throw new InvalidArgumentException(
+          "Presigned upload tag key must contain only HTTP header token characters: " + tagName);
+    }
+    if (!HEADER_VALUE.matcher(tagValue).matches()) {
+      throw new InvalidArgumentException(
+          "Presigned upload tag value must be visible ASCII without leading or trailing"
+              + " whitespace: " + tagName);
+    }
   }
 
   public BlobInfo toBlobInfo(MultipartUploadRequest request) {

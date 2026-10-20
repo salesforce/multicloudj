@@ -358,6 +358,54 @@ class GcpTransformerTest {
   }
 
   @Test
+  void testToPresignTagHeaders_rejectsTagsThatCannotBeSentAsHeaders() {
+    List<Map<String, String>> invalidTags =
+        List.of(
+            Map.of("cost center", "x"),
+            Map.of("team/owner", "x"),
+            Map.of("aws:createdBy", "x"),
+            Map.of("", "x"),
+            Map.of("owner", "张三"),
+            Map.of("note", "line1\nline2"),
+            Map.of("label", " padded"),
+            Map.of("label", "padded "),
+            Map.of("Env", "a", "env", "b"));
+
+    for (Map<String, String> tags : invalidTags) {
+      PresignedUrlRequest request =
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(TEST_KEY)
+              .duration(Duration.ofHours(1))
+              .tags(tags)
+              .build();
+      assertThrows(
+          InvalidArgumentException.class,
+          () -> transformer.toPresignTagHeaders(request),
+          "expected rejection for tags " + tags);
+    }
+  }
+
+  @Test
+  void testToPresignTagHeaders_acceptsHeaderSafeTags() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key(TEST_KEY)
+            .duration(Duration.ofHours(1))
+            .tags(Map.of("Cost_Center.v2", "R&D team = 42", "empty", ""))
+            .build();
+
+    Map<String, String> headers = transformer.toPresignTagHeaders(request);
+
+    assertEquals(
+        Map.of(
+            "x-goog-meta-gcp-tag-Cost_Center.v2", "R&D team = 42",
+            "x-goog-meta-gcp-tag-empty", ""),
+        headers);
+  }
+
+  @Test
   void testParseExpirationDays() {
     assertEquals(30, GcpTransformer.parseExpirationDays("30"));
     assertEquals(10, GcpTransformer.parseExpirationDays("  10 "));

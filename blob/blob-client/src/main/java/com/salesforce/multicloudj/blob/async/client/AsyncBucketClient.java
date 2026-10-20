@@ -448,7 +448,13 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx -> blobStore.setTags(key, tags).exceptionally(this::handleException));
   }
 
-  /** Generates a presigned URL for uploading/downloading blobs */
+  /**
+   * Generates a presigned URL for uploading/downloading blobs
+   *
+   * <p>Only the URL is returned. If the request sets tags, a content type, or a checksum, the
+   * uploader may need to send headers that were signed into the URL; use {@link
+   * #presign(PresignedUrlRequest)} to obtain them.
+   */
   public CompletableFuture<URL> generatePresignedUrl(PresignedUrlRequest request) {
     return multiCloudJLogger.traceAsyncOperation(
         BlobSpanNames.GENERATE_PRESIGNED_URL,
