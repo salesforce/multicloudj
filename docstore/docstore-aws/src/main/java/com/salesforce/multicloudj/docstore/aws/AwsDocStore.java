@@ -228,7 +228,7 @@ public class AwsDocStore extends AbstractDocStore {
     KeysAndAttributes.Builder keysAndAttributes =
         KeysAndAttributes.builder()
             .keys(keysList)
-            .consistentRead(collectionOptions.isConsistentRead());
+            .consistentRead(resolveConsistentRead(gets.get(start).getReadOptions()));
     if (gets.get(start).getFieldPaths() != null && !gets.get(start).getFieldPaths().isEmpty()) {
       // Need to add the key fields if not included.
       boolean hasP = false;
@@ -637,6 +637,7 @@ public class AwsDocStore extends AbstractDocStore {
   static class Queryable {
     private String indexName;
     private Key key;
+    private boolean globalSecondaryIndex;
   }
 
   protected QueryRunner planQuery(Query query) {
@@ -656,6 +657,9 @@ public class AwsDocStore extends AbstractDocStore {
 
     // Find the best thing to query (table or index).
     Queryable queryable = getBestQueryable(query);
+
+    boolean consistentRead =
+        resolveConsistentRead(query.getConsistentRead()) && !queryable.isGlobalSecondaryIndex();
 
     // Collect keys required for pagination. If table is used, the list contains primary keys of
     // base
@@ -682,7 +686,8 @@ public class AwsDocStore extends AbstractDocStore {
                 + " Options.RunQueryFallback");
       }
 
-      ScanRequest.Builder scanRequestBuilder = ScanRequest.builder();
+      ScanRequest.Builder scanRequestBuilder =
+          ScanRequest.builder().consistentRead(consistentRead ? Boolean.TRUE : null);
       if (query.getLimit() > 0) {
         scanRequestBuilder.limit(query.getLimit());
       }
@@ -716,7 +721,8 @@ public class AwsDocStore extends AbstractDocStore {
     }
 
     // Do a query.
-    QueryRequest.Builder queryRequestBuilder = QueryRequest.builder();
+    QueryRequest.Builder queryRequestBuilder =
+        QueryRequest.builder().consistentRead(consistentRead ? Boolean.TRUE : null);
     if (query.getLimit() > 0) {
       queryRequestBuilder.limit(query.getLimit());
     }
@@ -798,7 +804,9 @@ public class AwsDocStore extends AbstractDocStore {
       if (hasFilter(query, collectionOptions.getSortKey())
           && orderingConsistent(query, collectionOptions.getSortKey())) {
         return new Queryable(
-            null, new Key(collectionOptions.getPartitionKey(), collectionOptions.getSortKey()));
+            null,
+            new Key(collectionOptions.getPartitionKey(), collectionOptions.getSortKey()),
+            false);
       }
 
       // Check local indexes. They all have the same partition key as the base table.
@@ -810,7 +818,7 @@ public class AwsDocStore extends AbstractDocStore {
           if (hasFilter(query, key.getSortKey())
               && localFieldIncluded(query, li)
               && orderingConsistent(query, key.getSortKey())) {
-            return new Queryable(li.indexName(), key);
+            return new Queryable(li.indexName(), key, false);
           }
         }
       }
@@ -829,7 +837,7 @@ public class AwsDocStore extends AbstractDocStore {
             && hasFilter(query, key.sortKey)
             && globalFieldIncluded(query, gi)
             && orderingConsistent(query, key.sortKey)) {
-          return new Queryable(gi.indexName(), key);
+          return new Queryable(gi.indexName(), key, true);
         }
       }
     }
@@ -841,7 +849,9 @@ public class AwsDocStore extends AbstractDocStore {
     if (hasEqualityFilter(query, collectionOptions.getPartitionKey())
         && orderingConsistent(query, collectionOptions.getSortKey())) {
       return new Queryable(
-          null, new Key(collectionOptions.getPartitionKey(), collectionOptions.getSortKey()));
+          null,
+          new Key(collectionOptions.getPartitionKey(), collectionOptions.getSortKey()),
+          false);
     }
 
     // No point checking local indexes: they have the same partition key as the table.
@@ -853,7 +863,7 @@ public class AwsDocStore extends AbstractDocStore {
         if (hasEqualityFilter(query, key.partitionKey)
             && globalFieldIncluded(query, gi)
             && orderingConsistent(query, key.sortKey)) {
-          return new Queryable(gi.indexName(), key);
+          return new Queryable(gi.indexName(), key, true);
         }
       }
     }
@@ -862,7 +872,7 @@ public class AwsDocStore extends AbstractDocStore {
     // TODO: return the reason why we couldn't. At a minimum, distinguish failure due to keys
     // from failure due to projection (i.e. a global index had the right partition and sort key,
     // but didn't project the necessary fields).
-    return new Queryable(null, null);
+    return new Queryable(null, null, false);
   }
 
   // localFieldsIncluded reports whether a local index supports all the selected fields

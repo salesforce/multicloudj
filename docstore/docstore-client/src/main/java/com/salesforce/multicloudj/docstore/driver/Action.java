@@ -18,6 +18,8 @@ public class Action {
   // A list of field paths to retrieve, for Get only. Each field path is a dot separated string.
   private List<String> fieldPaths;
 
+  private ReadOptions readOptions;
+
   // modifications to make, for Update only. The key is a field path (dot separated string).
   private Map<String, Object> mods;
 
