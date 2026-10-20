@@ -1,5 +1,5 @@
 {
-  "id" : "a0e46b19-bd3f-4b6f-8d50-ba32a02edcd8",
+  "id" : "4bf84eb5-4ee1-402b-b4cd-9ed04580db8a",
   "name" : "AliBlobStoreIT_testInitiateMultipartUpload_withServiceAndTenantId_stampsObjectMetadata-PUT-3",
   "request" : {
     "urlPath" : "/conformance-tests/multipart/observabilityMetadata",
@@ -15,7 +15,7 @@
     "queryParameters" : {
       "uploadId" : {
         "hasExactly" : [ {
-          "equalTo" : "A836AEC4C7844B33871063389FF7759C"
+          "equalTo" : "7FFCD4A2FE9B4E2D92F95E0E4C96D0AA"
         } ]
       },
       "partNumber" : {
@@ -29,16 +29,16 @@
   "response" : {
     "status" : 200,
     "headers" : {
-      "x-oss-request-id" : "6AD7A8C2986E293235A1BA42",
-      "x-oss-server-time" : "95",
+      "x-oss-request-id" : "6AD7D1B1DCEE8237354C8108",
+      "x-oss-server-time" : "94",
       "Server" : "AliyunOSS",
       "x-oss-hash-crc64ecma" : "14920568100270865136",
       "ETag" : "\"2B5C91AD399409EC9B409B66F5BB00FB\"",
-      "Date" : "Tue, 20 Oct 2026 17:45:43 GMT",
+      "Date" : "Tue, 20 Oct 2026 20:40:18 GMT",
       "Content-MD5" : "K1yRrTmUCeybQJtm9bsA+w=="
     }
   },
-  "uuid" : "a0e46b19-bd3f-4b6f-8d50-ba32a02edcd8",
+  "uuid" : "4bf84eb5-4ee1-402b-b4cd-9ed04580db8a",
   "persistent" : true,
-  "insertionIndex" : 780
+  "insertionIndex" : 789
 }
