@@ -1,0 +1,25 @@
+{
+  "id" : "4da863b0-6c57-4dd3-b384-1bcf35eec6d7",
+  "name" : "AliBlobStoreIT_testInitiateMultipartUpload_withServiceAndTenantId_stampsObjectMetadata-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/multipart/observabilityMetadata",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6AD7A8C958FB0139378CD6F6",
+      "x-oss-server-time" : "47",
+      "Server" : "AliyunOSS",
+      "Date" : "Tue, 20 Oct 2026 17:45:45 GMT"
+    }
+  },
+  "uuid" : "4da863b0-6c57-4dd3-b384-1bcf35eec6d7",
+  "persistent" : true,
+  "insertionIndex" : 777
+}

@@ -1,0 +1,35 @@
+{
+  "id" : "3eeb42c4-648f-424a-b844-9f5f0a94d691",
+  "name" : "AliBlobStoreIT_testInitiateMultipartUpload_withServiceAndTenantId_stampsObjectMetadata-HEAD-1",
+  "request" : {
+    "url" : "/conformance-tests/multipart/observabilityMetadata",
+    "method" : "HEAD",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-meta-sdk-logging-service-id" : "conformance-service",
+      "x-oss-request-id" : "6AD7A8C97C04A33530179BC8",
+      "x-oss-server-time" : "7",
+      "Server" : "AliyunOSS",
+      "x-oss-meta-sdk-logging-tenant-id" : "conformance-tenant",
+      "x-oss-object-type" : "Multipart",
+      "Last-Modified" : "Tue, 20 Oct 2026 17:45:44 GMT",
+      "Date" : "Tue, 20 Oct 2026 17:45:45 GMT",
+      "x-oss-meta-sdk-logging-correlation-id" : "conformance-correlation-id",
+      "Accept-Ranges" : "bytes",
+      "x-oss-storage-class" : "Standard",
+      "x-oss-hash-crc64ecma" : "14920568100270865136",
+      "ETag" : "\"E00BEA22A07DB22215B2A4D889CB4C8A-1\"",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "3eeb42c4-648f-424a-b844-9f5f0a94d691",
+  "persistent" : true,
+  "insertionIndex" : 778
+}
