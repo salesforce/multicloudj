@@ -1,7 +1,6 @@
 package com.salesforce.multicloudj.docstore.aws;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
@@ -64,20 +63,13 @@ import software.amazon.awssdk.services.dynamodb.model.ProvisionedThroughputDescr
 import software.amazon.awssdk.services.dynamodb.model.Put;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.PutItemResponse;
-import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
-import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
-import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 import software.amazon.awssdk.services.dynamodb.model.TableDescription;
 import software.amazon.awssdk.services.dynamodb.model.TableStatus;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 
 public class AwsDocStoreTest {
-  private static final ReadOptions STRONG_READ = ReadOptions.builder().consistentRead(true).build();
-  private static final ReadOptions NORMAL_READ =
-      ReadOptions.builder().consistentRead(false).build();
-
   Person person =
       new Person(
           Collections.singleton("Jamie"),
@@ -562,140 +554,55 @@ public class AwsDocStoreTest {
     Assertions.assertDoesNotThrow(() -> docStore.batchGet(gets, null, 0, 0));
   }
 
-  private AwsDocStore storeWithReadConsistency(boolean consistentRead) {
-    return new AwsDocStore.Builder()
-        .withRegion("us-east-1")
-        .withDDBClient(mockedDDBClient)
-        .withCollectionOptions(
-            new CollectionOptions.CollectionOptionsBuilder()
-                .withTableName(collectionOptions.getTableName())
-                .withPartitionKey("title")
-                .withSortKey("publisher")
-                .withConsistentRead(consistentRead)
-                .build())
-        .build();
-  }
-
-  private Document keyDocument(String title) {
-    return new Document(new HashMap<>(Map.of("title", title, "publisher", "version")));
-  }
-
   @Test
-  void testKeyReadsInheritAndOverrideReadConsistency() {
-    for (boolean clientDefault : new boolean[] {false, true}) {
-      List<Boolean> flags = new ArrayList<>();
-      List<Integer> batchSizes = new ArrayList<>();
-      when(mockedDDBClient.batchGetItem(any(BatchGetItemRequest.class)))
-          .thenAnswer(
-              call -> {
-                BatchGetItemRequest request = call.getArgument(0);
-                var table = request.requestItems().get(collectionOptions.getTableName());
-                flags.add(table.consistentRead());
-                batchSizes.add(table.keys().size());
-                return BatchGetItemResponse.builder().build();
-              });
-      try (AwsDocStore store = storeWithReadConsistency(clientDefault)) {
-        DocStoreClient client = new TestDocStoreClient(store);
-        client.get(keyDocument("one"));
-        client.get(keyDocument("one"), ReadOptions.builder().build());
-        client.get(keyDocument("one"), STRONG_READ, "title");
-        client.get(keyDocument("one"), NORMAL_READ);
-        client.batchGet(List.of(keyDocument("one"), keyDocument("two")), STRONG_READ);
-        client.batchGet(List.of(keyDocument("one"), keyDocument("two")), NORMAL_READ);
-        client.batchGet(List.of(keyDocument("one"), keyDocument("two")));
-      }
-      Assertions.assertEquals(
-          List.of(clientDefault, clientDefault, true, false, true, false, clientDefault),
-          flags);
-      Assertions.assertEquals(List.of(1, 1, 1, 1, 2, 2, 2), batchSizes);
-    }
-  }
-
-  @Test
-  void testMixedReadConsistencyActionsUseSeparateBatches() {
+  void testBatchGetUsesConfiguredReadConsistency() {
     when(mockedDDBClient.batchGetItem(any(BatchGetItemRequest.class)))
         .thenReturn(BatchGetItemResponse.builder().build());
-    docStore
-        .getActions()
-        .get(keyDocument("strong"), STRONG_READ)
-        .get(keyDocument("normal"), NORMAL_READ)
-        .run();
+    for (boolean consistentRead : new boolean[] {false, true}) {
+      CollectionOptions options =
+          new CollectionOptions.CollectionOptionsBuilder()
+              .withTableName(collectionOptions.getTableName())
+              .withPartitionKey("title")
+              .withSortKey("publisher")
+              .withConsistentRead(consistentRead)
+              .build();
+      try (AwsDocStore store =
+          new AwsDocStore.Builder()
+              .withRegion("us-east-1")
+              .withCollectionOptions(options)
+              .withDDBClient(mockedDDBClient)
+              .build()) {
+        DocStoreClient client = new TestDocStoreClient(store);
+        ReadOptions override = ReadOptions.builder().consistentRead(!consistentRead).build();
+        client.get(new Document(book), override);
+        client.batchGet(
+            List.of(
+                new Document(book),
+                new Document(new HashMap<>(Map.of("title", "other", "publisher", "WA")))),
+            override);
+        client.get(new Document(book));
+        Query query =
+            new Query(store)
+                .where("title", FilterOperation.EQUAL, "value")
+                .where("publisher", FilterOperation.EQUAL, "value");
+        Assertions.assertEquals(
+            consistentRead,
+            Boolean.TRUE.equals(store.planQuery(query).getQueryRequest().consistentRead()));
+        query.consistentRead(!consistentRead);
+        Assertions.assertEquals(
+            !consistentRead,
+            Boolean.TRUE.equals(store.planQuery(query).getQueryRequest().consistentRead()));
+      }
+    }
     ArgumentCaptor<BatchGetItemRequest> requests =
         ArgumentCaptor.forClass(BatchGetItemRequest.class);
-    verify(mockedDDBClient, times(2)).batchGetItem(requests.capture());
-    Map<String, Boolean> flags = new HashMap<>();
-    for (BatchGetItemRequest request : requests.getAllValues()) {
-      var table = request.requestItems().get(collectionOptions.getTableName());
-      Assertions.assertEquals(1, table.keys().size());
-      flags.put(table.keys().get(0).get("title").s(), table.consistentRead());
-    }
-    Assertions.assertEquals(Map.of("strong", true, "normal", false), flags);
-  }
-
-  @Test
-  void testQueriesAndScansInheritAndOverrideReadConsistency() {
-    when(mockedDDBClient.describeTable(any(DescribeTableRequest.class)))
-        .thenReturn(DescribeTableResponse.builder().table(tableDescription).build());
-    when(mockedDDBClient.query(any(QueryRequest.class)))
-        .thenReturn(QueryResponse.builder().build());
-    when(mockedDDBClient.scan(any(ScanRequest.class))).thenReturn(ScanResponse.builder().build());
-    for (boolean clientDefault : new boolean[] {false, true}) {
-      clearInvocations(mockedDDBClient);
-      try (AwsDocStore store = storeWithReadConsistency(clientDefault)) {
-        Query query = new Query(store).where("title", FilterOperation.EQUAL, "one");
-        query.get().stop();
-        query.consistentRead(!clientDefault).get().stop();
-        query.consistentRead(null).get().stop();
-        new Query(store).get().stop();
-        new Query(store).consistentRead(!clientDefault).get().stop();
-      }
-      ArgumentCaptor<QueryRequest> queries = ArgumentCaptor.forClass(QueryRequest.class);
-      verify(mockedDDBClient, times(3)).query(queries.capture());
-      Assertions.assertEquals(
-          List.of(clientDefault, !clientDefault, clientDefault),
-          queries.getAllValues().stream()
-              .map(request -> Boolean.TRUE.equals(request.consistentRead()))
-              .toList());
-      ArgumentCaptor<ScanRequest> scans = ArgumentCaptor.forClass(ScanRequest.class);
-      verify(mockedDDBClient, times(2)).scan(scans.capture());
-      Assertions.assertEquals(
-          List.of(clientDefault, !clientDefault),
-          scans.getAllValues().stream()
-              .map(request -> Boolean.TRUE.equals(request.consistentRead()))
-              .toList());
-    }
-  }
-
-  @Test
-  void testStrongQueriesIgnoreGlobalIndexesButAllowLocalIndexes() {
-    when(mockedDDBClient.describeTable(any(DescribeTableRequest.class)))
-        .thenReturn(DescribeTableResponse.builder().table(tableDescription).build());
-    when(mockedDDBClient.query(any(QueryRequest.class)))
-        .thenReturn(QueryResponse.builder().build());
-    try (AwsDocStore store = storeWithReadConsistency(true)) {
-      new Query(store).where("GsiHashKey", FilterOperation.EQUAL, "one").get().stop();
-      new Query(store)
-          .where("GsiHashKey", FilterOperation.EQUAL, "one")
-          .where("GsiSortKey", FilterOperation.EQUAL, "version")
-          .consistentRead(true)
-          .get()
-          .stop();
-      new Query(store)
-          .where("title", FilterOperation.EQUAL, "one")
-          .where("LsiSortKey", FilterOperation.EQUAL, "version")
-          .consistentRead(true)
-          .get()
-          .stop();
-    }
-    ArgumentCaptor<QueryRequest> requests = ArgumentCaptor.forClass(QueryRequest.class);
-    verify(mockedDDBClient, times(3)).query(requests.capture());
+    verify(mockedDDBClient, times(6)).batchGetItem(requests.capture());
     Assertions.assertEquals(
-        List.of("GSI_Index", "GSI_Index", "LSI_Index"),
-        requests.getAllValues().stream().map(QueryRequest::indexName).toList());
-    Assertions.assertEquals(
-        List.of(false, false, true),
+        List.of(true, true, false, false, false, true),
         requests.getAllValues().stream()
-            .map(request -> Boolean.TRUE.equals(request.consistentRead()))
+            .map(
+                request ->
+                    request.requestItems().get(collectionOptions.getTableName()).consistentRead())
             .toList());
   }
 
@@ -1124,19 +1031,26 @@ public class AwsDocStoreTest {
     Query query = new Query(docStore).where("field", FilterOperation.EQUAL, "value");
     QueryRunner queryRunner = docStore.planQuery(query);
     Assertions.assertNotNull(queryRunner.getScanRequest());
+    Assertions.assertFalse(Boolean.TRUE.equals(queryRunner.getScanRequest().consistentRead()));
 
     int limit = 3;
     Query query2 =
-        new Query(docStore).where("GsiHashKey", FilterOperation.EQUAL, "value").limit(limit);
+        new Query(docStore)
+            .where("GsiHashKey", FilterOperation.EQUAL, "value")
+            .limit(limit)
+            .consistentRead(true);
     queryRunner = docStore.planQuery(query2);
     Assertions.assertNotNull(queryRunner.getQueryRequest());
     Assertions.assertEquals(limit, queryRunner.getQueryRequest().limit());
+    Assertions.assertFalse(Boolean.TRUE.equals(queryRunner.getQueryRequest().consistentRead()));
 
     Query query3 = new Query(docStore).where("field", FilterOperation.EQUAL, "value").limit(limit);
+    query3.consistentRead(true);
     query3.initGet(List.of("field.a", "field.b"));
     queryRunner = docStore.planQuery(query3);
     Assertions.assertNotNull(queryRunner.getScanRequest());
     Assertions.assertEquals(limit, queryRunner.getScanRequest().limit());
+    Assertions.assertTrue(queryRunner.getScanRequest().consistentRead());
   }
 
   @Test
@@ -1161,20 +1075,25 @@ public class AwsDocStoreTest {
     Query queryLsi =
         new Query(docStore)
             .where("title", FilterOperation.EQUAL, "value")
-            .where("LsiSortKey", FilterOperation.LESS_THAN, "value2");
+            .where("LsiSortKey", FilterOperation.LESS_THAN, "value2")
+            .consistentRead(true);
     queryable = docStore.getBestQueryable(queryLsi);
     Assertions.assertNotNull(queryable);
     Assertions.assertNotNull(queryable.getKey());
     Assertions.assertNotNull(queryable.getIndexName());
+    Assertions.assertTrue(docStore.planQuery(queryLsi).getQueryRequest().consistentRead());
 
     Query queryGsiPkSk =
         new Query(docStore)
             .where("GsiHashKey", FilterOperation.EQUAL, "value")
-            .where("GsiSortKey", FilterOperation.LESS_THAN, "value2");
+            .where("GsiSortKey", FilterOperation.LESS_THAN, "value2")
+            .consistentRead(true);
     queryable = docStore.getBestQueryable(queryGsiPkSk);
     Assertions.assertNotNull(queryable);
     Assertions.assertNotNull(queryable.getKey());
     Assertions.assertNotNull(queryable.getIndexName());
+    Assertions.assertFalse(
+        Boolean.TRUE.equals(docStore.planQuery(queryGsiPkSk).getQueryRequest().consistentRead()));
 
     Query queryPk = new Query(docStore).where("title", FilterOperation.EQUAL, "value");
     queryable = docStore.getBestQueryable(queryPk);
