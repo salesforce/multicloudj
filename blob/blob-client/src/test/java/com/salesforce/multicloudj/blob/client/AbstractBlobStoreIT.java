@@ -5341,6 +5341,8 @@ public abstract class AbstractBlobStoreIT {
       // Upload only in record mode — presigned URLs bypass WireMock and can't be replayed
       if (System.getProperty("record") != null) {
         uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
+      if (!INMEMORY_PROVIDER_ID.equals(harness.getProviderId())) {
         Assertions.assertEquals(tags, bucketClient.getTags(key));
       }
     } finally {

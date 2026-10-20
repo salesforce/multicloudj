@@ -2206,9 +2206,15 @@ class GcpBlobStoreTest {
         any(Storage.SignUrlOption[].class)))
         .thenReturn(new URL("https://signed-url-for-upload.example.com"));
 
-    PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
+    // SignUrlOption exposes neither its value nor equals(), so the signed headers are checked at
+    // the withExtHeaders call.
+    try (MockedStatic<Storage.SignUrlOption> signUrlOption =
+        Mockito.mockStatic(Storage.SignUrlOption.class, Mockito.CALLS_REAL_METHODS)) {
+      PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
 
-    assertEquals(tagHeaders, presignedResponse.getSignedHeaders());
+      assertEquals(tagHeaders, presignedResponse.getSignedHeaders());
+      signUrlOption.verify(() -> Storage.SignUrlOption.withExtHeaders(tagHeaders));
+    }
     ArgumentCaptor<Storage.SignUrlOption[]> optionsCaptor =
         ArgumentCaptor.forClass(Storage.SignUrlOption[].class);
     verify(mockStorage)

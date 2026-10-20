@@ -29,9 +29,7 @@ public class PresignedUrlRequest {
   /**
    * Optional: Specify the tags to be used in a presignedUrl upload. The tags are bound into the
    * signature, so the uploader must send every header returned in {@link
-   * PresignedUrlResponse#getSignedHeaders()}. When the reserved {@code expiration-days} tag is set,
-   * the expiration may be measured from the time the URL is generated rather than from the time
-   * the object is uploaded.
+   * PresignedUrlResponse#getSignedHeaders()}.
    */
   private final Map<String, String> tags;
 
