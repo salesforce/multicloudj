@@ -359,8 +359,14 @@ class GcpTransformerTest {
 
   @Test
   void testToPresignTagHeaders_rejectsTagsThatCannotBeSentAsHeaders() {
+    Map<String, String> nullKey = new HashMap<>();
+    nullKey.put(null, "x");
+    Map<String, String> nullValue = new HashMap<>();
+    nullValue.put("owner", null);
     List<Map<String, String>> invalidTags =
         List.of(
+            nullKey,
+            nullValue,
             Map.of("cost center", "x"),
             Map.of("team/owner", "x"),
             Map.of("aws:createdBy", "x"),

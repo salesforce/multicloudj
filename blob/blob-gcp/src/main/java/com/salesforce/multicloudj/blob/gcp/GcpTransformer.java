@@ -379,8 +379,9 @@ public class GcpTransformer {
    *
    * @param presignedUrlRequest the presigned upload request
    * @return the headers to sign, empty when the request carries no tags
-   * @throws InvalidArgumentException if a tag key is not an HTTP header token, a tag value is not
-   *     visible ASCII or has leading or trailing whitespace, or two keys differ only by case
+   * @throws InvalidArgumentException if a tag key or value is null, a tag key is not an HTTP
+   *     header token, a tag value is not visible ASCII or has leading or trailing whitespace, or
+   *     two keys differ only by case
    */
   public Map<String, String> toPresignTagHeaders(PresignedUrlRequest presignedUrlRequest) {
     Map<String, String> tags = presignedUrlRequest.getTags();
@@ -409,6 +410,10 @@ public class GcpTransformer {
   }
 
   private static void validatePresignTag(String tagName, String tagValue) {
+    if (tagName == null || tagValue == null) {
+      throw new InvalidArgumentException(
+          "Presigned upload tag key and value must not be null: " + tagName);
+    }
     if (!HEADER_TOKEN.matcher(tagName).matches()) {
       throw new InvalidArgumentException(
           "Presigned upload tag key must contain only HTTP header token characters: " + tagName);
