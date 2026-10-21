@@ -25,10 +25,10 @@ import org.apache.commons.lang3.StringUtils;
  * </ul>
  *
  * <p>When present, each identifier is set as a span attribute and MDC entry for the duration of
- * the operation. On upload, the {@code aws}, {@code gcp}, and {@code inmemory} providers
- * additionally stamp all three identifiers onto the stored object's metadata. By default, the
- * correlation id is stored under {@code sdk-logging-correlation-id} (metadata key) and {@code
- * correlation_id} (MDC + span attribute); tenant and service ids are stored under {@code
+ * the operation. On upload, the {@code aws}, {@code gcp}, {@code ali}, and {@code inmemory}
+ * providers additionally stamp all three identifiers onto the stored object's metadata. By
+ * default, the correlation id is stored under {@code sdk-logging-correlation-id} (metadata key) and
+ * {@code correlation_id} (MDC + span attribute); tenant and service ids are stored under {@code
  * sdk-logging-tenant-id} and {@code sdk-logging-service-id}. A custom {@code correlationIdKey}
  * replaces both defaults on all three surfaces (metadata, MDC, span), allowing callers to
  * align the SDK's tracing with their own naming conventions.

@@ -8,11 +8,13 @@ import com.salesforce.multicloudj.blob.client.AbstractBlobStoreIT;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.common.ali.AliConstants;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.net.ssl.SSLContext;
@@ -195,11 +197,18 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
     }
 
     @Override
-    public java.util.List<String> getRecordingCaptureHeaders() {
+    public List<String> getRecordingCaptureHeaders() {
       // The copy-source header disambiguates copy PUTs, while the overwrite header verifies the
-      // atomic create-if-absent condition on uploads. Absent headers add no matcher.
-      return java.util.List.of(
-          "Host", OSS_COPY_SOURCE_HEADER, OSS_FORBID_OVERWRITE_HEADER);
+      // atomic create-if-absent condition on uploads. The metadata headers pin the service, tenant
+      // and correlation ids stamped on uploads so replay fails if they are no longer sent. Absent
+      // headers add no matcher.
+      return List.of(
+          "Host",
+          OSS_COPY_SOURCE_HEADER,
+          OSS_FORBID_OVERWRITE_HEADER,
+          getMetadataHeader(SdkLoggingMetadataKeys.SERVICE_ID),
+          getMetadataHeader(SdkLoggingMetadataKeys.TENANT_ID),
+          getMetadataHeader(SdkLoggingMetadataKeys.CORRELATION_ID));
     }
 
     @Override

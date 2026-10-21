@@ -1,0 +1,36 @@
+{
+  "id" : "b69562e0-f647-40b2-b44c-a8f5682c323b",
+  "name" : "AliBlobStoreIT_testUpload_withServiceAndTenantId_stampsObjectMetadata-HEAD-1",
+  "request" : {
+    "url" : "/conformance-tests/upload/observabilityMetadata",
+    "method" : "HEAD",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-meta-sdk-logging-service-id" : "conformance-service",
+      "x-oss-request-id" : "6AD7D1AE1FE772323256D770",
+      "x-oss-server-time" : "47",
+      "Server" : "AliyunOSS",
+      "x-oss-meta-sdk-logging-tenant-id" : "conformance-tenant",
+      "x-oss-object-type" : "Normal",
+      "Last-Modified" : "Tue, 20 Oct 2026 20:40:13 GMT",
+      "Date" : "Tue, 20 Oct 2026 20:40:14 GMT",
+      "Content-MD5" : "I/IAHOrs3jyc6wS860CgtQ==",
+      "x-oss-meta-sdk-logging-correlation-id" : "conformance-correlation-id",
+      "Accept-Ranges" : "bytes",
+      "x-oss-storage-class" : "Standard",
+      "x-oss-hash-crc64ecma" : "6137979505113718076",
+      "ETag" : "\"23F2001CEAECDE3C9CEB04BCEB40A0B5\"",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "b69562e0-f647-40b2-b44c-a8f5682c323b",
+  "persistent" : true,
+  "insertionIndex" : 783
+}
