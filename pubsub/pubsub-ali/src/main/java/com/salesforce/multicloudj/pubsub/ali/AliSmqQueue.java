@@ -138,7 +138,7 @@ public class AliSmqQueue extends AliBaseTopic<AliSmqQueue> {
       if (smqClient == null) {
         smqClient =
             SmqClientFactory.buildSmqClient(
-                endpoint, credentialsOverrider, proxyEndpoint, retryConfig, 0);
+                endpoint, credentialsOverrider, proxyEndpoint, retryConfig);
       }
       queue = smqClient.getQueueRef(topicName);
       return new AliSmqQueue(this);

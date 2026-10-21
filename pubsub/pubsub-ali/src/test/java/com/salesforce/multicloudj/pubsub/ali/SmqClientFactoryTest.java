@@ -148,7 +148,7 @@ public class SmqClientFactoryTest {
   @Test
   void buildClientConfigurationWithoutRetryConfigKeepsSdkTimeouts() {
     ClientConfiguration sdkDefaults = new ClientConfiguration();
-    ClientConfiguration config = SmqClientFactory.buildClientConfiguration(null, null, 35000);
+    ClientConfiguration config = SmqClientFactory.buildClientConfiguration(null, null);
     assertEquals(sdkDefaults.getConnectionTimeout(), config.getConnectionTimeout());
     assertEquals(sdkDefaults.getSocketTimeout(), config.getSocketTimeout());
     assertEquals(sdkDefaults.getMaxErrorRetry(), config.getMaxErrorRetry());
@@ -157,18 +157,9 @@ public class SmqClientFactoryTest {
   @Test
   void buildClientConfigurationAppliesAttemptTimeout() {
     RetryConfig retryConfig = RetryConfig.builder().attemptTimeout(2000L).build();
-    ClientConfiguration config = SmqClientFactory.buildClientConfiguration(null, retryConfig, 0);
+    ClientConfiguration config = SmqClientFactory.buildClientConfiguration(null, retryConfig);
     assertEquals(2000, config.getConnectionTimeout());
     assertEquals(2000, config.getSocketTimeout());
-  }
-
-  @Test
-  void buildClientConfigurationRaisesSocketTimeoutToMinimum() {
-    RetryConfig retryConfig = RetryConfig.builder().attemptTimeout(2000L).build();
-    ClientConfiguration config =
-        SmqClientFactory.buildClientConfiguration(null, retryConfig, 35000);
-    assertEquals(2000, config.getConnectionTimeout());
-    assertEquals(35000, config.getSocketTimeout());
   }
 
   @Test
@@ -181,7 +172,7 @@ public class SmqClientFactoryTest {
             .maxAttempts(7)
             .totalTimeout(9000L)
             .build();
-    ClientConfiguration config = SmqClientFactory.buildClientConfiguration(null, retryConfig, 0);
+    ClientConfiguration config = SmqClientFactory.buildClientConfiguration(null, retryConfig);
     assertEquals(sdkDefaults.getMaxErrorRetry(), config.getMaxErrorRetry());
     assertEquals(sdkDefaults.getConnectionTimeout(), config.getConnectionTimeout());
     assertEquals(sdkDefaults.getSocketTimeout(), config.getSocketTimeout());
@@ -190,7 +181,7 @@ public class SmqClientFactoryTest {
   @Test
   void buildClientConfigurationCapsAttemptTimeoutAtIntMax() {
     RetryConfig retryConfig = RetryConfig.builder().attemptTimeout(Long.MAX_VALUE).build();
-    ClientConfiguration config = SmqClientFactory.buildClientConfiguration(null, retryConfig, 0);
+    ClientConfiguration config = SmqClientFactory.buildClientConfiguration(null, retryConfig);
     assertEquals(Integer.MAX_VALUE, config.getConnectionTimeout());
     assertEquals(Integer.MAX_VALUE, config.getSocketTimeout());
   }

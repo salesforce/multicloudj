@@ -139,7 +139,7 @@ public class AliSmqTopic extends AliBaseTopic<AliSmqTopic> {
       if (smqClient == null) {
         smqClient =
             SmqClientFactory.buildSmqClient(
-                endpoint, credentialsOverrider, proxyEndpoint, retryConfig, 0);
+                endpoint, credentialsOverrider, proxyEndpoint, retryConfig);
       }
       topic = smqClient.getTopicRef(topicName);
       return new AliSmqTopic(this);
