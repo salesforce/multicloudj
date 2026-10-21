@@ -76,6 +76,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.S3CrtAsyncClientBuilder;
 import software.amazon.awssdk.services.s3.crt.S3CrtHttpConfiguration;
+import software.amazon.awssdk.services.s3.crt.S3CrtProxyConfiguration;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectVersionsRequest;
@@ -821,17 +822,24 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       }
 
       // Configure proxy if specified
-      if (config.getProxyEndpoint() != null) {
-        S3CrtHttpConfiguration httpConfig =
-            S3CrtHttpConfiguration.builder()
-                .proxyConfiguration(
-                    proxyBuilder ->
-                        proxyBuilder
-                            .scheme(config.getProxyEndpoint().getScheme())
-                            .host(config.getProxyEndpoint().getHost())
-                            .port(config.getProxyEndpoint().getPort()))
-                .build();
-        builder.httpConfiguration(httpConfig);
+      if (config.getProxyEndpoint() != null
+          || config.getUseSystemPropertyProxyValues() != null
+          || config.getUseEnvironmentVariableProxyValues() != null) {
+        S3CrtProxyConfiguration.Builder proxyBuilder = S3CrtProxyConfiguration.builder();
+        if (config.getProxyEndpoint() != null) {
+          proxyBuilder
+              .scheme(config.getProxyEndpoint().getScheme())
+              .host(config.getProxyEndpoint().getHost())
+              .port(config.getProxyEndpoint().getPort());
+        }
+        if (config.getUseSystemPropertyProxyValues() != null) {
+          proxyBuilder.useSystemPropertyValues(config.getUseSystemPropertyProxyValues());
+        }
+        if (config.getUseEnvironmentVariableProxyValues() != null) {
+          proxyBuilder.useEnvironmentVariableValues(config.getUseEnvironmentVariableProxyValues());
+        }
+        builder.httpConfiguration(
+            S3CrtHttpConfiguration.builder().proxyConfiguration(proxyBuilder.build()).build());
       }
 
       // Configure part buffer size (common for both clients)
