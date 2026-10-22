@@ -1,0 +1,50 @@
+{
+  "id" : "b382dd6f-698d-4421-b163-27d1309619d6",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_withTags-GET-2",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "maxResults" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/multipart-withTags"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-withTags/1792622549339258\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fmultipart-withTags\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fmultipart-withTags?generation=1792622549339258&alt=media\",\n      \"name\": \"conformance-tests/multipart-withTags\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n      \"generation\": \"1792622549339258\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"text/plain\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"10485760\",\n      \"crc32c\": \"jaLPjA==\",\n      \"etag\": \"CPqYlLKXzJcDEAE=\",\n      \"timeCreated\": \"2026-10-21T22:42:29.460Z\",\n      \"updated\": \"2026-10-21T22:42:29.460Z\",\n      \"timeStorageClassUpdated\": \"2026-10-21T22:42:29.460Z\",\n      \"timeFinalized\": \"2026-10-21T22:42:29.460Z\",\n      \"metadata\": {\n        \"key1\": \"value1\",\n        \"gcp-tag-tag1\": \"value1\"\n      }\n    }\n  ]\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AP6rU80VoE9DQ1L2PaGA9RVgtx-pgnE6iqG4SXWTTxuiicKosEAzi1MqzmMm4XOhsnuokk8UnydfZCE3mNCaTw",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Wed, 21 Oct 2026 22:42:30 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a160a15c98",
+      "Date" : "Wed, 21 Oct 2026 22:42:30 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "b382dd6f-698d-4421-b163-27d1309619d6",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o",
+  "requiredScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-2",
+  "insertionIndex" : 1557
+}

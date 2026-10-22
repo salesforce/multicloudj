@@ -656,8 +656,20 @@ public class GcpBlobStore extends AbstractBlobStore {
     Map<String, String> metadata =
         request.getMetadata() != null ? new HashMap<>(request.getMetadata()) : new HashMap<>();
     transformer.stampContextMetadata(metadata, request.getOperationContext());
-    if (!metadata.isEmpty()) {
-      createRequestBuilder.metadata(metadata);
+
+    // The transformer persists tags as prefixed object metadata (GCS has no native object tags) and
+    // derives customTime from the reserved expiration tag. Both are carried on the create request
+    // so the completed object is tagged and expirable without a separate update after completion.
+    BlobInfo taggedBlobInfo = transformer.toBlobInfo(request);
+    Map<String, String> objectMetadata = new HashMap<>(metadata);
+    if (taggedBlobInfo.getMetadata() != null) {
+      objectMetadata.putAll(taggedBlobInfo.getMetadata());
+    }
+    if (!objectMetadata.isEmpty()) {
+      createRequestBuilder.metadata(objectMetadata);
+    }
+    if (taggedBlobInfo.getCustomTimeOffsetDateTime() != null) {
+      createRequestBuilder.customTime(taggedBlobInfo.getCustomTimeOffsetDateTime());
     }
 
     if (request.getContentType() != null && !request.getContentType().isEmpty()) {
@@ -690,8 +702,8 @@ public class GcpBlobStore extends AbstractBlobStore {
         .key(request.getKey())
         .id(gcpMultipartUpload.uploadId())
         // Echo the stamped metadata (user-supplied entries plus the SDK's correlation/service/
-        // tenant ids) so the handle reflects what actually lands on the multipart object, matching
-        // the create request and a subsequent getMetadata read-back.
+        // tenant ids) so the handle reflects what lands on the multipart object. Tags are exposed
+        // separately through tags() rather than as prefixed metadata entries.
         .metadata(metadata)
         .tags(request.getTags())
         .kmsKeyId(request.getKmsKeyId())

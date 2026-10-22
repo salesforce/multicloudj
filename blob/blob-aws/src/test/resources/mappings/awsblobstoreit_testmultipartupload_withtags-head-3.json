@@ -1,0 +1,29 @@
+{
+  "id" : "7f3e59e0-463d-4421-b0ee-9653f05d4f8f",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_withTags-HEAD-3",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-withTags",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-amz-meta-key1" : "value1",
+      "Server" : "AmazonS3",
+      "Last-Modified" : "Wed, 21 Oct 2026 22:42:50 GMT",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-tagging-count" : "1",
+      "Date" : "Wed, 21 Oct 2026 22:42:56 GMT",
+      "Accept-Ranges" : "bytes",
+      "ETag" : "\"63a814bc1f352d8149b1dd9f3747e89e-2\"",
+      "x-amz-checksum-crc64nvme" : "xd07QWveTJk=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "BM1Y4ZPVM7J1TRJE",
+      "x-amz-id-2" : "VD8IqD8usBGatWddsSN+Mx34EWkd2XXJZsdeX7JUWiUMyNnfskzzFimyXizR8GnR0yGuqAXUg7s=",
+      "Content-Type" : "text/plain"
+    }
+  },
+  "uuid" : "7f3e59e0-463d-4421-b0ee-9653f05d4f8f",
+  "persistent" : true,
+  "insertionIndex" : 809
+}

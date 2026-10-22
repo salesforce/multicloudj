@@ -4051,8 +4051,11 @@ public abstract class AbstractBlobStoreIT {
             kmsKeyId));
   }
 
-  // @Test
+  @Test
   public void testMultipartUpload_withTags() {
+    // Ali: no recorded mappings for this test.
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
     String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withTags";
     Map<String, String> tags = Map.of("tag1", "value1");
     runMultipartUploadTest(
