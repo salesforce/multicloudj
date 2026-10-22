@@ -1,0 +1,51 @@
+{
+  "id" : "135f2c5b-0f40-42c1-a4bb-5338381336e1",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_withTags-GET-12",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "maxResults" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/multipart-withTags"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AP6rU81eszyOfcmOBcxI6VhoiH6zOVZ2oUzNSscCcqi8n8HRktU-VSbD7na-_i-5jT-mznX2",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 22 Oct 2026 22:30:24 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a165bca789",
+      "Date" : "Thu, 22 Oct 2026 22:30:24 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "135f2c5b-0f40-42c1-a4bb-5338381336e1",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-2",
+  "insertionIndex" : 1572
+}
