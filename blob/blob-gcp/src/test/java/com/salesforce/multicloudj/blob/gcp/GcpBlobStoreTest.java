@@ -265,10 +265,6 @@ class GcpBlobStoreTest {
         })
         .when(mockTransformer)
         .stampContextMetadata(anyMap(), nullable(OperationContext.class));
-    lenient()
-        .when(mockTransformer.toBlobInfo(any(MultipartUploadRequest.class)))
-        .thenAnswer(invocation -> realTransformer.toBlobInfo(
-            invocation.<MultipartUploadRequest>getArgument(0)));
 
     gcpBlobStore = new GcpBlobStore(builder, mockStorage, mpuClient, mockTransferManager);
   }
@@ -3998,56 +3994,6 @@ class GcpBlobStoreTest {
         ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
     verify(mpuClient).createMultipartUpload(captor.capture());
     assertEquals("text/plain", captor.getValue().contentType());
-    assertEquals(
-        Map.of("key1", "value1", "gcp-tag-tag1", "value1"), captor.getValue().metadata());
-    assertNull(captor.getValue().customTime());
-  }
-
-  @Test
-  void testDoInitiateMultipartUpload_ExpirationTagStampsCustomTime() {
-    MultipartUploadRequest request =
-        new MultipartUploadRequest.Builder()
-            .withKey(TEST_KEY)
-            .withTags(Map.of(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "30"))
-            .build();
-    when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
-        .thenReturn(CreateMultipartUploadResponse.builder().uploadId("test-upload-id").build());
-
-    OffsetDateTime before = OffsetDateTime.now(ZoneOffset.UTC);
-    gcpBlobStore.doInitiateMultipartUpload(request);
-    OffsetDateTime after = OffsetDateTime.now(ZoneOffset.UTC);
-
-    ArgumentCaptor<CreateMultipartUploadRequest> captor =
-        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
-    verify(mpuClient).createMultipartUpload(captor.capture());
-    assertEquals(
-        "30",
-        captor.getValue().metadata().get("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
-    OffsetDateTime customTime = captor.getValue().customTime();
-    assertNotNull(customTime);
-    assertFalse(customTime.isBefore(before.plusDays(30)));
-    assertFalse(customTime.isAfter(after.plusDays(30)));
-  }
-
-  @Test
-  void testDoInitiateMultipartUpload_NeverExpirationTagDoesNotStampCustomTime() {
-    MultipartUploadRequest request =
-        new MultipartUploadRequest.Builder()
-            .withKey(TEST_KEY)
-            .withTags(Map.of(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "Never"))
-            .build();
-    when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
-        .thenReturn(CreateMultipartUploadResponse.builder().uploadId("test-upload-id").build());
-
-    gcpBlobStore.doInitiateMultipartUpload(request);
-
-    ArgumentCaptor<CreateMultipartUploadRequest> captor =
-        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
-    verify(mpuClient).createMultipartUpload(captor.capture());
-    assertEquals(
-        "Never",
-        captor.getValue().metadata().get("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
-    assertNull(captor.getValue().customTime());
   }
 
   @Test
@@ -4744,6 +4690,64 @@ class GcpBlobStoreTest {
     assertEquals(
         OffsetDateTime.ofInstant(retainUntil, ZoneOffset.UTC),
         capturedRequest.objectLockRetainUntilDate());
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_WritesTagsAndExpirationFromCreationTime() {
+    Map<String, String> tags = new HashMap<>();
+    tags.put("Env", "Prod");
+    tags.put("owner", "a b/c&d=e");
+    tags.put(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "30");
+    MultipartUpload mpu =
+        MultipartUpload.builder()
+            .bucket(TEST_BUCKET)
+            .key(TEST_KEY)
+            .id("test-upload-id")
+            .tags(tags)
+            .build();
+    when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+        .thenReturn(CompleteMultipartUploadResponse.builder().etag("complete-etag").build());
+
+    OffsetDateTime creationTime = OffsetDateTime.now(ZoneOffset.UTC).minusDays(2);
+    when(mockTransformer.toBlobId(TEST_KEY, null)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+    when(mockBlob.getMetadata()).thenReturn(Map.of("key1", "value1"));
+    when(mockBlob.getCreateTimeOffsetDateTime()).thenReturn(creationTime);
+    Blob.Builder mockBuilder = mock(Blob.Builder.class);
+    Blob updatedBlob = mock(Blob.class);
+    when(mockBlob.toBuilder()).thenReturn(mockBuilder);
+    when(mockBuilder.setMetadata(anyMap())).thenReturn(mockBuilder);
+    when(mockBuilder.build()).thenReturn(updatedBlob);
+
+    gcpBlobStore.doCompleteMultipartUpload(
+        mpu,
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L)));
+
+    ArgumentCaptor<Map<String, String>> metadataCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(mockBuilder).setMetadata(metadataCaptor.capture());
+    assertEquals(
+        Map.of(
+            "key1", "value1",
+            "gcp-tag-Env", "Prod",
+            "gcp-tag-owner", "a b/c&d=e",
+            "gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "30"),
+        metadataCaptor.getValue());
+    verify(mockBuilder).setCustomTimeOffsetDateTime(creationTime.plusDays(30));
+    verify(mockStorage).update(updatedBlob);
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_WithoutTagsDoesNotUpdateObject() {
+    MultipartUpload mpu =
+        MultipartUpload.builder().bucket(TEST_BUCKET).key(TEST_KEY).id("test-upload-id").build();
+    when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+        .thenReturn(CompleteMultipartUploadResponse.builder().etag("complete-etag").build());
+
+    gcpBlobStore.doCompleteMultipartUpload(
+        mpu,
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L)));
+
+    verify(mockStorage, never()).update(any(BlobInfo.class));
   }
 
   @Test

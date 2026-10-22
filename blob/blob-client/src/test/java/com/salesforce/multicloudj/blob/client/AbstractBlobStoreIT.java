@@ -4057,8 +4057,9 @@ public abstract class AbstractBlobStoreIT {
     Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
 
     String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withTags";
-    // Includes the reserved lifecycle-expiration tag, which must round-trip like any other tag.
-    Map<String, String> tags = Map.of("tag1", "value1", "expiration-days", "30");
+    // Mixed-case keys, values with spaces and URL-reserved characters, and the reserved
+    // lifecycle-expiration tag must all round-trip unchanged.
+    Map<String, String> tags = Map.of("tag1", "value1", "Env", "a b/c=d", "expiration-days", "30");
     runMultipartUploadTest(
         new MultipartUploadTestConfig(
             "multipart with tags",
