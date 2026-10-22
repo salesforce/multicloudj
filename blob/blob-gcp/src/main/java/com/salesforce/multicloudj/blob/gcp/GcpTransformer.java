@@ -70,8 +70,6 @@ public class GcpTransformer {
 
   private final String bucket;
   private static final String TAG_PREFIX = "gcp-tag-";
-  private static final String METADATA_HEADER_PREFIX = "x-goog-meta-";
-  private static final String CUSTOM_TIME_HEADER = "x-goog-custom-time";
   // RFC 9110 token characters.
   private static final Pattern HEADER_TOKEN = Pattern.compile("[A-Za-z0-9!#$%&'*+.^_`|~-]+");
   // Visible ASCII with optional inner spaces. HTTP strips leading and trailing whitespace from
@@ -397,12 +395,12 @@ public class GcpTransformer {
             throw new InvalidArgumentException(
                 "Presigned upload tag keys must be unique ignoring case: " + tagName);
           }
-          headers.put(METADATA_HEADER_PREFIX + TAG_PREFIX + tagName, tagValue);
+          headers.put("x-goog-meta-" + TAG_PREFIX + tagName, tagValue);
         });
     Integer days = parseExpirationDays(tags.get(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
     if (days != null) {
       headers.put(
-          CUSTOM_TIME_HEADER,
+          "x-goog-custom-time",
           DateTimeFormatter.ISO_INSTANT.format(
               Instant.now().plus(Duration.ofDays(days)).truncatedTo(ChronoUnit.SECONDS)));
     }
