@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.4.12](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.11...multicloudj-v0.4.12) (2026-10-21)
+
+
+### Blob Store
+
+* apply proxy system-property and env-var flags to the AWS CRT client ([#692](https://github.com/salesforce/multicloudj/issues/692)) ([5e8973f](https://github.com/salesforce/multicloudj/commit/5e8973f11276f017bfdbe726b5a790c57c270429))
+* preserve GCS retry defaults for unset GCP RetryConfig fields ([#677](https://github.com/salesforce/multicloudj/issues/677)) ([16c4932](https://github.com/salesforce/multicloudj/commit/16c493249fc6630d1b39009a73586950ea27b838))
+* stamp serviceId and tenantId on Ali single-object upload and multipart initiate ([#690](https://github.com/salesforce/multicloudj/issues/690)) ([08439c7](https://github.com/salesforce/multicloudj/commit/08439c7e374c76a4c59fd7381d86731ebd58fc47))
+
+
+### Document Store
+
+* support per-call read consistency ([#689](https://github.com/salesforce/multicloudj/issues/689)) ([b9af7ee](https://github.com/salesforce/multicloudj/commit/b9af7ee40cbf83ccec20f3d94147df8cf314a911))
+
+
+### PubSub
+
+* add configurable RetryConfig for topics and subscriptions ([#668](https://github.com/salesforce/multicloudj/issues/668)) ([45e476d](https://github.com/salesforce/multicloudj/commit/45e476da629411981a7f6249a62fb283a9c99969))
+* remove Ali socket timeout override for long-poll subscriptions ([#691](https://github.com/salesforce/multicloudj/issues/691)) ([2ca4d5a](https://github.com/salesforce/multicloudj/commit/2ca4d5ab261749d1d3a4585f33e4f49c21c31648))
+
 ## [0.4.11](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.10...multicloudj-v0.4.11) (2026-10-14)
 
 

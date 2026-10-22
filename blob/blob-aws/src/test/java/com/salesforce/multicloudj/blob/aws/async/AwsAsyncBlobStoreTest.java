@@ -111,6 +111,8 @@ import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3CrtAsyncClientBuilder;
+import software.amazon.awssdk.services.s3.crt.S3CrtHttpConfiguration;
+import software.amazon.awssdk.services.s3.crt.S3CrtProxyConfiguration;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
@@ -2305,6 +2307,64 @@ public class AwsAsyncBlobStoreTest {
     assertNotNull(store);
     assertInstanceOf(AwsAsyncBlobStore.class, store);
     assertEquals(BUCKET, store.getBucket());
+  }
+
+  @Test
+  void testBuildS3CrtAsyncClientAppliesProxyOverrideFlags() {
+    new AwsAsyncBlobStore.Builder()
+        .withBucket(BUCKET)
+        .withRegion(REGION)
+        .withParallelDownloadsEnabled(true)
+        .withUseSystemPropertyProxyValues(false)
+        .withUseEnvironmentVariableProxyValues(false)
+        .build();
+
+    ArgumentCaptor<S3CrtHttpConfiguration> captor =
+        ArgumentCaptor.forClass(S3CrtHttpConfiguration.class);
+    verify(S3AsyncClient.crtBuilder()).httpConfiguration(captor.capture());
+    S3CrtProxyConfiguration expected =
+        S3CrtProxyConfiguration.builder()
+            .useSystemPropertyValues(false)
+            .useEnvironmentVariableValues(false)
+            .build();
+    assertEquals(expected, captor.getValue().proxyConfiguration());
+  }
+
+  @Test
+  void testBuildS3CrtAsyncClientAppliesProxyEndpointAndOverrideFlags() {
+    new AwsAsyncBlobStore.Builder()
+        .withBucket(BUCKET)
+        .withRegion(REGION)
+        .withParallelDownloadsEnabled(true)
+        .withProxyEndpoint(URI.create("https://proxy.example.com:443"))
+        .withUseSystemPropertyProxyValues(true)
+        .withUseEnvironmentVariableProxyValues(false)
+        .build();
+
+    ArgumentCaptor<S3CrtHttpConfiguration> captor =
+        ArgumentCaptor.forClass(S3CrtHttpConfiguration.class);
+    verify(S3AsyncClient.crtBuilder()).httpConfiguration(captor.capture());
+    S3CrtProxyConfiguration expected =
+        S3CrtProxyConfiguration.builder()
+            .scheme("https")
+            .host("proxy.example.com")
+            .port(443)
+            .useSystemPropertyValues(true)
+            .useEnvironmentVariableValues(false)
+            .build();
+    assertEquals(expected, captor.getValue().proxyConfiguration());
+  }
+
+  @Test
+  void testBuildS3CrtAsyncClientWithoutProxySettingsSkipsHttpConfiguration() {
+    new AwsAsyncBlobStore.Builder()
+        .withBucket(BUCKET)
+        .withRegion(REGION)
+        .withParallelDownloadsEnabled(true)
+        .build();
+
+    verify(S3AsyncClient.crtBuilder(), never())
+        .httpConfiguration(any(S3CrtHttpConfiguration.class));
   }
 
   @Test

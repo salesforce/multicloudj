@@ -1,0 +1,51 @@
+{
+  "id" : "de32e954-9ed3-4e39-a642-f1add5665638",
+  "name" : "AliBlobStoreIT_testInitiateMultipartUpload_withServiceAndTenantId_stampsObjectMetadata-POST-4",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart/observabilityMetadata",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "x-oss-meta-sdk-logging-service-id" : {
+        "equalTo" : "conformance-service"
+      },
+      "x-oss-meta-sdk-logging-tenant-id" : {
+        "equalTo" : "conformance-tenant"
+      },
+      "x-oss-meta-sdk-logging-correlation-id" : {
+        "equalTo" : "conformance-correlation-id"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "uploads" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<InitiateMultipartUploadResult>\n  <EncodingType>url</EncodingType>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests%2Fmultipart%2FobservabilityMetadata</Key>\n  <UploadId>7FFCD4A2FE9B4E2D92F95E0E4C96D0AA</UploadId>\n</InitiateMultipartUploadResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6AD7D1B0933F91373814D4A5",
+      "x-oss-server-time" : "43",
+      "Server" : "AliyunOSS",
+      "Date" : "Tue, 20 Oct 2026 20:40:16 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "de32e954-9ed3-4e39-a642-f1add5665638",
+  "persistent" : true,
+  "insertionIndex" : 790
+}

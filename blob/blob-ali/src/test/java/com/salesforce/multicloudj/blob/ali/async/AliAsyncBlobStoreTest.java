@@ -88,6 +88,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -744,6 +745,44 @@ public class AliAsyncBlobStoreTest {
     assertEquals(BUCKET, mpu.getBucket());
     assertEquals("mpu-key", mpu.getKey());
     assertEquals("upload-id-123", mpu.getId());
+  }
+
+  @Test
+  void testInitiateMultipartUpload_withOperationContext_stampsMetadata() throws Exception {
+    InitiateMultipartUpload upload = mock(InitiateMultipartUpload.class);
+    when(upload.bucket()).thenReturn(BUCKET);
+    when(upload.key()).thenReturn("mpu-key");
+    when(upload.uploadId()).thenReturn("upload-id-123");
+    InitiateMultipartUploadResult mockResult = mock(InitiateMultipartUploadResult.class);
+    when(mockResult.initiateMultipartUpload()).thenReturn(upload);
+    when(mockAsyncClient.initiateMultipartUploadAsync(
+        any(InitiateMultipartUploadRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+    OperationContext ctx = OperationContext.builder()
+        .serviceId("svc-1")
+        .tenantId("tenant-1")
+        .correlationId("corr-1")
+        .build();
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("mpu-key")
+        .withMetadata(Map.of("key-1", "value-1"))
+        .withOperationContext(ctx)
+        .build();
+
+    MultipartUpload mpu = store.initiateMultipartUpload(request).get();
+
+    ArgumentCaptor<InitiateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(InitiateMultipartUploadRequest.class);
+    verify(mockAsyncClient).initiateMultipartUploadAsync(
+        captor.capture(), any(OperationOptions.class));
+    Map<String, String> expected = Map.of(
+        "key-1", "value-1",
+        "sdk-logging-service-id", "svc-1",
+        "sdk-logging-tenant-id", "tenant-1",
+        "sdk-logging-correlation-id", "corr-1");
+    assertEquals(expected, captor.getValue().metadata());
+    assertEquals(expected, mpu.getMetadata());
   }
 
   @Test

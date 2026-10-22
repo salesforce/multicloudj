@@ -562,10 +562,6 @@ public abstract class AbstractBlobStoreIT {
    */
   @Test
   public void testUpload_withServiceAndTenantId_stampsObjectMetadata() {
-    // Ali: the OSS provider stamps only the correlation id, not service/tenant id, so it does not
-    // satisfy this conformance expectation and has no recorded mappings for it.
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
-
     String key = "conformance-tests/upload/observabilityMetadata";
     String serviceId = "conformance-service";
     String tenantId = "conformance-tenant";
@@ -682,10 +678,6 @@ public abstract class AbstractBlobStoreIT {
    */
   @Test
   public void testInitiateMultipartUpload_withServiceAndTenantId_stampsObjectMetadata() {
-    // Ali: the OSS provider stamps only the correlation id, not service/tenant id, so it does not
-    // satisfy this conformance expectation and has no recorded mappings for it.
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
-
     String key = "conformance-tests/multipart/observabilityMetadata";
     String serviceId = "conformance-service";
     String tenantId = "conformance-tenant";
