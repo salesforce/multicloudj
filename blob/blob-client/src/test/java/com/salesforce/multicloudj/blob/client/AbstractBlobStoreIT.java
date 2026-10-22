@@ -5311,6 +5311,68 @@ public abstract class AbstractBlobStoreIT {
     }
   }
 
+  @Test
+  public void testPresignV2_tagsBinding() throws Exception {
+    String key = "conformance-tests/presign-v2/tags-binding";
+    byte[] content = "tagged presigned upload".getBytes(StandardCharsets.UTF_8);
+    Map<String, String> tags = Map.of("presign-tag", "presign-value", "expiration-days", "30");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .tags(tags)
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertFalse(response.getSignedHeaders().isEmpty(),
+          "signedHeaders should carry the tags the uploader must send");
+
+      // Upload only in record mode — presigned URLs bypass WireMock and can't be replayed
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
+      if (!INMEMORY_PROVIDER_ID.equals(harness.getProviderId())) {
+        Assertions.assertEquals(tags, bucketClient.getTags(key));
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_tagsBinding_rejectsMissingTagHeaders() throws Exception {
+    Assumptions.assumeTrue(System.getProperty("record") != null,
+        "Negative presign tests require record mode (real substrate)");
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
+    String key = "conformance-tests/presign-v2/negative/missing-tags";
+    byte[] content = "tagged presigned upload".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .tags(Map.of("presign-tag", "presign-value"))
+              .build());
+
+      // The tags are part of the signature, so omitting them must be rejected
+      assertUploadRejected(response.getUrl(), content, Map.of());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
   /**
    * Asserts that uploading to a presigned URL with the given headers results in a 4xx rejection.
    */

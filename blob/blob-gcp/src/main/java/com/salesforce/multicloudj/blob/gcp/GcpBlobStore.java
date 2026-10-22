@@ -1027,6 +1027,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     options.add(Storage.SignUrlOption.withV4Signature());
 
     if (request.getType() == PresignedOperation.UPLOAD) {
+      extHeaders.putAll(transformer.toPresignTagHeaders(request));
       if (request.getContentType() != null) {
         options.add(Storage.SignUrlOption.withContentType());
         signedHeaders.put("Content-Type", request.getContentType());

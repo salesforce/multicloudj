@@ -405,6 +405,29 @@ public class Main {
   }
 
   /**
+   * Presigns an upload URL that binds tags, including the reserved {@code expiration-days} tag, into
+   * the signature. The uploader must send every returned signed header verbatim, otherwise the
+   * upload is rejected. The expiration is measured from the time the URL is generated.
+   */
+  public static void presignUploadWithTags() {
+    BucketClient client = getBucketClient(getProvider());
+
+    PresignedUrlResponse response =
+        client.presign(
+            PresignedUrlRequest.builder()
+                .type(PresignedOperation.UPLOAD)
+                .key("blob-key")
+                .duration(Duration.ofMinutes(15))
+                .tags(Map.of("env", "prod", "expiration-days", "30"))
+                .build());
+
+    // Hand both the URL and the signed headers to the uploader.
+    getLogger().info("Presigned URL: {}", response.getUrl());
+    response.getSignedHeaders()
+        .forEach((name, value) -> getLogger().info("Signed header: {}: {}", name, value));
+  }
+
+  /**
    * Presigns upload and download URLs from a client that holds only short-lived session
    * credentials, then uses them with a plain HTTP client, the way a caller without cloud
    * credentials would.
