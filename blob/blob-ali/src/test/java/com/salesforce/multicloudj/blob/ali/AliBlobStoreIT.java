@@ -26,6 +26,8 @@ import org.apache.hc.client5.http.ssl.HostnameVerificationPolicy;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.apache.hc.core5.http.HttpHost;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
@@ -46,6 +48,11 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
   protected Harness createHarness() {
     return new HarnessImpl();
   }
+
+  @Override
+  @Test
+  @Disabled("OSS fixtures are recorded on dedicated machines; enable once recorded")
+  public void testPresignV2_tagsBinding() {}
 
   public static class HarnessImpl implements Harness {
     int port = ThreadLocalRandom.current().nextInt(2000, 20000);

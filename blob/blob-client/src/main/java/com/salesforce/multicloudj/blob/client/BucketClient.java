@@ -748,6 +748,10 @@ public class BucketClient implements AutoCloseable {
   /**
    * Generates a presigned URL for uploading/downloading blobs
    *
+   * <p>Only the URL is returned. If the request sets tags, a content type, or a checksum, the
+   * uploader may need to send headers that were signed into the URL; use {@link
+   * #presign(PresignedUrlRequest)} to obtain them.
+   *
    * @param request The presigned request
    * @return Returns the presigned URL
    * @throws SubstrateSdkException Thrown if the operation fails

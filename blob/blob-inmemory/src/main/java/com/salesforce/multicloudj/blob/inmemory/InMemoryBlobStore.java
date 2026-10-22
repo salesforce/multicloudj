@@ -1061,6 +1061,13 @@ public class InMemoryBlobStore extends AbstractBlobStore {
               ? request.getChecksumAlgorithm().name() : "CRC32C";
           signedHeaders.put("x-checksum", algo + "=" + request.getChecksumValue());
         }
+        if (request.getTags() != null && !request.getTags().isEmpty()) {
+          signedHeaders.put(
+              "x-inmemory-tagging",
+              new TreeMap<>(request.getTags()).entrySet().stream()
+                  .map(e -> e.getKey() + "=" + e.getValue())
+                  .collect(Collectors.joining("&")));
+        }
       }
       return PresignedUrlResponse.builder()
           .url(url)

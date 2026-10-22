@@ -2184,6 +2184,48 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoGeneratePresignedUrl_UploadSignsTagHeaders() throws Exception {
+    PresignedUrlRequest presignedUrlRequest =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key(TEST_KEY)
+            .duration(Duration.ofHours(1))
+            .tags(Map.of(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "10"))
+            .build();
+    Map<String, String> tagHeaders =
+        Map.of(
+            "x-goog-meta-gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "10",
+            "x-goog-custom-time", "2026-10-29T00:00:00Z");
+
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignTagHeaders(presignedUrlRequest)).thenReturn(tagHeaders);
+    when(mockStorage.signUrl(
+        eq(mockBlobInfo),
+        any(Long.class),
+        eq(TimeUnit.MILLISECONDS),
+        any(Storage.SignUrlOption[].class)))
+        .thenReturn(new URL("https://signed-url-for-upload.example.com"));
+
+    // SignUrlOption exposes neither its value nor equals(), so the signed headers are checked at
+    // the withExtHeaders call.
+    try (MockedStatic<Storage.SignUrlOption> signUrlOption =
+        Mockito.mockStatic(Storage.SignUrlOption.class, Mockito.CALLS_REAL_METHODS)) {
+      PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
+
+      assertEquals(tagHeaders, presignedResponse.getSignedHeaders());
+      signUrlOption.verify(() -> Storage.SignUrlOption.withExtHeaders(tagHeaders));
+    }
+    ArgumentCaptor<Storage.SignUrlOption[]> optionsCaptor =
+        ArgumentCaptor.forClass(Storage.SignUrlOption[].class);
+    verify(mockStorage)
+        .signUrl(
+            eq(mockBlobInfo), any(Long.class), eq(TimeUnit.MILLISECONDS), optionsCaptor.capture());
+    assertEquals(
+        3, optionsCaptor.getValue().length,
+        "Upload with tags should have httpMethod, v4Signature, and extHeaders options");
+  }
+
+  @Test
   void testDoGeneratePresignedUrl_Download() throws Exception {
     // Given
     Duration duration = Duration.ofMinutes(30);
@@ -2210,6 +2252,7 @@ class GcpBlobStoreTest {
     // Then
     assertEquals(expectedUrl, presignedResponse.getUrl());
     verify(mockTransformer).toPresignBlobInfo(presignedUrlRequest);
+    verify(mockTransformer, never()).toPresignTagHeaders(any());
     verify(mockStorage)
         .signUrl(
             eq(mockBlobInfo),

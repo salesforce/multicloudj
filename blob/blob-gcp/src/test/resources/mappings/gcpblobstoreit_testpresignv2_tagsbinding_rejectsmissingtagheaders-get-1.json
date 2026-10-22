@@ -1,0 +1,48 @@
+{
+  "id" : "b5db3783-be45-4ba9-9b5c-2d4305f619b7",
+  "name" : "GcpBlobStoreIT_testPresignV2_tagsBinding_rejectsMissingTagHeaders-GET-1",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "maxResults" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/presign-v2/negative/missing-tags"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AP6rU82TRx_SnxNh0Mv52NWVqRZ-IMogh85dix0PRI4P6UGN6wzkhdUzxvffnl6JZT-MzMvvbqJV5uMw6hph",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 19 Oct 2026 15:34:56 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a154cd319f",
+      "Date" : "Mon, 19 Oct 2026 15:34:56 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "b5db3783-be45-4ba9-9b5c-2d4305f619b7",
+  "persistent" : true,
+  "insertionIndex" : 1560
+}
