@@ -492,7 +492,9 @@ public class AwsDocStore extends AbstractDocStore {
     switch (action.getKind()) {
       case ACTION_KIND_CREATE:
         // Precondition: the document doesn't already exist.
-        return "attribute_not_exists(" + collectionOptions.getPartitionKey() + ")";
+        // The key name is aliased because it may be a DynamoDB reserved word (e.g. "key").
+        expressionAttributeNames.put("#pk", collectionOptions.getPartitionKey());
+        return "attribute_not_exists(#pk)";
       case ACTION_KIND_REPLACE: // Fall through
       case ACTION_KIND_UPDATE:
         // Precondition: the revision matches, or if there is no revision, the document exists.
@@ -503,7 +505,8 @@ public class AwsDocStore extends AbstractDocStore {
                 expressionAttributeNames,
                 expressionAttributeValues);
         if (precondition == null) {
-          return "attribute_exists(" + collectionOptions.getPartitionKey() + ")";
+          expressionAttributeNames.put("#pk", collectionOptions.getPartitionKey());
+          return "attribute_exists(#pk)";
         }
         return precondition;
       case ACTION_KIND_PUT: // Fall through

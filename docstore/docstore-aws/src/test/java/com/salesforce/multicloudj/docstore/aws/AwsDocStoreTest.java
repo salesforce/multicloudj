@@ -1149,4 +1149,102 @@ public class AwsDocStoreTest {
     query2.initGet(List.of("SomeAttribute1", "SomeAttribute2"));
     Assertions.assertTrue(docStore.globalFieldIncluded(query2, gsi));
   }
+
+  private AwsDocStore pkOnlyDocStore(String pk, DynamoDbClient ddb) {
+    CollectionOptions opts =
+        new CollectionOptions.CollectionOptionsBuilder()
+            .withTableName("pk-only")
+            .withPartitionKey(pk)
+            .withAllowScans(true)
+            .withRevisionField("docRevision")
+            .build();
+    return new AwsDocStore.Builder()
+        .withRegion("us-east-1")
+        .withCollectionOptions(opts)
+        .withDDBClient(ddb)
+        .build();
+  }
+
+  private static TestAction mapAction(ActionKind kind, Map<String, Object> doc) {
+    return new TestAction(kind, new Document(doc), null, null);
+  }
+
+  @Test
+  void testPreconditionCreateAliasesPartitionKey() {
+    AwsDocStore ds = pkOnlyDocStore("key", mock(DynamoDbClient.class));
+    Map<String, String> names = new HashMap<>();
+    Map<String, AttributeValue> values = new HashMap<>();
+    String cond =
+        ds.buildPrecondition(
+            mapAction(ActionKind.ACTION_KIND_CREATE, new HashMap<>(Map.of("key", "k1"))),
+            names,
+            values);
+    Assertions.assertEquals("attribute_not_exists(#pk)", cond);
+    Assertions.assertEquals(Map.of("#pk", "key"), names);
+    Assertions.assertTrue(values.isEmpty());
+  }
+
+  @Test
+  void testPreconditionReplaceWithoutRevisionAliasesPartitionKey() {
+    AwsDocStore ds = pkOnlyDocStore("key", mock(DynamoDbClient.class));
+    Map<String, String> names = new HashMap<>();
+    Map<String, AttributeValue> values = new HashMap<>();
+    String cond =
+        ds.buildPrecondition(
+            mapAction(ActionKind.ACTION_KIND_REPLACE, new HashMap<>(Map.of("key", "k1"))),
+            names,
+            values);
+    Assertions.assertEquals("attribute_exists(#pk)", cond);
+    Assertions.assertEquals(Map.of("#pk", "key"), names);
+    Assertions.assertTrue(values.isEmpty());
+  }
+
+  @Test
+  void testPreconditionReplaceWithRevisionKeepsRevisionConditionOnly() {
+    AwsDocStore ds = pkOnlyDocStore("key", mock(DynamoDbClient.class));
+    Map<String, String> names = new HashMap<>();
+    Map<String, AttributeValue> values = new HashMap<>();
+    String cond =
+        ds.buildPrecondition(
+            mapAction(
+                ActionKind.ACTION_KIND_REPLACE,
+                new HashMap<>(Map.of("key", "k1", "docRevision", "rev-1"))),
+            names,
+            values);
+    Assertions.assertEquals("#revField = :revValue", cond);
+    Assertions.assertEquals(Map.of("#revField", "docRevision"), names);
+    Assertions.assertEquals(1, values.size());
+    Assertions.assertEquals("rev-1", values.get(":revValue").s());
+  }
+
+  @Test
+  void testCreateAndReplacePutItemRequestCarriesConditionAndNames() {
+    DynamoDbClient ddb = mock(DynamoDbClient.class);
+    when(ddb.putItem(any(PutItemRequest.class))).thenReturn(mock(PutItemResponse.class));
+    AwsDocStore ds = pkOnlyDocStore("key", ddb);
+
+    ds.newPut(mapAction(ActionKind.ACTION_KIND_CREATE, new HashMap<>(Map.of("key", "k1"))), null)
+        .getRun()
+        .run();
+    ds.newPut(mapAction(ActionKind.ACTION_KIND_REPLACE, new HashMap<>(Map.of("key", "k1"))), null)
+        .getRun()
+        .run();
+    ds.newPut(mapAction(ActionKind.ACTION_KIND_PUT, new HashMap<>(Map.of("key", "k1"))), null)
+        .getRun()
+        .run();
+
+    ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
+    verify(ddb, times(3)).putItem(captor.capture());
+    PutItemRequest create = captor.getAllValues().get(0);
+    PutItemRequest replace = captor.getAllValues().get(1);
+    PutItemRequest put = captor.getAllValues().get(2);
+    Assertions.assertEquals("attribute_not_exists(#pk)", create.conditionExpression());
+    Assertions.assertEquals(Map.of("#pk", "key"), create.expressionAttributeNames());
+    Assertions.assertFalse(create.hasExpressionAttributeValues());
+    Assertions.assertEquals("attribute_exists(#pk)", replace.conditionExpression());
+    Assertions.assertEquals(Map.of("#pk", "key"), replace.expressionAttributeNames());
+    Assertions.assertFalse(replace.hasExpressionAttributeValues());
+    Assertions.assertNull(put.conditionExpression());
+    Assertions.assertFalse(put.hasExpressionAttributeNames());
+  }
 }
