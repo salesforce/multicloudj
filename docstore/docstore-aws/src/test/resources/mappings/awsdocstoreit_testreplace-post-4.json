@@ -1,5 +1,5 @@
 {
-  "id" : "d8e6a9ee-8d8e-4e48-a816-ee44a73eadee",
+  "id" : "40ded1da-f7f9-4475-b7a0-88af363ae8e6",
   "name" : "AwsDocstoreIT_testReplace-POST-4",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"originalString\"},\"pName\":{\"S\":\"KingReplace\"},\"f\":{\"N\":\"12.65999984741211\"},\"bytes\":{\"B\":\"b3JpZ2luYWxTdHJpbmc=\"},\"i\":{\"N\":\"121\"},\"DocstoreRevision\":{\"S\":\"5eb3f6b9-af98-50fc-37c4-b8d4e6afab4d\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"originalString\"},\"pName\":{\"S\":\"KingReplace\"},\"f\":{\"N\":\"12.65999984741211\"},\"bytes\":{\"B\":\"b3JpZ2luYWxTdHJpbmc=\"},\"i\":{\"N\":\"121\"},\"DocstoreRevision\":{\"S\":\"5eb3f6b9-af98-50fc-37c4-b8d4e6afab4d\"}},\"ConditionExpression\":\"attribute_not_exists(#pk)\",\"ExpressionAttributeNames\":{\"#pk\":\"pName\"}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "Q8N41KAQO5JGS3EPRD020TGVQRVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "UUF1DOAMT3BECOVFGJ5VU2LO2VVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 22 Apr 2026 22:58:06 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:32 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "d8e6a9ee-8d8e-4e48-a816-ee44a73eadee",
+  "uuid" : "40ded1da-f7f9-4475-b7a0-88af363ae8e6",
   "persistent" : true,
-  "insertionIndex" : 272
+  "insertionIndex" : 295
 }

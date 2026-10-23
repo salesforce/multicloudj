@@ -1,5 +1,5 @@
 {
-  "id" : "148f5356-e13c-4ee0-9584-ad1a70c20090",
+  "id" : "a1ed3141-28b2-4915-90de-99747f321c5d",
   "name" : "AwsDocstoreIT_testDelete-POST-16",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"pName\":{\"S\":\"JohnDelete\"},\"f\":{\"N\":\"12.65999984741211\"},\"i\":{\"N\":\"121\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"pName\":{\"S\":\"JohnDelete\"},\"f\":{\"N\":\"12.65999984741211\"},\"i\":{\"N\":\"121\"}},\"ConditionExpression\":\"attribute_not_exists(#pk)\",\"ExpressionAttributeNames\":{\"#pk\":\"pName\"}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "2TUNI6V24TNTN4NSL1ATV3E7B3VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "NG2CPPABG62RI6NK5031P5L8AFVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 22 Apr 2026 22:58:12 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:39 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "148f5356-e13c-4ee0-9584-ad1a70c20090",
+  "uuid" : "a1ed3141-28b2-4915-90de-99747f321c5d",
   "persistent" : true,
-  "insertionIndex" : 323
+  "insertionIndex" : 346
 }

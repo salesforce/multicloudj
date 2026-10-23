@@ -1,5 +1,5 @@
 {
-  "id" : "693b7036-1a3f-4347-a01a-fe0485e0d1fa",
+  "id" : "9e03ed58-5a61-4a00-8bd3-a9d97a1a1558",
   "name" : "AwsDocstoreIT_testPut-POST-1",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"675216e8-0659-212d-4a95-bdc7c1f18a09\"},\"pName\":{\"S\":\"LeoPut\"},\"f\":{\"N\":\"12.65999984741211\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5nTWFw\"}}}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"675216e8-0659-212d-4a95-bdc7c1f18a09\"},\"pName\":{\"S\":\"LeoPut\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5nTWFw\"},\"f\":{\"N\":\"12.65999984741211\"}}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "LDC576R8HQ265HVTGHJKFSTO47VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "3M5C2SL5BKF0SFB84SMPS5ALFRVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 22 Apr 2026 22:58:01 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:26 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "693b7036-1a3f-4347-a01a-fe0485e0d1fa",
+  "uuid" : "9e03ed58-5a61-4a00-8bd3-a9d97a1a1558",
   "persistent" : true,
-  "insertionIndex" : 245
+  "insertionIndex" : 268
 }
