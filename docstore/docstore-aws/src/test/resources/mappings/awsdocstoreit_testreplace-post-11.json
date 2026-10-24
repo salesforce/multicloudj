@@ -1,5 +1,5 @@
 {
-  "id" : "ceb828be-a287-4eec-9c36-2e9aa7bdf64f",
+  "id" : "71906dc7-5d51-47ac-ad5f-956c1786d900",
   "name" : "AwsDocstoreIT_testReplace-POST-11",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":false},\"s\":{\"S\":\"replacedString\"},\"pName\":{\"S\":\"DavidReplace\"},\"f\":{\"N\":\"0.0\"},\"i\":{\"N\":\"95\"}},\"ConditionExpression\":\"attribute_exists(pName)\"}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":false},\"s\":{\"S\":\"replacedString\"},\"pName\":{\"S\":\"DavidReplace\"},\"f\":{\"N\":\"0.0\"},\"i\":{\"N\":\"95\"}},\"ConditionExpression\":\"attribute_exists(#pk)\",\"ExpressionAttributeNames\":{\"#pk\":\"pName\"}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "BRMCJ32HPQU5OCMIHJ1RJA04U7VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "D8OOVKCSENHIVHT2AKNKEAMTERVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 22 Apr 2026 22:58:04 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:29 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "ceb828be-a287-4eec-9c36-2e9aa7bdf64f",
+  "uuid" : "71906dc7-5d51-47ac-ad5f-956c1786d900",
   "persistent" : true,
-  "insertionIndex" : 279
+  "insertionIndex" : 302
 }

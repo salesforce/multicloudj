@@ -1,5 +1,5 @@
 {
-  "id" : "69c52bdf-037e-48ab-9faf-e35be23c7bd2",
+  "id" : "70ce6156-2772-42f6-aa32-e97608e921ce",
   "name" : "AwsDocstoreIT_testReplace-POST-16",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"LeoPut\"}},\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"675216e8-0659-212d-4a95-bdc7c1f18a09\"}}}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"TaylorPut\"}},\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"95b90826-c423-8044-b16e-27ad282d4c8a\"}}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "LBI533I3M6IME49A8P9OUDJIFRVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "EVAI6KJGAU8OVFU8M23FT4D6DFVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 22 Apr 2026 22:58:02 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:27 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "69c52bdf-037e-48ab-9faf-e35be23c7bd2",
+  "uuid" : "70ce6156-2772-42f6-aa32-e97608e921ce",
   "persistent" : true,
-  "insertionIndex" : 284
+  "insertionIndex" : 307
 }
