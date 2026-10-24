@@ -1,0 +1,65 @@
+version: 2
+
+# Commit prefixes must be changelog-sections types in release-please-config.json, or the
+# PR Title check rejects the PR. Both chosen types are hidden from the release notes.
+# The cooldown holds back releases younger than 7 days, giving the ecosystem time to
+# catch and yank a compromised publish before it is proposed here.
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    ignore:
+      - dependency-name: "com.salesforce.multicloudj:*"
+    # Grouped so a weekly run yields a few PRs instead of one per artifact. Major
+    # bumps stay ungrouped so each breaking upgrade is reviewed on its own.
+    groups:
+      aws-sdk:
+        patterns:
+          - "software.amazon.awssdk:*"
+          - "software.amazon.eventstream:*"
+        update-types: ["minor", "patch"]
+      gcp-sdk:
+        patterns:
+          - "com.google.cloud:*"
+          - "com.google.api:*"
+          - "com.google.api-client:*"
+          - "com.google.protobuf:*"
+          - "io.grpc:*"
+        update-types: ["minor", "patch"]
+      ali-sdk:
+        patterns:
+          - "com.aliyun*"
+        update-types: ["minor", "patch"]
+      maven-plugins:
+        patterns:
+          - "org.apache.maven.plugins:*"
+          - "org.codehaus.mojo:*"
+          - "org.jacoco:*"
+          - "com.puppycrawl.tools:*"
+          - "org.sonatype.central:*"
+        update-types: ["minor", "patch"]
+      other-dependencies:
+        patterns:
+          - "*"
+        update-types: ["minor", "patch"]
