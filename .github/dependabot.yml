@@ -1,16 +1,16 @@
 version: 2
 
-# Commit prefixes must be changelog-sections types in release-please-config.json, or the
-# PR Title check rejects the PR. Both chosen types are hidden from the release notes.
-# The cooldown holds back releases younger than 7 days, giving the ecosystem time to
-# catch and yank a compromised publish before it is proposed here.
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    # Skip versions published less than 7 days ago, so a malicious release is
+    # likely to be caught and removed before it is proposed.
     cooldown:
       default-days: 7
+    # PR titles become "ci(deps): ..." / "build(deps): ...". The PR Title check
+    # only accepts types listed in release-please-config.json.
     commit-message:
       prefix: "ci"
       include: "scope"
