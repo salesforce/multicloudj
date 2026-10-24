@@ -4,7 +4,11 @@ name: PR Title
 # changelog from those messages. A title whose type is not a changelog-sections type in
 # release-please-config.json is silently left out of the release notes.
 on:
-  pull_request_target:
+  # pull_request_target runs the base branch's copy of this workflow, so a PR cannot weaken the
+  # check by editing it, and fork PRs are checked without waiting for workflow approval. Safe
+  # because the job checks out only the base branch's config, runs no PR code, has a read-only
+  # token, and reads the title from env rather than interpolating it into the script.
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
     types: [opened, edited, synchronize, reopened]
 
 permissions:
@@ -15,11 +19,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Base branch only: the allowed types come from the trusted config, not the PR.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           sparse-checkout: release-please-config.json
           sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Validate PR title against release-please types
         env:
