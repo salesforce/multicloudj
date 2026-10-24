@@ -1,5 +1,5 @@
 {
-  "id" : "b47addbb-6a12-4d43-bdcd-015236bfa2b8",
+  "id" : "ddbe94c2-7e25-466e-863f-dc28f2279700",
   "name" : "AwsDocstoreIT_testDelete-POST-9",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"pName\":{\"S\":\"TigerMapDelete\"},\"f\":{\"N\":\"12.65999984741211\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"i\":{\"N\":\"121\"},\"DocstoreRevision\":{\"S\":\"8279178d-e14b-b9ba-20c1-564a8ca17c60\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"pName\":{\"S\":\"TigerMapDelete\"},\"f\":{\"N\":\"12.65999984741211\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"i\":{\"N\":\"121\"},\"DocstoreRevision\":{\"S\":\"8279178d-e14b-b9ba-20c1-564a8ca17c60\"}},\"ConditionExpression\":\"attribute_not_exists(#pk)\",\"ExpressionAttributeNames\":{\"#pk\":\"pName\"}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "UNIF28VQFDK63Q7GT0ORGESRPNVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "HI5NLFPRMFQ2FT3UHFLK6C9MU3VV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 22 Apr 2026 22:58:14 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:41 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "b47addbb-6a12-4d43-bdcd-015236bfa2b8",
+  "uuid" : "ddbe94c2-7e25-466e-863f-dc28f2279700",
   "persistent" : true,
-  "insertionIndex" : 316
+  "insertionIndex" : 339
 }

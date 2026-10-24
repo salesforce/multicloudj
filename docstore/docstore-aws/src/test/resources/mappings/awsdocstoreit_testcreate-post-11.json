@@ -1,5 +1,5 @@
 {
-  "id" : "38568da8-dc85-44ae-ac74-cc8d0838da50",
+  "id" : "b3499783-41d5-4b4b-a9e8-15ad6fcb5c52",
   "name" : "AwsDocstoreIT_testCreate-POST-11",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"JohnReplace\"}}}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"KingReplace\"}},\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"dae29fb9-a071-4047-a796-109521072800\"}}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "6M9QAL95B71JFG1JSIV5EU9T37VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "53TQJIDAVOQQF5PKO1IFG0LOJ3VV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 22 Apr 2026 22:58:08 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:34 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "38568da8-dc85-44ae-ac74-cc8d0838da50",
+  "uuid" : "b3499783-41d5-4b4b-a9e8-15ad6fcb5c52",
   "persistent" : true,
-  "insertionIndex" : 301
+  "insertionIndex" : 324
 }
