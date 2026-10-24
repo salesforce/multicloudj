@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.13](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.12...multicloudj-v0.4.13) (2026-10-24)
+
+
+### Blob Store
+
+* sign tags and lifecycle custom time into GCP presigned upload URLs ([#688](https://github.com/salesforce/multicloudj/issues/688)) ([f32e89b](https://github.com/salesforce/multicloudj/commit/f32e89bc5844e1a949a5bd090e60e3c1bc82507e))
+
+
+### Document Store
+
+* alias the partition key in AWS create and replace preconditions ([#696](https://github.com/salesforce/multicloudj/issues/696)) ([31e1082](https://github.com/salesforce/multicloudj/commit/31e1082d63856844a8b9f7dfecc373cb2181568b))
+
 ## [0.4.12](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.11...multicloudj-v0.4.12) (2026-10-21)
 
 
