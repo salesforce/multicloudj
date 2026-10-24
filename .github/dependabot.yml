@@ -51,14 +51,6 @@ updates:
         patterns:
           - "com.aliyun*"
         update-types: ["minor", "patch"]
-      maven-plugins:
-        patterns:
-          - "org.apache.maven.plugins:*"
-          - "org.codehaus.mojo:*"
-          - "org.jacoco:*"
-          - "com.puppycrawl.tools:*"
-          - "org.sonatype.central:*"
-        update-types: ["minor", "patch"]
       other-dependencies:
         patterns:
           - "*"
