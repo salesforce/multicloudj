@@ -1,0 +1,32 @@
+{
+  "id" : "df06824d-9926-40e7-9aa6-1785bd666330",
+  "name" : "AwsKmsIT_testSetAndGetKeyPolicy-POST-1",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.DeleteAlias"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"AliasName\":\"alias/multicloudj-kms-it-policy\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "32c66bf2-3d73-45a3-a82f-b31a920d83e0",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Mon, 19 Oct 2026 17:45:39 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "df06824d-9926-40e7-9aa6-1785bd666330",
+  "persistent" : true,
+  "insertionIndex" : 2
+}

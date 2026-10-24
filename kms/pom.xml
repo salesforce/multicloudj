@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.salesforce.multicloudj</groupId>
+        <artifactId>multicloudj-parent</artifactId>
+        <version>0.4.13-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+    <artifactId>kms</artifactId>
+    <packaging>pom</packaging>
+    <name>MultiCloudJ KMS</name>
+    <description>MultiCloudJ Key Management Service</description>
+    <modules>
+        <module>kms-client</module>
+        <module>kms-aws</module>
+        <module>kms-gcp</module>
+        <module>kms-ali</module>
+    </modules>
+    <dependencies>
+        <dependency>
+            <groupId>com.google.auto.service</groupId>
+            <artifactId>auto-service</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+</project>
