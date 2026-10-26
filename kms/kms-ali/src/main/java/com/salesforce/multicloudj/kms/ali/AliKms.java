@@ -100,8 +100,7 @@ public class AliKms extends AbstractKms {
     return PolicyCapabilities.builder()
         .supportsDeny(true)
         .supportsConditions(false)
-        .supportedPrincipalTypes(
-            EnumSet.of(PrincipalType.IAM_ROLE, PrincipalType.SERVICE_ROLE, PrincipalType.ACCOUNT))
+        .supportedPrincipalTypes(EnumSet.of(PrincipalType.IDENTITY, PrincipalType.ACCOUNT))
         .supportedActions(AliKeyPolicyTranslator.supportedActions())
         .build();
   }

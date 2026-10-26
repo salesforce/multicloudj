@@ -104,7 +104,6 @@ final class AwsKeyPolicyTranslator {
   /** How a principal is written into a statement. */
   private enum PrincipalClass {
     AWS,
-    SERVICE,
     TENANT,
     WILDCARD_ALL,
     WILDCARD_PATTERN
@@ -200,11 +199,9 @@ final class AwsKeyPolicyTranslator {
 
   private static PrincipalClass classify(KeyPrincipal principal) {
     switch (principal.getType()) {
-      case IAM_ROLE:
+      case IDENTITY:
       case ACCOUNT:
         return PrincipalClass.AWS;
-      case SERVICE_ROLE:
-        return PrincipalClass.SERVICE;
       case TENANT:
         return PrincipalClass.TENANT;
       case WILDCARD:
@@ -229,10 +226,6 @@ final class AwsKeyPolicyTranslator {
       case AWS:
         ArrayNode aws = principal.putArray("AWS");
         run.forEach(p -> aws.add(toAwsPrincipal(p)));
-        break;
-      case SERVICE:
-        ArrayNode service = principal.putArray("Service");
-        run.forEach(p -> service.add(p.getIdentifier()));
         break;
       case TENANT:
         principal.put("AWS", "*");
@@ -447,11 +440,8 @@ final class AwsKeyPolicyTranslator {
       } else if (ACCOUNT_ID.matcher(value).matches()) {
         out.add(KeyPrincipal.of(PrincipalType.ACCOUNT, value));
       } else {
-        out.add(KeyPrincipal.of(PrincipalType.IAM_ROLE, value));
+        out.add(KeyPrincipal.of(PrincipalType.IDENTITY, value));
       }
-    }
-    for (String value : textValues(node.get("Service"))) {
-      out.add(KeyPrincipal.of(PrincipalType.SERVICE_ROLE, value));
     }
   }
 

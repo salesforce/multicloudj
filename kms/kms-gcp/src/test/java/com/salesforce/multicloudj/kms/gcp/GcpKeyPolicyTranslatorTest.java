@@ -28,9 +28,7 @@ class GcpKeyPolicyTranslatorTest {
 
     assertFalse(capabilities.isSupportsDeny());
     assertFalse(capabilities.isSupportsConditions());
-    assertEquals(
-        Set.of(PrincipalType.IAM_ROLE, PrincipalType.SERVICE_ROLE),
-        capabilities.getSupportedPrincipalTypes());
+    assertEquals(Set.of(PrincipalType.IDENTITY), capabilities.getSupportedPrincipalTypes());
     assertEquals(
         Set.of(KeyAction.ENCRYPT, KeyAction.DECRYPT, KeyAction.DESCRIBE, KeyAction.MANAGE),
         capabilities.getSupportedActions());
@@ -42,19 +40,19 @@ class GcpKeyPolicyTranslatorTest {
         KeyPolicy.builder()
             .grant(
                 KeyGrant.builder()
-                    .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, ADMIN))
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, ADMIN))
                     .action(KeyAction.MANAGE)
                     .action(KeyAction.DESCRIBE)
                     .build())
             .grant(
                 KeyGrant.builder()
-                    .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, GRANTEE))
-                    .principal(KeyPrincipal.of(PrincipalType.SERVICE_ROLE, "user:bob@example.com"))
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, GRANTEE))
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, "user:bob@example.com"))
                     .action(KeyAction.ENCRYPT)
                     .build())
             .grant(
                 KeyGrant.builder()
-                    .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, ADMIN))
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, ADMIN))
                     .action(KeyAction.ENCRYPT)
                     .build())
             .build();
@@ -78,7 +76,7 @@ class GcpKeyPolicyTranslatorTest {
         KeyPolicy.builder()
             .grant(
                 KeyGrant.builder()
-                    .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, "group:eng@example.com"))
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, "group:eng@example.com"))
                     .action(KeyAction.DECRYPT)
                     .build())
             .build();
@@ -112,12 +110,12 @@ class GcpKeyPolicyTranslatorTest {
     assertEquals(2, result.getGrants().size());
     KeyGrant grantee = result.getGrants().get(0);
     assertEquals(
-        List.of(KeyPrincipal.of(PrincipalType.IAM_ROLE, GRANTEE)), grantee.getPrincipals());
+        List.of(KeyPrincipal.of(PrincipalType.IDENTITY, GRANTEE)), grantee.getPrincipals());
     assertEquals(
         Set.of(KeyAction.ENCRYPT, KeyAction.DECRYPT, KeyAction.MANAGE), grantee.getActions());
     KeyGrant bob = result.getGrants().get(1);
     assertEquals(
-        List.of(KeyPrincipal.of(PrincipalType.IAM_ROLE, "user:bob@example.com")),
+        List.of(KeyPrincipal.of(PrincipalType.IDENTITY, "user:bob@example.com")),
         bob.getPrincipals());
     assertEquals(
         Set.of(KeyAction.ENCRYPT, KeyAction.DECRYPT, KeyAction.DESCRIBE), bob.getActions());
@@ -145,7 +143,7 @@ class GcpKeyPolicyTranslatorTest {
 
     assertEquals(1, result.getGrants().size());
     assertEquals(
-        List.of(KeyPrincipal.of(PrincipalType.IAM_ROLE, GRANTEE)),
+        List.of(KeyPrincipal.of(PrincipalType.IDENTITY, GRANTEE)),
         result.getGrants().get(0).getPrincipals());
     assertEquals(Set.of(KeyAction.DESCRIBE), result.getGrants().get(0).getActions());
   }
@@ -156,13 +154,13 @@ class GcpKeyPolicyTranslatorTest {
         KeyPolicy.builder()
             .grant(
                 KeyGrant.builder()
-                    .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, ADMIN))
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, ADMIN))
                     .action(KeyAction.MANAGE)
                     .action(KeyAction.DESCRIBE)
                     .build())
             .grant(
                 KeyGrant.builder()
-                    .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, GRANTEE))
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, GRANTEE))
                     .action(KeyAction.ENCRYPT)
                     .action(KeyAction.DECRYPT)
                     .build())
@@ -181,8 +179,8 @@ class GcpKeyPolicyTranslatorTest {
         KeyPolicy.builder()
             .grant(
                 KeyGrant.builder()
-                    .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, ADMIN))
-                    .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, GRANTEE))
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, ADMIN))
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, GRANTEE))
                     .action(KeyAction.DECRYPT)
                     .build())
             .build();

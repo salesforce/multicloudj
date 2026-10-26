@@ -5,7 +5,6 @@ import com.google.cloud.kms.v1.CryptoKeyVersion;
 import com.google.cloud.kms.v1.CryptoKeyVersion.CryptoKeyVersionState;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
 import com.google.cloud.kms.v1.KeyManagementServiceSettings;
-import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.util.MockGoogleCredentialsFactory;
 import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
 import com.salesforce.multicloudj.kms.client.AbstractKmsIT;
@@ -95,12 +94,12 @@ public class GcpKmsIT extends AbstractKmsIT {
 
     @Override
     public KeyPrincipal getAdminPrincipal() {
-      return KeyPrincipal.of(PrincipalType.IAM_ROLE, ADMIN_SERVICE_ACCOUNT);
+      return KeyPrincipal.of(PrincipalType.IDENTITY, ADMIN_SERVICE_ACCOUNT);
     }
 
     @Override
     public KeyPrincipal getGranteePrincipal() {
-      return KeyPrincipal.of(PrincipalType.IAM_ROLE, GRANTEE_SERVICE_ACCOUNT);
+      return KeyPrincipal.of(PrincipalType.IDENTITY, GRANTEE_SERVICE_ACCOUNT);
     }
 
     @Override

@@ -88,12 +88,10 @@ final class AliKeyPolicyTranslator {
     statement.put("Effect", grant.getEffect() == Effect.DENY ? "Deny" : "Allow");
 
     ArrayNode ram = MAPPER.createArrayNode();
-    ArrayNode service = MAPPER.createArrayNode();
     for (KeyPrincipal principal : grant.getPrincipals()) {
       switch (principal.getType()) {
-        case IAM_ROLE -> ram.add(principal.getIdentifier());
+        case IDENTITY -> ram.add(principal.getIdentifier());
         case ACCOUNT -> ram.add(RAM_PREFIX + principal.getIdentifier() + ":*");
-        case SERVICE_ROLE -> service.add(principal.getIdentifier());
         default ->
             throw new InvalidArgumentException("unsupported principal type " + principal.getType());
       }
@@ -101,9 +99,6 @@ final class AliKeyPolicyTranslator {
     ObjectNode principals = statement.putObject("Principal");
     if (!ram.isEmpty()) {
       principals.set("RAM", ram);
-    }
-    if (!service.isEmpty()) {
-      principals.set("Service", service);
     }
 
     ArrayNode actions = statement.putArray("Action");
@@ -177,11 +172,8 @@ final class AliKeyPolicyTranslator {
       if (account.matches()) {
         principals.add(KeyPrincipal.of(PrincipalType.ACCOUNT, account.group(1)));
       } else if (!ram.equals("*")) {
-        principals.add(KeyPrincipal.of(PrincipalType.IAM_ROLE, ram));
+        principals.add(KeyPrincipal.of(PrincipalType.IDENTITY, ram));
       }
-    }
-    for (String service : values(principal.path("Service"))) {
-      principals.add(KeyPrincipal.of(PrincipalType.SERVICE_ROLE, service));
     }
     return principals;
   }

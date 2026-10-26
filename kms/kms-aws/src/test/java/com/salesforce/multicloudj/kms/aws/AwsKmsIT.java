@@ -91,7 +91,7 @@ public class AwsKmsIT extends AbstractKmsIT {
     @Override
     public KeyPrincipal getGranteePrincipal() {
       return KeyPrincipal.of(
-          PrincipalType.IAM_ROLE, "arn:aws:iam::654654370895:role/chameleon-jcloud-test");
+          PrincipalType.IDENTITY, "arn:aws:iam::654654370895:role/chameleon-jcloud-test");
     }
 
     @Override

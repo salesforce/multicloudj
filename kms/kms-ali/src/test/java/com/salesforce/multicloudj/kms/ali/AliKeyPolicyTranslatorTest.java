@@ -13,6 +13,7 @@ import com.salesforce.multicloudj.kms.model.KeyPolicy;
 import com.salesforce.multicloudj.kms.model.KeyPrincipal;
 import com.salesforce.multicloudj.kms.model.PrincipalType;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +21,7 @@ class AliKeyPolicyTranslatorTest {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
   private static final KeyPrincipal ROLE =
-      KeyPrincipal.of(PrincipalType.IAM_ROLE, "acs:ram::1234:role/app");
+      KeyPrincipal.of(PrincipalType.IDENTITY, "acs:ram::1234:role/app");
 
   @Test
   void writesDocumentShape() throws Exception {
@@ -30,7 +31,6 @@ class AliKeyPolicyTranslatorTest {
                 KeyGrant.builder()
                     .principal(ROLE)
                     .principal(KeyPrincipal.of(PrincipalType.ACCOUNT, "5678"))
-                    .principal(KeyPrincipal.of(PrincipalType.SERVICE_ROLE, "ecs.aliyuncs.com"))
                     .action(KeyAction.ENCRYPT)
                     .effect(Effect.DENY)
                     .build())
@@ -43,7 +43,6 @@ class AliKeyPolicyTranslatorTest {
     assertEquals("Deny", statement.get("Effect").asText());
     assertEquals("acs:ram::1234:role/app", statement.at("/Principal/RAM/0").asText());
     assertEquals("acs:ram::5678:*", statement.at("/Principal/RAM/1").asText());
-    assertEquals("ecs.aliyuncs.com", statement.at("/Principal/Service/0").asText());
     assertEquals("kms:Encrypt", statement.at("/Action/0").asText());
     assertEquals(1, statement.get("Action").size());
     assertEquals("*", statement.at("/Resource/0").asText());
@@ -86,7 +85,6 @@ class AliKeyPolicyTranslatorTest {
             .grant(
                 KeyGrant.builder()
                     .principal(KeyPrincipal.of(PrincipalType.ACCOUNT, "5678"))
-                    .principal(KeyPrincipal.of(PrincipalType.SERVICE_ROLE, "ecs.aliyuncs.com"))
                     .action(KeyAction.ENCRYPT)
                     .action(KeyAction.DECRYPT)
                     .action(KeyAction.GENERATE_DATA_KEY)
@@ -120,6 +118,24 @@ class AliKeyPolicyTranslatorTest {
     assertEquals(Effect.ALLOW, grant.getEffect());
     assertEquals(KeyPrincipal.of(PrincipalType.ACCOUNT, "99"), grant.getPrincipals().get(0));
     assertEquals(Set.of(KeyAction.DECRYPT), grant.getActions());
+  }
+
+  @Test
+  void omitsServicePrincipalsOnRead() {
+    String json =
+        "{\"Statement\":[{\"Effect\":\"Allow\","
+            + "\"Principal\":{\"RAM\":[\"acs:ram::1234:role/app\"],"
+            + "\"Service\":[\"ecs.aliyuncs.com\"]},"
+            + "\"Action\":[\"kms:Decrypt\"]},"
+            + "{\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"ecs.aliyuncs.com\"]},"
+            + "\"Action\":[\"kms:Encrypt\"]}]}";
+
+    KeyPolicy read = AliKeyPolicyTranslator.fromPolicyJson(json);
+
+    assertEquals(1, read.getGrants().size());
+    assertEquals(
+        List.of(KeyPrincipal.of(PrincipalType.IDENTITY, "acs:ram::1234:role/app")),
+        read.getGrants().get(0).getPrincipals());
   }
 
   @Test

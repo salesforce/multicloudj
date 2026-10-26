@@ -339,7 +339,7 @@ class AliKmsTest {
         KeyPolicy.builder()
             .grant(
                 KeyGrant.builder()
-                    .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, "acs:ram::1:role/a"))
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, "acs:ram::1:role/a"))
                     .action(KeyAction.ENCRYPT)
                     .action(KeyAction.DECRYPT)
                     .build())
@@ -371,8 +371,7 @@ class AliKmsTest {
     assertTrue(capabilities.isSupportsDeny());
     assertEquals(false, capabilities.isSupportsConditions());
     assertEquals(
-        java.util.EnumSet.of(
-            PrincipalType.IAM_ROLE, PrincipalType.SERVICE_ROLE, PrincipalType.ACCOUNT),
+        java.util.EnumSet.of(PrincipalType.IDENTITY, PrincipalType.ACCOUNT),
         capabilities.getSupportedPrincipalTypes());
     assertTrue(capabilities.getSupportedActions().contains(KeyAction.MANAGE));
     assertEquals(false, capabilities.getSupportedActions().contains(KeyAction.SIGN));
@@ -384,7 +383,7 @@ class AliKmsTest {
         KeyPolicy.builder()
             .grant(
                 KeyGrant.builder()
-                    .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, "r"))
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, "r"))
                     .action(KeyAction.DECRYPT)
                     .condition(
                         com.salesforce.multicloudj.kms.model.KeyCondition.builder()

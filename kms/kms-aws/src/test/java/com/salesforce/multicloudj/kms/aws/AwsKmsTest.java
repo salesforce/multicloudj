@@ -411,7 +411,7 @@ class AwsKmsTest {
         KeyPolicy.builder()
             .grant(
                 KeyGrant.builder()
-                    .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, "arn:aws:iam::1:role/r"))
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, "arn:aws:iam::1:role/r"))
                     .action(KeyAction.ENCRYPT)
                     .action(KeyAction.DECRYPT)
                     .build())

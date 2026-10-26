@@ -738,7 +738,7 @@ class GcpKmsTest {
             .grant(
                 KeyGrant.builder()
                     .principal(
-                        KeyPrincipal.of(PrincipalType.IAM_ROLE, "sa@p.iam.gserviceaccount.com"))
+                        KeyPrincipal.of(PrincipalType.IDENTITY, "sa@p.iam.gserviceaccount.com"))
                     .action(KeyAction.ENCRYPT)
                     .build())
             .build();
@@ -778,7 +778,7 @@ class GcpKmsTest {
     assertEquals(KEY_NAME, read.getValue().getResource());
     assertEquals(1, policy.getGrants().size());
     assertEquals(
-        KeyPrincipal.of(PrincipalType.IAM_ROLE, "sa@p.iam.gserviceaccount.com"),
+        KeyPrincipal.of(PrincipalType.IDENTITY, "sa@p.iam.gserviceaccount.com"),
         policy.getGrants().get(0).getPrincipals().get(0));
   }
 

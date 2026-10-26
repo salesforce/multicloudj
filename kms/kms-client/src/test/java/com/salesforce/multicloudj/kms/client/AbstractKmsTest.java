@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test;
 public class AbstractKmsTest {
 
   private static final KeyRef KEY = KeyRef.builder().keyId("key-1").build();
-  private static final KeyPrincipal ROLE = KeyPrincipal.of(PrincipalType.IAM_ROLE, "role-1");
+  private static final KeyPrincipal ROLE = KeyPrincipal.of(PrincipalType.IDENTITY, "role-1");
 
   private final TestKms kms = new TestKms();
 
@@ -137,7 +137,7 @@ public class AbstractKmsTest {
         KeyPolicy.builder().grant(KeyGrant.builder().action(KeyAction.ENCRYPT).build()).build();
     KeyPolicy noAction =
         KeyPolicy.builder().grant(KeyGrant.builder().principal(ROLE).build()).build();
-    KeyPolicy blankPrincipal = policyWith(KeyPrincipal.of(PrincipalType.IAM_ROLE, " "));
+    KeyPolicy blankPrincipal = policyWith(KeyPrincipal.of(PrincipalType.IDENTITY, " "));
 
     assertThrows(InvalidArgumentException.class, () -> kms.setKeyPolicy(KEY, null));
     assertThrows(InvalidArgumentException.class, () -> kms.setKeyPolicy(KEY, empty));
@@ -190,7 +190,7 @@ public class AbstractKmsTest {
   void setKeyPolicyRejectsUnsupportedPrincipalTypesAndActions() {
     kms.capabilities =
         PolicyCapabilities.builder()
-            .supportedPrincipalTypes(EnumSet.of(PrincipalType.IAM_ROLE))
+            .supportedPrincipalTypes(EnumSet.of(PrincipalType.IDENTITY))
             .supportedActions(EnumSet.of(KeyAction.ENCRYPT, KeyAction.DECRYPT))
             .build();
 

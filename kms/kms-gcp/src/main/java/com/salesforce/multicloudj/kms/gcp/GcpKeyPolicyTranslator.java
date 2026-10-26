@@ -30,7 +30,7 @@ final class GcpKeyPolicyTranslator {
       PolicyCapabilities.builder()
           .supportsDeny(false)
           .supportsConditions(false)
-          .supportedPrincipalTypes(EnumSet.of(PrincipalType.IAM_ROLE, PrincipalType.SERVICE_ROLE))
+          .supportedPrincipalTypes(EnumSet.of(PrincipalType.IDENTITY))
           .supportedActions(
               EnumSet.of(
                   KeyAction.ENCRYPT, KeyAction.DECRYPT, KeyAction.DESCRIBE, KeyAction.MANAGE))
@@ -103,7 +103,7 @@ final class GcpKeyPolicyTranslator {
         (member, actions) ->
             result.grant(
                 KeyGrant.builder()
-                    .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, fromMember(member)))
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, fromMember(member)))
                     .actions(actions)
                     .build()));
     return result.build();

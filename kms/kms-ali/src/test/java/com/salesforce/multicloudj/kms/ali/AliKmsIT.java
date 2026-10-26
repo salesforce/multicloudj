@@ -85,12 +85,12 @@ public class AliKmsIT extends AbstractKmsIT {
 
     @Override
     public KeyPrincipal getAdminPrincipal() {
-      return KeyPrincipal.of(PrincipalType.IAM_ROLE, "acs:ram::" + ACCOUNT_ID + ":role/kms-admin");
+      return KeyPrincipal.of(PrincipalType.IDENTITY, "acs:ram::" + ACCOUNT_ID + ":role/kms-admin");
     }
 
     @Override
     public KeyPrincipal getGranteePrincipal() {
-      return KeyPrincipal.of(PrincipalType.IAM_ROLE, "acs:ram::" + ACCOUNT_ID + ":role/kms-user");
+      return KeyPrincipal.of(PrincipalType.IDENTITY, "acs:ram::" + ACCOUNT_ID + ":role/kms-user");
     }
 
     @Override

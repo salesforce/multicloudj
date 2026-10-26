@@ -2,11 +2,12 @@ package com.salesforce.multicloudj.kms.model;
 
 /** Kind of identity a {@link KeyPrincipal} identifies. */
 public enum PrincipalType {
-  /** A role or workload identity, identified by its native identifier. */
-  IAM_ROLE,
-
-  /** A cloud service acting on its own behalf, identified by its native service name. */
-  SERVICE_ROLE,
+  /**
+   * A single identity, such as a role, service account or user. The identifier is the identity's
+   * native identifier as returned by the IAM client's {@code getIdentity}, passed through
+   * unchanged.
+   */
+  IDENTITY,
 
   /** Every identity in an account or project, identified by the account or project id. */
   ACCOUNT,

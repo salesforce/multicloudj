@@ -65,7 +65,7 @@ class AwsKeyPolicyTranslatorTest {
     JsonNode doc =
         translate(
             allow(
-                KeyPrincipal.of(PrincipalType.IAM_ROLE, ROLE),
+                KeyPrincipal.of(PrincipalType.IDENTITY, ROLE),
                 KeyAction.ENCRYPT,
                 KeyAction.DECRYPT));
 
@@ -83,7 +83,7 @@ class AwsKeyPolicyTranslatorTest {
   void denyEffectIsWritten() throws Exception {
     KeyGrant grant =
         KeyGrant.builder()
-            .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, ROLE))
+            .principal(KeyPrincipal.of(PrincipalType.IDENTITY, ROLE))
             .action(KeyAction.DECRYPT)
             .effect(Effect.DENY)
             .build();
@@ -92,22 +92,15 @@ class AwsKeyPolicyTranslatorTest {
   }
 
   @Test
-  void serviceAndAccountPrincipals() throws Exception {
-    KeyGrant grant =
-        KeyGrant.builder()
-            .principal(KeyPrincipal.of(PrincipalType.ACCOUNT, "123456789012"))
-            .principal(KeyPrincipal.of(PrincipalType.SERVICE_ROLE, "logs.amazonaws.com"))
-            .action(KeyAction.DESCRIBE)
-            .build();
+  void accountPrincipalIsAccountRootArn() throws Exception {
+    JsonNode statements =
+        translate(allow(KeyPrincipal.of(PrincipalType.ACCOUNT, "123456789012"), KeyAction.DESCRIBE))
+            .get("Statement");
 
-    JsonNode statements = translate(grant).get("Statement");
-
-    assertEquals(2, statements.size());
+    assertEquals(1, statements.size());
     assertEquals(
         List.of("arn:aws:iam::123456789012:root"),
         texts(statements.get(0).get("Principal").get("AWS")));
-    assertEquals(
-        List.of("logs.amazonaws.com"), texts(statements.get(1).get("Principal").get("Service")));
     assertEquals(List.of("kms:DescribeKey"), texts(statements.get(0).get("Action")));
   }
 
@@ -154,7 +147,7 @@ class AwsKeyPolicyTranslatorTest {
   @Test
   void manageDoesNotGrantCryptographicOperations() throws Exception {
     JsonNode actions =
-        translate(allow(KeyPrincipal.of(PrincipalType.IAM_ROLE, ROLE), KeyAction.MANAGE))
+        translate(allow(KeyPrincipal.of(PrincipalType.IDENTITY, ROLE), KeyAction.MANAGE))
             .get("Statement")
             .get(0)
             .get("Action");
@@ -171,7 +164,7 @@ class AwsKeyPolicyTranslatorTest {
   void singleActionMappings() throws Exception {
     KeyGrant grant =
         allow(
-            KeyPrincipal.of(PrincipalType.IAM_ROLE, ROLE),
+            KeyPrincipal.of(PrincipalType.IDENTITY, ROLE),
             KeyAction.GENERATE_DATA_KEY,
             KeyAction.REENCRYPT,
             KeyAction.CREATE_GRANT,
@@ -188,7 +181,7 @@ class AwsKeyPolicyTranslatorTest {
   void conditionOperatorsAreMergedUnderOneOperator() throws Exception {
     KeyGrant grant =
         KeyGrant.builder()
-            .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, ROLE))
+            .principal(KeyPrincipal.of(PrincipalType.IDENTITY, ROLE))
             .action(KeyAction.ENCRYPT)
             .condition(
                 cond(
@@ -223,7 +216,7 @@ class AwsKeyPolicyTranslatorTest {
   void duplicateOperatorAndKeyIsRejected() {
     KeyGrant grant =
         KeyGrant.builder()
-            .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, ROLE))
+            .principal(KeyPrincipal.of(PrincipalType.IDENTITY, ROLE))
             .action(KeyAction.ENCRYPT)
             .condition(cond(ConditionOperator.STRING_EQUALS, "kms:ViaService", "a"))
             .condition(cond(ConditionOperator.STRING_EQUALS, "kms:ViaService", "b"))
@@ -277,10 +270,10 @@ class AwsKeyPolicyTranslatorTest {
     assertEquals(Effect.DENY, second.getEffect());
     assertEquals(
         List.of(
-            KeyPrincipal.of(PrincipalType.IAM_ROLE, ROLE),
-            KeyPrincipal.of(PrincipalType.ACCOUNT, "654654370895"),
-            KeyPrincipal.of(PrincipalType.SERVICE_ROLE, "logs.amazonaws.com")),
-        second.getPrincipals());
+            KeyPrincipal.of(PrincipalType.IDENTITY, ROLE),
+            KeyPrincipal.of(PrincipalType.ACCOUNT, "654654370895")),
+        second.getPrincipals(),
+        "service principals have no portable equivalent and are omitted");
     assertEquals(Set.of(KeyAction.ENCRYPT, KeyAction.SIGN), second.getActions());
   }
 
@@ -384,12 +377,11 @@ class AwsKeyPolicyTranslatorTest {
                     KeyAction.DESCRIBE))
             .grant(
                 KeyGrant.builder()
-                    .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, ROLE))
-                    .principal(KeyPrincipal.of(PrincipalType.SERVICE_ROLE, "logs.amazonaws.com"))
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, ROLE))
                     .principal(KeyPrincipal.of(PrincipalType.TENANT, "o-abc123"))
                     .principal(KeyPrincipal.of(PrincipalType.TENANT, "o-def456"))
                     .principal(KeyPrincipal.of(PrincipalType.WILDCARD, "arn:aws:iam::1:role/a-*"))
-                    .principal(KeyPrincipal.of(PrincipalType.IAM_ROLE, ROLE + "2"))
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, ROLE + "2"))
                     .action(KeyAction.ENCRYPT)
                     .action(KeyAction.DECRYPT)
                     .action(KeyAction.GENERATE_DATA_KEY)
