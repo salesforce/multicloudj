@@ -1,5 +1,5 @@
 {
-  "id" : "a32d52d6-a898-40ce-8f28-833786d692c0",
+  "id" : "3c09a4a8-ed94-417d-9093-0dbc91361ccf",
   "name" : "AwsDocstoreIT_testAtomicWritesFail-POST-4",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"Key\":{\"Player\":{\"S\":\"testAtomicWritesFail6\"},\"Game\":{\"S\":\"testAtomicWritesFail\"}},\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"67be2852-6b38-c62f-161d-afbf27171931\"}}}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"Key\":{\"Player\":{\"S\":\"testAtomicWritesFail5\"},\"Game\":{\"S\":\"testAtomicWritesFail\"}},\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"8202acf1-c138-0366-58e8-092c7069bba7\"}}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "O457GI6NVNBS3S25VI633HIBHFVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "0P3NDFGM8M3Q0UQALCHSE4T893VV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 22 Jul 2026 23:39:40 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:51 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "a32d52d6-a898-40ce-8f28-833786d692c0",
+  "uuid" : "3c09a4a8-ed94-417d-9093-0dbc91361ccf",
   "persistent" : true,
-  "insertionIndex" : 386
+  "insertionIndex" : 394
 }

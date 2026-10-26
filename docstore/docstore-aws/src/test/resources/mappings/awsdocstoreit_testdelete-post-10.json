@@ -1,5 +1,5 @@
 {
-  "id" : "03ca714a-b785-416a-8140-279c1c4c8df0",
+  "id" : "c036c8f4-2b72-4140-82cf-2c013e914a47",
   "name" : "AwsDocstoreIT_testDelete-POST-10",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"pName\":{\"S\":\"FrankDelete\"},\"f\":{\"N\":\"12.65999984741211\"},\"i\":{\"N\":\"121\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"pName\":{\"S\":\"FrankDelete\"},\"f\":{\"N\":\"12.65999984741211\"},\"i\":{\"N\":\"121\"}},\"ConditionExpression\":\"attribute_not_exists(#pk)\",\"ExpressionAttributeNames\":{\"#pk\":\"pName\"}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "NIVOQNSQLLHHJM7OA6MN2OP51NVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "NGQ2JP79NL5E7K9JATG81U11VJVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 22 Apr 2026 22:58:14 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:40 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "03ca714a-b785-416a-8140-279c1c4c8df0",
+  "uuid" : "c036c8f4-2b72-4140-82cf-2c013e914a47",
   "persistent" : true,
-  "insertionIndex" : 317
+  "insertionIndex" : 340
 }
