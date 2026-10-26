@@ -17,6 +17,12 @@ import lombok.ToString;
 @EqualsAndHashCode
 @ToString
 public class KeyGrant {
+  /**
+   * Optional caller-chosen identifier of the grant, kept on providers whose native policy entries
+   * carry an identifier and dropped on the others.
+   */
+  private final String id;
+
   @Singular private final List<KeyPrincipal> principals;
 
   @Singular private final Set<KeyAction> actions;

@@ -33,8 +33,16 @@ public class CreateKeyRequest {
   @Singular private final Map<String, String> tags;
 
   /**
-   * Whether the key's material may be replicated to other regions. Providers that cannot replicate
-   * key material reject {@code true} with {@code UnSupportedOperationException}.
+   * Optional access policy for the new key. Providers that accept a policy at creation apply it
+   * atomically; the others apply it immediately after creating the key. When unset the provider's
+   * default policy applies.
+   */
+  private final KeyPolicy policy;
+
+  /**
+   * Whether the key must be available across regions. Only valid when {@code
+   * KmsClient.supportsMultiRegionKeys()} is true; otherwise it is rejected with {@code
+   * UnSupportedOperationException}.
    */
   private final boolean multiRegion;
 }

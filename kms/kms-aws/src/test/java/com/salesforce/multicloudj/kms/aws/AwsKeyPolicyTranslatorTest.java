@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.kms.aws;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -9,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.kms.model.ConditionAttribute;
 import com.salesforce.multicloudj.kms.model.ConditionOperator;
 import com.salesforce.multicloudj.kms.model.Effect;
 import com.salesforce.multicloudj.kms.model.KeyAction;
@@ -157,6 +159,7 @@ class AwsKeyPolicyTranslatorTest {
     assertFalse(names.contains("kms:*"));
     assertFalse(names.contains("kms:Encrypt"));
     assertFalse(names.contains("kms:Decrypt"));
+    assertTrue(names.contains("kms:RotateKeyOnDemand"));
     assertFalse(names.contains("kms:GenerateDataKey*"));
   }
 
@@ -270,10 +273,10 @@ class AwsKeyPolicyTranslatorTest {
     assertEquals(Effect.DENY, second.getEffect());
     assertEquals(
         List.of(
+            KeyPrincipal.of(PrincipalType.IDENTITY, "logs.amazonaws.com"),
             KeyPrincipal.of(PrincipalType.IDENTITY, ROLE),
             KeyPrincipal.of(PrincipalType.ACCOUNT, "654654370895")),
-        second.getPrincipals(),
-        "service principals have no portable equivalent and are omitted");
+        second.getPrincipals());
     assertEquals(Set.of(KeyAction.ENCRYPT, KeyAction.SIGN), second.getActions());
   }
 
@@ -286,7 +289,7 @@ class AwsKeyPolicyTranslatorTest {
 
     KeyPolicy policy = AwsKeyPolicyTranslator.fromAwsPolicy(document);
 
-    assertEquals(EnumSet.allOf(KeyAction.class), policy.getGrants().get(0).getActions());
+    assertEquals(EnumSet.of(KeyAction.ALL), policy.getGrants().get(0).getActions());
   }
 
   @Test
@@ -434,8 +437,392 @@ class AwsKeyPolicyTranslatorTest {
             .build());
   }
 
+  private static final String ACCT = "111122223333";
+  private static final String SKB_ROLE = "arn:aws:iam::" + ACCT + ":role/skbKmsRole";
+  private static final String BROKER_ROLE = "arn:aws:iam::" + ACCT + ":role/skbBroker";
+
+  private static KeyCondition attr(
+      ConditionOperator operator, ConditionAttribute attribute, String key, String... values) {
+    KeyCondition.KeyConditionBuilder builder =
+        KeyCondition.builder().operator(operator).attribute(attribute).key(key);
+    for (String value : values) {
+      builder.value(value);
+    }
+    return builder.build();
+  }
+
+  private static KeyPolicy skbPolicy() {
+    return KeyPolicy.builder()
+        .grant(
+            KeyGrant.builder()
+                .id("EnableIamUserPermissions")
+                .principal(KeyPrincipal.of(PrincipalType.ACCOUNT, ACCT))
+                .action(KeyAction.ALL)
+                .build())
+        .grant(
+            KeyGrant.builder()
+                .id("AllowSkbKeyAdministrators")
+                .principal(KeyPrincipal.of(PrincipalType.IDENTITY, SKB_ROLE))
+                .action(KeyAction.DESCRIBE)
+                .action(KeyAction.MANAGE_STATE)
+                .action(KeyAction.MANAGE_POLICY)
+                .action(KeyAction.MANAGE_TAGS)
+                .action(KeyAction.IMPORT_KEY_MATERIAL)
+                .action(KeyAction.REPLICATE)
+                .build())
+        .grant(
+            KeyGrant.builder()
+                .id("AllowSalesforceDataCloud1")
+                .principal(KeyPrincipal.of(PrincipalType.ACCOUNT, ACCT))
+                .condition(
+                    attr(
+                        ConditionOperator.RESOURCE_NAME_LIKE,
+                        ConditionAttribute.PRINCIPAL_NAME,
+                        null,
+                        "arn:aws:iam::" + ACCT + ":role/sfDataCloud*"))
+                .action(KeyAction.CREATE_GRANT)
+                .action(KeyAction.DECRYPT)
+                .action(KeyAction.DESCRIBE)
+                .action(KeyAction.ENCRYPT)
+                .action(KeyAction.GENERATE_DATA_KEY)
+                .action(KeyAction.REENCRYPT)
+                .build())
+        .grant(
+            KeyGrant.builder()
+                .id("AllowS3InventoryEncryptionForArchivedBuckets")
+                .principal(KeyPrincipal.of(PrincipalType.IDENTITY, "s3.amazonaws.com"))
+                .action(KeyAction.GENERATE_DATA_KEY)
+                .condition(
+                    attr(
+                        ConditionOperator.RESOURCE_NAME_LIKE,
+                        ConditionAttribute.SOURCE_RESOURCE,
+                        null,
+                        "arn:aws:s3:::sf-archive-*"))
+                .condition(
+                    attr(
+                        ConditionOperator.STRING_EQUALS,
+                        ConditionAttribute.SOURCE_ACCOUNT,
+                        null,
+                        ACCT))
+                .build())
+        .grant(
+            KeyGrant.builder()
+                .id("AllowSalesforceShieldKeyBroker1")
+                .principal(KeyPrincipal.of(PrincipalType.IDENTITY, BROKER_ROLE))
+                .action(KeyAction.GENERATE_DATA_KEY)
+                .action(KeyAction.DECRYPT)
+                .condition(
+                    attr(
+                        ConditionOperator.STRING_EQUALS,
+                        ConditionAttribute.ENCRYPTION_CONTEXT,
+                        "sf-auth",
+                        "token"))
+                .build())
+        .build();
+  }
+
+  @Test
+  void idBearingPolicyUsesIdsAsSidsAndNativeShapes() throws Exception {
+    KeyPolicy policy = skbPolicy();
+    JsonNode statements =
+        MAPPER.readTree(AwsKeyPolicyTranslator.toAwsPolicy(policy)).get("Statement");
+
+    assertEquals(5, statements.size());
+    JsonNode root = statements.get(0);
+    assertEquals("EnableIamUserPermissions", root.get("Sid").asText());
+    assertEquals(
+        List.of("arn:aws:iam::" + ACCT + ":root"), texts(root.get("Principal").get("AWS")));
+    assertEquals(List.of("kms:*"), texts(root.get("Action")));
+
+    JsonNode admins = statements.get(1);
+    assertEquals("AllowSkbKeyAdministrators", admins.get("Sid").asText());
+    assertEquals(
+        List.of(
+            "kms:DescribeKey",
+            "kms:EnableKey",
+            "kms:DisableKey",
+            "kms:GetKeyPolicy",
+            "kms:PutKeyPolicy",
+            "kms:ListKeyPolicies",
+            "kms:TagResource",
+            "kms:UntagResource",
+            "kms:ListResourceTags",
+            "kms:GetParametersForImport",
+            "kms:ImportKeyMaterial",
+            "kms:ReplicateKey",
+            "kms:UpdatePrimaryRegion"),
+        texts(admins.get("Action")));
+
+    JsonNode dataCloud = statements.get(2);
+    assertEquals("AllowSalesforceDataCloud1", dataCloud.get("Sid").asText());
+    assertEquals(
+        List.of("arn:aws:iam::" + ACCT + ":root"), texts(dataCloud.get("Principal").get("AWS")));
+    assertEquals(
+        List.of("arn:aws:iam::" + ACCT + ":role/sfDataCloud*"),
+        texts(dataCloud.get("Condition").get("ArnLike").get("aws:PrincipalArn")));
+
+    JsonNode s3 = statements.get(3);
+    assertEquals("AllowS3InventoryEncryptionForArchivedBuckets", s3.get("Sid").asText());
+    assertEquals(List.of("s3.amazonaws.com"), texts(s3.get("Principal").get("Service")));
+    assertFalse(s3.get("Principal").has("AWS"));
+    assertEquals(
+        List.of("arn:aws:s3:::sf-archive-*"),
+        texts(s3.get("Condition").get("ArnLike").get("aws:SourceArn")));
+    assertEquals(
+        List.of(ACCT), texts(s3.get("Condition").get("StringEquals").get("aws:SourceAccount")));
+
+    JsonNode broker = statements.get(4);
+    assertEquals("AllowSalesforceShieldKeyBroker1", broker.get("Sid").asText());
+    assertEquals(List.of(BROKER_ROLE), texts(broker.get("Principal").get("AWS")));
+    assertEquals(
+        List.of("token"),
+        texts(broker.get("Condition").get("StringEquals").get("kms:EncryptionContext:sf-auth")));
+
+    assertRoundTrips(policy);
+  }
+
+  @Test
+  void accountWithPrincipalNameConditionIsNotReadAsWildcard() {
+    KeyGrant grant =
+        KeyGrant.builder()
+            .principal(KeyPrincipal.of(PrincipalType.ACCOUNT, ACCT))
+            .action(KeyAction.DECRYPT)
+            .condition(
+                attr(
+                    ConditionOperator.RESOURCE_NAME_LIKE,
+                    ConditionAttribute.PRINCIPAL_NAME,
+                    null,
+                    "arn:aws:iam::" + ACCT + ":role/x*"))
+            .build();
+
+    assertRoundTrips(KeyPolicy.builder().grant(grant).build());
+  }
+
+  @Test
+  void userConditionOnPrincipalArnAlongsideWildcardPatternIsRejected() {
+    KeyGrant grant =
+        KeyGrant.builder()
+            .principal(KeyPrincipal.of(PrincipalType.WILDCARD, "arn:aws:iam::1:role/*"))
+            .action(KeyAction.DECRYPT)
+            .condition(
+                attr(
+                    ConditionOperator.RESOURCE_NAME_LIKE,
+                    ConditionAttribute.PRINCIPAL_NAME,
+                    null,
+                    "arn:aws:iam::1:role/a*"))
+            .build();
+
+    assertThrows(
+        UnSupportedOperationException.class,
+        () -> AwsKeyPolicyTranslator.toAwsPolicy(KeyPolicy.builder().grant(grant).build()));
+  }
+
+  @Test
+  void nativeKeysAreRecognisedCaseInsensitivelyOnRead() {
+    String document =
+        "{\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\""
+            + ROLE
+            + "\"},\"Action\":\"kms:Decrypt\",\"Resource\":\"*\","
+            + "\"Condition\":{\"StringEquals\":{\"AWS:sourceaccount\":\"1\","
+            + "\"KMS:encryptioncontext:MyKey\":\"v\",\"kms:ViaService\":\"s3\"},"
+            + "\"ArnLike\":{\"AWS:SOURCEARN\":\"arn:*\",\"AWS:principalarn\":\"p*\"}}}]}";
+
+    List<KeyCondition> conditions =
+        AwsKeyPolicyTranslator.fromAwsPolicy(document).getGrants().get(0).getConditions();
+
+    assertEquals(
+        List.of(
+            attr(ConditionOperator.STRING_EQUALS, ConditionAttribute.SOURCE_ACCOUNT, null, "1"),
+            attr(
+                ConditionOperator.STRING_EQUALS,
+                ConditionAttribute.ENCRYPTION_CONTEXT,
+                "MyKey",
+                "v"),
+            attr(
+                ConditionOperator.STRING_EQUALS, ConditionAttribute.NATIVE, "kms:ViaService", "s3"),
+            attr(
+                ConditionOperator.RESOURCE_NAME_LIKE,
+                ConditionAttribute.SOURCE_RESOURCE,
+                null,
+                "arn:*"),
+            attr(
+                ConditionOperator.RESOURCE_NAME_LIKE,
+                ConditionAttribute.PRINCIPAL_NAME,
+                null,
+                "p*")),
+        conditions);
+  }
+
+  @Test
+  void allActionWinsOverOtherActionsOnWrite() throws Exception {
+    JsonNode actions =
+        translate(
+                allow(
+                    KeyPrincipal.of(PrincipalType.IDENTITY, ROLE),
+                    KeyAction.ENCRYPT,
+                    KeyAction.ALL))
+            .get("Statement")
+            .get(0)
+            .get("Action");
+
+    assertEquals(List.of("kms:*"), texts(actions));
+  }
+
+  @Test
+  void bareStarActionMeansAll() {
+    String document =
+        "{\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\""
+            + ROLE
+            + "\"},\"Action\":[\"*\",\"kms:Decrypt\"],\"Resource\":\"*\"}]}";
+
+    assertEquals(
+        Set.of(KeyAction.ALL),
+        AwsKeyPolicyTranslator.fromAwsPolicy(document).getGrants().get(0).getActions());
+  }
+
+  @Test
+  void manageStatementDoesNotReportItsSubActions() {
+    KeyPolicy policy =
+        KeyPolicy.builder()
+            .grant(allow(KeyPrincipal.of(PrincipalType.IDENTITY, ROLE), KeyAction.MANAGE))
+            .build();
+
+    assertRoundTrips(policy);
+  }
+
+  @Test
+  void narrowerActionIsDroppedWhenItsVerbsAreContainedInABroaderOne() {
+    String document =
+        "{\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\""
+            + ROLE
+            + "\"},\"Action\":[\"kms:EnableKey\",\"kms:DisableKey\",\"kms:GetKeyPolicy\","
+            + "\"kms:PutKeyPolicy\",\"kms:ListKeyPolicies\"],\"Resource\":\"*\"}]}";
+
+    assertEquals(
+        Set.of(KeyAction.MANAGE_STATE, KeyAction.MANAGE_POLICY),
+        AwsKeyPolicyTranslator.fromAwsPolicy(document).getGrants().get(0).getActions());
+  }
+
+  @Test
+  void compositeActionNeedsEveryVerb() {
+    String document =
+        "{\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\""
+            + ROLE
+            + "\"},\"Action\":[\"KMS:replicatekey\",\"kms:Encrypt\"],\"Resource\":\"*\"}]}";
+
+    assertEquals(
+        Set.of(KeyAction.ENCRYPT),
+        AwsKeyPolicyTranslator.fromAwsPolicy(document).getGrants().get(0).getActions());
+  }
+
+  @Test
+  void everyActionCombinationOfNewActionsRoundTrips() {
+    List<KeyAction> composites =
+        List.of(
+            KeyAction.MANAGE,
+            KeyAction.MANAGE_STATE,
+            KeyAction.MANAGE_POLICY,
+            KeyAction.MANAGE_TAGS,
+            KeyAction.IMPORT_KEY_MATERIAL,
+            KeyAction.REPLICATE,
+            KeyAction.DESCRIBE);
+    for (int mask = 1; mask < (1 << composites.size()); mask++) {
+      KeyGrant.KeyGrantBuilder grant =
+          KeyGrant.builder().principal(KeyPrincipal.of(PrincipalType.IDENTITY, ROLE));
+      for (int i = 0; i < composites.size(); i++) {
+        if ((mask & (1 << i)) != 0) {
+          grant.action(composites.get(i));
+        }
+      }
+      assertRoundTrips(KeyPolicy.builder().grant(grant.build()).build());
+    }
+  }
+
+  @Test
+  void generatedSidsAreUsedWithoutIdAndReadBackWithoutId() throws Exception {
+    KeyGrant grant = allow(KeyPrincipal.of(PrincipalType.IDENTITY, ROLE), KeyAction.DECRYPT);
+
+    assertEquals("Grant0Part0", translate(grant).get("Statement").get(0).get("Sid").asText());
+    assertNull(
+        AwsKeyPolicyTranslator.fromAwsPolicy(
+                AwsKeyPolicyTranslator.toAwsPolicy(KeyPolicy.builder().grant(grant).build()))
+            .getGrants()
+            .get(0)
+            .getId());
+  }
+
+  @Test
+  void grantIdNeedingMultipleStatementsIsRejected() {
+    KeyGrant grant =
+        KeyGrant.builder()
+            .id("Mixed")
+            .principal(KeyPrincipal.of(PrincipalType.IDENTITY, ROLE))
+            .principal(KeyPrincipal.of(PrincipalType.IDENTITY, "s3.amazonaws.com"))
+            .action(KeyAction.DECRYPT)
+            .build();
+
+    assertThrows(
+        UnSupportedOperationException.class,
+        () -> AwsKeyPolicyTranslator.toAwsPolicy(KeyPolicy.builder().grant(grant).build()));
+  }
+
+  @Test
+  void grantIdMatchingGeneratedSidPatternIsRejected() {
+    KeyGrant grant =
+        KeyGrant.builder()
+            .id("Grant3Part0")
+            .principal(KeyPrincipal.of(PrincipalType.IDENTITY, ROLE))
+            .action(KeyAction.DECRYPT)
+            .build();
+
+    assertThrows(
+        UnSupportedOperationException.class,
+        () -> AwsKeyPolicyTranslator.toAwsPolicy(KeyPolicy.builder().grant(grant).build()));
+  }
+
+  @Test
+  void identityWithoutArnPrefixIsServicePrincipalInItsOwnStatement() throws Exception {
+    KeyGrant grant =
+        KeyGrant.builder()
+            .principal(KeyPrincipal.of(PrincipalType.IDENTITY, ROLE))
+            .principal(KeyPrincipal.of(PrincipalType.IDENTITY, "logs.amazonaws.com"))
+            .action(KeyAction.ENCRYPT)
+            .build();
+
+    JsonNode statements = translate(grant).get("Statement");
+
+    assertEquals(2, statements.size());
+    assertEquals(List.of(ROLE), texts(statements.get(0).get("Principal").get("AWS")));
+    assertEquals(
+        List.of("logs.amazonaws.com"), texts(statements.get(1).get("Principal").get("Service")));
+    assertRoundTrips(KeyPolicy.builder().grant(grant).build());
+  }
+
+  @Test
+  void nonGeneratedSidBecomesGrantIdAndGeneratedSidsStillMerge() {
+    String document =
+        "{\"Statement\":["
+            + "{\"Sid\":\"Custom\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\""
+            + ROLE
+            + "\"},\"Action\":\"kms:Decrypt\",\"Resource\":\"*\"},"
+            + "{\"Sid\":\"Grant1Part0\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\""
+            + ROLE
+            + "\"},\"Action\":\"kms:Decrypt\",\"Resource\":\"*\"},"
+            + "{\"Sid\":\"Grant1Part1\",\"Effect\":\"Allow\","
+            + "\"Principal\":{\"Service\":\"s3.amazonaws.com\"},"
+            + "\"Action\":\"kms:Decrypt\",\"Resource\":\"*\"}]}";
+
+    List<KeyGrant> grants = AwsKeyPolicyTranslator.fromAwsPolicy(document).getGrants();
+
+    assertEquals(2, grants.size());
+    assertEquals("Custom", grants.get(0).getId());
+    assertNull(grants.get(1).getId());
+    assertEquals(2, grants.get(1).getPrincipals().size());
+  }
+
   private static KeyCondition cond(ConditionOperator operator, String key, String... values) {
-    KeyCondition.KeyConditionBuilder builder = KeyCondition.builder().operator(operator).key(key);
+    KeyCondition.KeyConditionBuilder builder =
+        KeyCondition.builder().operator(operator).attribute(ConditionAttribute.NATIVE).key(key);
     for (String value : values) {
       builder.value(value);
     }

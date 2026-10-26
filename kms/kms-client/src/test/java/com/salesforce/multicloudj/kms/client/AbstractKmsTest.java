@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.kms.model.ConditionAttribute;
 import com.salesforce.multicloudj.kms.model.ConditionOperator;
 import com.salesforce.multicloudj.kms.model.CreateKeyRequest;
 import com.salesforce.multicloudj.kms.model.DecryptRequest;
@@ -176,6 +177,7 @@ public class AbstractKmsTest {
                     .condition(
                         KeyCondition.builder()
                             .operator(ConditionOperator.STRING_EQUALS)
+                            .attribute(ConditionAttribute.NATIVE)
                             .key("context-key")
                             .value("expected")
                             .build())
@@ -206,6 +208,95 @@ public class AbstractKmsTest {
 
     kms.setKeyPolicy(KEY, policyWith(ROLE));
     assertEquals(List.of("setKeyPolicy"), kms.calls);
+  }
+
+  @Test
+  void createKeyValidatesInitialPolicy() {
+    CreateKeyRequest withEmptyPolicy =
+        CreateKeyRequest.builder().policy(KeyPolicy.builder().build()).build();
+    kms.capabilities = PolicyCapabilities.builder().supportsDeny(false).build();
+    CreateKeyRequest withDeny =
+        CreateKeyRequest.builder()
+            .policy(
+                KeyPolicy.builder()
+                    .grant(
+                        KeyGrant.builder()
+                            .principal(ROLE)
+                            .action(KeyAction.DECRYPT)
+                            .effect(Effect.DENY)
+                            .build())
+                    .build())
+            .build();
+
+    assertThrows(InvalidArgumentException.class, () -> kms.createKey(withEmptyPolicy));
+    assertThrows(UnSupportedOperationException.class, () -> kms.createKey(withDeny));
+    assertTrue(kms.calls.isEmpty());
+
+    kms.createKey(CreateKeyRequest.builder().policy(policyWith(ROLE)).build());
+    assertEquals(List.of("createKey"), kms.calls);
+  }
+
+  @Test
+  void createKeyRejectsMultiRegionUnlessSupported() {
+    CreateKeyRequest request = CreateKeyRequest.builder().multiRegion(true).build();
+
+    assertThrows(UnSupportedOperationException.class, () -> kms.createKey(request));
+    assertTrue(kms.calls.isEmpty());
+
+    kms.multiRegion = true;
+    kms.createKey(request);
+    assertEquals(List.of("createKey"), kms.calls);
+  }
+
+  @Test
+  void conditionsMustCarryKeysOnlyWhereTheAttributeNeedsOne() {
+    kms.capabilities = PolicyCapabilities.builder().supportsConditions(true).build();
+    assertThrows(
+        InvalidArgumentException.class,
+        () ->
+            kms.setKeyPolicy(KEY, conditional(KeyAction.DECRYPT, ConditionAttribute.NATIVE, null)));
+    assertThrows(
+        InvalidArgumentException.class,
+        () ->
+            kms.setKeyPolicy(
+                KEY, conditional(KeyAction.DECRYPT, ConditionAttribute.PRINCIPAL_NAME, "extra")));
+    assertTrue(kms.calls.isEmpty());
+
+    kms.setKeyPolicy(KEY, conditional(KeyAction.DECRYPT, ConditionAttribute.PRINCIPAL_NAME, null));
+    assertEquals(List.of("setKeyPolicy"), kms.calls);
+  }
+
+  @Test
+  void encryptionContextConditionsAreLimitedToCryptographicActions() {
+    kms.capabilities = PolicyCapabilities.builder().supportsConditions(true).build();
+    assertThrows(
+        InvalidArgumentException.class,
+        () ->
+            kms.setKeyPolicy(
+                KEY,
+                conditional(KeyAction.DESCRIBE, ConditionAttribute.ENCRYPTION_CONTEXT, "sf-auth")));
+    assertTrue(kms.calls.isEmpty());
+
+    kms.setKeyPolicy(
+        KEY, conditional(KeyAction.DECRYPT, ConditionAttribute.ENCRYPTION_CONTEXT, "sf-auth"));
+    assertEquals(List.of("setKeyPolicy"), kms.calls);
+  }
+
+  private static KeyPolicy conditional(KeyAction action, ConditionAttribute attribute, String key) {
+    return KeyPolicy.builder()
+        .grant(
+            KeyGrant.builder()
+                .principal(ROLE)
+                .action(action)
+                .condition(
+                    KeyCondition.builder()
+                        .operator(ConditionOperator.STRING_EQUALS)
+                        .attribute(attribute)
+                        .key(key)
+                        .value("expected")
+                        .build())
+                .build())
+        .build();
   }
 
   private static KeyPolicy policyWith(KeyPrincipal principal) {

@@ -246,35 +246,25 @@ public abstract class AbstractKmsIT {
   @Test
   public void testSetAndGetKeyPolicy() {
     KeyRef keyRef = createKey("policy", KeyOrigin.KMS).getKeyRef();
-    KeyPolicy policy =
-        KeyPolicy.builder()
-            .grant(
-                KeyGrant.builder()
-                    .principal(harness.getAdminPrincipal())
-                    .action(KeyAction.MANAGE)
-                    .action(KeyAction.DESCRIBE)
-                    .build())
-            .grant(
-                KeyGrant.builder()
-                    .principal(harness.getGranteePrincipal())
-                    .action(KeyAction.ENCRYPT)
-                    .action(KeyAction.DECRYPT)
-                    .build())
-            .build();
 
-    kmsClient.setKeyPolicy(keyRef, policy);
-    KeyPolicy read = kmsClient.getKeyPolicy(keyRef);
+    kmsClient.setKeyPolicy(keyRef, adminAndGranteePolicy());
 
-    boolean granteeHasCryptoAccess =
-        read.getGrants().stream()
-                .filter(grant -> grant.getEffect() == Effect.ALLOW)
-                .filter(grant -> grant.getPrincipals().contains(harness.getGranteePrincipal()))
-                .flatMap(grant -> grant.getActions().stream())
-                .filter(action -> action == KeyAction.ENCRYPT || action == KeyAction.DECRYPT)
-                .distinct()
-                .count()
-            == 2;
-    Assertions.assertTrue(granteeHasCryptoAccess, "grantee grant missing from " + read);
+    assertGranteeHasCryptoAccess(kmsClient.getKeyPolicy(keyRef));
+  }
+
+  @Test
+  public void testCreateKeyWithPolicy() {
+    CreateKeyResponse response =
+        kmsClient.createKey(
+            CreateKeyRequest.builder()
+                .keyName(harness.getKeyName("create-policy"))
+                .description("multicloudj kms conformance test key: create-policy")
+                .tag("suite", "multicloudj-conformance")
+                .policy(adminAndGranteePolicy())
+                .build());
+    createdKeys.add(response.getKeyRef());
+
+    assertGranteeHasCryptoAccess(kmsClient.getKeyPolicy(response.getKeyRef()));
   }
 
   @Test
@@ -339,6 +329,37 @@ public abstract class AbstractKmsIT {
 
     Assertions.assertThrows(
         ResourceNotFoundException.class, () -> kmsClient.getImportParameters(request));
+  }
+
+  /** Keeps the recording identity in control of the key while granting the grantee crypto use. */
+  private KeyPolicy adminAndGranteePolicy() {
+    return KeyPolicy.builder()
+        .grant(
+            KeyGrant.builder()
+                .principal(harness.getAdminPrincipal())
+                .action(KeyAction.MANAGE)
+                .action(KeyAction.DESCRIBE)
+                .build())
+        .grant(
+            KeyGrant.builder()
+                .principal(harness.getGranteePrincipal())
+                .action(KeyAction.ENCRYPT)
+                .action(KeyAction.DECRYPT)
+                .build())
+        .build();
+  }
+
+  private void assertGranteeHasCryptoAccess(KeyPolicy read) {
+    boolean granteeHasCryptoAccess =
+        read.getGrants().stream()
+                .filter(grant -> grant.getEffect() == Effect.ALLOW)
+                .filter(grant -> grant.getPrincipals().contains(harness.getGranteePrincipal()))
+                .flatMap(grant -> grant.getActions().stream())
+                .filter(action -> action == KeyAction.ENCRYPT || action == KeyAction.DECRYPT)
+                .distinct()
+                .count()
+            == 2;
+    Assertions.assertTrue(granteeHasCryptoAccess, "grantee grant missing from " + read);
   }
 
   private CreateKeyResponse createKey(String testName, KeyOrigin origin) {

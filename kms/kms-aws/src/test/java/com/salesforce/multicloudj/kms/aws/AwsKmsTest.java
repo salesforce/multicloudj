@@ -130,6 +130,35 @@ class AwsKmsTest {
   }
 
   @Test
+  void supportsMultiRegionKeys() {
+    assertTrue(kms.supportsMultiRegionKeys());
+  }
+
+  @Test
+  void createKeySendsPolicyAtomically() {
+    when(kmsClient.createKey(any(software.amazon.awssdk.services.kms.model.CreateKeyRequest.class)))
+        .thenReturn(
+            created(metadata(software.amazon.awssdk.services.kms.model.KeyState.ENABLED).build()));
+    KeyPolicy policy =
+        KeyPolicy.builder()
+            .grant(
+                KeyGrant.builder()
+                    .id("Admins")
+                    .principal(KeyPrincipal.of(PrincipalType.ACCOUNT, "654654370895"))
+                    .action(KeyAction.ALL)
+                    .build())
+            .build();
+
+    kms.createKey(CreateKeyRequest.builder().policy(policy).build());
+
+    ArgumentCaptor<software.amazon.awssdk.services.kms.model.CreateKeyRequest> create =
+        ArgumentCaptor.forClass(software.amazon.awssdk.services.kms.model.CreateKeyRequest.class);
+    verify(kmsClient).createKey(create.capture());
+    assertEquals(policy, AwsKeyPolicyTranslator.fromAwsPolicy(create.getValue().policy()));
+    verify(kmsClient, never()).putKeyPolicy(any(PutKeyPolicyRequest.class));
+  }
+
+  @Test
   void createKeyMapsRequestAliasAndResponse() {
     when(kmsClient.createKey(any(software.amazon.awssdk.services.kms.model.CreateKeyRequest.class)))
         .thenReturn(
@@ -189,6 +218,7 @@ class AwsKmsTest {
     assertEquals(OriginType.EXTERNAL, create.getValue().origin());
     assertFalse(create.getValue().multiRegion());
     assertFalse(create.getValue().hasTags());
+    assertNull(create.getValue().policy());
     verify(kmsClient, never()).createAlias(any(CreateAliasRequest.class));
     assertEquals(KeyState.PENDING_IMPORT, response.getKeyState());
   }

@@ -25,6 +25,7 @@ public class TestKms extends AbstractKms {
   final List<String> calls = new ArrayList<>();
   PolicyCapabilities capabilities = PolicyCapabilities.builder().supportsDeny(true).build();
   RuntimeException failure;
+  boolean multiRegion;
 
   public TestKms() {
     this(new Builder());
@@ -37,6 +38,15 @@ public class TestKms extends AbstractKms {
   @Override
   public Builder builder() {
     return new Builder();
+  }
+
+  @Override
+  public boolean supportsMultiRegionKeys() {
+    return multiRegion;
+  }
+
+  java.net.URI configuredProxyEndpoint() {
+    return proxyEndpoint;
   }
 
   RetryConfig configuredRetryConfig() {

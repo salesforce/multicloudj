@@ -33,6 +33,7 @@ public class KmsClientTest {
         KmsClient.builder(TestKms.PROVIDER_ID)
             .withRegion("region-1")
             .withEndpoint(URI.create("https://kms.example.com"))
+            .withProxyEndpoint(URI.create("http://proxy.example.com:8080"))
             .withKeyContainer("container-1")
             .withRetryConfig(retryConfig)
             .withProperties(properties)
@@ -42,6 +43,7 @@ public class KmsClientTest {
     assertEquals(TestKms.PROVIDER_ID, kms.getProviderId());
     assertEquals("region-1", kms.getRegion());
     assertEquals("container-1", kms.getKeyContainer());
+    assertEquals(URI.create("http://proxy.example.com:8080"), kms.configuredProxyEndpoint());
     assertSame(retryConfig, kms.configuredRetryConfig());
     assertSame(properties, kms.configuredProperties());
   }

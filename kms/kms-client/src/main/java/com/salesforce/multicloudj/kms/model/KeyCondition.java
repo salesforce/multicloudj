@@ -9,8 +9,9 @@ import lombok.Singular;
 import lombok.ToString;
 
 /**
- * Restriction on when a {@link KeyGrant} applies: the request attribute named by {@link #getKey()}
- * must satisfy {@link #getOperator()} against at least one of {@link #getValues()}.
+ * Restriction on when a {@link KeyGrant} applies: the request attribute identified by {@link
+ * #getAttribute()} (and {@link #getKey()} where the attribute needs one) must satisfy {@link
+ * #getOperator()} against at least one of {@link #getValues()}.
  */
 @Getter
 @Builder
@@ -19,8 +20,13 @@ import lombok.ToString;
 public class KeyCondition {
   @NonNull private final ConditionOperator operator;
 
-  /** Native name of the request attribute the condition evaluates. */
-  @NonNull private final String key;
+  @NonNull private final ConditionAttribute attribute;
+
+  /**
+   * Encryption-context entry name for {@link ConditionAttribute#ENCRYPTION_CONTEXT}, or the native
+   * attribute name for {@link ConditionAttribute#NATIVE}; unset for the other attributes.
+   */
+  private final String key;
 
   @Singular private final List<String> values;
 }

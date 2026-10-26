@@ -217,6 +217,15 @@ public class KmsClient implements AutoCloseable {
     return kms.getPolicyCapabilities();
   }
 
+  /**
+   * Whether this client can create keys with {@code CreateKeyRequest.multiRegion} set.
+   *
+   * @return true if multi-region keys can be created
+   */
+  public boolean supportsMultiRegionKeys() {
+    return kms.supportsMultiRegionKeys();
+  }
+
   @Override
   public void close() throws Exception {
     kms.close();
@@ -254,6 +263,18 @@ public class KmsClient implements AutoCloseable {
      */
     public KmsClientBuilder withEndpoint(URI endpoint) {
       this.kmsBuilder.withEndpoint(endpoint);
+      return this;
+    }
+
+    /**
+     * Method to supply a proxy endpoint that requests to the key management service are sent
+     * through
+     *
+     * @param proxyEndpoint The proxy endpoint override
+     * @return An instance of self
+     */
+    public KmsClientBuilder withProxyEndpoint(URI proxyEndpoint) {
+      this.kmsBuilder.withProxyEndpoint(proxyEndpoint);
       return this;
     }
 

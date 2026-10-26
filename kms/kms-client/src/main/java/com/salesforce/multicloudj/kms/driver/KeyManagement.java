@@ -95,6 +95,14 @@ public interface KeyManagement extends Provider {
   PolicyCapabilities getPolicyCapabilities();
 
   /**
+   * Whether keys created by this client can be made available across regions with {@code
+   * CreateKeyRequest.multiRegion}. May depend on configuration such as the key container.
+   *
+   * @return true if multi-region keys can be created
+   */
+  boolean supportsMultiRegionKeys();
+
+  /**
    * Encrypts a small payload directly with a key.
    *
    * @param request the key, plaintext and encryption context

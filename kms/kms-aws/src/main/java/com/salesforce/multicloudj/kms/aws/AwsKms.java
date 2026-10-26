@@ -36,6 +36,8 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.KmsClientBuilder;
@@ -104,6 +106,13 @@ public class AwsKms extends AbstractKms {
       if (builder.getEndpoint() != null) {
         clientBuilder.endpointOverride(builder.getEndpoint());
       }
+      if (builder.getProxyEndpoint() != null) {
+        clientBuilder.httpClient(
+            ApacheHttpClient.builder()
+                .proxyConfiguration(
+                    ProxyConfiguration.builder().endpoint(builder.getProxyEndpoint()).build())
+                .build());
+      }
       if (builder.getRetryConfig() != null) {
         clientBuilder.overrideConfiguration(
             config -> AwsRetryStrategies.applyRetryConfig(config, builder.getRetryConfig()));
@@ -156,6 +165,11 @@ public class AwsKms extends AbstractKms {
   }
 
   @Override
+  public boolean supportsMultiRegionKeys() {
+    return true;
+  }
+
+  @Override
   public void close() {
     if (kmsClient != null) {
       kmsClient.close();
@@ -176,6 +190,9 @@ public class AwsKms extends AbstractKms {
             .description(request.getDescription());
     if (!request.getTags().isEmpty()) {
       nativeRequest.tags(toTags(request.getTags()));
+    }
+    if (request.getPolicy() != null) {
+      nativeRequest.policy(AwsKeyPolicyTranslator.toAwsPolicy(request.getPolicy()));
     }
 
     KeyMetadata metadata = kmsClient.createKey(nativeRequest.build()).keyMetadata();

@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.kms.gcp;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.AlreadyExistsException;
@@ -62,6 +63,9 @@ import com.salesforce.multicloudj.kms.model.ProtectionLevel;
 import com.salesforce.multicloudj.kms.model.WrappingAlgorithm;
 import com.salesforce.multicloudj.kms.model.WrappingKeySpec;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
@@ -133,6 +137,25 @@ public class GcpKms extends AbstractKms {
     return GcpKeyPolicyTranslator.CAPABILITIES;
   }
 
+  /**
+   * A key's location is fixed by its key ring, so multi-region keys need a key ring in a
+   * multi-region, dual-region or global location. Regional locations contain a hyphen (such as
+   * {@code us-west1}); the others (such as {@code global}, {@code us} or {@code nam4}) do not.
+   */
+  @Override
+  public boolean supportsMultiRegionKeys() {
+    if (StringUtils.isBlank(keyContainer)) {
+      return false;
+    }
+    String[] segments = keyContainer.split("/");
+    for (int i = 0; i < segments.length - 1; i++) {
+      if ("locations".equals(segments[i])) {
+        return !segments[i + 1].contains("-");
+      }
+    }
+    return false;
+  }
+
   @Override
   public void close() {
     if (kmsClient != null) {
@@ -144,10 +167,6 @@ public class GcpKms extends AbstractKms {
   protected CreateKeyResponse doCreateKey(CreateKeyRequest request) {
     if (StringUtils.isBlank(request.getKeyName())) {
       throw new InvalidArgumentException("keyName is required: it becomes the crypto key id");
-    }
-    if (request.isMultiRegion()) {
-      throw new UnSupportedOperationException(
-          "multiRegion keys are not supported: a key's location is fixed by its key ring");
     }
     if (StringUtils.isBlank(keyContainer)) {
       throw new InvalidArgumentException("a key container (key ring) is required to create keys");
@@ -175,9 +194,16 @@ public class GcpKms extends AbstractKms {
                 .setSkipInitialVersionCreation(external)
                 .build());
 
+    KeyRef createdRef = keyRefFor(created.getName(), null);
+    if (request.getPolicy() != null) {
+      // CreateCryptoKey has no policy field. A failure here leaves the key created with the
+      // policy it inherits.
+      doSetKeyPolicy(createdRef, request.getPolicy());
+    }
+
     KeyState state = external ? KeyState.PENDING_IMPORT : toKeyState(created);
     return CreateKeyResponse.builder()
-        .keyRef(keyRefFor(created.getName(), null))
+        .keyRef(createdRef)
         .keyState(state)
         .creationTime(created.hasCreateTime() ? toInstant(created.getCreateTime()) : null)
         .build();
@@ -595,6 +621,15 @@ public class GcpKms extends AbstractKms {
     }
   }
 
+  static NetHttpTransport createProxiedTransport(URI proxyEndpoint) {
+    return new NetHttpTransport.Builder()
+        .setProxy(
+            new Proxy(
+                Proxy.Type.HTTP,
+                new InetSocketAddress(proxyEndpoint.getHost(), proxyEndpoint.getPort())))
+        .build();
+  }
+
   static RetrySettings toRetrySettings(RetrySettings base, RetryConfig retryConfig) {
     RetrySettings.Builder settings = base.toBuilder();
     if (retryConfig.getMaxAttempts() != null) {
@@ -666,6 +701,12 @@ public class GcpKms extends AbstractKms {
       try {
         KeyManagementServiceSettings.Builder settings =
             KeyManagementServiceSettings.newHttpJsonBuilder();
+        if (getProxyEndpoint() != null) {
+          settings.setTransportChannelProvider(
+              KeyManagementServiceSettings.defaultHttpJsonTransportProviderBuilder()
+                  .setHttpTransport(createProxiedTransport(getProxyEndpoint()))
+                  .build());
+        }
         if (getEndpoint() != null) {
           settings.setEndpoint(getEndpoint().toString());
         }

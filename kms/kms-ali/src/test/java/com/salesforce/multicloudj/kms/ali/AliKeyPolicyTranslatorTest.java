@@ -2,10 +2,12 @@ package com.salesforce.multicloudj.kms.ali;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.kms.model.Effect;
 import com.salesforce.multicloudj.kms.model.KeyAction;
 import com.salesforce.multicloudj.kms.model.KeyGrant;
@@ -179,14 +181,112 @@ class AliKeyPolicyTranslatorTest {
   }
 
   @Test
-  void wildcardActionGrantsEveryAction() {
+  void wildcardActionReadsAsAll() {
+    for (String wildcard : new String[] {"kms:*", "*"}) {
+      String json =
+          "{\"Statement\":{\"Effect\":\"Allow\",\"Principal\":{\"RAM\":[\"r1\"]},"
+              + "\"Action\":\""
+              + wildcard
+              + "\"}}";
+
+      KeyPolicy read = AliKeyPolicyTranslator.fromPolicyJson(json);
+
+      assertEquals(Set.of(KeyAction.ALL), read.getGrants().get(0).getActions());
+    }
+  }
+
+  @Test
+  void allWritesOnlyWildcard() throws Exception {
+    KeyPolicy policy =
+        KeyPolicy.builder()
+            .grant(
+                KeyGrant.builder()
+                    .principal(ROLE)
+                    .action(KeyAction.ALL)
+                    .action(KeyAction.DECRYPT)
+                    .build())
+            .build();
+
+    JsonNode actions =
+        MAPPER.readTree(AliKeyPolicyTranslator.toPolicyJson(policy)).at("/Statement/0/Action");
+
+    assertEquals(1, actions.size());
+    assertEquals("kms:*", actions.get(0).asText());
+    assertEquals(
+        Set.of(KeyAction.ALL),
+        AliKeyPolicyTranslator.fromPolicyJson(AliKeyPolicyTranslator.toPolicyJson(policy))
+            .getGrants()
+            .get(0)
+            .getActions());
+  }
+
+  @Test
+  void fineGrainedManageActionsWriteTheirNativeActions() throws Exception {
+    KeyPolicy policy =
+        KeyPolicy.builder()
+            .grant(
+                KeyGrant.builder()
+                    .principal(ROLE)
+                    .action(KeyAction.MANAGE_STATE)
+                    .action(KeyAction.MANAGE_POLICY)
+                    .action(KeyAction.MANAGE_TAGS)
+                    .action(KeyAction.IMPORT_KEY_MATERIAL)
+                    .build())
+            .build();
+
+    Set<String> names = new HashSet<>();
+    MAPPER
+        .readTree(AliKeyPolicyTranslator.toPolicyJson(policy))
+        .at("/Statement/0/Action")
+        .forEach(a -> names.add(a.asText()));
+
+    assertEquals(
+        Set.of(
+            "kms:EnableKey",
+            "kms:DisableKey",
+            "kms:SetKeyPolicy",
+            "kms:GetKeyPolicy",
+            "kms:TagResource",
+            "kms:UntagResource",
+            "kms:GetParametersForImport",
+            "kms:ImportKeyMaterial"),
+        names);
+    assertEquals(
+        policy, AliKeyPolicyTranslator.fromPolicyJson(AliKeyPolicyTranslator.toPolicyJson(policy)));
+  }
+
+  @Test
+  void readDropsActionsSubsumedByAnotherRecognizedAction() {
+    String manage =
+        "\"kms:EnableKey\",\"kms:DisableKey\",\"kms:ScheduleKeyDeletion\","
+            + "\"kms:CancelKeyDeletion\",\"kms:SetKeyPolicy\",\"kms:GetKeyPolicy\","
+            + "\"kms:TagResource\",\"kms:UntagResource\"";
     String json =
-        "{\"Statement\":{\"Effect\":\"Allow\",\"Principal\":{\"RAM\":[\"r1\"]},"
-            + "\"Action\":\"kms:*\"}}";
+        "{\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"RAM\":[\"r1\"]},"
+            + "\"Action\":["
+            + manage
+            + "]},{\"Effect\":\"Allow\",\"Principal\":{\"RAM\":[\"r1\"]},"
+            + "\"Action\":[\"kms:TagResource\",\"kms:UntagResource\"]}]}";
 
     KeyPolicy read = AliKeyPolicyTranslator.fromPolicyJson(json);
 
-    assertEquals(AliKeyPolicyTranslator.supportedActions(), read.getGrants().get(0).getActions());
+    assertEquals(Set.of(KeyAction.MANAGE), read.getGrants().get(0).getActions());
+    assertEquals(Set.of(KeyAction.MANAGE_TAGS), read.getGrants().get(1).getActions());
+  }
+
+  @Test
+  void identityPrincipalsMustBeRamIdentifiers() {
+    KeyPolicy policy =
+        KeyPolicy.builder()
+            .grant(
+                KeyGrant.builder()
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, "ecs.aliyuncs.com"))
+                    .action(KeyAction.DECRYPT)
+                    .build())
+            .build();
+
+    assertThrows(
+        UnSupportedOperationException.class, () -> AliKeyPolicyTranslator.toPolicyJson(policy));
   }
 
   @Test

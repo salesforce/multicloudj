@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationExceptio
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.common.provider.SdkProvider;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
+import com.salesforce.multicloudj.kms.model.ConditionAttribute;
 import com.salesforce.multicloudj.kms.model.CreateKeyRequest;
 import com.salesforce.multicloudj.kms.model.CreateKeyResponse;
 import com.salesforce.multicloudj.kms.model.DecryptRequest;
@@ -17,6 +18,7 @@ import com.salesforce.multicloudj.kms.model.GetImportParametersRequest;
 import com.salesforce.multicloudj.kms.model.ImportKeyMaterialRequest;
 import com.salesforce.multicloudj.kms.model.ImportParameters;
 import com.salesforce.multicloudj.kms.model.KeyAction;
+import com.salesforce.multicloudj.kms.model.KeyCondition;
 import com.salesforce.multicloudj.kms.model.KeyGrant;
 import com.salesforce.multicloudj.kms.model.KeyPolicy;
 import com.salesforce.multicloudj.kms.model.KeyPrincipal;
@@ -24,8 +26,10 @@ import com.salesforce.multicloudj.kms.model.KeyRef;
 import com.salesforce.multicloudj.kms.model.PolicyCapabilities;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 
@@ -35,9 +39,18 @@ import org.apache.commons.lang3.StringUtils;
  */
 public abstract class AbstractKms implements KeyManagement, AutoCloseable {
 
+  private static final Set<KeyAction> ENCRYPTION_CONTEXT_ACTIONS =
+      EnumSet.of(
+          KeyAction.ENCRYPT,
+          KeyAction.DECRYPT,
+          KeyAction.GENERATE_DATA_KEY,
+          KeyAction.REENCRYPT,
+          KeyAction.CREATE_GRANT);
+
   @Getter private final String providerId;
   @Getter protected final String region;
   protected final URI endpoint;
+  protected final URI proxyEndpoint;
 
   /**
    * Provider resource that keys are created in and short key ids are resolved against, for
@@ -53,6 +66,7 @@ public abstract class AbstractKms implements KeyManagement, AutoCloseable {
     this.providerId = builder.getProviderId();
     this.region = builder.getRegion();
     this.endpoint = builder.getEndpoint();
+    this.proxyEndpoint = builder.getProxyEndpoint();
     this.keyContainer = builder.getKeyContainer();
     this.credentialsOverrider = builder.getCredentialsOverrider();
     this.retryConfig = builder.getRetryConfig();
@@ -64,6 +78,13 @@ public abstract class AbstractKms implements KeyManagement, AutoCloseable {
   public CreateKeyResponse createKey(CreateKeyRequest request) {
     requireNonNull(request, "request");
     validateTags(request.getTags());
+    if (request.getPolicy() != null) {
+      validatePolicy(request.getPolicy());
+    }
+    if (request.isMultiRegion() && !supportsMultiRegionKeys()) {
+      throw new UnSupportedOperationException(
+          getProviderId() + " cannot create multi-region keys in this configuration");
+    }
     return doCreateKey(request);
   }
 
@@ -153,6 +174,20 @@ public abstract class AbstractKms implements KeyManagement, AutoCloseable {
     return doDecrypt(request);
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>Providers that can create multi-region keys override this.
+   */
+  @Override
+  public boolean supportsMultiRegionKeys() {
+    return false;
+  }
+
+  /**
+   * Creates the key. Called only with a valid initial policy, if any, and with {@code multiRegion}
+   * set only when {@link #supportsMultiRegionKeys()} is true.
+   */
   protected abstract CreateKeyResponse doCreateKey(CreateKeyRequest request);
 
   protected abstract void doEnableKey(KeyRef keyRef);
@@ -202,6 +237,9 @@ public abstract class AbstractKms implements KeyManagement, AutoCloseable {
         throw new UnSupportedOperationException(
             getProviderId() + " key policies cannot express grant conditions");
       }
+      for (KeyCondition condition : grant.getConditions()) {
+        validateCondition(condition, grant.getActions());
+      }
       for (KeyPrincipal principal : grant.getPrincipals()) {
         if (StringUtils.isBlank(principal.getIdentifier())) {
           throw new InvalidArgumentException("principal identifier is required");
@@ -219,6 +257,28 @@ public abstract class AbstractKms implements KeyManagement, AutoCloseable {
               getProviderId() + " key policies cannot express action " + action);
         }
       }
+    }
+  }
+
+  private static void validateCondition(KeyCondition condition, Set<KeyAction> actions) {
+    if (condition.getValues().isEmpty()) {
+      throw new InvalidArgumentException("every condition must have at least one value");
+    }
+    boolean needsKey =
+        condition.getAttribute() == ConditionAttribute.ENCRYPTION_CONTEXT
+            || condition.getAttribute() == ConditionAttribute.NATIVE;
+    if (needsKey && StringUtils.isBlank(condition.getKey())) {
+      throw new InvalidArgumentException(condition.getAttribute() + " conditions require a key");
+    }
+    if (!needsKey && condition.getKey() != null) {
+      throw new InvalidArgumentException(condition.getAttribute() + " conditions take no key");
+    }
+    // Encryption context only exists on cryptographic requests; on any other action the condition
+    // can never be satisfied, which silently denies the whole grant.
+    if (condition.getAttribute() == ConditionAttribute.ENCRYPTION_CONTEXT
+        && !ENCRYPTION_CONTEXT_ACTIONS.containsAll(actions)) {
+      throw new InvalidArgumentException(
+          "encryption context conditions apply only to actions " + ENCRYPTION_CONTEXT_ACTIONS);
     }
   }
 
@@ -264,6 +324,7 @@ public abstract class AbstractKms implements KeyManagement, AutoCloseable {
     private String providerId;
     private String region;
     private URI endpoint;
+    private URI proxyEndpoint;
     private String keyContainer;
     private CredentialsOverrider credentialsOverrider;
     private RetryConfig retryConfig;
@@ -294,6 +355,18 @@ public abstract class AbstractKms implements KeyManagement, AutoCloseable {
      */
     public T withEndpoint(URI endpoint) {
       this.endpoint = endpoint;
+      return self();
+    }
+
+    /**
+     * Method to supply a proxy endpoint that requests to the key management service are sent
+     * through
+     *
+     * @param proxyEndpoint The proxy endpoint to set.
+     * @return An instance of self
+     */
+    public T withProxyEndpoint(URI proxyEndpoint) {
+      this.proxyEndpoint = proxyEndpoint;
       return self();
     }
 

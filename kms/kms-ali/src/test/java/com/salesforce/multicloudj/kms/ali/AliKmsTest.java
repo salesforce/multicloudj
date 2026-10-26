@@ -192,6 +192,40 @@ class AliKmsTest {
   }
 
   @Test
+  void createKeySendsPolicyDocument() throws Exception {
+    when(client.createKey(any())).thenReturn(createKeyResponse("Enabled"));
+
+    kms.createKey(
+        com.salesforce.multicloudj.kms.model.CreateKeyRequest.builder()
+            .policy(
+                KeyPolicy.builder()
+                    .grant(
+                        KeyGrant.builder()
+                            .principal(KeyPrincipal.of(PrincipalType.ACCOUNT, "1234"))
+                            .action(KeyAction.ALL)
+                            .build())
+                    .build())
+            .build());
+
+    ArgumentCaptor<CreateKeyRequest> captor = ArgumentCaptor.forClass(CreateKeyRequest.class);
+    verify(client).createKey(captor.capture());
+    JsonNode policy = MAPPER.readTree(captor.getValue().getPolicy());
+    assertEquals("acs:ram::1234:*", policy.at("/Statement/0/Principal/RAM/0").asText());
+    assertEquals("kms:*", policy.at("/Statement/0/Action/0").asText());
+  }
+
+  @Test
+  void createKeyWithoutPolicyOmitsPolicy() throws Exception {
+    when(client.createKey(any())).thenReturn(createKeyResponse("Enabled"));
+
+    kms.createKey(com.salesforce.multicloudj.kms.model.CreateKeyRequest.builder().build());
+
+    ArgumentCaptor<CreateKeyRequest> captor = ArgumentCaptor.forClass(CreateKeyRequest.class);
+    verify(client).createKey(captor.capture());
+    assertNull(captor.getValue().getPolicy());
+  }
+
+  @Test
   void createKeyRejectsMultiRegion() {
     assertThrows(
         UnSupportedOperationException.class,
@@ -255,7 +289,7 @@ class AliKmsTest {
   }
 
   @Test
-  void getImportParametersHonorsRequestedKeySpec() throws Exception {
+  void getImportParametersAcceptsExplicitRsa2048() throws Exception {
     when(client.getParametersForImport(any()))
         .thenReturn(
             new GetParametersForImportResponse()
@@ -268,15 +302,24 @@ class AliKmsTest {
         kms.getImportParameters(
             GetImportParametersRequest.builder()
                 .keyRef(KEY)
-                .wrappingKeySpec(WrappingKeySpec.RSA_4096)
+                .wrappingKeySpec(WrappingKeySpec.RSA_2048)
                 .build());
 
-    ArgumentCaptor<GetParametersForImportRequest> captor =
-        ArgumentCaptor.forClass(GetParametersForImportRequest.class);
-    verify(client).getParametersForImport(captor.capture());
-    assertEquals("RSA_4096", captor.getValue().getWrappingKeySpec());
-    assertEquals(WrappingKeySpec.RSA_4096, parameters.getWrappingKeySpec());
+    assertEquals(WrappingKeySpec.RSA_2048, parameters.getWrappingKeySpec());
     assertNull(parameters.getTokenExpiry());
+  }
+
+  @Test
+  void getImportParametersRejectsLargerWrappingKeySpecs() {
+    for (WrappingKeySpec spec :
+        new WrappingKeySpec[] {WrappingKeySpec.RSA_3072, WrappingKeySpec.RSA_4096}) {
+      assertThrows(
+          UnSupportedOperationException.class,
+          () ->
+              kms.getImportParameters(
+                  GetImportParametersRequest.builder().keyRef(KEY).wrappingKeySpec(spec).build()));
+    }
+    verifyNoInteractions(client);
   }
 
   @Test
@@ -373,8 +416,21 @@ class AliKmsTest {
     assertEquals(
         java.util.EnumSet.of(PrincipalType.IDENTITY, PrincipalType.ACCOUNT),
         capabilities.getSupportedPrincipalTypes());
-    assertTrue(capabilities.getSupportedActions().contains(KeyAction.MANAGE));
-    assertEquals(false, capabilities.getSupportedActions().contains(KeyAction.SIGN));
+    assertEquals(
+        java.util.EnumSet.of(
+            KeyAction.ENCRYPT,
+            KeyAction.DECRYPT,
+            KeyAction.GENERATE_DATA_KEY,
+            KeyAction.REENCRYPT,
+            KeyAction.DESCRIBE,
+            KeyAction.MANAGE,
+            KeyAction.MANAGE_STATE,
+            KeyAction.MANAGE_POLICY,
+            KeyAction.MANAGE_TAGS,
+            KeyAction.IMPORT_KEY_MATERIAL,
+            KeyAction.ALL),
+        capabilities.getSupportedActions());
+    assertEquals(false, kms.supportsMultiRegionKeys());
   }
 
   @Test
@@ -390,6 +446,8 @@ class AliKmsTest {
                             .operator(
                                 com.salesforce.multicloudj.kms.model.ConditionOperator
                                     .STRING_EQUALS)
+                            .attribute(
+                                com.salesforce.multicloudj.kms.model.ConditionAttribute.NATIVE)
                             .key("k")
                             .value("v")
                             .build())
@@ -530,6 +588,21 @@ class AliKmsTest {
       assertThrows(
           InvalidArgumentException.class, () -> publicClient.enableKey(KeyRef.builder().build()));
     }
+  }
+
+  @Test
+  void setKeyPolicyRejectsServicePrincipals() {
+    KeyPolicy policy =
+        KeyPolicy.builder()
+            .grant(
+                KeyGrant.builder()
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, "ecs.aliyuncs.com"))
+                    .action(KeyAction.DECRYPT)
+                    .build())
+            .build();
+
+    assertThrows(UnSupportedOperationException.class, () -> kms.setKeyPolicy(KEY, policy));
+    verifyNoInteractions(client);
   }
 
   @Test

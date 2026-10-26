@@ -107,9 +107,6 @@ public class AliKms extends AbstractKms {
 
   @Override
   protected CreateKeyResponse doCreateKey(CreateKeyRequest request) {
-    if (request.isMultiRegion()) {
-      throw new UnSupportedOperationException("multi-region keys are not supported by KMS");
-    }
     com.aliyun.kms20160120.models.CreateKeyRequest nativeRequest =
         new com.aliyun.kms20160120.models.CreateKeyRequest()
             .setKeySpec("Aliyun_AES_256")
@@ -125,6 +122,9 @@ public class AliKms extends AbstractKms {
     }
     if (keyContainer != null) {
       nativeRequest.setDKMSInstanceId(keyContainer);
+    }
+    if (request.getPolicy() != null) {
+      nativeRequest.setPolicy(AliKeyPolicyTranslator.toPolicyJson(request.getPolicy()));
     }
 
     CreateKeyResponseBodyKeyMetadata metadata =
@@ -168,6 +168,10 @@ public class AliKms extends AbstractKms {
         request.getWrappingKeySpec() != null
             ? request.getWrappingKeySpec()
             : WrappingKeySpec.RSA_2048;
+    if (spec != WrappingKeySpec.RSA_2048) {
+      throw new UnSupportedOperationException(
+          "wrapping key spec " + spec + " is not supported by KMS; only RSA_2048 is");
+    }
     GetParametersForImportRequest nativeRequest =
         new GetParametersForImportRequest()
             .setKeyId(request.getKeyRef().getKeyId())
@@ -361,6 +365,11 @@ public class AliKms extends AbstractKms {
     }
     if (builder.getRegion() != null) {
       config.setRegionId(builder.getRegion());
+    }
+    URI proxy = builder.getProxyEndpoint();
+    if (proxy != null) {
+      config.setHttpProxy(proxy.toString());
+      config.setHttpsProxy(proxy.toString());
     }
     RetryConfig retryConfig = builder.getRetryConfig();
     if (retryConfig != null && retryConfig.getAttemptTimeout() != null) {

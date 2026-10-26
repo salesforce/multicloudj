@@ -30,7 +30,13 @@ class GcpKeyPolicyTranslatorTest {
     assertFalse(capabilities.isSupportsConditions());
     assertEquals(Set.of(PrincipalType.IDENTITY), capabilities.getSupportedPrincipalTypes());
     assertEquals(
-        Set.of(KeyAction.ENCRYPT, KeyAction.DECRYPT, KeyAction.DESCRIBE, KeyAction.MANAGE),
+        Set.of(
+            KeyAction.ENCRYPT,
+            KeyAction.DECRYPT,
+            KeyAction.DESCRIBE,
+            KeyAction.MANAGE,
+            KeyAction.IMPORT_KEY_MATERIAL,
+            KeyAction.ALL),
         capabilities.getSupportedActions());
   }
 
@@ -111,8 +117,7 @@ class GcpKeyPolicyTranslatorTest {
     KeyGrant grantee = result.getGrants().get(0);
     assertEquals(
         List.of(KeyPrincipal.of(PrincipalType.IDENTITY, GRANTEE)), grantee.getPrincipals());
-    assertEquals(
-        Set.of(KeyAction.ENCRYPT, KeyAction.DECRYPT, KeyAction.MANAGE), grantee.getActions());
+    assertEquals(Set.of(KeyAction.ALL), grantee.getActions());
     KeyGrant bob = result.getGrants().get(1);
     assertEquals(
         List.of(KeyPrincipal.of(PrincipalType.IDENTITY, "user:bob@example.com")),
@@ -163,14 +168,118 @@ class GcpKeyPolicyTranslatorTest {
                     .principal(KeyPrincipal.of(PrincipalType.IDENTITY, GRANTEE))
                     .action(KeyAction.ENCRYPT)
                     .action(KeyAction.DECRYPT)
+                    .action(KeyAction.IMPORT_KEY_MATERIAL)
                     .build())
             .build();
 
-    Policy stored =
-        Policy.newBuilder().addAllBindings(GcpKeyPolicyTranslator.toBindings(original)).build();
-    KeyPolicy roundTripped = GcpKeyPolicyTranslator.toKeyPolicy(stored);
+    KeyPolicy roundTripped = roundTrip(original);
 
-    assertEquals(original, roundTripped);
+    assertEquals(
+        KeyPolicy.builder()
+            .grant(
+                KeyGrant.builder()
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, ADMIN))
+                    .action(KeyAction.MANAGE)
+                    .build())
+            .grant(
+                KeyGrant.builder()
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, GRANTEE))
+                    .action(KeyAction.ENCRYPT)
+                    .action(KeyAction.DECRYPT)
+                    .action(KeyAction.IMPORT_KEY_MATERIAL)
+                    .build())
+            .build(),
+        roundTripped);
+  }
+
+  @Test
+  void toBindingsMapsImportKeyMaterialToTheImporterRole() {
+    List<Binding> bindings =
+        GcpKeyPolicyTranslator.toBindings(policyOf(KeyAction.IMPORT_KEY_MATERIAL));
+
+    assertEquals(1, bindings.size());
+    assertBinding(bindings, "roles/cloudkms.importer", "serviceAccount:" + GRANTEE);
+  }
+
+  @Test
+  void toBindingsMapsAllToAdminPlusEncrypterDecrypter() {
+    List<Binding> bindings = GcpKeyPolicyTranslator.toBindings(policyOf(KeyAction.ALL));
+
+    assertEquals(2, bindings.size());
+    assertBinding(bindings, "roles/cloudkms.admin", "serviceAccount:" + GRANTEE);
+    assertBinding(
+        bindings, "roles/cloudkms.cryptoKeyEncrypterDecrypter", "serviceAccount:" + GRANTEE);
+  }
+
+  @Test
+  void allReadsBackAsAll() {
+    assertEquals(Set.of(KeyAction.ALL), roundTripActions(KeyAction.ALL));
+  }
+
+  @Test
+  void adminWithSingleEncryptAndDecryptRolesReadsAsAll() {
+    assertEquals(
+        Set.of(KeyAction.ALL),
+        roundTripActions(KeyAction.MANAGE, KeyAction.ENCRYPT, KeyAction.DECRYPT));
+  }
+
+  @Test
+  void allAbsorbsEveryOtherAction() {
+    assertEquals(
+        Set.of(KeyAction.ALL),
+        roundTripActions(
+            KeyAction.ALL, KeyAction.DESCRIBE, KeyAction.IMPORT_KEY_MATERIAL, KeyAction.ENCRYPT));
+  }
+
+  @Test
+  void manageAbsorbsDescribeAndImportButNotCryptographicUse() {
+    assertEquals(
+        Set.of(KeyAction.MANAGE),
+        roundTripActions(KeyAction.MANAGE, KeyAction.DESCRIBE, KeyAction.IMPORT_KEY_MATERIAL));
+    assertEquals(
+        Set.of(KeyAction.MANAGE, KeyAction.ENCRYPT),
+        roundTripActions(KeyAction.MANAGE, KeyAction.ENCRYPT));
+  }
+
+  @Test
+  void importerAndViewerAreKeptWithoutAdmin() {
+    assertEquals(
+        Set.of(KeyAction.DESCRIBE, KeyAction.IMPORT_KEY_MATERIAL),
+        roundTripActions(KeyAction.DESCRIBE, KeyAction.IMPORT_KEY_MATERIAL));
+  }
+
+  @Test
+  void grantIdIsNotKept() {
+    KeyPolicy original =
+        KeyPolicy.builder()
+            .grant(
+                KeyGrant.builder()
+                    .id("grant-1")
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, GRANTEE))
+                    .action(KeyAction.DECRYPT)
+                    .build())
+            .build();
+
+    assertEquals(null, roundTrip(original).getGrants().get(0).getId());
+  }
+
+  private static KeyPolicy policyOf(KeyAction... actions) {
+    return KeyPolicy.builder()
+        .grant(
+            KeyGrant.builder()
+                .principal(KeyPrincipal.of(PrincipalType.IDENTITY, GRANTEE))
+                .actions(Set.of(actions))
+                .build())
+        .build();
+  }
+
+  private static KeyPolicy roundTrip(KeyPolicy policy) {
+    return GcpKeyPolicyTranslator.toKeyPolicy(
+        Policy.newBuilder().addAllBindings(GcpKeyPolicyTranslator.toBindings(policy)).build());
+  }
+
+  private static Set<KeyAction> roundTripActions(KeyAction... actions) {
+    return roundTrip(policyOf(actions)).getGrants().get(0).getActions();
   }
 
   @Test

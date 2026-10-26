@@ -9,13 +9,19 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.client.WireMock;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpResponseException;
+import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.gax.httpjson.HttpJsonStatusCode;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.AlreadyExistsException;
@@ -77,6 +83,7 @@ import com.salesforce.multicloudj.kms.model.PrincipalType;
 import com.salesforce.multicloudj.kms.model.ProtectionLevel;
 import com.salesforce.multicloudj.kms.model.WrappingAlgorithm;
 import com.salesforce.multicloudj.kms.model.WrappingKeySpec;
+import java.net.URI;
 import java.security.KeyPairGenerator;
 import java.time.Duration;
 import java.time.Instant;
@@ -88,6 +95,7 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 
 class GcpKmsTest {
 
@@ -359,11 +367,155 @@ class GcpKmsTest {
   }
 
   @Test
-  void createKeyRejectsMultiRegion() {
+  void createKeyWithoutPolicyDoesNotTouchIam() {
+    when(client.createCryptoKey(any(CreateCryptoKeyRequest.class)))
+        .thenReturn(CryptoKey.newBuilder().setName(KEY_NAME).build());
+
+    kms.doCreateKey(CreateKeyRequest.builder().keyName("my-key").build());
+
+    verify(client, never()).setIamPolicy(any(SetIamPolicyRequest.class));
+  }
+
+  @Test
+  void createKeyWithPolicyCreatesTheKeyThenAppliesTheBindings() {
+    when(client.createCryptoKey(any(CreateCryptoKeyRequest.class)))
+        .thenReturn(CryptoKey.newBuilder().setName(KEY_NAME).build());
+    when(client.getIamPolicy(any(GetIamPolicyRequest.class)))
+        .thenReturn(Policy.newBuilder().setEtag(ByteString.copyFromUtf8("etag-1")).build());
+    KeyPolicy policy =
+        KeyPolicy.builder()
+            .grant(
+                KeyGrant.builder()
+                    .principal(
+                        KeyPrincipal.of(PrincipalType.IDENTITY, "sa@p.iam.gserviceaccount.com"))
+                    .action(KeyAction.ALL)
+                    .build())
+            .build();
+
+    CreateKeyResponse response =
+        kms.doCreateKey(CreateKeyRequest.builder().keyName("my-key").policy(policy).build());
+
+    InOrder order = inOrder(client);
+    order.verify(client).createCryptoKey(any(CreateCryptoKeyRequest.class));
+    order.verify(client).getIamPolicy(any(GetIamPolicyRequest.class));
+    ArgumentCaptor<SetIamPolicyRequest> write = ArgumentCaptor.forClass(SetIamPolicyRequest.class);
+    order.verify(client).setIamPolicy(write.capture());
+    assertEquals(KEY_NAME, write.getValue().getResource());
+    Policy sent = write.getValue().getPolicy();
+    assertEquals(ByteString.copyFromUtf8("etag-1"), sent.getEtag());
+    assertEquals(2, sent.getBindingsCount());
+    assertEquals("roles/cloudkms.admin", sent.getBindings(0).getRole());
+    assertEquals("roles/cloudkms.cryptoKeyEncrypterDecrypter", sent.getBindings(1).getRole());
+    assertEquals(KEY_NAME, response.getKeyRef().getResourceName());
+  }
+
+  @Test
+  void createKeyPropagatesAPolicyFailureAfterTheKeyWasCreated() {
+    when(client.createCryptoKey(any(CreateCryptoKeyRequest.class)))
+        .thenReturn(CryptoKey.newBuilder().setName(KEY_NAME).build());
+    when(client.getIamPolicy(any(GetIamPolicyRequest.class)))
+        .thenReturn(Policy.getDefaultInstance());
+    ApiException failure =
+        ApiExceptionFactory.createException(
+            new RuntimeException("denied"), HttpJsonStatusCode.of(403), false);
+    when(client.setIamPolicy(any(SetIamPolicyRequest.class))).thenThrow(failure);
+    KeyPolicy policy =
+        KeyPolicy.builder()
+            .grant(
+                KeyGrant.builder()
+                    .principal(KeyPrincipal.of(PrincipalType.IDENTITY, "sa@p.iam"))
+                    .action(KeyAction.ENCRYPT)
+                    .build())
+            .build();
+
+    assertSame(
+        failure,
+        assertThrows(
+            ApiException.class,
+            () ->
+                kms.doCreateKey(
+                    CreateKeyRequest.builder().keyName("my-key").policy(policy).build())));
+  }
+
+  // ---- multi-region ----
+
+  @Test
+  void multiRegionKeysNeedAKeyRingInAMultiRegionOrGlobalLocation() {
+    assertFalse(newKms(KEY_RING).supportsMultiRegionKeys());
+    assertFalse(newKms("projects/p/locations/europe-west4/keyRings/r").supportsMultiRegionKeys());
+    assertTrue(newKms("projects/p/locations/global/keyRings/r").supportsMultiRegionKeys());
+    assertTrue(newKms("projects/p/locations/us/keyRings/r").supportsMultiRegionKeys());
+    assertTrue(newKms("projects/p/locations/europe/keyRings/r").supportsMultiRegionKeys());
+    assertTrue(newKms("projects/p/locations/nam4/keyRings/r").supportsMultiRegionKeys());
+    assertTrue(newKms("projects/p/locations/eur4/keyRings/r").supportsMultiRegionKeys());
+  }
+
+  @Test
+  void multiRegionKeysAreUnsupportedWithoutAUsableKeyContainer() {
+    assertFalse(newKms(null).supportsMultiRegionKeys());
+    assertFalse(newKms("not-a-key-ring").supportsMultiRegionKeys());
+  }
+
+  @Test
+  void createKeyOnAMultiRegionKeyRingSendsNothingExtra() {
+    GcpKms global = newKms("projects/p/locations/global/keyRings/r");
+    when(client.createCryptoKey(any(CreateCryptoKeyRequest.class)))
+        .thenReturn(
+            CryptoKey.newBuilder()
+                .setName("projects/p/locations/global/keyRings/r/cryptoKeys/k")
+                .build());
+
+    global.createKey(CreateKeyRequest.builder().keyName("k").multiRegion(true).build());
+
+    ArgumentCaptor<CreateCryptoKeyRequest> sent =
+        ArgumentCaptor.forClass(CreateCryptoKeyRequest.class);
+    verify(client).createCryptoKey(sent.capture());
+    assertEquals("projects/p/locations/global/keyRings/r", sent.getValue().getParent());
+    assertEquals(
+        CreateCryptoKeyRequest.newBuilder()
+            .setParent("projects/p/locations/global/keyRings/r")
+            .setCryptoKeyId("k")
+            .setCryptoKey(
+                CryptoKey.newBuilder()
+                    .setPurpose(CryptoKeyPurpose.ENCRYPT_DECRYPT)
+                    .setVersionTemplate(
+                        CryptoKeyVersionTemplate.newBuilder()
+                            .setAlgorithm(CryptoKeyVersionAlgorithm.GOOGLE_SYMMETRIC_ENCRYPTION)
+                            .setProtectionLevel(com.google.cloud.kms.v1.ProtectionLevel.SOFTWARE)))
+            .build(),
+        sent.getValue());
+  }
+
+  @Test
+  void createKeyRejectsMultiRegionOnARegionalKeyRing() {
     assertThrows(
         UnSupportedOperationException.class,
-        () -> kms.doCreateKey(CreateKeyRequest.builder().keyName("k").multiRegion(true).build()));
+        () -> kms.createKey(CreateKeyRequest.builder().keyName("k").multiRegion(true).build()));
     verify(client, never()).createCryptoKey(any(CreateCryptoKeyRequest.class));
+  }
+
+  // ---- proxy ----
+
+  @Test
+  void proxiedTransportSendsRequestsThroughTheProxyEndpoint() throws Exception {
+    WireMockServer proxy = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+    proxy.start();
+    try {
+      proxy.stubFor(WireMock.any(WireMock.anyUrl()).willReturn(WireMock.ok()));
+      NetHttpTransport transport =
+          GcpKms.createProxiedTransport(URI.create("http://localhost:" + proxy.port()));
+
+      transport
+          .createRequestFactory()
+          .buildGetRequest(new GenericUrl("http://kms.proxied.test/v1/ping"))
+          .execute();
+
+      proxy.verify(
+          WireMock.getRequestedFor(WireMock.urlEqualTo("/v1/ping"))
+              .withHeader("Host", WireMock.equalTo("kms.proxied.test")));
+    } finally {
+      proxy.stop();
+    }
   }
 
   // ---- enable / disable ----
@@ -784,8 +936,7 @@ class GcpKmsTest {
 
   @Test
   void policyCapabilitiesComeFromTheTranslator() {
-    assertFalse(kms.getPolicyCapabilities().isSupportsDeny());
-    assertFalse(kms.getPolicyCapabilities().isSupportsConditions());
+    assertSame(GcpKeyPolicyTranslator.CAPABILITIES, kms.getPolicyCapabilities());
   }
 
   // ---- tags ----

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.kms.model.Effect;
 import com.salesforce.multicloudj.kms.model.KeyAction;
 import com.salesforce.multicloudj.kms.model.KeyGrant;
@@ -26,19 +27,24 @@ import java.util.regex.Pattern;
 /**
  * Converts between the portable {@link KeyPolicy} model and the JSON key policy document accepted
  * by KMS: {@code {"Version":"1","Statement":[{"Effect","Principal","Action","Resource"}]}}.
+ *
+ * <p>Key policy statements have no documented identifier field, so {@link KeyGrant#getId()} is not
+ * written and grants read back without an id. Principals are RAM identifiers only; service
+ * principals cannot be expressed in a key policy.
  */
 final class AliKeyPolicyTranslator {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
   private static final String POLICY_VERSION = "1";
   private static final String RAM_PREFIX = "acs:ram::";
+  private static final String ALL_ACTIONS = "kms:*";
 
   /** Matches the principal that stands for every identity of an account. */
   private static final Pattern ACCOUNT_PRINCIPAL = Pattern.compile("^acs:ram::([^:]+):(\\*|root)$");
 
   /**
    * Native actions that make up each portable action. MANAGE only lists administrative actions so
-   * that it never confers cryptographic access.
+   * that it never confers cryptographic access. ALL is the single wildcard action.
    */
   private static final Map<KeyAction, List<String>> NATIVE_ACTIONS = new EnumMap<>(KeyAction.class);
 
@@ -61,6 +67,13 @@ final class AliKeyPolicyTranslator {
             "kms:GetKeyPolicy",
             "kms:TagResource",
             "kms:UntagResource"));
+    NATIVE_ACTIONS.put(KeyAction.MANAGE_STATE, List.of("kms:EnableKey", "kms:DisableKey"));
+    NATIVE_ACTIONS.put(KeyAction.MANAGE_POLICY, List.of("kms:SetKeyPolicy", "kms:GetKeyPolicy"));
+    NATIVE_ACTIONS.put(KeyAction.MANAGE_TAGS, List.of("kms:TagResource", "kms:UntagResource"));
+    NATIVE_ACTIONS.put(
+        KeyAction.IMPORT_KEY_MATERIAL,
+        List.of("kms:GetParametersForImport", "kms:ImportKeyMaterial"));
+    NATIVE_ACTIONS.put(KeyAction.ALL, List.of(ALL_ACTIONS));
   }
 
   private AliKeyPolicyTranslator() {}
@@ -90,7 +103,14 @@ final class AliKeyPolicyTranslator {
     ArrayNode ram = MAPPER.createArrayNode();
     for (KeyPrincipal principal : grant.getPrincipals()) {
       switch (principal.getType()) {
-        case IDENTITY -> ram.add(principal.getIdentifier());
+        case IDENTITY -> {
+          if (!principal.getIdentifier().startsWith(RAM_PREFIX)) {
+            throw new UnSupportedOperationException(
+                "key policies only support RAM identities (acs:ram::...), got "
+                    + principal.getIdentifier());
+          }
+          ram.add(principal.getIdentifier());
+        }
         case ACCOUNT -> ram.add(RAM_PREFIX + principal.getIdentifier() + ":*");
         default ->
             throw new InvalidArgumentException("unsupported principal type " + principal.getType());
@@ -102,12 +122,16 @@ final class AliKeyPolicyTranslator {
     }
 
     ArrayNode actions = statement.putArray("Action");
-    for (KeyAction action : EnumSet.copyOf(grant.getActions())) {
-      List<String> natives = NATIVE_ACTIONS.get(action);
-      if (natives == null) {
-        throw new InvalidArgumentException("unsupported key action " + action);
+    if (grant.getActions().contains(KeyAction.ALL)) {
+      actions.add(ALL_ACTIONS);
+    } else {
+      for (KeyAction action : EnumSet.copyOf(grant.getActions())) {
+        List<String> natives = NATIVE_ACTIONS.get(action);
+        if (natives == null) {
+          throw new InvalidArgumentException("unsupported key action " + action);
+        }
+        natives.forEach(actions::add);
       }
-      natives.forEach(actions::add);
     }
     statement.putArray("Resource").add("*");
     return statement;
@@ -178,20 +202,35 @@ final class AliKeyPolicyTranslator {
     return principals;
   }
 
+  /**
+   * A composite action is reported only when all its native actions are present. Actions whose
+   * native actions are a strict subset of another reported action's are dropped, so that a policy
+   * written with MANAGE does not also read back as MANAGE_STATE, MANAGE_POLICY and MANAGE_TAGS.
+   */
   private static Set<KeyAction> readActions(JsonNode actionNode) {
     Set<String> nativeActions = new HashSet<>();
     for (String action : values(actionNode)) {
       nativeActions.add(action.toLowerCase(Locale.ROOT));
     }
-    boolean all = nativeActions.contains("*") || nativeActions.contains("kms:*");
-    Set<KeyAction> actions = EnumSet.noneOf(KeyAction.class);
+    if (nativeActions.contains("*") || nativeActions.contains(ALL_ACTIONS)) {
+      return EnumSet.of(KeyAction.ALL);
+    }
+    Set<KeyAction> recognized = EnumSet.noneOf(KeyAction.class);
     for (Map.Entry<KeyAction, List<String>> entry : NATIVE_ACTIONS.entrySet()) {
-      boolean granted =
-          all
-              || entry.getValue().stream()
-                  .allMatch(n -> nativeActions.contains(n.toLowerCase(Locale.ROOT)));
-      if (granted) {
-        actions.add(entry.getKey());
+      if (entry.getValue().stream()
+          .allMatch(n -> nativeActions.contains(n.toLowerCase(Locale.ROOT)))) {
+        recognized.add(entry.getKey());
+      }
+    }
+    Set<KeyAction> actions = EnumSet.copyOf(recognized);
+    for (KeyAction candidate : recognized) {
+      Set<String> verbs = new HashSet<>(NATIVE_ACTIONS.get(candidate));
+      for (KeyAction other : recognized) {
+        Set<String> otherVerbs = new HashSet<>(NATIVE_ACTIONS.get(other));
+        if (otherVerbs.size() > verbs.size() && otherVerbs.containsAll(verbs)) {
+          actions.remove(candidate);
+          break;
+        }
       }
     }
     return actions;
