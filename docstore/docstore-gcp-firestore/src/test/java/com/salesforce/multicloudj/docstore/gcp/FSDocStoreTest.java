@@ -6,11 +6,13 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.ServerStream;
 import com.google.api.gax.rpc.ServerStreamingCallable;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.cloud.firestore.v1.FirestoreClient;
+import com.google.cloud.firestore.v1.FirestoreSettings;
 import com.google.firestore.v1.CommitRequest;
 import com.google.firestore.v1.CommitResponse;
 import com.google.firestore.v1.Document;
@@ -19,11 +21,14 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.Action;
 import com.salesforce.multicloudj.docstore.driver.ActionKind;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
+import java.io.IOException;
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -370,5 +375,35 @@ public class FSDocStoreTest {
     // Verify the third write has an update mask (for UPDATE action)
     Assertions.assertTrue(write3.hasUpdateMask());
     Assertions.assertTrue(write3.getUpdateMask().getFieldPathsList().contains("content"));
+  }
+
+  @Test
+  void testApplyRetryConfigOverridesDriverRpcs() throws IOException {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(3)
+            .fixedDelayMillis(200)
+            .totalTimeout(4000L)
+            .build();
+    FirestoreSettings.Builder settingsBuilder = FirestoreSettings.newBuilder();
+    RetrySettings listDocumentsDefault = settingsBuilder.listDocumentsSettings().getRetrySettings();
+
+    FSDocStore.Builder.applyRetryConfig(settingsBuilder, retryConfig);
+
+    FirestoreSettings settings = settingsBuilder.build();
+    for (RetrySettings applied :
+        List.of(
+            settings.commitSettings().getRetrySettings(),
+            settings.batchGetDocumentsSettings().getRetrySettings(),
+            settings.runQuerySettings().getRetrySettings())) {
+      Assertions.assertEquals(3, applied.getMaxAttempts());
+      Assertions.assertEquals(Duration.ofMillis(200), applied.getInitialRetryDelayDuration());
+      Assertions.assertEquals(Duration.ofMillis(200), applied.getMaxRetryDelayDuration());
+      Assertions.assertEquals(1.0, applied.getRetryDelayMultiplier());
+      Assertions.assertEquals(Duration.ofMillis(4000), applied.getTotalTimeoutDuration());
+    }
+    Assertions.assertEquals(
+        listDocumentsDefault, settings.listDocumentsSettings().getRetrySettings());
   }
 }

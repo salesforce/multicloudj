@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.docstore.ali;
 import static com.salesforce.multicloudj.docstore.ali.AliCodec.decodeDoc;
 import static com.salesforce.multicloudj.docstore.ali.ErrorCodeMapping.OTS_CONDITIONAL_CHECK_FAILED;
 
+import com.alicloud.openservices.tablestore.ClientConfiguration;
 import com.alicloud.openservices.tablestore.ClientException;
 import com.alicloud.openservices.tablestore.SyncClient;
 import com.alicloud.openservices.tablestore.TableStoreException;
@@ -14,6 +15,7 @@ import com.alicloud.openservices.tablestore.model.BatchGetRowResponse;
 import com.alicloud.openservices.tablestore.model.ColumnValue;
 import com.alicloud.openservices.tablestore.model.CommitTransactionRequest;
 import com.alicloud.openservices.tablestore.model.Condition;
+import com.alicloud.openservices.tablestore.model.DefaultRetryStrategy;
 import com.alicloud.openservices.tablestore.model.DeleteRowRequest;
 import com.alicloud.openservices.tablestore.model.DescribeTableRequest;
 import com.alicloud.openservices.tablestore.model.DescribeTableResponse;
@@ -42,6 +44,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.UUID;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
@@ -62,6 +65,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -134,7 +138,45 @@ public class AliDocStore extends AbstractDocStore {
           TableStoreCredentialsProvider.getCredentialsProvider(
               builder.getCredentialsOverrider(), builder.getRegion());
       return new SyncClient(
-          endpoint, provider, builder.getInstanceId(), null, new ResourceManager(null, null));
+          endpoint,
+          provider,
+          builder.getInstanceId(),
+          buildClientConfiguration(builder.getRetryConfig()),
+          new ResourceManager(null, null));
+    }
+
+    /**
+     * Builds the Tablestore client configuration for {@code retryConfig}, or returns null so the
+     * SDK applies its defaults when no RetryConfig is set.
+     *
+     * <p>Only {@code totalTimeout} and {@code attemptTimeout} are applied. {@code totalTimeout} is
+     * the deadline of the SDK's {@link DefaultRetryStrategy}, after which no retry starts; when it
+     * is unset the SDK's 10 second deadline is kept. {@code attemptTimeout} sets the connection
+     * timeout and the socket timeout of each attempt.
+     *
+     * <p>The remaining fields are ignored. The SDK's retry strategies that classify retryable
+     * errors bound retries only by their deadline, so {@code maxAttempts} cannot be honored. Their
+     * retry pause is fixed by the SDK, so {@code mode}, the delay fields and {@code multiplier}
+     * are not applied.
+     */
+    static ClientConfiguration buildClientConfiguration(RetryConfig retryConfig) {
+      if (retryConfig == null) {
+        return null;
+      }
+      ClientConfiguration configuration = new ClientConfiguration();
+      if (retryConfig.getTotalTimeout() != null) {
+        // The SDK narrows the time left before its deadline to an int, so a longer timeout would
+        // overflow.
+        long totalTimeout = Math.min(Integer.MAX_VALUE, retryConfig.getTotalTimeout());
+        configuration.setRetryStrategy(
+            new DefaultRetryStrategy(totalTimeout, TimeUnit.MILLISECONDS));
+      }
+      if (retryConfig.getAttemptTimeout() != null) {
+        int attemptTimeout = (int) Math.min(Integer.MAX_VALUE, retryConfig.getAttemptTimeout());
+        configuration.setConnectionTimeoutInMillisecond(attemptTimeout);
+        configuration.setSocketTimeoutInMillisecond(attemptTimeout);
+      }
+      return configuration;
     }
 
     public Builder() {

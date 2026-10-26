@@ -7,6 +7,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.alicloud.openservices.tablestore.ClientConfiguration;
 import com.alicloud.openservices.tablestore.ClientException;
 import com.alicloud.openservices.tablestore.SyncClient;
 import com.alicloud.openservices.tablestore.TableStoreException;
@@ -18,6 +19,7 @@ import com.alicloud.openservices.tablestore.model.ColumnValue;
 import com.alicloud.openservices.tablestore.model.CommitTransactionRequest;
 import com.alicloud.openservices.tablestore.model.Condition;
 import com.alicloud.openservices.tablestore.model.ConsumedCapacity;
+import com.alicloud.openservices.tablestore.model.DefaultRetryStrategy;
 import com.alicloud.openservices.tablestore.model.DeleteRowRequest;
 import com.alicloud.openservices.tablestore.model.DeleteRowResponse;
 import com.alicloud.openservices.tablestore.model.DescribeTableRequest;
@@ -28,6 +30,7 @@ import com.alicloud.openservices.tablestore.model.GetRangeRequest;
 import com.alicloud.openservices.tablestore.model.GetRangeResponse;
 import com.alicloud.openservices.tablestore.model.IndexMeta;
 import com.alicloud.openservices.tablestore.model.IndexType;
+import com.alicloud.openservices.tablestore.model.OperationNames;
 import com.alicloud.openservices.tablestore.model.PrimaryKey;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyBuilder;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyValue;
@@ -51,6 +54,7 @@ import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.Action;
 import com.salesforce.multicloudj.docstore.driver.ActionKind;
@@ -2547,5 +2551,50 @@ class AliDocStoreTest {
         "OTSInvalidPK is a caller error, so the exhaustion failure must be non-retryable");
     // 1 initial read + MAX_HYDRATION_RETRIES (3) re-drives = 4 calls before failing loud.
     verify(syncClient, times(4)).batchGetRow(any());
+  }
+
+  @Test
+  void testBuildClientConfigurationAppliesTotalTimeoutAndAttemptTimeout() throws Exception {
+    RetryConfig retryConfig =
+        RetryConfig.builder().totalTimeout(1L).attemptTimeout(2500L).build();
+
+    ClientConfiguration configuration =
+        AliDocStore.Builder.buildClientConfiguration(retryConfig);
+
+    Assertions.assertInstanceOf(DefaultRetryStrategy.class, configuration.getRetryStrategy());
+    Thread.sleep(5);
+    TableStoreException serverBusy =
+        new TableStoreException("busy", null, "OTSServerBusy", "request-id", 503);
+    Assertions.assertEquals(
+        0, configuration.getRetryStrategy().nextPause(OperationNames.OP_GET_ROW, serverBusy));
+    Assertions.assertEquals(2500, configuration.getConnectionTimeoutInMillisecond());
+    Assertions.assertEquals(2500, configuration.getSocketTimeoutInMillisecond());
+  }
+
+  @Test
+  void testBuildClientConfigurationIgnoresFieldsTheSdkCannotHonor() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(2)
+            .fixedDelayMillis(100)
+            .build();
+    ClientConfiguration defaults = new ClientConfiguration();
+
+    ClientConfiguration configuration =
+        AliDocStore.Builder.buildClientConfiguration(retryConfig);
+
+    Assertions.assertSame(
+        defaults.getRetryStrategy().getClass(), configuration.getRetryStrategy().getClass());
+    Assertions.assertEquals(
+        defaults.getConnectionTimeoutInMillisecond(),
+        configuration.getConnectionTimeoutInMillisecond());
+    Assertions.assertEquals(
+        defaults.getSocketTimeoutInMillisecond(), configuration.getSocketTimeoutInMillisecond());
+  }
+
+  @Test
+  void testBuildClientConfigurationWithoutRetryConfigUsesSdkDefaults() {
+    Assertions.assertNull(AliDocStore.Builder.buildClientConfiguration(null));
   }
 }
