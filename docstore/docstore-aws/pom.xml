@@ -211,7 +211,7 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>3.25.5</version>
+            <version>4.36.2</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
