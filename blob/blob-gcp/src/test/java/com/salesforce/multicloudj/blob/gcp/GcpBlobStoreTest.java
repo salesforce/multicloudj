@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -4859,6 +4860,54 @@ class GcpBlobStoreTest {
     when(blobBuilder.build()).thenThrow(new RuntimeException("update failed"));
 
     assertDoesNotThrow(() -> gcpBlobStore.doCompleteMultipartUpload(mpu, parts));
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_TagFailureStillAppliesLegalHold() {
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder().legalHold(true).useEventBasedHold(true).build();
+    MultipartUpload mpu =
+        MultipartUpload.builder()
+            .bucket(TEST_BUCKET)
+            .key(TEST_KEY)
+            .id("test-upload-id")
+            .tags(Map.of("Env", "Prod"))
+            .objectLock(objectLock)
+            .build();
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts =
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L));
+    when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+        .thenReturn(CompleteMultipartUploadResponse.builder().etag("complete-etag").build());
+
+    BlobId tagBlobId = mock(BlobId.class);
+    Blob tagBlob = mock(Blob.class);
+    Blob.Builder tagBuilder = mock(Blob.Builder.class);
+    Blob taggedBlob = mock(Blob.class);
+    RuntimeException tagFailure = new RuntimeException("tag update failed");
+    when(mockTransformer.toBlobId(TEST_KEY, null)).thenReturn(tagBlobId);
+    when(mockStorage.get(tagBlobId)).thenReturn(tagBlob);
+    when(tagBlob.toBuilder()).thenReturn(tagBuilder);
+    when(tagBuilder.setMetadata(anyMap())).thenReturn(tagBuilder);
+    when(tagBuilder.build()).thenReturn(taggedBlob);
+    when(mockStorage.update(taggedBlob)).thenThrow(tagFailure);
+
+    Blob holdBlob = mock(Blob.class);
+    Blob.Builder holdBuilder = mock(Blob.Builder.class);
+    Blob heldBlob = mock(Blob.class);
+    when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, null)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(holdBlob);
+    when(holdBlob.toBuilder()).thenReturn(holdBuilder);
+    when(holdBuilder.setEventBasedHold(true)).thenReturn(holdBuilder);
+    when(holdBuilder.setTemporaryHold(false)).thenReturn(holdBuilder);
+    when(holdBuilder.build()).thenReturn(heldBlob);
+
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class, () -> gcpBlobStore.doCompleteMultipartUpload(mpu, parts));
+
+    assertSame(tagFailure, thrown);
+    verify(holdBuilder).setEventBasedHold(true);
+    verify(mockStorage).update(heldBlob);
   }
 
   @Test

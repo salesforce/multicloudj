@@ -764,11 +764,14 @@ public class GcpBlobStore extends AbstractBlobStore {
     // request, which sends metadata as HTTP headers: the SDK lowercases header names and
     // URL-encodes values, so tag keys and values would not be stored as given. Writing them here
     // also anchors the lifecycle-expiration custom time to the object's creation time.
-    if (mpu.getTags() != null && !mpu.getTags().isEmpty()) {
-      doSetTags(mpu.getKey(), mpu.getTags());
+    // The object is already committed, so the legal hold is applied even if the tag write fails.
+    try {
+      if (mpu.getTags() != null && !mpu.getTags().isEmpty()) {
+        doSetTags(mpu.getKey(), mpu.getTags());
+      }
+    } finally {
+      applyMultipartLegalHold(mpu);
     }
-
-    applyMultipartLegalHold(mpu);
 
     return new MultipartUploadResponse(response.etag(), response.crc32c());
   }
