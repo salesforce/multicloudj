@@ -70,8 +70,6 @@ public abstract class AbstractKmsIT {
     /** Builds the provider with its native client routed through the WireMock proxy. */
     AbstractKms createKms();
 
-    String getProviderId();
-
     int getPort();
 
     List<String> getWiremockExtensions();
@@ -152,7 +150,6 @@ public abstract class AbstractKmsIT {
     KeyRef keyRef = response.getKeyRef();
     Assertions.assertNotNull(keyRef);
     Assertions.assertFalse(keyRef.getKeyId().isBlank());
-    Assertions.assertEquals(harness.getProviderId(), keyRef.getProviderId());
     Assertions.assertEquals(KeyState.ENABLED, response.getKeyState());
   }
 

@@ -272,7 +272,6 @@ public class AliKms extends AbstractKms {
 
   private KeyRef keyRef(String keyId, String arn, String versionId) {
     return KeyRef.builder()
-        .providerId(AliConstants.PROVIDER_ID)
         .region(region)
         .keyId(keyId)
         .resourceName(arn)

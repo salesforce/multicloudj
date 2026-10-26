@@ -16,9 +16,6 @@ import lombok.ToString;
 @EqualsAndHashCode
 @ToString
 public class KeyRef {
-  /** Provider that owns the key, such as the id passed to {@code KmsClient.builder}. */
-  private final String providerId;
-
   private final String region;
 
   /**

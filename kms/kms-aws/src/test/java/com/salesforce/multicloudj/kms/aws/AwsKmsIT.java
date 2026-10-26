@@ -59,11 +59,6 @@ public class AwsKmsIT extends AbstractKmsIT {
     }
 
     @Override
-    public String getProviderId() {
-      return "aws";
-    }
-
-    @Override
     public int getPort() {
       return port;
     }

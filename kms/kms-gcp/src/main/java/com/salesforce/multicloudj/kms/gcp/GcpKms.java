@@ -485,7 +485,6 @@ public class GcpKms extends AbstractKms {
 
   private KeyRef keyRefFor(String keyName, String versionId) {
     return KeyRef.builder()
-        .providerId(GcpConstants.PROVIDER_ID)
         .region(regionOf(keyName))
         .keyId(keyName)
         .resourceName(keyName)

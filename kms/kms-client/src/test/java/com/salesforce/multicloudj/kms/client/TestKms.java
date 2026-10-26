@@ -64,7 +64,7 @@ public class TestKms extends AbstractKms {
   protected CreateKeyResponse doCreateKey(CreateKeyRequest request) {
     record("createKey");
     return CreateKeyResponse.builder()
-        .keyRef(KeyRef.builder().providerId(getProviderId()).keyId("key-1").build())
+        .keyRef(KeyRef.builder().keyId("key-1").build())
         .keyState(KeyState.ENABLED)
         .build();
   }

@@ -191,7 +191,6 @@ public class AwsKms extends AbstractKms {
     return CreateKeyResponse.builder()
         .keyRef(
             KeyRef.builder()
-                .providerId(getProviderId())
                 .region(region)
                 .keyId(metadata.keyId())
                 .resourceName(metadata.arn())
@@ -354,7 +353,6 @@ public class AwsKms extends AbstractKms {
     int marker = keyArnOrId.indexOf(KEY_ARN_MARKER);
     boolean isArn = marker >= 0;
     return KeyRef.builder()
-        .providerId(getProviderId())
         .region(region)
         .keyId(isArn ? keyArnOrId.substring(marker + KEY_ARN_MARKER.length()) : keyArnOrId)
         .resourceName(isArn ? keyArnOrId : null)

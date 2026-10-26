@@ -69,11 +69,6 @@ public class GcpKmsIT extends AbstractKmsIT {
     }
 
     @Override
-    public String getProviderId() {
-      return GcpConstants.PROVIDER_ID;
-    }
-
-    @Override
     public int getPort() {
       return port;
     }

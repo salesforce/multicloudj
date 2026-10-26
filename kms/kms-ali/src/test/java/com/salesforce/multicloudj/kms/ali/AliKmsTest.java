@@ -133,8 +133,6 @@ class AliKmsTest {
     assertEquals("env", tags.get(0).get("TagKey").asText());
     assertEquals("test", tags.get(0).get("TagValue").asText());
     verify(client, never()).createAlias(any());
-
-    assertEquals("ali", response.getKeyRef().getProviderId());
     assertEquals(REGION, response.getKeyRef().getRegion());
     assertEquals("key-1", response.getKeyRef().getKeyId());
     assertEquals("acs:kms:cn-shanghai:1:key/key-1", response.getKeyRef().getResourceName());
@@ -445,7 +443,6 @@ class AliKmsTest {
     assertArrayEquals(ciphertext, response.getCiphertext());
     assertEquals("key-1", response.getKeyRef().getKeyId());
     assertEquals("ver-1", response.getKeyRef().getVersionId());
-    assertEquals("ali", response.getKeyRef().getProviderId());
   }
 
   @Test

@@ -285,7 +285,6 @@ class GcpKmsTest {
     assertEquals(Instant.ofEpochSecond(1_700_000_000L), response.getCreationTime());
     assertNull(response.getDescription());
     KeyRef ref = response.getKeyRef();
-    assertEquals("gcp", ref.getProviderId());
     assertEquals(KEY_NAME, ref.getKeyId());
     assertEquals(KEY_NAME, ref.getResourceName());
     assertEquals("us-west1", ref.getRegion());
@@ -671,7 +670,6 @@ class GcpKmsTest {
 
     assertEquals(KEY_NAME, imported.getKeyId());
     assertEquals("1", imported.getVersionId());
-    assertEquals("gcp", imported.getProviderId());
   }
 
   @Test

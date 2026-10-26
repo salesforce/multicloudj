@@ -163,8 +163,6 @@ class AwsKmsTest {
     verify(kmsClient).createAlias(alias.capture());
     assertEquals("alias/orders", alias.getValue().aliasName());
     assertEquals(KEY_ID, alias.getValue().targetKeyId());
-
-    assertEquals("aws", response.getKeyRef().getProviderId());
     assertEquals(REGION, response.getKeyRef().getRegion());
     assertEquals(KEY_ID, response.getKeyRef().getKeyId());
     assertEquals(KEY_ARN, response.getKeyRef().getResourceName());
@@ -474,7 +472,6 @@ class AwsKmsTest {
     assertArrayEquals(ciphertext, response.getCiphertext());
     assertEquals(KEY_ID, response.getKeyRef().getKeyId());
     assertEquals(KEY_ARN, response.getKeyRef().getResourceName());
-    assertEquals("aws", response.getKeyRef().getProviderId());
     assertEquals(REGION, response.getKeyRef().getRegion());
   }
 

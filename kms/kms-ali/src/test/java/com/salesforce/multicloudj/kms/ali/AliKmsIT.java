@@ -59,11 +59,6 @@ public class AliKmsIT extends AbstractKmsIT {
     }
 
     @Override
-    public String getProviderId() {
-      return "ali";
-    }
-
-    @Override
     public int getPort() {
       return port;
     }
