@@ -137,9 +137,9 @@ public class DocStoreClient {
     /**
      * Sets the retry configuration applied to requests made to the provider.
      *
-     * <p>If not set, the provider SDK's default retry behavior is used. Fields left unset in {@code
-     * retryConfig} keep the provider SDK's defaults, so setting only {@code maxAttempts} still
-     * leaves the SDK's default timeouts in effect.
+     * <p>If not set, the provider SDK's default retry behavior is used. When set, each provider
+     * maps the fields onto its native SDK's retry settings with the semantics documented on {@link
+     * RetryConfig}; a field the provider's SDK has no equivalent for is not applied.
      *
      * @param retryConfig The retry configuration
      * @return This builder instance

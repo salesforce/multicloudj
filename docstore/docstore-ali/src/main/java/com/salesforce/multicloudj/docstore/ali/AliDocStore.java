@@ -65,7 +65,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -149,28 +148,18 @@ public class AliDocStore extends AbstractDocStore {
      * Builds the Tablestore client configuration for {@code retryConfig}, or returns null so the
      * SDK applies its defaults when no RetryConfig is set.
      *
-     * <p>Only {@code totalTimeout} and {@code attemptTimeout} are applied. {@code totalTimeout} is
-     * the deadline of the SDK's {@link DefaultRetryStrategy}, after which no retry starts; when it
-     * is unset the SDK's 10 second deadline is kept. {@code attemptTimeout} sets the connection
-     * timeout and the socket timeout of each attempt.
-     *
-     * <p>The remaining fields are ignored. The SDK's retry strategies that classify retryable
-     * errors bound retries only by their deadline, so {@code maxAttempts} cannot be honored. Their
-     * retry pause is fixed by the SDK, so {@code mode}, the delay fields and {@code multiplier}
-     * are not applied.
+     * <p>{@code maxAttempts}, {@code mode}, the delay fields and {@code totalTimeout} are applied
+     * by a {@link TablestoreRetryStrategy}. {@code totalTimeout} is the deadline after which no
+     * retry starts; when it is unset the deadline of the SDK's {@link DefaultRetryStrategy} is
+     * kept. {@code attemptTimeout} sets the connection timeout and the socket timeout of each
+     * attempt.
      */
     static ClientConfiguration buildClientConfiguration(RetryConfig retryConfig) {
       if (retryConfig == null) {
         return null;
       }
       ClientConfiguration configuration = new ClientConfiguration();
-      if (retryConfig.getTotalTimeout() != null) {
-        // The SDK narrows the time left before its deadline to an int, so a longer timeout would
-        // overflow.
-        long totalTimeout = Math.min(Integer.MAX_VALUE, retryConfig.getTotalTimeout());
-        configuration.setRetryStrategy(
-            new DefaultRetryStrategy(totalTimeout, TimeUnit.MILLISECONDS));
-      }
+      configuration.setRetryStrategy(new TablestoreRetryStrategy(retryConfig));
       if (retryConfig.getAttemptTimeout() != null) {
         int attemptTimeout = (int) Math.min(Integer.MAX_VALUE, retryConfig.getAttemptTimeout());
         configuration.setConnectionTimeoutInMillisecond(attemptTimeout);

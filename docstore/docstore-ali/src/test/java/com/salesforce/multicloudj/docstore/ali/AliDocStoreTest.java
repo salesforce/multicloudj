@@ -19,7 +19,6 @@ import com.alicloud.openservices.tablestore.model.ColumnValue;
 import com.alicloud.openservices.tablestore.model.CommitTransactionRequest;
 import com.alicloud.openservices.tablestore.model.Condition;
 import com.alicloud.openservices.tablestore.model.ConsumedCapacity;
-import com.alicloud.openservices.tablestore.model.DefaultRetryStrategy;
 import com.alicloud.openservices.tablestore.model.DeleteRowRequest;
 import com.alicloud.openservices.tablestore.model.DeleteRowResponse;
 import com.alicloud.openservices.tablestore.model.DescribeTableRequest;
@@ -2561,7 +2560,7 @@ class AliDocStoreTest {
     ClientConfiguration configuration =
         AliDocStore.Builder.buildClientConfiguration(retryConfig);
 
-    Assertions.assertInstanceOf(DefaultRetryStrategy.class, configuration.getRetryStrategy());
+    Assertions.assertInstanceOf(TablestoreRetryStrategy.class, configuration.getRetryStrategy());
     Thread.sleep(5);
     TableStoreException serverBusy =
         new TableStoreException("busy", null, "OTSServerBusy", "request-id", 503);
@@ -2572,7 +2571,7 @@ class AliDocStoreTest {
   }
 
   @Test
-  void testBuildClientConfigurationIgnoresFieldsTheSdkCannotHonor() {
+  void testBuildClientConfigurationAppliesAttemptsAndModeWithoutTimeouts() {
     RetryConfig retryConfig =
         RetryConfig.builder()
             .mode(RetryConfig.Mode.FIXED)
@@ -2584,8 +2583,7 @@ class AliDocStoreTest {
     ClientConfiguration configuration =
         AliDocStore.Builder.buildClientConfiguration(retryConfig);
 
-    Assertions.assertSame(
-        defaults.getRetryStrategy().getClass(), configuration.getRetryStrategy().getClass());
+    Assertions.assertInstanceOf(TablestoreRetryStrategy.class, configuration.getRetryStrategy());
     Assertions.assertEquals(
         defaults.getConnectionTimeoutInMillisecond(),
         configuration.getConnectionTimeoutInMillisecond());
