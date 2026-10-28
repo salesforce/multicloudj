@@ -7,7 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.google.iam.v1.Binding;
 import com.google.iam.v1.Policy;
 import com.google.type.Expr;
+import com.salesforce.multicloudj.kms.model.ConditionAttribute;
+import com.salesforce.multicloudj.kms.model.ConditionOperator;
 import com.salesforce.multicloudj.kms.model.KeyAction;
+import com.salesforce.multicloudj.kms.model.KeyCondition;
 import com.salesforce.multicloudj.kms.model.KeyGrant;
 import com.salesforce.multicloudj.kms.model.KeyPolicy;
 import com.salesforce.multicloudj.kms.model.KeyPrincipal;
@@ -27,7 +30,9 @@ class GcpKeyPolicyTranslatorTest {
     PolicyCapabilities capabilities = GcpKeyPolicyTranslator.CAPABILITIES;
 
     assertFalse(capabilities.isSupportsDeny());
-    assertFalse(capabilities.isSupportsConditions());
+    assertEquals(
+        Set.of(ConditionAttribute.ENCRYPTION_CONTEXT),
+        capabilities.getSupportedConditionAttributes());
     assertEquals(Set.of(PrincipalType.IDENTITY), capabilities.getSupportedPrincipalTypes());
     assertEquals(
         Set.of(
@@ -38,6 +43,31 @@ class GcpKeyPolicyTranslatorTest {
             KeyAction.IMPORT_KEY_MATERIAL,
             KeyAction.ALL),
         capabilities.getSupportedActions());
+  }
+
+  @Test
+  void encryptionContextConditionsAreNotWrittenToBindings() {
+    KeyGrant unconditional =
+        KeyGrant.builder()
+            .principal(KeyPrincipal.of(PrincipalType.IDENTITY, GRANTEE))
+            .action(KeyAction.DECRYPT)
+            .build();
+    KeyGrant conditional =
+        KeyGrant.builder()
+            .principal(KeyPrincipal.of(PrincipalType.IDENTITY, GRANTEE))
+            .action(KeyAction.DECRYPT)
+            .condition(
+                KeyCondition.builder()
+                    .operator(ConditionOperator.STRING_EQUALS)
+                    .attribute(ConditionAttribute.ENCRYPTION_CONTEXT)
+                    .key("sf-auth")
+                    .value("token")
+                    .build())
+            .build();
+
+    assertEquals(
+        GcpKeyPolicyTranslator.toBindings(KeyPolicy.builder().grant(unconditional).build()),
+        GcpKeyPolicyTranslator.toBindings(KeyPolicy.builder().grant(conditional).build()));
   }
 
   @Test

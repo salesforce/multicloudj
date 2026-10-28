@@ -8,8 +8,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.kms.model.ConditionAttribute;
+import com.salesforce.multicloudj.kms.model.ConditionOperator;
 import com.salesforce.multicloudj.kms.model.Effect;
 import com.salesforce.multicloudj.kms.model.KeyAction;
+import com.salesforce.multicloudj.kms.model.KeyCondition;
 import com.salesforce.multicloudj.kms.model.KeyGrant;
 import com.salesforce.multicloudj.kms.model.KeyPolicy;
 import com.salesforce.multicloudj.kms.model.KeyPrincipal;
@@ -293,5 +296,106 @@ class AliKeyPolicyTranslatorTest {
   void blankPolicyReadsAsEmpty() {
     assertTrue(AliKeyPolicyTranslator.fromPolicyJson(null).getGrants().isEmpty());
     assertTrue(AliKeyPolicyTranslator.fromPolicyJson(" ").getGrants().isEmpty());
+  }
+
+  private static KeyCondition context(ConditionOperator operator, String key, String value) {
+    return KeyCondition.builder()
+        .operator(operator)
+        .attribute(ConditionAttribute.ENCRYPTION_CONTEXT)
+        .key(key)
+        .value(value)
+        .build();
+  }
+
+  private static KeyGrant conditionalGrant(KeyAction action, KeyCondition... conditions) {
+    KeyGrant.KeyGrantBuilder grant = KeyGrant.builder().principal(ROLE).action(action);
+    for (KeyCondition condition : conditions) {
+      grant.condition(condition);
+    }
+    return grant.build();
+  }
+
+  @Test
+  void writesEncryptionContextConditionsWithTheNativeKey() throws Exception {
+    KeyPolicy policy =
+        KeyPolicy.builder()
+            .grant(
+                conditionalGrant(
+                    KeyAction.GENERATE_DATA_KEY,
+                    context(ConditionOperator.STRING_EQUALS, "sf-auth", "token")))
+            .build();
+
+    JsonNode condition =
+        MAPPER
+            .readTree(AliKeyPolicyTranslator.toPolicyJson(policy))
+            .at("/Statement/0/Condition/StringEquals/kms:EncryptionContext:sf-auth/0");
+
+    assertEquals("token", condition.asText());
+  }
+
+  @Test
+  void encryptionContextConditionsRoundTrip() {
+    KeyPolicy policy =
+        KeyPolicy.builder()
+            .grant(
+                conditionalGrant(
+                    KeyAction.DECRYPT,
+                    context(ConditionOperator.STRING_EQUALS, "sf-auth", "token"),
+                    context(ConditionOperator.STRING_LIKE, "Project", "proj-*")))
+            .build();
+
+    assertEquals(
+        policy, AliKeyPolicyTranslator.fromPolicyJson(AliKeyPolicyTranslator.toPolicyJson(policy)));
+  }
+
+  @Test
+  void rejectsConditionalReEncryption() {
+    KeyPolicy policy =
+        KeyPolicy.builder()
+            .grant(
+                conditionalGrant(
+                    KeyAction.REENCRYPT,
+                    context(ConditionOperator.STRING_EQUALS, "sf-auth", "token")))
+            .build();
+
+    assertThrows(
+        UnSupportedOperationException.class, () -> AliKeyPolicyTranslator.toPolicyJson(policy));
+  }
+
+  @Test
+  void rejectsNonStringOperatorsAndDuplicateKeys() {
+    KeyPolicy bool =
+        KeyPolicy.builder()
+            .grant(
+                conditionalGrant(
+                    KeyAction.DECRYPT, context(ConditionOperator.BOOL, "sf-auth", "true")))
+            .build();
+    KeyPolicy duplicate =
+        KeyPolicy.builder()
+            .grant(
+                conditionalGrant(
+                    KeyAction.DECRYPT,
+                    context(ConditionOperator.STRING_EQUALS, "sf-auth", "a"),
+                    context(ConditionOperator.STRING_EQUALS, "sf-auth", "b")))
+            .build();
+
+    assertThrows(
+        UnSupportedOperationException.class, () -> AliKeyPolicyTranslator.toPolicyJson(bool));
+    assertThrows(
+        UnSupportedOperationException.class, () -> AliKeyPolicyTranslator.toPolicyJson(duplicate));
+  }
+
+  @Test
+  void dropsStatementsWithConditionsTheModelCannotExpress() {
+    String json =
+        "{\"Statement\":["
+            + "{\"Effect\":\"Allow\",\"Principal\":{\"RAM\":[\"acs:ram::1234:role/app\"]},"
+            + "\"Action\":[\"kms:Decrypt\"],"
+            + "\"Condition\":{\"IpAddress\":{\"acs:SourceIp\":\"10.0.0.0/8\"}}},"
+            + "{\"Effect\":\"Allow\",\"Principal\":{\"RAM\":[\"acs:ram::1234:role/app\"]},"
+            + "\"Action\":[\"kms:Decrypt\"],"
+            + "\"Condition\":{\"StringEquals\":{\"acs:SourceVpc\":\"vpc-1\"}}}]}";
+
+    assertTrue(AliKeyPolicyTranslator.fromPolicyJson(json).getGrants().isEmpty());
   }
 }

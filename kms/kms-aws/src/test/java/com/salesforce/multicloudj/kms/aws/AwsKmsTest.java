@@ -23,6 +23,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.kms.model.ConditionAttribute;
 import com.salesforce.multicloudj.kms.model.CreateKeyRequest;
 import com.salesforce.multicloudj.kms.model.CreateKeyResponse;
 import com.salesforce.multicloudj.kms.model.DecryptRequest;
@@ -124,7 +125,8 @@ class AwsKmsTest {
     PolicyCapabilities capabilities = kms.getPolicyCapabilities();
 
     assertTrue(capabilities.isSupportsDeny());
-    assertTrue(capabilities.isSupportsConditions());
+    assertEquals(
+        EnumSet.allOf(ConditionAttribute.class), capabilities.getSupportedConditionAttributes());
     assertEquals(EnumSet.allOf(PrincipalType.class), capabilities.getSupportedPrincipalTypes());
     assertEquals(EnumSet.allOf(KeyAction.class), capabilities.getSupportedActions());
   }

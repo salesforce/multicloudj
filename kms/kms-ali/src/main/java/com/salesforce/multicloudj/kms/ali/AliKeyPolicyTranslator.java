@@ -7,8 +7,11 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.kms.model.ConditionAttribute;
+import com.salesforce.multicloudj.kms.model.ConditionOperator;
 import com.salesforce.multicloudj.kms.model.Effect;
 import com.salesforce.multicloudj.kms.model.KeyAction;
+import com.salesforce.multicloudj.kms.model.KeyCondition;
 import com.salesforce.multicloudj.kms.model.KeyGrant;
 import com.salesforce.multicloudj.kms.model.KeyPolicy;
 import com.salesforce.multicloudj.kms.model.KeyPrincipal;
@@ -31,6 +34,10 @@ import java.util.regex.Pattern;
  * <p>Key policy statements have no documented identifier field, so {@link KeyGrant#getId()} is not
  * written and grants read back without an id. Principals are RAM identifiers only; service
  * principals cannot be expressed in a key policy.
+ *
+ * <p>Encryption-context conditions map to the {@code kms:EncryptionContext:<key>} condition key
+ * with the string operators. KMS evaluates that key for encrypt, decrypt and data-key requests but
+ * not for re-encryption, so a conditional grant that includes re-encryption is rejected.
  */
 final class AliKeyPolicyTranslator {
 
@@ -38,6 +45,17 @@ final class AliKeyPolicyTranslator {
   private static final String POLICY_VERSION = "1";
   private static final String RAM_PREFIX = "acs:ram::";
   private static final String ALL_ACTIONS = "kms:*";
+  private static final String ENCRYPTION_CONTEXT_PREFIX = "kms:EncryptionContext:";
+
+  private static final Map<ConditionOperator, String> STRING_OPERATORS =
+      new EnumMap<>(ConditionOperator.class);
+
+  static {
+    STRING_OPERATORS.put(ConditionOperator.STRING_EQUALS, "StringEquals");
+    STRING_OPERATORS.put(ConditionOperator.STRING_NOT_EQUALS, "StringNotEquals");
+    STRING_OPERATORS.put(ConditionOperator.STRING_LIKE, "StringLike");
+    STRING_OPERATORS.put(ConditionOperator.STRING_NOT_LIKE, "StringNotLike");
+  }
 
   /** Matches the principal that stands for every identity of an account. */
   private static final Pattern ACCOUNT_PRINCIPAL = Pattern.compile("^acs:ram::([^:]+):(\\*|root)$");
@@ -134,13 +152,48 @@ final class AliKeyPolicyTranslator {
       }
     }
     statement.putArray("Resource").add("*");
+    if (!grant.getConditions().isEmpty()) {
+      statement.set("Condition", toConditions(grant));
+    }
     return statement;
+  }
+
+  private static ObjectNode toConditions(KeyGrant grant) {
+    if (grant.getActions().contains(KeyAction.REENCRYPT)) {
+      throw new UnSupportedOperationException(
+          "encryption context conditions are not evaluated for re-encryption");
+    }
+    ObjectNode conditions = MAPPER.createObjectNode();
+    for (KeyCondition condition : grant.getConditions()) {
+      String operator = STRING_OPERATORS.get(condition.getOperator());
+      if (condition.getAttribute() != ConditionAttribute.ENCRYPTION_CONTEXT || operator == null) {
+        throw new UnSupportedOperationException(
+            "key policies only support encryption context conditions with string operators, got "
+                + condition.getOperator()
+                + " on "
+                + condition.getAttribute());
+      }
+      ObjectNode byKey =
+          conditions.has(operator)
+              ? (ObjectNode) conditions.get(operator)
+              : conditions.putObject(operator);
+      String key = ENCRYPTION_CONTEXT_PREFIX + condition.getKey();
+      // Two conditions on the same operator and key cannot share one entry: a value list is an OR,
+      // while separate conditions are an AND, so merging them would widen the grant.
+      if (byKey.has(key)) {
+        throw new UnSupportedOperationException(
+            "a grant cannot have two " + operator + " conditions on " + key);
+      }
+      ArrayNode values = byKey.putArray(key);
+      condition.getValues().forEach(values::add);
+    }
+    return conditions;
   }
 
   /**
    * Reads a policy document. Statements the portable model cannot express without widening access
-   * are dropped: statements with conditions, with {@code NotAction}, or without any recognized
-   * principal or action.
+   * are dropped: statements with conditions other than encryption-context string conditions, with
+   * {@code NotAction}, or without any recognized principal or action.
    */
   static KeyPolicy fromPolicyJson(String json) {
     KeyPolicy.KeyPolicyBuilder policy = KeyPolicy.builder();
@@ -163,9 +216,11 @@ final class AliKeyPolicyTranslator {
   }
 
   private static void addGrant(KeyPolicy.KeyPolicyBuilder policy, JsonNode statement) {
-    if (statement.has("NotAction")
-        || statement.has("NotPrincipal")
-        || (statement.has("Condition") && !statement.get("Condition").isEmpty())) {
+    if (statement.has("NotAction") || statement.has("NotPrincipal")) {
+      return;
+    }
+    List<KeyCondition> conditions = readConditions(statement.path("Condition"));
+    if (conditions == null) {
       return;
     }
     Effect effect;
@@ -186,7 +241,49 @@ final class AliKeyPolicyTranslator {
     KeyGrant.KeyGrantBuilder grant = KeyGrant.builder().effect(effect);
     principals.forEach(grant::principal);
     actions.forEach(grant::action);
+    conditions.forEach(grant::condition);
     policy.grant(grant.build());
+  }
+
+  /**
+   * Returns the statement's conditions, or null when any of them has no portable equivalent, in
+   * which case the whole statement must be dropped rather than read without that restriction.
+   */
+  private static List<KeyCondition> readConditions(JsonNode condition) {
+    List<KeyCondition> conditions = new ArrayList<>();
+    if (condition.isMissingNode() || condition.isNull()) {
+      return conditions;
+    }
+    var operators = condition.fields();
+    while (operators.hasNext()) {
+      var byOperator = operators.next();
+      ConditionOperator operator = null;
+      for (Map.Entry<ConditionOperator, String> entry : STRING_OPERATORS.entrySet()) {
+        if (entry.getValue().equalsIgnoreCase(byOperator.getKey())) {
+          operator = entry.getKey();
+        }
+      }
+      if (operator == null || !byOperator.getValue().isObject()) {
+        return null;
+      }
+      var keys = byOperator.getValue().fields();
+      while (keys.hasNext()) {
+        var byKey = keys.next();
+        String key = byKey.getKey();
+        if (!key.regionMatches(
+            true, 0, ENCRYPTION_CONTEXT_PREFIX, 0, ENCRYPTION_CONTEXT_PREFIX.length())) {
+          return null;
+        }
+        KeyCondition.KeyConditionBuilder read =
+            KeyCondition.builder()
+                .operator(operator)
+                .attribute(ConditionAttribute.ENCRYPTION_CONTEXT)
+                .key(key.substring(ENCRYPTION_CONTEXT_PREFIX.length()));
+        values(byKey.getValue()).forEach(read::value);
+        conditions.add(read.build());
+      }
+    }
+    return conditions;
   }
 
   private static List<KeyPrincipal> readPrincipals(JsonNode principal) {

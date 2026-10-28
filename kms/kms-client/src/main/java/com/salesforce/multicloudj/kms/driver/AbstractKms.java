@@ -233,11 +233,14 @@ public abstract class AbstractKms implements KeyManagement, AutoCloseable {
         throw new UnSupportedOperationException(
             getProviderId() + " key policies cannot express DENY grants");
       }
-      if (!grant.getConditions().isEmpty() && !capabilities.isSupportsConditions()) {
-        throw new UnSupportedOperationException(
-            getProviderId() + " key policies cannot express grant conditions");
-      }
       for (KeyCondition condition : grant.getConditions()) {
+        if (!capabilities.getSupportedConditionAttributes().contains(condition.getAttribute())) {
+          throw new UnSupportedOperationException(
+              getProviderId()
+                  + " key policies cannot express "
+                  + condition.getAttribute()
+                  + " conditions");
+        }
         validateCondition(condition, grant.getActions());
       }
       for (KeyPrincipal principal : grant.getPrincipals()) {

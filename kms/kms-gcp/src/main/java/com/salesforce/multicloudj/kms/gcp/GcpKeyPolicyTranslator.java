@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.kms.gcp;
 
 import com.google.iam.v1.Binding;
 import com.google.iam.v1.Policy;
+import com.salesforce.multicloudj.kms.model.ConditionAttribute;
 import com.salesforce.multicloudj.kms.model.KeyAction;
 import com.salesforce.multicloudj.kms.model.KeyGrant;
 import com.salesforce.multicloudj.kms.model.KeyPolicy;
@@ -37,13 +38,18 @@ import java.util.TreeSet;
  * </ul>
  *
  * <p>{@link KeyGrant#getId()} is not kept: IAM bindings carry no identifier.
+ *
+ * <p>Encryption-context conditions are accepted but not written. IAM conditions cannot see the
+ * additional authenticated data of a request; instead Cloud KMS binds it into each ciphertext, so
+ * decrypting still requires the same context. Encrypting is not restricted by the condition, and
+ * the condition does not appear when the policy is read back.
  */
 final class GcpKeyPolicyTranslator {
 
   static final PolicyCapabilities CAPABILITIES =
       PolicyCapabilities.builder()
           .supportsDeny(false)
-          .supportsConditions(false)
+          .supportedConditionAttributes(EnumSet.of(ConditionAttribute.ENCRYPTION_CONTEXT))
           .supportedPrincipalTypes(EnumSet.of(PrincipalType.IDENTITY))
           .supportedActions(
               EnumSet.of(

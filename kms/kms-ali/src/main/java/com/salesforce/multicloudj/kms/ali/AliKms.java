@@ -30,6 +30,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.kms.driver.AbstractKms;
+import com.salesforce.multicloudj.kms.model.ConditionAttribute;
 import com.salesforce.multicloudj.kms.model.CreateKeyRequest;
 import com.salesforce.multicloudj.kms.model.CreateKeyResponse;
 import com.salesforce.multicloudj.kms.model.DecryptResponse;
@@ -99,7 +100,7 @@ public class AliKms extends AbstractKms {
   public PolicyCapabilities getPolicyCapabilities() {
     return PolicyCapabilities.builder()
         .supportsDeny(true)
-        .supportsConditions(false)
+        .supportedConditionAttributes(EnumSet.of(ConditionAttribute.ENCRYPTION_CONTEXT))
         .supportedPrincipalTypes(EnumSet.of(PrincipalType.IDENTITY, PrincipalType.ACCOUNT))
         .supportedActions(AliKeyPolicyTranslator.supportedActions())
         .build();

@@ -408,11 +408,14 @@ class AliKmsTest {
   }
 
   @Test
-  void policyCapabilitiesFailClosedOnConditions() {
+  void policyCapabilitiesAllowOnlyEncryptionContextConditions() {
     var capabilities = kms.getPolicyCapabilities();
 
     assertTrue(capabilities.isSupportsDeny());
-    assertEquals(false, capabilities.isSupportsConditions());
+    assertEquals(
+        java.util.EnumSet.of(
+            com.salesforce.multicloudj.kms.model.ConditionAttribute.ENCRYPTION_CONTEXT),
+        capabilities.getSupportedConditionAttributes());
     assertEquals(
         java.util.EnumSet.of(PrincipalType.IDENTITY, PrincipalType.ACCOUNT),
         capabilities.getSupportedPrincipalTypes());

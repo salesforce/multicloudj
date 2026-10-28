@@ -167,7 +167,7 @@ public class AbstractKmsTest {
 
   @Test
   void setKeyPolicyRejectsConditionsWhenProviderCannotExpressThem() {
-    kms.capabilities = PolicyCapabilities.builder().supportsConditions(false).build();
+    kms.capabilities = PolicyCapabilities.builder().build();
     KeyPolicy conditional =
         KeyPolicy.builder()
             .grant(
@@ -211,6 +211,25 @@ public class AbstractKmsTest {
   }
 
   @Test
+  void setKeyPolicyRejectsConditionAttributesTheProviderCannotExpress() {
+    kms.capabilities =
+        PolicyCapabilities.builder()
+            .supportedConditionAttributes(EnumSet.of(ConditionAttribute.ENCRYPTION_CONTEXT))
+            .build();
+
+    assertThrows(
+        UnSupportedOperationException.class,
+        () ->
+            kms.setKeyPolicy(
+                KEY, conditional(KeyAction.DECRYPT, ConditionAttribute.PRINCIPAL_NAME, null)));
+    assertTrue(kms.calls.isEmpty());
+
+    kms.setKeyPolicy(
+        KEY, conditional(KeyAction.DECRYPT, ConditionAttribute.ENCRYPTION_CONTEXT, "sf-auth"));
+    assertEquals(List.of("setKeyPolicy"), kms.calls);
+  }
+
+  @Test
   void createKeyValidatesInitialPolicy() {
     CreateKeyRequest withEmptyPolicy =
         CreateKeyRequest.builder().policy(KeyPolicy.builder().build()).build();
@@ -250,7 +269,10 @@ public class AbstractKmsTest {
 
   @Test
   void conditionsMustCarryKeysOnlyWhereTheAttributeNeedsOne() {
-    kms.capabilities = PolicyCapabilities.builder().supportsConditions(true).build();
+    kms.capabilities =
+        PolicyCapabilities.builder()
+            .supportedConditionAttributes(EnumSet.allOf(ConditionAttribute.class))
+            .build();
     assertThrows(
         InvalidArgumentException.class,
         () ->
@@ -268,7 +290,10 @@ public class AbstractKmsTest {
 
   @Test
   void encryptionContextConditionsAreLimitedToCryptographicActions() {
-    kms.capabilities = PolicyCapabilities.builder().supportsConditions(true).build();
+    kms.capabilities =
+        PolicyCapabilities.builder()
+            .supportedConditionAttributes(EnumSet.allOf(ConditionAttribute.class))
+            .build();
     assertThrows(
         InvalidArgumentException.class,
         () ->

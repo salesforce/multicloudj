@@ -11,6 +11,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.kms.driver.AbstractKms;
+import com.salesforce.multicloudj.kms.model.ConditionAttribute;
 import com.salesforce.multicloudj.kms.model.CreateKeyRequest;
 import com.salesforce.multicloudj.kms.model.CreateKeyResponse;
 import com.salesforce.multicloudj.kms.model.DecryptRequest;
@@ -29,6 +30,7 @@ import com.salesforce.multicloudj.kms.model.PolicyCapabilities;
 import com.salesforce.multicloudj.kms.model.WrappingAlgorithm;
 import com.salesforce.multicloudj.kms.model.WrappingKeySpec;
 import java.util.Base64;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
@@ -161,7 +163,10 @@ public class AwsKms extends AbstractKms {
 
   @Override
   public PolicyCapabilities getPolicyCapabilities() {
-    return PolicyCapabilities.builder().supportsDeny(true).supportsConditions(true).build();
+    return PolicyCapabilities.builder()
+        .supportsDeny(true)
+        .supportedConditionAttributes(EnumSet.allOf(ConditionAttribute.class))
+        .build();
   }
 
   @Override

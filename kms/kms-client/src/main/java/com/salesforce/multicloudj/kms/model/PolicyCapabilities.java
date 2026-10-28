@@ -14,7 +14,11 @@ import lombok.Getter;
 @Builder
 public class PolicyCapabilities {
   private final boolean supportsDeny;
-  private final boolean supportsConditions;
+
+  /** Condition attributes the provider can express; empty when grants cannot carry conditions. */
+  @Builder.Default
+  private final Set<ConditionAttribute> supportedConditionAttributes =
+      EnumSet.noneOf(ConditionAttribute.class);
 
   @Builder.Default
   private final Set<PrincipalType> supportedPrincipalTypes = EnumSet.allOf(PrincipalType.class);
