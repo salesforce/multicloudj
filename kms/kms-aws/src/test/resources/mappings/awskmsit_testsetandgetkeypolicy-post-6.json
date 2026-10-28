@@ -1,5 +1,5 @@
 {
-  "id" : "da7e0677-14f7-4fea-aabf-fcf9361465db",
+  "id" : "f90e4412-98c0-4830-816f-bca4d0a30c80",
   "name" : "AwsKmsIT_testSetAndGetKeyPolicy-POST-6",
   "request" : {
     "url" : "/",
@@ -17,17 +17,17 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\"KeyMetadata\":{\"AWSAccountId\":\"654654370895\",\"Arn\":\"arn:aws:kms:us-west-2:654654370895:key/288b2f4d-0bd5-4568-bd6d-847ab33dcb44\",\"CreationDate\":1.792431937601E9,\"CurrentKeyMaterialId\":\"00422a6134c19c07612191cffc242619da2357fe02c790eaea7f3a35daffd022\",\"CustomerMasterKeySpec\":\"SYMMETRIC_DEFAULT\",\"Description\":\"multicloudj kms conformance test key: policy\",\"Enabled\":true,\"EncryptionAlgorithms\":[\"SYMMETRIC_DEFAULT\"],\"KeyId\":\"288b2f4d-0bd5-4568-bd6d-847ab33dcb44\",\"KeyManager\":\"CUSTOMER\",\"KeySpec\":\"SYMMETRIC_DEFAULT\",\"KeyState\":\"Enabled\",\"KeyUsage\":\"ENCRYPT_DECRYPT\",\"MultiRegion\":false,\"Origin\":\"AWS_KMS\"}}",
+    "body" : "{\"KeyMetadata\":{\"AWSAccountId\":\"654654370895\",\"Arn\":\"arn:aws:kms:us-west-2:654654370895:key/638b1505-dac8-4b98-aca3-7c43c58608b1\",\"CreationDate\":1.793171075078E9,\"CurrentKeyMaterialId\":\"6386ae5608989b9209c0e09ea64e208feab34e89dbe5b0e0d9ee7ec4b6b73866\",\"CustomerMasterKeySpec\":\"SYMMETRIC_DEFAULT\",\"Description\":\"multicloudj kms conformance test key: policy\",\"Enabled\":true,\"EncryptionAlgorithms\":[\"SYMMETRIC_DEFAULT\"],\"KeyId\":\"638b1505-dac8-4b98-aca3-7c43c58608b1\",\"KeyManager\":\"CUSTOMER\",\"KeySpec\":\"SYMMETRIC_DEFAULT\",\"KeyState\":\"Enabled\",\"KeyUsage\":\"ENCRYPT_DECRYPT\",\"MultiRegion\":false,\"Origin\":\"AWS_KMS\"}}",
     "headers" : {
       "Cache-Control" : "no-cache, no-store, must-revalidate, private",
-      "x-amzn-RequestId" : "025cb149-f592-4ca6-8aaa-9f3096b78d8a",
+      "x-amzn-RequestId" : "9bb666fa-36b8-4002-971e-2ed82900ff91",
       "Pragma" : "no-cache",
       "Expires" : "0",
-      "Date" : "Mon, 19 Oct 2026 17:45:37 GMT",
+      "Date" : "Wed, 28 Oct 2026 07:04:35 GMT",
       "Content-Type" : "application/x-amz-json-1.1"
     }
   },
-  "uuid" : "da7e0677-14f7-4fea-aabf-fcf9361465db",
+  "uuid" : "f90e4412-98c0-4830-816f-bca4d0a30c80",
   "persistent" : true,
-  "insertionIndex" : 7
+  "insertionIndex" : 57
 }
