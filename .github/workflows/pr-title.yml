@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Base branch only: the allowed types come from the trusted config, not the PR.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           sparse-checkout: release-please-config.json
