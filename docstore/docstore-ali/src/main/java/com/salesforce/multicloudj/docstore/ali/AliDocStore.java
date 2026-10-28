@@ -15,7 +15,6 @@ import com.alicloud.openservices.tablestore.model.BatchGetRowResponse;
 import com.alicloud.openservices.tablestore.model.ColumnValue;
 import com.alicloud.openservices.tablestore.model.CommitTransactionRequest;
 import com.alicloud.openservices.tablestore.model.Condition;
-import com.alicloud.openservices.tablestore.model.DefaultRetryStrategy;
 import com.alicloud.openservices.tablestore.model.DeleteRowRequest;
 import com.alicloud.openservices.tablestore.model.DescribeTableRequest;
 import com.alicloud.openservices.tablestore.model.DescribeTableResponse;
@@ -150,9 +149,10 @@ public class AliDocStore extends AbstractDocStore {
      *
      * <p>{@code maxAttempts}, {@code mode}, the delay fields and {@code totalTimeout} are applied
      * by a {@link TablestoreRetryStrategy}. {@code totalTimeout} is the deadline after which no
-     * retry starts; when it is unset the deadline of the SDK's {@link DefaultRetryStrategy} is
-     * kept. {@code attemptTimeout} sets the connection timeout and the socket timeout of each
-     * attempt.
+     * retry starts; when it is unset there is no total time limit and retries are bounded only by
+     * {@code maxAttempts}. {@code attemptTimeout} sets the connection timeout and the socket
+     * timeout of each attempt. The time a sync call waits for its result is extended to the retry
+     * deadline plus one attempt, so the SDK's 60s default wait does not end retries early.
      */
     static ClientConfiguration buildClientConfiguration(RetryConfig retryConfig) {
       if (retryConfig == null) {
@@ -165,6 +165,13 @@ public class AliDocStore extends AbstractDocStore {
         configuration.setConnectionTimeoutInMillisecond(attemptTimeout);
         configuration.setSocketTimeoutInMillisecond(attemptTimeout);
       }
+      // SyncClient fails a call it has waited on longer than this, 60s by default, even while the
+      // retry strategy would keep retrying. The wait covers the retry deadline plus one more
+      // attempt, since the last attempt may start just before the deadline.
+      configuration.setSyncClientWaitFutureTimeoutInMillis(
+          TablestoreRetryStrategy.totalTimeoutMillis(retryConfig)
+              + configuration.getConnectionTimeoutInMillisecond()
+              + configuration.getSocketTimeoutInMillisecond());
       return configuration;
     }
 

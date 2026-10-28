@@ -2568,6 +2568,8 @@ class AliDocStoreTest {
         0, configuration.getRetryStrategy().nextPause(OperationNames.OP_GET_ROW, serverBusy));
     Assertions.assertEquals(2500, configuration.getConnectionTimeoutInMillisecond());
     Assertions.assertEquals(2500, configuration.getSocketTimeoutInMillisecond());
+    Assertions.assertEquals(
+        1 + 2500 + 2500, configuration.getSyncClientWaitFutureTimeoutInMillis());
   }
 
   @Test
@@ -2589,6 +2591,11 @@ class AliDocStoreTest {
         configuration.getConnectionTimeoutInMillisecond());
     Assertions.assertEquals(
         defaults.getSocketTimeoutInMillisecond(), configuration.getSocketTimeoutInMillisecond());
+    Assertions.assertEquals(
+        (long) Integer.MAX_VALUE
+            + defaults.getConnectionTimeoutInMillisecond()
+            + defaults.getSocketTimeoutInMillisecond(),
+        configuration.getSyncClientWaitFutureTimeoutInMillis());
   }
 
   @Test

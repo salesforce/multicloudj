@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.docstore.ali;
 
+import static com.salesforce.multicloudj.docstore.ali.TablestoreRetryStrategy.totalTimeoutMillis;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -100,6 +101,15 @@ class TablestoreRetryStrategyTest {
     long pause = nextPause(strategy);
 
     assertTrue(pause > 0 && pause <= 1000, "pause was " + pause);
+  }
+
+  @Test
+  void unsetTotalTimeoutReplacesTheSdkDefaultDeadline() {
+    assertEquals(Integer.MAX_VALUE, totalTimeoutMillis(RetryConfig.builder().build()));
+    assertEquals(
+        Integer.MAX_VALUE,
+        totalTimeoutMillis(RetryConfig.builder().totalTimeout(Long.MAX_VALUE).build()));
+    assertEquals(1000L, totalTimeoutMillis(RetryConfig.builder().totalTimeout(1000L).build()));
   }
 
   @Test

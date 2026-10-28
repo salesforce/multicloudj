@@ -7,10 +7,11 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Applies a {@link RetryConfig} to Tablestore requests. Which errors are retried and the retry
- * deadline come from the SDK's {@link DefaultRetryStrategy}; this strategy additionally bounds the
- * number of attempts and replaces the pause between attempts according to the configured mode.
- * Unset maxAttempts defaults to 3 attempts.
+ * Applies a {@link RetryConfig} to Tablestore requests. Which errors are retried comes from the
+ * SDK's {@link DefaultRetryStrategy}; this strategy additionally bounds the number of attempts,
+ * stops retrying after totalTimeout and replaces the pause between attempts according to the
+ * configured mode. Unset maxAttempts defaults to 3 attempts; unset totalTimeout applies no total
+ * time limit.
  *
  * <p>EXPONENTIAL waits a random time between half and all of {@code min(initialDelayMillis *
  * 2^(retry - 1), maxDelayMillis)} before each retry, counting the first retry as 1, so clients
@@ -35,16 +36,21 @@ final class TablestoreRetryStrategy implements RetryStrategy {
     this.retryConfig = retryConfig;
     this.maxAttempts =
         retryConfig.getMaxAttempts() != null ? retryConfig.getMaxAttempts() : DEFAULT_MAX_ATTEMPTS;
-    if (retryConfig.getTotalTimeout() != null) {
-      // The SDK narrows the time left before its deadline to an int, so a longer timeout would
-      // overflow.
-      long totalTimeout = Math.min(Integer.MAX_VALUE, retryConfig.getTotalTimeout());
-      this.defaults = new DefaultRetryStrategy(totalTimeout, TimeUnit.MILLISECONDS);
-      this.deadlineMillis = System.currentTimeMillis() + totalTimeout;
-    } else {
-      this.defaults = new DefaultRetryStrategy();
-      this.deadlineMillis = Long.MAX_VALUE;
-    }
+    long totalTimeout = totalTimeoutMillis(retryConfig);
+    this.defaults = new DefaultRetryStrategy(totalTimeout, TimeUnit.MILLISECONDS);
+    this.deadlineMillis = System.currentTimeMillis() + totalTimeout;
+  }
+
+  /**
+   * Returns the time after which no retry starts. The SDK narrows the time left before its deadline
+   * to an int, so it is capped at Integer.MAX_VALUE ms (about 24 days). That cap also stands in for
+   * an unset totalTimeout, which RetryConfig defines as no total time limit, instead of the SDK's
+   * 10s default deadline.
+   */
+  static long totalTimeoutMillis(RetryConfig retryConfig) {
+    return Math.min(
+        Integer.MAX_VALUE,
+        retryConfig.getTotalTimeout() != null ? retryConfig.getTotalTimeout() : Long.MAX_VALUE);
   }
 
   @Override
