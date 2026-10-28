@@ -29,7 +29,8 @@ public interface KeyManagement extends Provider {
 
   /**
    * Enables a key so it can be used for cryptographic operations. When {@link
-   * KeyRef#getVersionId()} is set only that version is enabled.
+   * KeyRef#getVersionId()} is set, providers that keep state per version enable only that version;
+   * the others enable the whole key.
    *
    * @param keyRef the key to enable
    */
@@ -37,7 +38,8 @@ public interface KeyManagement extends Provider {
 
   /**
    * Disables a key so it can no longer be used for cryptographic operations. When {@link
-   * KeyRef#getVersionId()} is set only that version is disabled.
+   * KeyRef#getVersionId()} is set, providers that keep state per version disable only that version;
+   * the others disable the whole key.
    *
    * @param keyRef the key to disable
    */

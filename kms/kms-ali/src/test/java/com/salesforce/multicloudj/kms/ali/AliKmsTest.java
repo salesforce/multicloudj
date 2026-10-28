@@ -251,12 +251,18 @@ class AliKmsTest {
   }
 
   @Test
-  void enableAndDisableRejectVersionId() {
+  void enableAndDisableActOnTheWholeKeyEvenWithAVersion() throws Exception {
     KeyRef versioned = KEY.toBuilder().versionId("v1").build();
 
-    assertThrows(UnSupportedOperationException.class, () -> kms.enableKey(versioned));
-    assertThrows(UnSupportedOperationException.class, () -> kms.disableKey(versioned));
-    verifyNoInteractions(client);
+    kms.enableKey(versioned);
+    kms.disableKey(versioned);
+
+    ArgumentCaptor<EnableKeyRequest> enable = ArgumentCaptor.forClass(EnableKeyRequest.class);
+    ArgumentCaptor<DisableKeyRequest> disable = ArgumentCaptor.forClass(DisableKeyRequest.class);
+    verify(client).enableKey(enable.capture());
+    verify(client).disableKey(disable.capture());
+    assertEquals(KEY.getKeyId(), enable.getValue().getKeyId());
+    assertEquals(KEY.getKeyId(), disable.getValue().getKeyId());
   }
 
   @Test

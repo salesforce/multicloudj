@@ -387,6 +387,8 @@ public class GcpKms extends AbstractKms {
       updateVersionState(keyName + VERSIONS_SEGMENT + versionId, to);
       return;
     }
+    // Cloud KMS has no key-level state, so the whole key is enabled or disabled by moving every
+    // version in the opposite state; destroyed and pending versions are left alone.
     List<CryptoKeyVersion> versions = new java.util.ArrayList<>();
     kmsClient.listCryptoKeyVersions(keyName).iterateAll().forEach(versions::add);
     for (CryptoKeyVersion version : versions) {

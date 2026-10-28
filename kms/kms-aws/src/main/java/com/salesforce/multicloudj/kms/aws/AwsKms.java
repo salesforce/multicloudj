@@ -225,13 +225,11 @@ public class AwsKms extends AbstractKms {
 
   @Override
   protected void doEnableKey(KeyRef keyRef) {
-    rejectVersion(keyRef);
     kmsClient.enableKey(EnableKeyRequest.builder().keyId(resolveKeyId(keyRef)).build());
   }
 
   @Override
   protected void doDisableKey(KeyRef keyRef) {
-    rejectVersion(keyRef);
     kmsClient.disableKey(DisableKeyRequest.builder().keyId(resolveKeyId(keyRef)).build());
   }
 
@@ -349,17 +347,6 @@ public class AwsKms extends AbstractKms {
     return StringUtils.isNotBlank(keyRef.getResourceName())
         ? keyRef.getResourceName()
         : keyRef.getKeyId();
-  }
-
-  /**
-   * KMS enables and disables whole keys. Honoring a version-scoped request on the whole key would
-   * grant or revoke more than the caller asked for.
-   */
-  private static void rejectVersion(KeyRef keyRef) {
-    if (StringUtils.isNotBlank(keyRef.getVersionId())) {
-      throw new UnSupportedOperationException(
-          "AWS KMS keys are enabled and disabled as a whole; versionId is not supported");
-    }
   }
 
   private static List<Tag> toTags(Map<String, String> tags) {

@@ -271,12 +271,14 @@ class AwsKmsTest {
   }
 
   @Test
-  void enableAndDisableRejectVersionedReferences() {
+  void enableAndDisableActOnTheWholeKeyEvenWithAVersion() {
     KeyRef versioned = KeyRef.builder().keyId(KEY_ID).versionId("1").build();
 
-    assertThrows(UnSupportedOperationException.class, () -> kms.enableKey(versioned));
-    assertThrows(UnSupportedOperationException.class, () -> kms.disableKey(versioned));
-    verifyNoInteractions(kmsClient);
+    kms.enableKey(versioned);
+    kms.disableKey(versioned);
+
+    verify(kmsClient).enableKey(EnableKeyRequest.builder().keyId(KEY_ID).build());
+    verify(kmsClient).disableKey(DisableKeyRequest.builder().keyId(KEY_ID).build());
   }
 
   @Test

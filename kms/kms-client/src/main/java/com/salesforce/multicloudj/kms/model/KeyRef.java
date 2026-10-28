@@ -28,8 +28,9 @@ public class KeyRef {
   private final String resourceName;
 
   /**
-   * Version of the key material, for providers that version keys. When absent, operations address
-   * the key as a whole.
+   * Version of the key material, for providers that version keys. Providers that keep state per
+   * version act on that version only; providers whose keys have a single state ignore it and act on
+   * the whole key. It is never rejected, so any {@code KeyRef} the SDK returns can be passed back.
    */
   private final String versionId;
 }

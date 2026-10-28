@@ -147,14 +147,12 @@ public class AliKms extends AbstractKms {
 
   @Override
   protected void doEnableKey(KeyRef keyRef) {
-    rejectVersion(keyRef, "enableKey");
     EnableKeyRequest request = new EnableKeyRequest().setKeyId(keyRef.getKeyId());
     invoke(() -> kmsClient.enableKey(request));
   }
 
   @Override
   protected void doDisableKey(KeyRef keyRef) {
-    rejectVersion(keyRef, "disableKey");
     DisableKeyRequest request = new DisableKeyRequest().setKeyId(keyRef.getKeyId());
     invoke(() -> kmsClient.disableKey(request));
   }
@@ -281,13 +279,6 @@ public class AliKms extends AbstractKms {
         .resourceName(arn)
         .versionId(versionId)
         .build();
-  }
-
-  private static void rejectVersion(KeyRef keyRef, String operation) {
-    if (keyRef.getVersionId() != null) {
-      throw new UnSupportedOperationException(
-          operation + " applies to a whole key; key versions cannot be addressed");
-    }
   }
 
   private static KeyState toKeyState(String nativeState) {

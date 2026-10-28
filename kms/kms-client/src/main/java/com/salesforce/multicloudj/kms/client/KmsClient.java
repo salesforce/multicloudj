@@ -72,7 +72,8 @@ public class KmsClient implements AutoCloseable {
   }
 
   /**
-   * Enables a key, or only the version named by {@link KeyRef#getVersionId()} when set.
+   * Enables a key. When {@link KeyRef#getVersionId()} is set, providers that keep state per version
+   * enable only that version; the others enable the whole key.
    *
    * @param keyRef the key to enable
    * @throws SubstrateSdkException if the operation fails
@@ -86,7 +87,8 @@ public class KmsClient implements AutoCloseable {
   }
 
   /**
-   * Disables a key, or only the version named by {@link KeyRef#getVersionId()} when set.
+   * Disables a key. When {@link KeyRef#getVersionId()} is set, providers that keep state per
+   * version disable only that version; the others disable the whole key.
    *
    * @param keyRef the key to disable
    * @throws SubstrateSdkException if the operation fails
