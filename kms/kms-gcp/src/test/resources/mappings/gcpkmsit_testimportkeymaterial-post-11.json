@@ -1,0 +1,52 @@
+{
+  "id" : "5bb6da99-4e7f-4100-8bda-0522dc17e94f",
+  "name" : "GcpKmsIT_testImportKeyMaterial-POST-11",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      },
+      "cryptoKeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "kms-it-byok-r2"
+        } ]
+      },
+      "skipInitialVersionCreation" : {
+        "hasExactly" : [ {
+          "equalTo" : "true"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"purpose\":1,\"labels\":{\"suite\":\"multicloudj-conformance\"},\"versionTemplate\":{\"protectionLevel\":1,\"algorithm\":1},\"importOnly\":true}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-byok-r2\",\n  \"purpose\": 1,\n  \"createTime\": \"2026-10-18T06:15:43.169691318Z\",\n  \"labels\": {\n    \"suite\": \"multicloudj-conformance\"\n  },\n  \"versionTemplate\": {\n    \"protectionLevel\": 1,\n    \"algorithm\": 1\n  },\n  \"importOnly\": true,\n  \"destroyScheduledDuration\": \"2592000s\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sun, 18 Oct 2026 06:15:43 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "5bb6da99-4e7f-4100-8bda-0522dc17e94f",
+  "persistent" : true,
+  "insertionIndex" : 22
+}

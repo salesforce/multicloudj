@@ -1,0 +1,33 @@
+{
+  "id" : "8356ea30-9d6c-49af-a96c-d0c66e81101d",
+  "name" : "AwsKmsIT_testEncryptDecrypt-POST-6",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.CreateKey"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"Description\":\"multicloudj kms conformance test key: crypt\",\"KeyUsage\":\"ENCRYPT_DECRYPT\",\"KeySpec\":\"SYMMETRIC_DEFAULT\",\"Origin\":\"AWS_KMS\",\"Tags\":[{\"TagKey\":\"suite\",\"TagValue\":\"multicloudj-conformance\"}],\"MultiRegion\":false}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"KeyMetadata\":{\"AWSAccountId\":\"654654370895\",\"Arn\":\"arn:aws:kms:us-west-2:654654370895:key/bb4e9133-5b98-46f1-ae0d-cdc5e1ed6e2c\",\"CreationDate\":1.792431949134E9,\"CurrentKeyMaterialId\":\"403d8734eb827a02365e06f2e63fadd77ede12b72c0b78f739638028fe589ccf\",\"CustomerMasterKeySpec\":\"SYMMETRIC_DEFAULT\",\"Description\":\"multicloudj kms conformance test key: crypt\",\"Enabled\":true,\"EncryptionAlgorithms\":[\"SYMMETRIC_DEFAULT\"],\"KeyId\":\"bb4e9133-5b98-46f1-ae0d-cdc5e1ed6e2c\",\"KeyManager\":\"CUSTOMER\",\"KeySpec\":\"SYMMETRIC_DEFAULT\",\"KeyState\":\"Enabled\",\"KeyUsage\":\"ENCRYPT_DECRYPT\",\"MultiRegion\":false,\"Origin\":\"AWS_KMS\"}}",
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "e7dea7e3-b03b-490f-a60e-d84c3798ae02",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Mon, 19 Oct 2026 17:45:49 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "8356ea30-9d6c-49af-a96c-d0c66e81101d",
+  "persistent" : true,
+  "insertionIndex" : 37
+}

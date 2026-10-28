@@ -37,6 +37,7 @@
         <module>dbbackuprestore</module>
         <module>docstore</module>
         <module>examples</module>
+        <module>kms</module>
         <module>pubsub</module>
         <module>registry</module>
         <module>sts</module>
@@ -491,6 +492,17 @@
             <dependency>
                 <groupId>com.salesforce.multicloudj</groupId>
                 <artifactId>registry-client</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>kms-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>kms-client</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>

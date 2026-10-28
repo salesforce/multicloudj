@@ -1,0 +1,62 @@
+{
+  "id" : "24fb3977-d6ed-49a4-b5ba-4e540cf0e442",
+  "name" : "GcpKmsIT_testEnableNonexistentKey-GET-0",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/does-not-exist/cryptoKeyVersions",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "6"
+      }
+    },
+    "queryParameters" : {
+      "filter" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "view" : {
+        "hasExactly" : [ {
+          "equalTo" : "0"
+        } ]
+      },
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      },
+      "orderBy" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "pageSize" : {
+        "hasExactly" : [ {
+          "equalTo" : "0"
+        } ]
+      },
+      "pageToken" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"CryptoKey projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/does-not-exist not found.\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sun, 18 Oct 2026 06:16:08 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "24fb3977-d6ed-49a4-b5ba-4e540cf0e442",
+  "persistent" : true,
+  "insertionIndex" : 52
+}

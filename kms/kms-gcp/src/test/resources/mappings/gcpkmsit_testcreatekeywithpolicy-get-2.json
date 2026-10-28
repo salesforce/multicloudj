@@ -1,0 +1,39 @@
+{
+  "id" : "9b20c72d-390a-495b-bf2f-006e5f2bf247",
+  "name" : "GcpKmsIT_testCreateKeyWithPolicy-GET-2",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-create-policy-r2:getIamPolicy",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"version\": 1,\n  \"etag\": \"BwZexNWSI5o=\",\n  \"bindings\": [\n    {\n      \"role\": \"roles/cloudkms.admin\",\n      \"members\": [\n        \"serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com\"\n      ]\n    },\n    {\n      \"role\": \"roles/cloudkms.cryptoKeyDecrypter\",\n      \"members\": [\n        \"serviceAccount:test-multicloudj-sa@substrate-sdk-gcp-poc1.iam.gserviceaccount.com\"\n      ]\n    },\n    {\n      \"role\": \"roles/cloudkms.cryptoKeyEncrypter\",\n      \"members\": [\n        \"serviceAccount:test-multicloudj-sa@substrate-sdk-gcp-poc1.iam.gserviceaccount.com\"\n      ]\n    },\n    {\n      \"role\": \"roles/cloudkms.viewer\",\n      \"members\": [\n        \"serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com\"\n      ]\n    }\n  ]\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Mon, 26 Oct 2026 21:15:50 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "9b20c72d-390a-495b-bf2f-006e5f2bf247",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-locations-us-west1-keyRings-multicloudj-kms-it-cryptoKeys-kms-it-create-policy-r2:getIamPolicy",
+  "requiredScenarioState" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-locations-us-west1-keyRings-multicloudj-kms-it-cryptoKeys-kms-it-create-policy-r2:getIamPolicy-2",
+  "insertionIndex" : 53
+}
