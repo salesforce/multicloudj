@@ -1,5 +1,9 @@
 package com.salesforce.multicloudj.pubsub.gcp;
 
+import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
+import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
+import com.google.protobuf.Timestamp;
+import com.google.pubsub.v1.SeekRequest;
 import com.salesforce.multicloudj.pubsub.client.AbstractPubsubBenchmarkTest;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
@@ -101,6 +105,24 @@ public class GcpPubsubBenchmarkTest extends AbstractPubsubBenchmarkTest {
     @Override
     public String getSubscriptionName() {
       return subscriptionName;
+    }
+
+    /**
+     * Seeks the shared subscription to now, which acks every earlier message. Needs only
+     * {@code pubsub.subscriptions.consume}; HttpJson to match the SDK's admin client.
+     */
+    @Override
+    public void purge() throws Exception {
+      long nowMs = System.currentTimeMillis();
+      Timestamp now = Timestamp.newBuilder()
+          .setSeconds(nowMs / 1000)
+          .setNanos((int) (nowMs % 1000) * 1_000_000)
+          .build();
+      try (SubscriptionAdminClient admin = SubscriptionAdminClient.create(
+          SubscriptionAdminSettings.newHttpJsonBuilder().build())) {
+        admin.seek(SeekRequest.newBuilder().setSubscription(subscriptionName).setTime(now).build());
+      }
+      logger.info("Seeked GCP Pub/Sub subscription {} to {}", subscriptionName, nowMs);
     }
 
     @Override
