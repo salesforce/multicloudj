@@ -14,6 +14,7 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayDeque;
@@ -26,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -815,5 +817,19 @@ public class AbstractSubscriptionTest {
     }
 
     sub.close();
+  }
+
+  @Test
+  void testReceiveLockIsFair() throws Exception {
+    TestSubscription direct = new TestSubscription();
+    TestSubscription built = new TestSubscription.Builder().build();
+    Field lockField = AbstractSubscription.class.getDeclaredField("lock");
+    lockField.setAccessible(true);
+
+    assertTrue(((ReentrantLock) lockField.get(direct)).isFair());
+    assertTrue(((ReentrantLock) lockField.get(built)).isFair());
+
+    direct.close();
+    built.close();
   }
 }
