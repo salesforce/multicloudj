@@ -1,0 +1,52 @@
+{
+  "id" : "60f003d1-d0f9-4e13-8204-1569d18edf03",
+  "name" : "GcpKmsIT_testCreateExternalKeyIsPendingImport-POST-1",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      },
+      "cryptoKeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "kms-it-external-r2"
+        } ]
+      },
+      "skipInitialVersionCreation" : {
+        "hasExactly" : [ {
+          "equalTo" : "true"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"purpose\":1,\"labels\":{\"suite\":\"multicloudj-conformance\"},\"versionTemplate\":{\"protectionLevel\":1,\"algorithm\":1},\"importOnly\":true}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-external-r2\",\n  \"purpose\": 1,\n  \"createTime\": \"2026-10-18T06:16:11.769042577Z\",\n  \"labels\": {\n    \"suite\": \"multicloudj-conformance\"\n  },\n  \"versionTemplate\": {\n    \"protectionLevel\": 1,\n    \"algorithm\": 1\n  },\n  \"importOnly\": true,\n  \"destroyScheduledDuration\": \"2592000s\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sun, 18 Oct 2026 06:16:11 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "60f003d1-d0f9-4e13-8204-1569d18edf03",
+  "persistent" : true,
+  "insertionIndex" : 61
+}

@@ -1,0 +1,33 @@
+{
+  "id" : "64e07269-fa4f-495c-8469-7ead200f931f",
+  "name" : "AwsKmsIT_testEnableNonexistentKey-POST-0",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.EnableKey"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"KeyId\":\"5f2b8a1c-9d4e-4c7a-b3e6-0a1d2c3b4e5f\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "{\"__type\":\"NotFoundException\",\"message\":\"Key 'arn:aws:kms:us-west-2:654654370895:key/5f2b8a1c-9d4e-4c7a-b3e6-0a1d2c3b4e5f' does not exist\"}",
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "e6ea0009-f5df-4e52-b5e3-e1c6f2bfd139",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Mon, 19 Oct 2026 17:45:58 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "64e07269-fa4f-495c-8469-7ead200f931f",
+  "persistent" : true,
+  "insertionIndex" : 55
+}
