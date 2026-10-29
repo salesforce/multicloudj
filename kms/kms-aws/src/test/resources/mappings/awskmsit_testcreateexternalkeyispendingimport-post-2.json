@@ -1,0 +1,33 @@
+{
+  "id" : "322402e2-7e47-4d6b-a36e-638d4e0eaa60",
+  "name" : "AwsKmsIT_testCreateExternalKeyIsPendingImport-POST-2",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.ListAliases"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"KeyId\":\"8e406a1c-4524-41a4-99b3-856c5603540f\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"AliasCount\":1,\"Aliases\":[{\"AliasArn\":\"arn:aws:kms:us-west-2:654654370895:alias/multicloudj-kms-it-external\",\"AliasName\":\"alias/multicloudj-kms-it-external\",\"CreationDate\":1.792431962235E9,\"LastUpdatedDate\":1.792431962235E9,\"TargetKeyId\":\"8e406a1c-4524-41a4-99b3-856c5603540f\"}],\"Truncated\":false}",
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "3514972c-f38e-47b2-a29a-f91af2bce1e1",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Mon, 19 Oct 2026 17:46:02 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "322402e2-7e47-4d6b-a36e-638d4e0eaa60",
+  "persistent" : true,
+  "insertionIndex" : 66
+}
