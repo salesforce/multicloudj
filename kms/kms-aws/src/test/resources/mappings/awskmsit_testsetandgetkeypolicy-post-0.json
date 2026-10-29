@@ -1,0 +1,33 @@
+{
+  "id" : "9fac93ea-a99c-4ebd-9ed7-5c9e4e57141d",
+  "name" : "AwsKmsIT_testSetAndGetKeyPolicy-POST-0",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.ScheduleKeyDeletion"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"KeyId\":\"638b1505-dac8-4b98-aca3-7c43c58608b1\",\"PendingWindowInDays\":7}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"DeletionDate\":1.793775877563E9,\"KeyId\":\"arn:aws:kms:us-west-2:654654370895:key/638b1505-dac8-4b98-aca3-7c43c58608b1\",\"KeyState\":\"PendingDeletion\",\"PendingWindowInDays\":7}",
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "825f899b-1eac-4732-9f56-715a009f2153",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Wed, 28 Oct 2026 07:04:37 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "9fac93ea-a99c-4ebd-9ed7-5c9e4e57141d",
+  "persistent" : true,
+  "insertionIndex" : 51
+}

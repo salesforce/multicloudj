@@ -1,0 +1,42 @@
+{
+  "id" : "30c1d1e9-ec7f-4e8c-b1ed-eb176a6d6d35",
+  "name" : "GcpKmsIT_testSetAndGetKeyPolicy-POST-0",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-policy-r2/cryptoKeyVersions/1:destroy",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-policy-r2/cryptoKeyVersions/1\",\n  \"state\": 4,\n  \"createTime\": \"2026-10-18T06:15:38.091031328Z\",\n  \"destroyTime\": \"2026-11-17T06:15:41.695570Z\",\n  \"protectionLevel\": 1,\n  \"algorithm\": 1,\n  \"generateTime\": \"2026-10-18T06:15:38.091031328Z\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sun, 18 Oct 2026 06:15:41 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "30c1d1e9-ec7f-4e8c-b1ed-eb176a6d6d35",
+  "persistent" : true,
+  "insertionIndex" : 1
+}

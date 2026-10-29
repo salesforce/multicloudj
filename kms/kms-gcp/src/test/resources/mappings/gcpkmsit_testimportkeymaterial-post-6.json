@@ -1,0 +1,42 @@
+{
+  "id" : "b4c456f3-0046-4d1e-8006-832595af2ebb",
+  "name" : "GcpKmsIT_testImportKeyMaterial-POST-6",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-byok-r2/cryptoKeyVersions:import",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"algorithm\":1,\"importJob\":\"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/importJobs/mcj-kms-it-byok-r2-rsaoaep3072sha256\",\"wrappedKey\":\"AqltwW6hhQquBfLSlJ4Nggj9T/DSIinfL2i60F0ltoCs2XrWNXsDPLsCODsm7QwNdAr/miTLPOGS1Qfei7bclPDb/4jHAy6yl0ktAtBGZKDSJjOutZfTexc6RWpKBbLhHQ4qa1wt41vim3TUSn+YIeQ5WjvW37MmYPQrUBivtepCyExTiqYLwSZSQbXLuqX1eHZ2/8BJbmmCTTB8DP3lokH7eCSSBwTInS0hafoWnOeDr0O+XqYwkPOl049Oi7hCQXp9MTbCfDP2RNjHbvd8Gr558SqyfZJAFxJdtU1KjXeI7HvMi2RP9acWFO7PBNslOwmrwT2r4pjrBaokOGUxn12vOMf0Oyug0AIHPWwrtACLx5AtTphWK8+Aq2fULEkp/1XIQXX7OC/sgJmSHZDahyrw6aB5oBmuxJjc+/FhFx+7dnsn/1JtrObAy+PxpQRiUDz8P6AGPnm4HlTYRi43IecoHHOFaktkWmgs9RPFRoENb6M5az6pUh8/pAchk78B\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-byok-r2/cryptoKeyVersions/1\",\n  \"state\": 6,\n  \"createTime\": \"2026-10-18T06:15:47.385701493Z\",\n  \"protectionLevel\": 1,\n  \"algorithm\": 1,\n  \"importJob\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/importJobs/mcj-kms-it-byok-r2-rsaoaep3072sha256\",\n  \"reimportEligible\": true\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sun, 18 Oct 2026 06:15:47 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "b4c456f3-0046-4d1e-8006-832595af2ebb",
+  "persistent" : true,
+  "insertionIndex" : 17
+}
