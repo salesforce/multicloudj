@@ -30,6 +30,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
+import com.salesforce.multicloudj.common.gcp.GcpRetrySettings;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
@@ -1105,17 +1106,17 @@ public class FSDocStore extends AbstractDocStore {
       UnaryCallSettings.Builder<CommitRequest, CommitResponse> commitSettings =
           settingsBuilder.commitSettings();
       commitSettings.setRetrySettings(
-          RetrySettingsUtil.apply(commitSettings.getRetrySettings(), retryConfig));
+          GcpRetrySettings.apply(commitSettings.getRetrySettings(), retryConfig));
 
       ServerStreamingCallSettings.Builder<BatchGetDocumentsRequest, BatchGetDocumentsResponse>
           batchGetSettings = settingsBuilder.batchGetDocumentsSettings();
       batchGetSettings.setRetrySettings(
-          RetrySettingsUtil.apply(batchGetSettings.getRetrySettings(), retryConfig));
+          GcpRetrySettings.apply(batchGetSettings.getRetrySettings(), retryConfig));
 
       ServerStreamingCallSettings.Builder<RunQueryRequest, RunQueryResponse> runQuerySettings =
           settingsBuilder.runQuerySettings();
       runQuerySettings.setRetrySettings(
-          RetrySettingsUtil.apply(runQuerySettings.getRetrySettings(), retryConfig));
+          GcpRetrySettings.apply(runQuerySettings.getRetrySettings(), retryConfig));
     }
 
     @Override

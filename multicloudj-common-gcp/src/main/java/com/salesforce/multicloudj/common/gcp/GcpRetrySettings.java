@@ -1,21 +1,21 @@
-package com.salesforce.multicloudj.docstore.gcp;
+package com.salesforce.multicloudj.common.gcp;
 
 import com.google.api.gax.retrying.RetrySettings;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.time.Duration;
 
-/** Applies a {@link RetryConfig} on top of Firestore per-method {@link RetrySettings}. */
-final class RetrySettingsUtil {
+/** Translates a {@link RetryConfig} into GCP client {@link RetrySettings}. */
+public final class GcpRetrySettings {
 
   private static final double DEFAULT_MULTIPLIER = 2.0;
 
-  private RetrySettingsUtil() {}
+  private GcpRetrySettings() {}
 
   /**
    * Overlays {@code retryConfig}, already checked by {@link RetryConfig#validate()}, onto {@code
    * base}. Fields not set in {@code retryConfig} keep the values from {@code base}, which carries
-   * the Firestore client's per-method defaults.
+   * the client's defaults for the call being configured.
    *
    * <p>{@code attemptTimeout} sets a constant per-RPC timeout and {@code totalTimeout} bounds all
    * attempts combined. FIXED mode is expressed as equal initial and max delays with a multiplier of
@@ -27,9 +27,12 @@ final class RetrySettingsUtil {
    * total timeout and max attempts are zero. When neither {@code retryConfig} nor {@code base} sets
    * max attempts, the base total timeout is kept so retries stay enabled and bounded.
    *
-   * @throws InvalidArgumentException if {@code retryConfig} is null
+   * @param base the client's default retry settings for the call
+   * @param retryConfig the retry configuration to apply
+   * @return the retry settings with {@code retryConfig} applied
+   * @throws InvalidArgumentException if retryConfig is null
    */
-  static RetrySettings apply(RetrySettings base, RetryConfig retryConfig) {
+  public static RetrySettings apply(RetrySettings base, RetryConfig retryConfig) {
     if (retryConfig == null) {
       throw new InvalidArgumentException("RetryConfig cannot be null");
     }
