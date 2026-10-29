@@ -8,6 +8,7 @@ import com.salesforce.multicloudj.pubsub.client.AbstractPubsubBenchmarkTest;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
+import java.time.Instant;
 import org.junit.jupiter.api.TestInstance;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Threads;
@@ -113,16 +114,17 @@ public class GcpPubsubBenchmarkTest extends AbstractPubsubBenchmarkTest {
      */
     @Override
     public void purge() throws Exception {
-      long nowMs = System.currentTimeMillis();
-      Timestamp now = Timestamp.newBuilder()
-          .setSeconds(nowMs / 1000)
-          .setNanos((int) (nowMs % 1000) * 1_000_000)
+      Instant now = Instant.now();
+      Timestamp seekTime = Timestamp.newBuilder()
+          .setSeconds(now.getEpochSecond())
+          .setNanos(now.getNano())
           .build();
       try (SubscriptionAdminClient admin = SubscriptionAdminClient.create(
           SubscriptionAdminSettings.newHttpJsonBuilder().build())) {
-        admin.seek(SeekRequest.newBuilder().setSubscription(subscriptionName).setTime(now).build());
+        admin.seek(
+            SeekRequest.newBuilder().setSubscription(subscriptionName).setTime(seekTime).build());
       }
-      logger.info("Seeked GCP Pub/Sub subscription {} to {}", subscriptionName, nowMs);
+      logger.info("Seeked GCP Pub/Sub subscription {} to {}", subscriptionName, now);
     }
 
     @Override
