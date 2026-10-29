@@ -1,0 +1,52 @@
+{
+  "id" : "9cf2a34a-b4a2-4c11-ad4a-55480848cdb5",
+  "name" : "GcpKmsIT_testCreateKeyWithPolicy-POST-5",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      },
+      "cryptoKeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "kms-it-create-policy-r2"
+        } ]
+      },
+      "skipInitialVersionCreation" : {
+        "hasExactly" : [ {
+          "equalTo" : "false"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"purpose\":1,\"labels\":{\"suite\":\"multicloudj-conformance\"},\"versionTemplate\":{\"protectionLevel\":1,\"algorithm\":1}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-create-policy-r2\",\n  \"primary\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-create-policy-r2/cryptoKeyVersions/1\",\n    \"state\": 1,\n    \"createTime\": \"2026-10-26T21:15:48.531259269Z\",\n    \"protectionLevel\": 1,\n    \"algorithm\": 1,\n    \"generateTime\": \"2026-10-26T21:15:48.531259269Z\"\n  },\n  \"purpose\": 1,\n  \"createTime\": \"2026-10-26T21:15:48.531259269Z\",\n  \"labels\": {\n    \"suite\": \"multicloudj-conformance\"\n  },\n  \"versionTemplate\": {\n    \"protectionLevel\": 1,\n    \"algorithm\": 1\n  },\n  \"destroyScheduledDuration\": \"2592000s\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Mon, 26 Oct 2026 21:15:48 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "9cf2a34a-b4a2-4c11-ad4a-55480848cdb5",
+  "persistent" : true,
+  "insertionIndex" : 56
+}
