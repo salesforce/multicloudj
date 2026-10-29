@@ -313,7 +313,7 @@ public abstract class AbstractDocStore implements Provider, Collection, AutoClos
      *
      * @param retryConfig The retry configuration, or null to keep the provider SDK defaults
      * @return An instance of self
-     * @throws InvalidArgumentException if the configuration has invalid values for its mode
+     * @throws InvalidArgumentException if the configuration is invalid
      */
     public T withRetryConfig(RetryConfig retryConfig) {
       if (retryConfig != null) {

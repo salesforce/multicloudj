@@ -42,10 +42,10 @@ final class TablestoreRetryStrategy implements RetryStrategy {
   }
 
   /**
-   * Returns the time after which no retry starts. The SDK narrows the time left before its deadline
-   * to an int, so it is capped at Integer.MAX_VALUE ms (about 24 days). That cap also stands in for
-   * an unset totalTimeout, which RetryConfig defines as no total time limit, instead of the SDK's
-   * 10s default deadline.
+   * Returns the total timeout in milliseconds, after which no retry starts. The SDK narrows the
+   * time left before its deadline to an int, so it is capped at Integer.MAX_VALUE ms (about 24
+   * days). That cap also stands in for an unset totalTimeout, which RetryConfig defines as no total
+   * time limit, instead of the SDK's 10s default deadline.
    */
   static long totalTimeoutMillis(RetryConfig retryConfig) {
     return Math.min(

@@ -143,7 +143,7 @@ public class DocStoreClient {
      *
      * @param retryConfig The retry configuration
      * @return This builder instance
-     * @throws InvalidArgumentException if the configuration has invalid values for its mode
+     * @throws InvalidArgumentException if the configuration is invalid
      */
     public DocStoreClientBuilder withRetryConfig(RetryConfig retryConfig) {
       this.docStoreBuilder.withRetryConfig(retryConfig);
