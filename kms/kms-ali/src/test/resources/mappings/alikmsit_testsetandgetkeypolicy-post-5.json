@@ -1,57 +1,32 @@
 {
-  "id" : "4033238b-1ad1-4127-9396-e39732851d57",
+  "id" : "2056078a-af28-4a0e-9ad6-c49895007699",
   "name" : "AliKmsIT_testSetAndGetKeyPolicy-POST-5",
   "request" : {
     "urlPath" : "/",
     "method" : "POST",
     "queryParameters" : {
-      "Origin" : {
+      "AliasName" : {
         "hasExactly" : [ {
-          "equalTo" : "Aliyun_KMS"
+          "equalTo" : "alias/multicloudj-12-policy"
         } ]
       },
-      "ProtectionLevel" : {
+      "KeyId" : {
         "hasExactly" : [ {
-          "equalTo" : "SOFTWARE"
-        } ]
-      },
-      "Description" : {
-        "hasExactly" : [ {
-          "equalTo" : "multicloudj kms conformance test key: policy"
-        } ]
-      },
-      "KeySpec" : {
-        "hasExactly" : [ {
-          "equalTo" : "Aliyun_AES_256"
-        } ]
-      },
-      "KeyUsage" : {
-        "hasExactly" : [ {
-          "equalTo" : "ENCRYPT/DECRYPT"
-        } ]
-      },
-      "DKMSInstanceId" : {
-        "hasExactly" : [ {
-          "equalTo" : "kst-shh6580b7e6n9od3n9aj0"
-        } ]
-      },
-      "Tags" : {
-        "hasExactly" : [ {
-          "equalTo" : "[{\"TagKey\":\"suite\",\"TagValue\":\"multicloudj-conformance\"}]"
+          "equalTo" : "key-shh6ae5147dl69nipvg30"
         } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n\t\"KeyMetadata\": {\n\t\t\"CreationDate\": \"2026-10-30T21:46:49Z\",\n\t\t\"Description\": \"multicloudj kms conformance test key: policy\",\n\t\t\"KeyId\": \"key-shh6ae5104988spk2uohv\",\n\t\t\"KeySpec\": \"Aliyun_AES_256\",\n\t\t\"KeyState\": \"Enabled\",\n\t\t\"KeyUsage\": \"ENCRYPT/DECRYPT\",\n\t\t\"PrimaryKeyVersion\": \"key-shh6ae5104988spk2uohv-bv4t5iwsae\",\n\t\t\"DeleteDate\": \"\",\n\t\t\"Creator\": \"1099202394511537\",\n\t\t\"Arn\": \"acs:kms:cn-shanghai:1099202394511537:key/key-shh6ae5104988spk2uohv\",\n\t\t\"Origin\": \"Aliyun_KMS\",\n\t\t\"MaterialExpireTime\": \"\",\n\t\t\"ProtectionLevel\": \"SOFTWARE\",\n\t\t\"LastRotationDate\": \"2026-10-30T21:46:49Z\",\n\t\t\"AutomaticRotation\": \"Disabled\",\n\t\t\"KeyStoreId\": \"kst-shh6580b7e6n9od3n9aj0\",\n\t\t\"DeletionProtection\": \"Disabled\",\n\t\t\"DKMSInstanceId\": \"kst-shh6580b7e6n9od3n9aj0\",\n\t\t\"PendingRotation\": \"\"\n\t},\n\t\"RequestId\": \"e0d47ea2-ea9f-4e7a-ad37-e1bc940c20f4\"\n}",
+    "body" : "{\n\t\"RequestId\": \"660bf7b9-1f56-45f2-94db-9f9923400e11\"\n}",
     "headers" : {
       "Server" : "Tengine/2.5.7_20220713195920",
-      "Date" : "Fri, 30 Oct 2026 21:46:49 GMT",
+      "Date" : "Fri, 30 Oct 2026 22:04:46 GMT",
       "Content-Type" : "application/json"
     }
   },
-  "uuid" : "4033238b-1ad1-4127-9396-e39732851d57",
+  "uuid" : "2056078a-af28-4a0e-9ad6-c49895007699",
   "persistent" : true,
-  "insertionIndex" : 6
+  "insertionIndex" : 63
 }

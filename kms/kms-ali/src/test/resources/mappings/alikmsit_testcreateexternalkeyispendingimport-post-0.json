@@ -1,5 +1,5 @@
 {
-  "id" : "28dff6c3-7d71-4be8-ab9b-42db57b73cd0",
+  "id" : "b85685e0-8ade-47ed-96be-c066f0c7ecac",
   "name" : "AliKmsIT_testCreateExternalKeyIsPendingImport-POST-0",
   "request" : {
     "urlPath" : "/",
@@ -12,21 +12,21 @@
       },
       "KeyId" : {
         "hasExactly" : [ {
-          "equalTo" : "key-shh6ae51075o02uunp3sm"
+          "equalTo" : "key-shh6ae514afscle0hh4go"
         } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n\t\"RequestId\": \"753a3e93-565d-4d0e-8c5f-0508271af935\"\n}",
+    "body" : "{\n\t\"RequestId\": \"c23ec4c8-2bbf-4dca-89f9-ae7eabefcdaf\"\n}",
     "headers" : {
       "Server" : "Tengine/2.5.7_20220713195920",
-      "Date" : "Fri, 30 Oct 2026 21:47:37 GMT",
+      "Date" : "Fri, 30 Oct 2026 22:05:39 GMT",
       "Content-Type" : "application/json"
     }
   },
-  "uuid" : "28dff6c3-7d71-4be8-ab9b-42db57b73cd0",
+  "uuid" : "b85685e0-8ade-47ed-96be-c066f0c7ecac",
   "persistent" : true,
-  "insertionIndex" : 65
+  "insertionIndex" : 128
 }

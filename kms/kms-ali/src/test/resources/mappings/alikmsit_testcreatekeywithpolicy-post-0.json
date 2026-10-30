@@ -1,62 +1,32 @@
 {
-  "id" : "189e8942-909a-4d54-ba80-eddd726f483e",
+  "id" : "c8a6b01a-b348-4ed4-bb0c-e2118eb06b51",
   "name" : "AliKmsIT_testCreateKeyWithPolicy-POST-0",
   "request" : {
     "urlPath" : "/",
     "method" : "POST",
     "queryParameters" : {
-      "Origin" : {
+      "PendingWindowInDays" : {
         "hasExactly" : [ {
-          "equalTo" : "Aliyun_KMS"
+          "equalTo" : "7"
         } ]
       },
-      "Policy" : {
+      "KeyId" : {
         "hasExactly" : [ {
-          "equalTo" : "{\"Version\":\"1\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"RAM\":[\"acs:ram::1099202394511537:*\"]},\"Action\":[\"kms:DescribeKey\",\"kms:EnableKey\",\"kms:DisableKey\",\"kms:ScheduleKeyDeletion\",\"kms:CancelKeyDeletion\",\"kms:SetKeyPolicy\",\"kms:GetKeyPolicy\",\"kms:TagResource\",\"kms:UntagResource\"],\"Resource\":[\"*\"]},{\"Effect\":\"Allow\",\"Principal\":{\"RAM\":[\"acs:ram::1099202394511537:role/kms-user\"]},\"Action\":[\"kms:Encrypt\",\"kms:Decrypt\"],\"Resource\":[\"*\"]}]}"
-        } ]
-      },
-      "ProtectionLevel" : {
-        "hasExactly" : [ {
-          "equalTo" : "SOFTWARE"
-        } ]
-      },
-      "Description" : {
-        "hasExactly" : [ {
-          "equalTo" : "multicloudj kms conformance test key: create-policy"
-        } ]
-      },
-      "KeySpec" : {
-        "hasExactly" : [ {
-          "equalTo" : "Aliyun_AES_256"
-        } ]
-      },
-      "KeyUsage" : {
-        "hasExactly" : [ {
-          "equalTo" : "ENCRYPT/DECRYPT"
-        } ]
-      },
-      "DKMSInstanceId" : {
-        "hasExactly" : [ {
-          "equalTo" : "kst-shh6580b7e6n9od3n9aj0"
-        } ]
-      },
-      "Tags" : {
-        "hasExactly" : [ {
-          "equalTo" : "[{\"TagKey\":\"suite\",\"TagValue\":\"multicloudj-conformance\"}]"
+          "equalTo" : "key-shh6ae5149fpvfeszk41v"
         } ]
       }
     }
   },
   "response" : {
-    "status" : 400,
-    "body" : "{\n\t\"HttpStatus\": 400,\n\t\"Code\": \"InvalidParameter\",\n\t\"Message\": \"The specified parameter Policy is not valid.\",\n\t\"RequestId\": \"c3078a17-9b4d-425d-82a0-f41801fc1ea0\"\n}",
+    "status" : 200,
+    "body" : "{\n\t\"RequestId\": \"e284ec51-25ee-40a1-af0b-8a5484b1c267\"\n}",
     "headers" : {
       "Server" : "Tengine/2.5.7_20220713195920",
-      "Date" : "Fri, 30 Oct 2026 21:47:21 GMT",
+      "Date" : "Fri, 30 Oct 2026 22:05:24 GMT",
       "Content-Type" : "application/json"
     }
   },
-  "uuid" : "189e8942-909a-4d54-ba80-eddd726f483e",
+  "uuid" : "c8a6b01a-b348-4ed4-bb0c-e2118eb06b51",
   "persistent" : true,
-  "insertionIndex" : 46
+  "insertionIndex" : 104
 }
