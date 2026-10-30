@@ -211,12 +211,26 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
       throw new InvalidArgumentException(
           "endpoint must not have a path, query, or fragment: " + endpoint);
     }
-    return URI.create(endpoint.getScheme() + "://" + endpoint.getRawAuthority() + "/");
+    // Built from scheme, host, and port alone so the URI and the signed host header cannot differ.
+    String scheme = endpoint.getScheme().toLowerCase(Locale.ROOT);
+    return URI.create(scheme + "://" + endpoint.getHost() + portSuffix(scheme, endpoint) + "/");
   }
 
-  /** The signed host header carries the port only when the endpoint states one explicitly. */
+  /**
+   * The signed host header carries the port only when it is not the scheme default, matching the
+   * Host header an HTTP client sends.
+   */
   private static String hostHeaderValue(URI uri) {
-    return uri.getPort() == -1 ? uri.getHost() : uri.getHost() + ":" + uri.getPort();
+    return uri.getHost() + portSuffix(uri.getScheme(), uri);
+  }
+
+  private static String portSuffix(String scheme, URI uri) {
+    int port = uri.getPort();
+    boolean isDefault =
+        port == -1
+            || ("https".equalsIgnoreCase(scheme) && port == 443)
+            || ("http".equalsIgnoreCase(scheme) && port == 80);
+    return isDefault ? "" : ":" + port;
   }
 
   /**

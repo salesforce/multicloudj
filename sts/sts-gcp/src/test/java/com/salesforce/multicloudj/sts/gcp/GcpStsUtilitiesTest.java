@@ -93,6 +93,33 @@ class GcpStsUtilitiesTest {
   }
 
   @Test
+  void endpointWithPathQueryOrFragmentIsRejected() {
+    for (String endpoint :
+        new String[] {
+          "https://h/proxy", "https://h/?a=b", "https://h?a=b", "https://h/#frag"
+        }) {
+      GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+      builder.withEndpoint(URI.create(endpoint));
+      GcpStsUtilities utilities = builder.build();
+      GoogleCredentials creds = Mockito.mock(GoogleCredentials.class);
+
+      Assertions.assertThrows(
+          InvalidArgumentException.class, () -> utilities.iamCredentialsSettings(creds), endpoint);
+    }
+  }
+
+  @Test
+  void endpointWithRootPathIsAccepted() throws Exception {
+    GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+    builder.withEndpoint(URI.create("https://iamcredentials.example.com/"));
+
+    IamCredentialsSettings settings =
+        builder.build().iamCredentialsSettings(Mockito.mock(GoogleCredentials.class));
+
+    Assertions.assertEquals("iamcredentials.example.com:443", settings.getEndpoint());
+  }
+
+  @Test
   void noEndpointKeepsDefaultIamCredentialsEndpoint() throws Exception {
     GoogleCredentials creds = Mockito.mock(GoogleCredentials.class);
 

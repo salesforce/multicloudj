@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.sts.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -68,6 +69,29 @@ class StsUtilitiesTest {
       assertThrows(InvalidArgumentException.class, () -> builder.withEndpoint(null));
       assertThrows(
           InvalidArgumentException.class, () -> builder.withEndpoint(URI.create("https:///x")));
+    }
+  }
+
+  @Test
+  public void withEndpointRejectsUserInfoAndNonHttpScheme() {
+    TestConcreteAbstractStsUtilities provider = new TestConcreteAbstractStsUtilities();
+    ServiceLoader<TestConcreteAbstractStsUtilities> serviceLoader = mock(ServiceLoader.class);
+    when(serviceLoader.iterator()).thenReturn(List.of(provider).iterator());
+
+    try (MockedStatic<ServiceLoader> serviceLoaderStatic =
+        Mockito.mockStatic(ServiceLoader.class)) {
+      serviceLoaderStatic
+          .when(() -> ServiceLoader.load(AbstractStsUtilities.class))
+          .thenReturn(serviceLoader);
+      StsUtilities.StsUtilityBuilder builder = StsUtilities.builder("mockProviderId");
+
+      assertThrows(
+          InvalidArgumentException.class,
+          () -> builder.withEndpoint(URI.create("https://user:secret@sts.example.com")));
+      assertThrows(
+          InvalidArgumentException.class, () -> builder.withEndpoint(URI.create("ftp://h")));
+      assertSame(builder, builder.withEndpoint(URI.create("HTTPS://sts.example.com")));
+      assertSame(builder, builder.withEndpoint(URI.create("http://localhost:8080")));
     }
   }
 
