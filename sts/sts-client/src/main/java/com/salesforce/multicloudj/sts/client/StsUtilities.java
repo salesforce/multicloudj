@@ -29,6 +29,16 @@ public class StsUtilities {
   }
 
   /**
+   * Constructor for StsUtilities backed by an already constructed driver, for callers such as tests
+   * that supply a preconfigured driver.
+   *
+   * @param stsUtility The driver used to back this utility.
+   */
+  protected StsUtilities(AbstractStsUtilities<?> stsUtility) {
+    this.stsUtility = stsUtility;
+  }
+
+  /**
    * Creates a new StsUtilityBuilder for the specified provider.
    *
    * @param providerId The ID of the provider/substrate such as aws.
