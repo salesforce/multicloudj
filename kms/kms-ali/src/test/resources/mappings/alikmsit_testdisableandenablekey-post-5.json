@@ -1,0 +1,40 @@
+{
+  "id" : "b8ddfc16-16e4-4c2b-8729-7715d05dc89a",
+  "name" : "AliKmsIT_testDisableAndEnableKey-POST-5",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "queryParameters" : {
+      "EncryptionContext" : {
+        "hasExactly" : [ {
+          "equalTo" : "{\"purpose\":\"conformance\"}"
+        } ]
+      },
+      "Plaintext" : {
+        "hasExactly" : [ {
+          "equalTo" : "bXVsdGljbG91ZGota21zLWNvbmZvcm1hbmNl"
+        } ]
+      },
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae51056tnxbg2sukn"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 409,
+    "body" : "{\n\t\"HttpStatus\": 409,\n\t\"Code\": \"Rejected.Disabled\",\n\t\"Message\": \"The request was rejected becasue the key state is Disabled\",\n\t\"RequestId\": \"b42d0ba6-e098-4e0d-8587-ad68716883be\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 21:47:05 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "b8ddfc16-16e4-4c2b-8729-7715d05dc89a",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-2--2",
+  "insertionIndex" : 25
+}

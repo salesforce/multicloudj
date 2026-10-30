@@ -1,0 +1,29 @@
+{
+  "id" : "e12bac7c-60c6-4ab0-95d5-2e46a8e4180b",
+  "name" : "AliKmsIT_testDisableAndEnableKey-POST-2",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "queryParameters" : {
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae51056tnxbg2sukn"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"Aliases\": {\n\t\t\"Alias\": [\n\t\t\t{\n\t\t\t\t\"AliasName\": \"alias/multicloudj-tests-toggle\",\n\t\t\t\t\"KeyId\": \"key-shh6ae51056tnxbg2sukn\",\n\t\t\t\t\"AliasArn\": \"acs:kms:cn-shanghai:1099202394511537:alias/multicloudj-tests-toggle\"\n\t\t\t}\n\t\t]\n\t},\n\t\"TotalCount\": 1,\n\t\"PageNumber\": 1,\n\t\"PageSize\": 20,\n\t\"RequestId\": \"3648ab32-c729-44f7-937b-93023c776479\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 21:47:07 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "e12bac7c-60c6-4ab0-95d5-2e46a8e4180b",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-",
+  "requiredScenarioState" : "scenario-1--3",
+  "insertionIndex" : 22
+}

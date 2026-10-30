@@ -1,0 +1,27 @@
+{
+  "id" : "39ceb076-b8c6-4249-9235-1450d0be7127",
+  "name" : "AliKmsIT_testCreateKey-POST-1",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "queryParameters" : {
+      "AliasName" : {
+        "hasExactly" : [ {
+          "equalTo" : "alias/multicloudj-tests-create"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"RequestId\": \"6e92ae9a-5f4c-4b76-90f8-1b863f15df7b\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 21:47:25 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "39ceb076-b8c6-4249-9235-1450d0be7127",
+  "persistent" : true,
+  "insertionIndex" : 51
+}

@@ -1,0 +1,37 @@
+{
+  "id" : "b0a989a4-abc9-4c97-bbc9-b8e9dfca3e1c",
+  "name" : "AliKmsIT_testSetAndGetKeyPolicy-POST-3",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "queryParameters" : {
+      "Policy" : {
+        "hasExactly" : [ {
+          "equalTo" : "{\"Version\":\"1\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"RAM\":[\"acs:ram::1099202394511537:*\"]},\"Action\":[\"kms:DescribeKey\",\"kms:EnableKey\",\"kms:DisableKey\",\"kms:ScheduleKeyDeletion\",\"kms:CancelKeyDeletion\",\"kms:SetKeyPolicy\",\"kms:GetKeyPolicy\",\"kms:TagResource\",\"kms:UntagResource\"],\"Resource\":[\"*\"]},{\"Effect\":\"Allow\",\"Principal\":{\"RAM\":[\"acs:ram::1099202394511537:role/kms-user\"]},\"Action\":[\"kms:Encrypt\",\"kms:Decrypt\"],\"Resource\":[\"*\"]}]}"
+        } ]
+      },
+      "PolicyName" : {
+        "hasExactly" : [ {
+          "equalTo" : "default"
+        } ]
+      },
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae5104988spk2uohv"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "{\n\t\"HttpStatus\": 400,\n\t\"Code\": \"InvalidParameter\",\n\t\"Message\": \"The specified parameter Policy is not valid.\",\n\t\"RequestId\": \"e41903be-59d9-4e11-bf55-a3af23c530af\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 21:46:51 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "b0a989a4-abc9-4c97-bbc9-b8e9dfca3e1c",
+  "persistent" : true,
+  "insertionIndex" : 4
+}

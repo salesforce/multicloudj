@@ -1,0 +1,27 @@
+{
+  "id" : "af40d518-3aa8-453d-b0e6-95d9d3ae7047",
+  "name" : "AliKmsIT_testCreateExternalKeyIsPendingImport-POST-1",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "queryParameters" : {
+      "AliasName" : {
+        "hasExactly" : [ {
+          "equalTo" : "alias/multicloudj-tests-external"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"RequestId\": \"89976ea2-8b99-4264-ab20-7f6a2e006f03\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 21:47:36 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "af40d518-3aa8-453d-b0e6-95d9d3ae7047",
+  "persistent" : true,
+  "insertionIndex" : 66
+}

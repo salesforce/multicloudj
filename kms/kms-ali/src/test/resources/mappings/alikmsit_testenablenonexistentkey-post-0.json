@@ -1,0 +1,27 @@
+{
+  "id" : "ce000b34-5920-4da7-a3c5-2ed410092629",
+  "name" : "AliKmsIT_testEnableNonexistentKey-POST-0",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "queryParameters" : {
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "00000000-0000-0000-0000-000000000000"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n\t\"HttpStatus\": 404,\n\t\"Code\": \"Forbidden.KeyNotFound\",\n\t\"Message\": \"The specified Key is not found.\",\n\t\"RequestId\": \"6136f5c6-2677-4604-9e4f-a1b348f62e24\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 21:47:27 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "ce000b34-5920-4da7-a3c5-2ed410092629",
+  "persistent" : true,
+  "insertionIndex" : 56
+}

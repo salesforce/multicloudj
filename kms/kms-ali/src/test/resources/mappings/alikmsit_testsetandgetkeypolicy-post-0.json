@@ -1,0 +1,32 @@
+{
+  "id" : "7a0a4a99-d3dc-4195-ae4b-82d62bfa5324",
+  "name" : "AliKmsIT_testSetAndGetKeyPolicy-POST-0",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "queryParameters" : {
+      "PendingWindowInDays" : {
+        "hasExactly" : [ {
+          "equalTo" : "7"
+        } ]
+      },
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae5104988spk2uohv"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"RequestId\": \"0cab2eaf-7126-435a-9101-0da6d2efbc1d\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 21:46:53 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "7a0a4a99-d3dc-4195-ae4b-82d62bfa5324",
+  "persistent" : true,
+  "insertionIndex" : 1
+}

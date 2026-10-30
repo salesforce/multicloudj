@@ -1,0 +1,27 @@
+{
+  "id" : "24d44e6f-773b-4f04-b8f0-d49d361e9300",
+  "name" : "AliKmsIT_testEncryptDecrypt-POST-2",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "queryParameters" : {
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae5105ehbwl3pig97"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"Aliases\": {\n\t\t\"Alias\": [\n\t\t\t{\n\t\t\t\t\"AliasName\": \"alias/multicloudj-tests-crypt\",\n\t\t\t\t\"KeyId\": \"key-shh6ae5105ehbwl3pig97\",\n\t\t\t\t\"AliasArn\": \"acs:kms:cn-shanghai:1099202394511537:alias/multicloudj-tests-crypt\"\n\t\t\t}\n\t\t]\n\t},\n\t\"TotalCount\": 1,\n\t\"PageNumber\": 1,\n\t\"PageSize\": 20,\n\t\"RequestId\": \"08fbc980-c28e-4af4-b8cb-d62030f16eae\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 21:47:13 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "24d44e6f-773b-4f04-b8f0-d49d361e9300",
+  "persistent" : true,
+  "insertionIndex" : 32
+}

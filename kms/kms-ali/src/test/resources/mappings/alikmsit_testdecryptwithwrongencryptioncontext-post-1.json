@@ -1,0 +1,27 @@
+{
+  "id" : "c102729d-4154-4f3c-bdbd-22d047025e43",
+  "name" : "AliKmsIT_testDecryptWithWrongEncryptionContext-POST-1",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "queryParameters" : {
+      "AliasName" : {
+        "hasExactly" : [ {
+          "equalTo" : "alias/multicloudj-tests-crypt-ctx"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"RequestId\": \"fe7adc3a-fa85-4a99-a9b6-ddd1ac6978ba\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 21:47:19 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "c102729d-4154-4f3c-bdbd-22d047025e43",
+  "persistent" : true,
+  "insertionIndex" : 39
+}

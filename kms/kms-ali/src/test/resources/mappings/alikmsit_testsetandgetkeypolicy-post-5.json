@@ -1,0 +1,57 @@
+{
+  "id" : "4033238b-1ad1-4127-9396-e39732851d57",
+  "name" : "AliKmsIT_testSetAndGetKeyPolicy-POST-5",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "queryParameters" : {
+      "Origin" : {
+        "hasExactly" : [ {
+          "equalTo" : "Aliyun_KMS"
+        } ]
+      },
+      "ProtectionLevel" : {
+        "hasExactly" : [ {
+          "equalTo" : "SOFTWARE"
+        } ]
+      },
+      "Description" : {
+        "hasExactly" : [ {
+          "equalTo" : "multicloudj kms conformance test key: policy"
+        } ]
+      },
+      "KeySpec" : {
+        "hasExactly" : [ {
+          "equalTo" : "Aliyun_AES_256"
+        } ]
+      },
+      "KeyUsage" : {
+        "hasExactly" : [ {
+          "equalTo" : "ENCRYPT/DECRYPT"
+        } ]
+      },
+      "DKMSInstanceId" : {
+        "hasExactly" : [ {
+          "equalTo" : "kst-shh6580b7e6n9od3n9aj0"
+        } ]
+      },
+      "Tags" : {
+        "hasExactly" : [ {
+          "equalTo" : "[{\"TagKey\":\"suite\",\"TagValue\":\"multicloudj-conformance\"}]"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"KeyMetadata\": {\n\t\t\"CreationDate\": \"2026-10-30T21:46:49Z\",\n\t\t\"Description\": \"multicloudj kms conformance test key: policy\",\n\t\t\"KeyId\": \"key-shh6ae5104988spk2uohv\",\n\t\t\"KeySpec\": \"Aliyun_AES_256\",\n\t\t\"KeyState\": \"Enabled\",\n\t\t\"KeyUsage\": \"ENCRYPT/DECRYPT\",\n\t\t\"PrimaryKeyVersion\": \"key-shh6ae5104988spk2uohv-bv4t5iwsae\",\n\t\t\"DeleteDate\": \"\",\n\t\t\"Creator\": \"1099202394511537\",\n\t\t\"Arn\": \"acs:kms:cn-shanghai:1099202394511537:key/key-shh6ae5104988spk2uohv\",\n\t\t\"Origin\": \"Aliyun_KMS\",\n\t\t\"MaterialExpireTime\": \"\",\n\t\t\"ProtectionLevel\": \"SOFTWARE\",\n\t\t\"LastRotationDate\": \"2026-10-30T21:46:49Z\",\n\t\t\"AutomaticRotation\": \"Disabled\",\n\t\t\"KeyStoreId\": \"kst-shh6580b7e6n9od3n9aj0\",\n\t\t\"DeletionProtection\": \"Disabled\",\n\t\t\"DKMSInstanceId\": \"kst-shh6580b7e6n9od3n9aj0\",\n\t\t\"PendingRotation\": \"\"\n\t},\n\t\"RequestId\": \"e0d47ea2-ea9f-4e7a-ad37-e1bc940c20f4\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 21:46:49 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "4033238b-1ad1-4127-9396-e39732851d57",
+  "persistent" : true,
+  "insertionIndex" : 6
+}

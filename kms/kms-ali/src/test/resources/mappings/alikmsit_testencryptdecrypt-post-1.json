@@ -1,0 +1,27 @@
+{
+  "id" : "6f1166c5-75a2-4f4c-925e-006f4f8fbfb9",
+  "name" : "AliKmsIT_testEncryptDecrypt-POST-1",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "queryParameters" : {
+      "AliasName" : {
+        "hasExactly" : [ {
+          "equalTo" : "alias/multicloudj-tests-crypt"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"RequestId\": \"53f9d646-5124-41c2-96e0-99d2b142d30d\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 21:47:13 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "6f1166c5-75a2-4f4c-925e-006f4f8fbfb9",
+  "persistent" : true,
+  "insertionIndex" : 31
+}

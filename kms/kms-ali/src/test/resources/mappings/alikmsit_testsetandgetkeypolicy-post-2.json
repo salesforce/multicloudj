@@ -1,0 +1,27 @@
+{
+  "id" : "901bde32-a488-4110-bb6d-a53b3570046f",
+  "name" : "AliKmsIT_testSetAndGetKeyPolicy-POST-2",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "queryParameters" : {
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae5104988spk2uohv"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"Aliases\": {\n\t\t\"Alias\": [\n\t\t\t{\n\t\t\t\t\"AliasName\": \"alias/multicloudj-tests-policy\",\n\t\t\t\t\"KeyId\": \"key-shh6ae5104988spk2uohv\",\n\t\t\t\t\"AliasArn\": \"acs:kms:cn-shanghai:1099202394511537:alias/multicloudj-tests-policy\"\n\t\t\t}\n\t\t]\n\t},\n\t\"TotalCount\": 1,\n\t\"PageNumber\": 1,\n\t\"PageSize\": 20,\n\t\"RequestId\": \"d5f8dd27-3d8a-4336-9813-453ec965fe54\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 21:46:51 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "901bde32-a488-4110-bb6d-a53b3570046f",
+  "persistent" : true,
+  "insertionIndex" : 3
+}

@@ -1,0 +1,32 @@
+{
+  "id" : "69be2109-9cad-487b-b5a7-8ccccb541fe2",
+  "name" : "AliKmsIT_testTagNonexistentKey-POST-0",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "queryParameters" : {
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "00000000-0000-0000-0000-000000000000"
+        } ]
+      },
+      "Tags" : {
+        "hasExactly" : [ {
+          "equalTo" : "[{\"TagKey\":\"env\",\"TagValue\":\"x\"}]"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n\t\"HttpStatus\": 404,\n\t\"Code\": \"Forbidden.KeyNotFound\",\n\t\"Message\": \"The specified Key is not found.\",\n\t\"RequestId\": \"c7f9a665-76db-40e7-82d5-c9ce39091a5b\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 21:46:54 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "69be2109-9cad-487b-b5a7-8ccccb541fe2",
+  "persistent" : true,
+  "insertionIndex" : 9
+}

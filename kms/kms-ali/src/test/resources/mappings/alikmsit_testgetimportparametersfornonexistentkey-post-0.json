@@ -1,0 +1,37 @@
+{
+  "id" : "04e7022c-4be2-40f9-becd-572042d18a2a",
+  "name" : "AliKmsIT_testGetImportParametersForNonexistentKey-POST-0",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "queryParameters" : {
+      "WrappingKeySpec" : {
+        "hasExactly" : [ {
+          "equalTo" : "RSA_2048"
+        } ]
+      },
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "00000000-0000-0000-0000-000000000000"
+        } ]
+      },
+      "WrappingAlgorithm" : {
+        "hasExactly" : [ {
+          "equalTo" : "RSAES_OAEP_SHA_256"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n\t\"HttpStatus\": 404,\n\t\"Code\": \"Forbidden.KeyNotFound\",\n\t\"Message\": \"The specified Key is not found.\",\n\t\"RequestId\": \"3b4b23e8-f59c-4a3b-b889-2e5e29f6f3ef\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 21:47:22 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "04e7022c-4be2-40f9-becd-572042d18a2a",
+  "persistent" : true,
+  "insertionIndex" : 48
+}

@@ -16,9 +16,6 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.Disabled;
 
-@Disabled(
-    "Alibaba KMS conformance recordings are captured on dedicated machines with Alibaba "
-        + "credentials; they are not recorded or replayed in the shared build.")
 public class AliKmsIT extends AbstractKmsIT {
 
   @Override
@@ -86,7 +83,7 @@ public class AliKmsIT extends AbstractKmsIT {
 
     @Override
     public String getKeyName(String testName) {
-      return "multicloudj-" + testName;
+      return "multicloudj-tests-0-" + testName;
     }
 
     @Override
@@ -104,7 +101,7 @@ public class AliKmsIT extends AbstractKmsIT {
     @Override
     public KeyPrincipal getGranteePrincipal() {
       // Must be an existing RAM role in ACCOUNT_ID when recording; RAM ARNs must be lowercase.
-      return KeyPrincipal.of(PrincipalType.IDENTITY, "acs:ram::" + ACCOUNT_ID + ":role/kms-user");
+      return KeyPrincipal.of(PrincipalType.IDENTITY, "acs:ram::" + ACCOUNT_ID + ":role/chameleon-test-2");
     }
 
     @Override
