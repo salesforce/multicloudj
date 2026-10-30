@@ -133,15 +133,12 @@ import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** GCP implementation of BlobStore */
 @AutoService(AbstractBlobStore.class)
 public class GcpBlobStore extends AbstractBlobStore {
 
   private static final String OBJECT_KEY_DIRECTORY_PREFIX_REGEX = "^.*/";
-  private static final Logger logger = LoggerFactory.getLogger(GcpBlobStore.class);
 
   private final Storage storage;
   private final Storage httpStorage;
@@ -760,37 +757,78 @@ public class GcpBlobStore extends AbstractBlobStore {
     CompleteMultipartUploadResponse response =
         multipartUploadClient.completeMultipartUpload(completeRequest);
 
-    applyMultipartLegalHold(mpu);
+    // Tags are written after completion so they are stored exactly as given and the
+    // lifecycle-expiration custom time is anchored to the object's creation time.
+    // The object is already committed, so the legal hold is applied even if the tag write fails.
+    // If both fail, the legal hold failure is thrown with the tag failure attached as suppressed.
+    boolean hasTags = mpu.getTags() != null && !mpu.getTags().isEmpty();
+    ObjectLockConfiguration lockConfig = mpu.getObjectLock();
+    boolean hasLegalHold = lockConfig != null && lockConfig.isLegalHold();
+    if (!hasTags && !hasLegalHold) {
+      return new MultipartUploadResponse(response.etag(), response.crc32c());
+    }
+
+    Blob completed = getCompletedMultipartBlob(mpu, response);
+    RuntimeException tagFailure = null;
+    try {
+      if (hasTags) {
+        storage.update(
+            toTagUpdate(completed, mpu.getTags()), Storage.BlobTargetOption.generationMatch());
+      }
+    } catch (RuntimeException e) {
+      tagFailure = e;
+    }
+    try {
+      if (hasLegalHold) {
+        applyMultipartLegalHold(completed, lockConfig);
+      }
+    } catch (RuntimeException e) {
+      if (tagFailure != null) {
+        e.addSuppressed(tagFailure);
+      }
+      throw e;
+    }
+    if (tagFailure != null) {
+      throw tagFailure;
+    }
 
     return new MultipartUploadResponse(response.etag(), response.crc32c());
   }
 
-  private void applyMultipartLegalHold(MultipartUpload mpu) {
-    ObjectLockConfiguration lockConfig = mpu.getObjectLock();
-    if (lockConfig == null || !lockConfig.isLegalHold()) {
-      return;
+  /**
+   * Reads the object produced by a completed multipart upload. The completion response does not
+   * expose the object generation, so the latest generation is read and its CRC32C is compared with
+   * the one returned by completion. A mismatch means another writer replaced the key after
+   * completion, and that object must not receive this upload's tags, expiration, or legal hold.
+   * Updates made with the returned blob use {@code generationMatch} to reject a replacement that
+   * happens after this read.
+   */
+  private Blob getCompletedMultipartBlob(
+      MultipartUpload mpu, CompleteMultipartUploadResponse response) {
+    Blob blob = getRequiredBlob(transformer.toBlobId(bucket, mpu.getKey(), null));
+    if (response.crc32c() != null && !response.crc32c().equals(blob.getCrc32c())) {
+      throw new FailedPreconditionException(
+          "Object "
+              + bucket
+              + "/"
+              + mpu.getKey()
+              + " was replaced after multipart upload "
+              + mpu.getId()
+              + " completed; its tags and legal hold were not applied");
     }
-    try {
-      Blob blob = getRequiredBlob(transformer.toBlobId(bucket, mpu.getKey(), null));
-      BlobInfo.Builder builder = blob.toBuilder();
-      if (Boolean.TRUE.equals(lockConfig.getUseEventBasedHold())) {
-        builder.setEventBasedHold(true);
-        builder.setTemporaryHold(false);
-      } else {
-        builder.setTemporaryHold(true);
-        builder.setEventBasedHold(false);
-      }
-      storage.update(builder.build());
-    } catch (RuntimeException e) {
-      // Multipart completion has already succeeded, so legal hold application is best-effort.
-      logger.warn(
-          "Multipart upload completed but legal hold application failed."
-              + " bucket={}, key={}, uploadId={}",
-          bucket,
-          mpu.getKey(),
-          mpu.getId(),
-          e);
+    return blob;
+  }
+
+  private void applyMultipartLegalHold(Blob blob, ObjectLockConfiguration lockConfig) {
+    BlobInfo.Builder builder = blob.toBuilder();
+    if (Boolean.TRUE.equals(lockConfig.getUseEventBasedHold())) {
+      builder.setEventBasedHold(true);
+      builder.setTemporaryHold(false);
+    } else {
+      builder.setTemporaryHold(true);
+      builder.setEventBasedHold(false);
     }
+    storage.update(builder.build(), Storage.BlobTargetOption.generationMatch());
   }
 
   @Override
@@ -939,7 +977,10 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected void doSetTags(String key, Map<String, String> tags) {
     Blob blob = getRequiredBlob(transformer.toBlobId(key, null));
+    storage.update(toTagUpdate(blob, tags));
+  }
 
+  private BlobInfo toTagUpdate(Blob blob, Map<String, String> tags) {
     // Copy all existing metadata
     Map<String, String> metadata =
         blob.getMetadata() != null ? new HashMap<>(blob.getMetadata()) : new HashMap<>();
@@ -984,7 +1025,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       }
     }
 
-    storage.update(builder.build());
+    return builder.build();
   }
 
   @Override
