@@ -84,6 +84,23 @@
             <artifactId>tea-openapi</artifactId>
             <version>0.3.11</version>
         </dependency>
+        <!-- kms20160120 pulls older tea-util, openapiutil and tea transitively; tea-openapi 0.3.11
+             needs these versions at runtime (e.g. RuntimeOptions.domain), so pin them explicitly. -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>tea-util</artifactId>
+            <version>0.2.26</version>
+        </dependency>
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>openapiutil</artifactId>
+            <version>0.2.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>tea</artifactId>
+            <version>1.4.1</version>
+        </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>

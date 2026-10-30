@@ -27,6 +27,9 @@ public class AliKmsIT extends AbstractKmsIT {
     private static final String REGION = "cn-shanghai";
     private static final String ENDPOINT = "kms." + REGION + ".aliyuncs.com";
     private static final String ACCOUNT_ID = "1234567890123456";
+    // Must be an existing KMS instance in REGION when recording: key policies are only supported
+    // for keys in a KMS instance. It is a constant because it is part of recorded request bodies.
+    private static final String KMS_INSTANCE_ID = "<kms-instance-id>";
 
     private final int port = ThreadLocalRandom.current().nextInt(2000, 20000);
     private Client kmsClient;
@@ -55,7 +58,11 @@ public class AliKmsIT extends AbstractKmsIT {
       } catch (Exception e) {
         throw new RuntimeException("Failed to create KMS client", e);
       }
-      return new AliKms.Builder().withRegion(REGION).withKmsClient(kmsClient).build();
+      return new AliKms.Builder()
+          .withRegion(REGION)
+          .withKeyContainer(KMS_INSTANCE_ID)
+          .withKmsClient(kmsClient)
+          .build();
     }
 
     @Override

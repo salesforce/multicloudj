@@ -8,6 +8,7 @@ import com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import java.util.List;
 
@@ -42,6 +43,8 @@ final class ErrorCodeMapping {
           new Rule(Match.EQUALS, "Rejected.PendingDeletion", FailedPreconditionException.class),
           new Rule(Match.EQUALS, "Rejected.UnexpectedState", FailedPreconditionException.class),
           new Rule(Match.PREFIX, "Forbidden.KeyNotEnabled", FailedPreconditionException.class),
+          new Rule(
+              Match.EQUALS, "Forbidden.KeyPolicyUnSupported", UnSupportedOperationException.class),
           new Rule(Match.PREFIX, "InvalidParameter", InvalidArgumentException.class),
           new Rule(Match.PREFIX, "MissingParameter", InvalidArgumentException.class),
           new Rule(Match.EQUALS, "Rejected.ValidationFailed", InvalidArgumentException.class),
