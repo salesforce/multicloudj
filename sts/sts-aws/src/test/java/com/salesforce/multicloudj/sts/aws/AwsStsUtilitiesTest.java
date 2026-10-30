@@ -203,6 +203,35 @@ class AwsStsUtilitiesTest {
   }
 
   @Test
+  void endpointWithHttpsDefaultPortOmitsPort() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK, REGION, URI.create("https://sts.amazonaws.com:443"))
+            .newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(URI.create("https://sts.amazonaws.com/"), signed.getRequest().uri());
+    Assertions.assertTrue(
+        signed.getSignedIdentity().startsWith("https://sts.amazonaws.com/?"),
+        signed.getSignedIdentity());
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        signed.getRequest().headers().firstValue("authorization").orElseThrow());
+  }
+
+  @Test
+  void endpointWithHttpDefaultPortOmitsPort() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK, REGION, URI.create("http://localhost:80"))
+            .newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(URI.create("http://localhost/"), signed.getRequest().uri());
+    Assertions.assertTrue(
+        signed.getSignedIdentity().startsWith("http://localhost/?"), signed.getSignedIdentity());
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        signed.getRequest().headers().firstValue("authorization").orElseThrow());
+  }
+
+  @Test
   void endpointWithPathQueryOrFragmentIsRejected() {
     for (String endpoint : new String[] {"https://h/proxy", "https://h/?a=b", "https://h/#frag"}) {
       AwsStsUtilities utilities = signer(FIXED_CLOCK, REGION, URI.create(endpoint));
