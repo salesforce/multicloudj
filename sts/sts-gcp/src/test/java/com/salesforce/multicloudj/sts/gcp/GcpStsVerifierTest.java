@@ -18,6 +18,7 @@ import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPublicKey;
@@ -119,7 +120,7 @@ class GcpStsVerifierTest {
                   try {
                     return JsonWebSignature.signUsingRsaSha256(
                         keyPair.getPrivate(), GsonFactory.getDefaultInstance(), header, claims);
-                  } catch (java.security.GeneralSecurityException e) {
+                  } catch (GeneralSecurityException e) {
                     throw new IOException(e);
                   }
                 },

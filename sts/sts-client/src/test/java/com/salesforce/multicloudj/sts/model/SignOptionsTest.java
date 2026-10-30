@@ -46,4 +46,11 @@ class SignOptionsTest {
     assertThrows(InvalidArgumentException.class, blankName::build);
     assertThrows(InvalidArgumentException.class, nullValue::build);
   }
+
+  @Test
+  void nullNameIsRejected() {
+    SignOptions.Builder builder = SignOptions.builder().withCustomHeader(null, "v");
+
+    assertThrows(InvalidArgumentException.class, builder::build);
+  }
 }
