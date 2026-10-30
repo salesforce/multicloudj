@@ -30,10 +30,10 @@ public class AliKmsIT extends AbstractKmsIT {
     private static final String REGION = "cn-shanghai";
     private static final String ENDPOINT = "kms." + REGION + ".aliyuncs.com";
     // Must be the account that owns KMS_INSTANCE_ID when recording.
-    private static final String ACCOUNT_ID = "1234567890123456";
+    private static final String ACCOUNT_ID = "1099202394511537";
     // Must be an existing KMS instance in REGION when recording: key policies are only supported
     // for keys in a KMS instance. It is a constant because it is part of recorded request bodies.
-    private static final String KMS_INSTANCE_ID = "<kms-instance-id>";
+    private static final String KMS_INSTANCE_ID = "kst-shh6580b7e6n9od3n9aj0";
 
     private final int port = ThreadLocalRandom.current().nextInt(2000, 20000);
     private Client kmsClient;
@@ -41,11 +41,11 @@ public class AliKmsIT extends AbstractKmsIT {
     @Override
     public AbstractKms createKms() {
       String accessKeyId =
-          System.getenv().getOrDefault("ALIBABA_CLOUD_ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
+          System.getenv().getOrDefault("ALIBABACLOUD_ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
       String accessKeySecret =
-          System.getenv().getOrDefault("ALIBABA_CLOUD_ACCESS_KEY_SECRET", "FAKE_SECRET_KEY");
+          System.getenv().getOrDefault("ALIBABACLOUD_ACCESS_KEY_SECRET", "FAKE_SECRET_KEY");
       String securityToken =
-          System.getenv().getOrDefault("ALIBABA_CLOUD_SECURITY_TOKEN", "FAKE_SESSION_TOKEN");
+          System.getenv().getOrDefault("SECURITY_TOKEN", "FAKE_SESSION_TOKEN");
 
       Config config =
           new Config()
