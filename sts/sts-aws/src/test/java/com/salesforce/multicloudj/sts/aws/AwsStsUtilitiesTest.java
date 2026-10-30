@@ -141,7 +141,7 @@ class AwsStsUtilitiesTest {
   }
 
   @Test
-  void minimalHeaderSetReplaysWithOnlyAuthorizationDateAndToken() {
+  void excludedOptionsEmitOnlyAuthorizationDateAndToken() {
     SignOptions options =
         SignOptions.builder()
             .withExcludeRequestHashHeader(true)
@@ -158,6 +158,18 @@ class AwsStsUtilitiesTest {
     Assertions.assertEquals(
         SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
         signed.getRequest().headers().firstValue("Authorization").orElseThrow());
+  }
+
+  @Test
+  void customHeaderKeepsLowercaseNameOnRequest() {
+    SignOptions options = SignOptions.builder().withCustomHeader("X-Foo", "bar").build();
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+    // The header map is case-insensitive, so compare against a plain list of the stored names.
+    List<String> names = new ArrayList<>(signed.getRequest().headers().map().keySet());
+    Assertions.assertTrue(names.contains("x-foo"), names.toString());
+    Assertions.assertFalse(names.contains("X-Foo"), names.toString());
   }
 
   @Test

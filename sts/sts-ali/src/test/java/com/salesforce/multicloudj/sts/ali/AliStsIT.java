@@ -24,13 +24,18 @@ public class AliStsIT extends AbstractStsIT {
 
   @Override
   @Test
-  @Disabled("recorded on dedicated machines")
+  @Disabled("Alibaba signer does not apply SignOptions")
   public void testSignedIdentityWithMixedCaseCustomHeaderValidates() {}
 
   @Override
   @Test
-  @Disabled("recorded on dedicated machines")
+  @Disabled("Alibaba signer does not apply SignOptions")
   public void testSignedIdentityWithWrongCustomHeaderValueIsRejected() {}
+
+  @Override
+  @Test
+  @Disabled("Alibaba signer does not apply SignOptions")
+  public void testSignedIdentityWithMissingCustomHeaderIsRejected() {}
 
   public static class HarnessImpl implements AbstractStsIT.Harness {
     int port = ThreadLocalRandom.current().nextInt(2000, 20000);
