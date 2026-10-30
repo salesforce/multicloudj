@@ -79,4 +79,11 @@ class ValidateOptionsTest {
     assertThrows(InvalidArgumentException.class, blankName::build);
     assertThrows(InvalidArgumentException.class, nullValue::build);
   }
+
+  @Test
+  void nullNameIsRejected() {
+    ValidateOptions.Builder builder = ValidateOptions.builder().withExpectedCustomHeader(null, "v");
+
+    assertThrows(InvalidArgumentException.class, builder::build);
+  }
 }

@@ -18,6 +18,7 @@ import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
+import java.time.Clock;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -98,7 +99,7 @@ class AwsStsVerifierTest {
 
   @Test
   void mixedCaseExpectedHeaderMatchesMixedCaseSignedHeader() throws Exception {
-    AwsStsUtilities signerUtil = new AwsStsUtilities(signerBuilder(), java.time.Clock.systemUTC());
+    AwsStsUtilities signerUtil = new AwsStsUtilities(signerBuilder(), Clock.systemUTC());
     SignedAuthRequest signed =
         signerUtil.newCloudNativeAuthSignedRequest(
             null, SignOptions.builder().withCustomHeader("X-Tenant", "t1").build());

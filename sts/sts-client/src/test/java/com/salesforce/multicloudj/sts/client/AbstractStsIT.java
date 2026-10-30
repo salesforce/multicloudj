@@ -68,6 +68,7 @@ public abstract class AbstractStsIT {
   protected abstract Harness createHarness();
 
   private static final String CONFORMANCE_HEADER = "X-Conformance-Header";
+  private static final String CONFORMANCE_HEADER_DIFFERENT_CASE = "x-CONFORMANCE-header";
 
   private Harness harness;
 
@@ -144,16 +145,19 @@ public abstract class AbstractStsIT {
   }
 
   private String signIdentityWithConformanceHeader() {
+    return signIdentity(SignOptions.builder().withCustomHeader(CONFORMANCE_HEADER, "v1").build());
+  }
+
+  private String signIdentity(SignOptions options) {
     StsUtilities utilities = new StsUtilities(harness.createStsUtilitiesDriver());
-    SignedAuthRequest signed =
-        utilities.newCloudNativeAuthSignedRequest(
-            null, SignOptions.builder().withCustomHeader(CONFORMANCE_HEADER, "v1").build());
+    SignedAuthRequest signed = utilities.newCloudNativeAuthSignedRequest(null, options);
     Assertions.assertNotNull(signed.getSignedIdentity(), "Signed identity shouldn't be empty");
     return signed.getSignedIdentity();
   }
 
   // Exercises sign -> expected-header check -> replay; signature validity is covered by provider
-  // unit tests.
+  // unit tests. The expected name uses different casing than the signed one so header-name
+  // normalization is part of the check.
   @Test
   public void testSignedIdentityWithMixedCaseCustomHeaderValidates() {
     Assumptions.assumeTrue(
@@ -164,7 +168,9 @@ public abstract class AbstractStsIT {
     CallerIdentity identity =
         verifier.validateSignedAuthRequest(
             signedIdentity,
-            ValidateOptions.builder().withExpectedCustomHeader(CONFORMANCE_HEADER, "v1").build());
+            ValidateOptions.builder()
+                .withExpectedCustomHeader(CONFORMANCE_HEADER_DIFFERENT_CASE, "v1")
+                .build());
     Assertions.assertNotNull(identity, "Identity shouldn't be empty");
     Assertions.assertNotNull(identity.getCloudResourceName());
     Assertions.assertNotNull(identity.getAccountId());
@@ -182,5 +188,19 @@ public abstract class AbstractStsIT {
     Assertions.assertThrows(
         InvalidArgumentException.class,
         () -> verifier.validateSignedAuthRequest(signedIdentity, wrongValue));
+  }
+
+  @Test
+  public void testSignedIdentityWithMissingCustomHeaderIsRejected() {
+    Assumptions.assumeTrue(
+        harness.supportsCloudNativeAuthReplay(),
+        "Skipping test as harness does not support cloud native auth replay");
+    String signedIdentity = signIdentity(SignOptions.builder().build());
+    StsVerifier verifier = new StsVerifier(harness.createStsVerifierDriver());
+    ValidateOptions expectsHeader =
+        ValidateOptions.builder().withExpectedCustomHeader(CONFORMANCE_HEADER, "v1").build();
+    Assertions.assertThrows(
+        InvalidArgumentException.class,
+        () -> verifier.validateSignedAuthRequest(signedIdentity, expectsHeader));
   }
 }
