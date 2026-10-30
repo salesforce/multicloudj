@@ -26,6 +26,7 @@ import com.github.tomakehurst.wiremock.recording.RequestBodyAutomaticPatternFact
 import com.github.tomakehurst.wiremock.recording.RequestBodyPatternFactory;
 import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
@@ -43,7 +44,9 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509ExtendedTrustManager;
 import javax.net.ssl.X509TrustManager;
 import lombok.Getter;
 import org.apache.http.HttpHost;
@@ -93,6 +96,47 @@ public class TestsUtil {
       return sslContext;
     } catch (NoSuchAlgorithmException | KeyManagementException e) {
       throw new RuntimeException("Failed to create SSL context", e);
+    }
+  }
+
+  /**
+   * Creates an SSL context that trusts all certificates and skips the server host name check, for
+   * clients such as the JDK HttpClient that only opt out of that check when the trust manager is an
+   * {@link X509ExtendedTrustManager}. For testing purposes only.
+   */
+  public static SSLContext createTrustAllExtendedSSLContext() {
+    try {
+      SSLContext sslContext = SSLContext.getInstance(TLS_PROTOCOL);
+      sslContext.init(
+          null, new TrustManager[] {new TrustAllExtendedTrustManager()}, new SecureRandom());
+      return sslContext;
+    } catch (NoSuchAlgorithmException | KeyManagementException e) {
+      throw new RuntimeException("Failed to create SSL context", e);
+    }
+  }
+
+  private static final class TrustAllExtendedTrustManager extends X509ExtendedTrustManager {
+    @Override
+    public void checkClientTrusted(X509Certificate[] chain, String authType) {}
+
+    @Override
+    public void checkServerTrusted(X509Certificate[] chain, String authType) {}
+
+    @Override
+    public void checkClientTrusted(X509Certificate[] chain, String authType, Socket socket) {}
+
+    @Override
+    public void checkServerTrusted(X509Certificate[] chain, String authType, Socket socket) {}
+
+    @Override
+    public void checkClientTrusted(X509Certificate[] chain, String authType, SSLEngine engine) {}
+
+    @Override
+    public void checkServerTrusted(X509Certificate[] chain, String authType, SSLEngine engine) {}
+
+    @Override
+    public X509Certificate[] getAcceptedIssuers() {
+      return new X509Certificate[0];
     }
   }
 
