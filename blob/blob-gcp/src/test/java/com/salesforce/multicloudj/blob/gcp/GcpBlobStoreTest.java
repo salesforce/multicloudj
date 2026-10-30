@@ -1,7 +1,6 @@
 package com.salesforce.multicloudj.blob.gcp;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -4832,7 +4831,7 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testDoCompleteMultipartUpload_LegalHoldFailureDoesNotFailCompletion() {
+  void testDoCompleteMultipartUpload_LegalHoldFailurePropagates() {
     ObjectLockConfiguration objectLock =
         ObjectLockConfiguration.builder().legalHold(true).useEventBasedHold(true).build();
     MultipartUpload mpu =
@@ -4857,9 +4856,66 @@ class GcpBlobStoreTest {
     when(blob.toBuilder()).thenReturn(blobBuilder);
     when(blobBuilder.setEventBasedHold(true)).thenReturn(blobBuilder);
     when(blobBuilder.setTemporaryHold(false)).thenReturn(blobBuilder);
-    when(blobBuilder.build()).thenThrow(new RuntimeException("update failed"));
+    Blob heldBlob = mock(Blob.class);
+    when(blobBuilder.build()).thenReturn(heldBlob);
+    RuntimeException holdFailure = new RuntimeException("legal hold update failed");
+    when(mockStorage.update(heldBlob)).thenThrow(holdFailure);
 
-    assertDoesNotThrow(() -> gcpBlobStore.doCompleteMultipartUpload(mpu, parts));
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class, () -> gcpBlobStore.doCompleteMultipartUpload(mpu, parts));
+
+    assertSame(holdFailure, thrown);
+    assertEquals(0, thrown.getSuppressed().length);
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_TagAndLegalHoldFailureThrowsLegalHoldWithTagSuppressed() {
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder().legalHold(true).useEventBasedHold(true).build();
+    MultipartUpload mpu =
+        MultipartUpload.builder()
+            .bucket(TEST_BUCKET)
+            .key(TEST_KEY)
+            .id("test-upload-id")
+            .tags(Map.of("Env", "Prod"))
+            .objectLock(objectLock)
+            .build();
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts =
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L));
+    when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+        .thenReturn(CompleteMultipartUploadResponse.builder().etag("complete-etag").build());
+
+    BlobId tagBlobId = mock(BlobId.class);
+    Blob tagBlob = mock(Blob.class);
+    Blob.Builder tagBuilder = mock(Blob.Builder.class);
+    Blob taggedBlob = mock(Blob.class);
+    RuntimeException tagFailure = new RuntimeException("tag update failed");
+    when(mockTransformer.toBlobId(TEST_KEY, null)).thenReturn(tagBlobId);
+    when(mockStorage.get(tagBlobId)).thenReturn(tagBlob);
+    when(tagBlob.toBuilder()).thenReturn(tagBuilder);
+    when(tagBuilder.setMetadata(anyMap())).thenReturn(tagBuilder);
+    when(tagBuilder.build()).thenReturn(taggedBlob);
+    when(mockStorage.update(taggedBlob)).thenThrow(tagFailure);
+
+    Blob holdBlob = mock(Blob.class);
+    Blob.Builder holdBuilder = mock(Blob.Builder.class);
+    Blob heldBlob = mock(Blob.class);
+    RuntimeException holdFailure = new RuntimeException("legal hold update failed");
+    when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, null)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(holdBlob);
+    when(holdBlob.toBuilder()).thenReturn(holdBuilder);
+    when(holdBuilder.setEventBasedHold(true)).thenReturn(holdBuilder);
+    when(holdBuilder.setTemporaryHold(false)).thenReturn(holdBuilder);
+    when(holdBuilder.build()).thenReturn(heldBlob);
+    when(mockStorage.update(heldBlob)).thenThrow(holdFailure);
+
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class, () -> gcpBlobStore.doCompleteMultipartUpload(mpu, parts));
+
+    assertSame(holdFailure, thrown);
+    assertArrayEquals(new Throwable[] {tagFailure}, thrown.getSuppressed());
   }
 
   @Test
