@@ -186,6 +186,17 @@ class GcpStsUtilitiesTest {
   }
 
   @Test
+  void customHeaderClaimNamesAreLowercased() throws Exception {
+    SignOptions signOptions = SignOptions.builder().withCustomHeader("X-Tenant", "t1").build();
+    SignedAuthRequest signed = signer().newCloudNativeAuthSignedRequest(null, signOptions);
+
+    JsonWebSignature parsed =
+        JsonWebSignature.parse(GsonFactory.getDefaultInstance(), signed.getSignedIdentity());
+    Assertions.assertEquals("t1", parsed.getPayload().get("x-tenant"));
+    Assertions.assertNull(parsed.getPayload().get("X-Tenant"));
+  }
+
+  @Test
   void nullOptionsProducesBareIdentity() throws Exception {
     SignedAuthRequest signed = signer().newCloudNativeAuthSignedRequest(null);
     JsonWebSignature parsed =
