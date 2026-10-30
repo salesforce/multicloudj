@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.sts.aws;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.client.StsUtilities;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -80,6 +81,44 @@ class AwsStsUtilitiesTest {
         authorization.contains("SignedHeaders=host;x-amz-date;x-amz-security-token,"));
     Assertions.assertEquals(
         SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK), authorization);
+  }
+
+  @Test
+  void mixedCaseCustomHeaderIsSignedCanonically() {
+    SignOptions options =
+        SignOptions.builder()
+            .withCustomHeader("X-Vault-AWS-IAM-Server-ID", "vault.example.com")
+            .build();
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+    String authorization = signed.getRequest().headers().firstValue("authorization").orElseThrow();
+    Assertions.assertTrue(
+        authorization.contains(
+            "SignedHeaders=content-type;host;x-amz-date;x-amz-security-token;"
+                + "x-request-hash;x-vault-aws-iam-server-id,"),
+        authorization);
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK), authorization);
+  }
+
+  @Test
+  void customHeaderCollidingWithSignerHeaderIsRejected() {
+    for (String name :
+        new String[] {
+          "X-Amz-Date",
+          "host",
+          "Authorization",
+          "x-amz-security-token",
+          "content-type",
+          "x-request-hash"
+        }) {
+      SignOptions options = SignOptions.builder().withCustomHeader(name, "v").build();
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options),
+          name);
+    }
   }
 
   private static AwsStsUtilities signer(Clock clock) {

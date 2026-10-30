@@ -1,6 +1,5 @@
 package com.salesforce.multicloudj.sts.model;
 
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.Getter;
@@ -11,7 +10,8 @@ import lombok.Getter;
  *
  * <p>All options are optional; an instance built with no customization requests the default
  * validation behavior. When expected custom headers are supplied, validation fails if any expected
- * header is missing from the signed request or has a different value.
+ * header is missing from the signed request or has a different value. Header names are
+ * case-insensitive and are normalized to lowercase.
  */
 @Getter
 public class ValidateOptions {
@@ -23,8 +23,7 @@ public class ValidateOptions {
   private final Map<String, String> expectedCustomHeaders;
 
   private ValidateOptions(Builder builder) {
-    this.expectedCustomHeaders =
-        Collections.unmodifiableMap(new LinkedHashMap<>(builder.expectedCustomHeaders));
+    this.expectedCustomHeaders = HeaderNames.normalize(builder.expectedCustomHeaders);
   }
 
   public static Builder builder() {
