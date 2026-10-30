@@ -1,27 +1,32 @@
 {
-  "id" : "89e89361-c553-466b-841d-89b30522ab32",
+  "id" : "e200cecb-7294-4066-bc15-7701f887402a",
   "name" : "AliKmsIT_testCreateKey-POST-2",
   "request" : {
     "urlPath" : "/",
     "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "ListAliasesByKeyId"
+      }
+    },
     "queryParameters" : {
       "KeyId" : {
         "hasExactly" : [ {
-          "equalTo" : "key-shh6ae514a5t09pq4zg4i"
+          "equalTo" : "key-shh6ae51dc9chand92ra7"
         } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n\t\"Aliases\": {\n\t\t\"Alias\": [\n\t\t\t{\n\t\t\t\t\"AliasName\": \"alias/multicloudj-12-create\",\n\t\t\t\t\"KeyId\": \"key-shh6ae514a5t09pq4zg4i\",\n\t\t\t\t\"AliasArn\": \"acs:kms:cn-shanghai:1099202394511537:alias/multicloudj-12-create\"\n\t\t\t}\n\t\t]\n\t},\n\t\"TotalCount\": 1,\n\t\"PageNumber\": 1,\n\t\"PageSize\": 20,\n\t\"RequestId\": \"2a7f3162-7d90-4422-9065-53a72f56e10f\"\n}",
+    "body" : "{\n\t\"Aliases\": {\n\t\t\"Alias\": [\n\t\t\t{\n\t\t\t\t\"AliasName\": \"alias/multicloudj-15-create\",\n\t\t\t\t\"KeyId\": \"key-shh6ae51dc9chand92ra7\",\n\t\t\t\t\"AliasArn\": \"acs:kms:cn-shanghai:1099202394511537:alias/multicloudj-15-create\"\n\t\t\t}\n\t\t]\n\t},\n\t\"TotalCount\": 1,\n\t\"PageNumber\": 1,\n\t\"PageSize\": 20,\n\t\"RequestId\": \"bb41b04f-00aa-4060-86ab-7f2079be9d16\"\n}",
     "headers" : {
       "Server" : "Tengine/2.5.7_20220713195920",
-      "Date" : "Fri, 30 Oct 2026 22:05:27 GMT",
+      "Date" : "Fri, 30 Oct 2026 22:44:26 GMT",
       "Content-Type" : "application/json"
     }
   },
-  "uuid" : "89e89361-c553-466b-841d-89b30522ab32",
+  "uuid" : "e200cecb-7294-4066-bc15-7701f887402a",
   "persistent" : true,
-  "insertionIndex" : 115
+  "insertionIndex" : 121
 }

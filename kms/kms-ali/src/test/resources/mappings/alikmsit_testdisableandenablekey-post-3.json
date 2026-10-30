@@ -1,9 +1,14 @@
 {
-  "id" : "bb7de198-49fb-497b-92c2-e0e8d97932f1",
+  "id" : "8c68a193-de75-40aa-85b9-3df31078ddc6",
   "name" : "AliKmsIT_testDisableAndEnableKey-POST-3",
   "request" : {
     "urlPath" : "/",
     "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "Encrypt"
+      }
+    },
     "queryParameters" : {
       "EncryptionContext" : {
         "hasExactly" : [ {
@@ -17,23 +22,23 @@
       },
       "KeyId" : {
         "hasExactly" : [ {
-          "equalTo" : "key-shh6ae5148chibwxvclgn"
+          "equalTo" : "key-shh6ae51dafm4c6rsws0s"
         } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n\t\"KeyId\": \"key-shh6ae5148chibwxvclgn\",\n\t\"KeyVersionId\": \"key-shh6ae5148chibwxvclgn-s6twplk7ah\",\n\t\"CiphertextBlob\": \"a2V5LXNoaDZhZTUxNDhjaGlid3h2Y2xnbi1zNnR3cGxrN2Fot/etLaMu9oEIISv24u8JPd5yiRmPqz0dMgjyAFH9ZN2i+6h/zKb+DfAexZZut5Cre8FjHq7bTeKY9RtwWGXAlQ==\",\n\t\"RequestId\": \"bf634296-340b-48fe-9e5e-e7d8bac40f3b\"\n}",
+    "body" : "{\n\t\"KeyId\": \"key-shh6ae51dafm4c6rsws0s\",\n\t\"KeyVersionId\": \"key-shh6ae51dafm4c6rsws0s-xn865g1idd\",\n\t\"CiphertextBlob\": \"a2V5LXNoaDZhZTUxZGFmbTRjNnJzd3Mwcy14bjg2NWcxaWRkQOszrbOsTtGY6RosRCc0LblVjwsUgR4tQ6LlF71b5MPup+hkpsBSlnTaSxJolov7M9sBXzGHS4qPg3LdOsttXA==\",\n\t\"RequestId\": \"73fe9f0c-c73d-46e9-9a40-5608381b1a76\"\n}",
     "headers" : {
       "Server" : "Tengine/2.5.7_20220713195920",
-      "Date" : "Fri, 30 Oct 2026 22:05:04 GMT",
+      "Date" : "Fri, 30 Oct 2026 22:44:03 GMT",
       "Content-Type" : "application/json"
     }
   },
-  "uuid" : "bb7de198-49fb-497b-92c2-e0e8d97932f1",
+  "uuid" : "8c68a193-de75-40aa-85b9-3df31078ddc6",
   "persistent" : true,
-  "scenarioName" : "scenario-2-",
-  "requiredScenarioState" : "scenario-2--2",
-  "insertionIndex" : 81
+  "scenarioName" : "scenario-1-",
+  "requiredScenarioState" : "scenario-1--2",
+  "insertionIndex" : 87
 }

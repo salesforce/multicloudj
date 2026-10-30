@@ -1,9 +1,14 @@
 {
-  "id" : "9ffbaa42-663f-4087-9aa2-d766ed729751",
+  "id" : "0af1f464-03ff-4eae-8a4d-1a461c7027d9",
   "name" : "AliKmsIT_testGetImportParametersForNonexistentKey-POST-0",
   "request" : {
     "urlPath" : "/",
     "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "GetParametersForImport"
+      }
+    },
     "queryParameters" : {
       "WrappingKeySpec" : {
         "hasExactly" : [ {
@@ -24,14 +29,14 @@
   },
   "response" : {
     "status" : 404,
-    "body" : "{\n\t\"HttpStatus\": 404,\n\t\"Code\": \"Forbidden.KeyNotFound\",\n\t\"Message\": \"The specified Key is not found.\",\n\t\"RequestId\": \"d5e698a0-8574-40ed-96c1-088723a209ac\"\n}",
+    "body" : "{\n\t\"HttpStatus\": 404,\n\t\"Code\": \"Forbidden.KeyNotFound\",\n\t\"Message\": \"The specified Key is not found.\",\n\t\"RequestId\": \"5d3e5a8e-5528-4d83-890b-34d309a91ee7\"\n}",
     "headers" : {
       "Server" : "Tengine/2.5.7_20220713195920",
-      "Date" : "Fri, 30 Oct 2026 22:05:24 GMT",
+      "Date" : "Fri, 30 Oct 2026 22:44:24 GMT",
       "Content-Type" : "application/json"
     }
   },
-  "uuid" : "9ffbaa42-663f-4087-9aa2-d766ed729751",
+  "uuid" : "0af1f464-03ff-4eae-8a4d-1a461c7027d9",
   "persistent" : true,
-  "insertionIndex" : 111
+  "insertionIndex" : 117
 }

@@ -1,9 +1,14 @@
 {
-  "id" : "1067b394-e1a3-4ee2-92e0-ae97dc4e0955",
+  "id" : "232b3e72-82ca-4c51-acba-c7d699545593",
   "name" : "AliKmsIT_testDecryptWithWrongEncryptionContext-POST-4",
   "request" : {
     "urlPath" : "/",
     "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "Encrypt"
+      }
+    },
     "queryParameters" : {
       "EncryptionContext" : {
         "hasExactly" : [ {
@@ -17,21 +22,21 @@
       },
       "KeyId" : {
         "hasExactly" : [ {
-          "equalTo" : "key-shh6ae514993hdeabh68d"
+          "equalTo" : "key-shh6ae51dbd040c1xtow4"
         } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n\t\"KeyId\": \"key-shh6ae514993hdeabh68d\",\n\t\"KeyVersionId\": \"key-shh6ae514993hdeabh68d-4cpr907zem\",\n\t\"CiphertextBlob\": \"a2V5LXNoaDZhZTUxNDk5M2hkZWFiaDY4ZC00Y3ByOTA3emVtJzBMB1C2oO1h3gcW5xiZHRoZFyhU4PT4twqyXAV3MAr0zoYXg5FxrzN+E/3mfGNH0OJvvXpj7K7lreS7nv8dzQ==\",\n\t\"RequestId\": \"ce5b0cf1-696a-40b1-b580-bd2552f1e6bd\"\n}",
+    "body" : "{\n\t\"KeyId\": \"key-shh6ae51dbd040c1xtow4\",\n\t\"KeyVersionId\": \"key-shh6ae51dbd040c1xtow4-lqi9ehk7ee\",\n\t\"CiphertextBlob\": \"a2V5LXNoaDZhZTUxZGJkMDQwYzF4dG93NC1scWk5ZWhrN2Vl65p//7HSPX+OMJ7ne7qIStrcvSU02Ghd9jcREbd21sC73Y76fvmWZohgBMW/B0tP2jGcOORURD760gxfjG1MsA==\",\n\t\"RequestId\": \"33df87d1-6173-4854-9f30-39f0730c3b1e\"\n}",
     "headers" : {
       "Server" : "Tengine/2.5.7_20220713195920",
-      "Date" : "Fri, 30 Oct 2026 22:05:15 GMT",
+      "Date" : "Fri, 30 Oct 2026 22:44:14 GMT",
       "Content-Type" : "application/json"
     }
   },
-  "uuid" : "1067b394-e1a3-4ee2-92e0-ae97dc4e0955",
+  "uuid" : "232b3e72-82ca-4c51-acba-c7d699545593",
   "persistent" : true,
-  "insertionIndex" : 100
+  "insertionIndex" : 106
 }

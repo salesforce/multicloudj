@@ -1,27 +1,32 @@
 {
-  "id" : "bf820739-ca88-4a60-b77a-293cfad9d97e",
+  "id" : "ce07ada9-fc76-4a85-97e1-a4b73bc13186",
   "name" : "AliKmsIT_testSetAndGetKeyPolicy-POST-1",
   "request" : {
     "urlPath" : "/",
     "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "DeleteAlias"
+      }
+    },
     "queryParameters" : {
       "AliasName" : {
         "hasExactly" : [ {
-          "equalTo" : "alias/multicloudj-12-policy"
+          "equalTo" : "alias/multicloudj-15-policy"
         } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n\t\"RequestId\": \"a835ff05-2ddf-42ec-addc-5169d3e79eb3\"\n}",
+    "body" : "{\n\t\"RequestId\": \"f6d3415c-bdb7-4a20-bf60-e77bc596476b\"\n}",
     "headers" : {
       "Server" : "Tengine/2.5.7_20220713195920",
-      "Date" : "Fri, 30 Oct 2026 22:04:49 GMT",
+      "Date" : "Fri, 30 Oct 2026 22:43:49 GMT",
       "Content-Type" : "application/json"
     }
   },
-  "uuid" : "bf820739-ca88-4a60-b77a-293cfad9d97e",
+  "uuid" : "ce07ada9-fc76-4a85-97e1-a4b73bc13186",
   "persistent" : true,
-  "insertionIndex" : 59
+  "insertionIndex" : 65
 }

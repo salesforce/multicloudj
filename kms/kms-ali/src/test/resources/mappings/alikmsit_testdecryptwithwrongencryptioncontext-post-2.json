@@ -1,27 +1,32 @@
 {
-  "id" : "378ba644-e687-4da3-99b2-05c4e2984c7c",
+  "id" : "c63a11da-0dfd-4727-b3e6-238f969b2c35",
   "name" : "AliKmsIT_testDecryptWithWrongEncryptionContext-POST-2",
   "request" : {
     "urlPath" : "/",
     "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "ListAliasesByKeyId"
+      }
+    },
     "queryParameters" : {
       "KeyId" : {
         "hasExactly" : [ {
-          "equalTo" : "key-shh6ae514993hdeabh68d"
+          "equalTo" : "key-shh6ae51dbd040c1xtow4"
         } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n\t\"Aliases\": {\n\t\t\"Alias\": [\n\t\t\t{\n\t\t\t\t\"AliasName\": \"alias/multicloudj-12-crypt-ctx\",\n\t\t\t\t\"KeyId\": \"key-shh6ae514993hdeabh68d\",\n\t\t\t\t\"AliasArn\": \"acs:kms:cn-shanghai:1099202394511537:alias/multicloudj-12-crypt-ctx\"\n\t\t\t}\n\t\t]\n\t},\n\t\"TotalCount\": 1,\n\t\"PageNumber\": 1,\n\t\"PageSize\": 20,\n\t\"RequestId\": \"f5f5a6b7-56a8-4297-a0f9-9c0a6835cdd5\"\n}",
+    "body" : "{\n\t\"Aliases\": {\n\t\t\"Alias\": [\n\t\t\t{\n\t\t\t\t\"AliasName\": \"alias/multicloudj-15-crypt-ctx\",\n\t\t\t\t\"KeyId\": \"key-shh6ae51dbd040c1xtow4\",\n\t\t\t\t\"AliasArn\": \"acs:kms:cn-shanghai:1099202394511537:alias/multicloudj-15-crypt-ctx\"\n\t\t\t}\n\t\t]\n\t},\n\t\"TotalCount\": 1,\n\t\"PageNumber\": 1,\n\t\"PageSize\": 20,\n\t\"RequestId\": \"3a27713e-a246-4f35-997c-7f618e1835bc\"\n}",
     "headers" : {
       "Server" : "Tengine/2.5.7_20220713195920",
-      "Date" : "Fri, 30 Oct 2026 22:05:17 GMT",
+      "Date" : "Fri, 30 Oct 2026 22:44:16 GMT",
       "Content-Type" : "application/json"
     }
   },
-  "uuid" : "378ba644-e687-4da3-99b2-05c4e2984c7c",
+  "uuid" : "c63a11da-0dfd-4727-b3e6-238f969b2c35",
   "persistent" : true,
-  "insertionIndex" : 98
+  "insertionIndex" : 104
 }

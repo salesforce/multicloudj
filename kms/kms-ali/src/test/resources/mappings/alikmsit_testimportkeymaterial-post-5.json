@@ -1,9 +1,14 @@
 {
-  "id" : "db037d18-ad79-4af9-9995-8ecebd9e83fa",
+  "id" : "c1559f4a-8e83-42e4-8ec3-4824c9cd740e",
   "name" : "AliKmsIT_testImportKeyMaterial-POST-5",
   "request" : {
     "urlPath" : "/",
     "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "GetParametersForImport"
+      }
+    },
     "queryParameters" : {
       "WrappingKeySpec" : {
         "hasExactly" : [ {
@@ -12,7 +17,7 @@
       },
       "KeyId" : {
         "hasExactly" : [ {
-          "equalTo" : "key-shh6ae51484m0hzzxb6pq"
+          "equalTo" : "key-shh6ae51da8m22l10lmdk"
         } ]
       },
       "WrappingAlgorithm" : {
@@ -24,14 +29,14 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n\t\"RequestId\": \"d8bc0fc6-7b54-4057-bb10-c1d3f4399d99\",\n\t\"ImportToken\": \"AAAAAAAAAAFkYWYzN2VjOC0xMGEwLTQ1YTctOGM0OC01NGVjOTg4YWJhM2FrZXktc2hoNmFlNTE0ODRtMGh6enhiNnBxAAAAAAAAAAAAAAAAAAAAauZmBlJTQUVTX09BRVBfU0hBXzI1NgAAMjUwOTY3Yjk0ZDQwMjg4M2NkNDYyOWQxZTM0NGU3YjNkYTU2Y2YzMTVmM2FhOGMxNWIzYzhiYWIwMTQxNDY3MQAAAAAAAAABAAAAAAAAAAoyMDIzMTIxOTA203FTPV26jb8gg7sypOoP1xgH7lKqoO9KAAAAAAAAAAAUUU+vtEKQmdd5xALP7UPXTw8LQYH79eMoRF0JlJ3ayqRGJwo5vOghiYsY6bU1M3Xt4Qsu78Vcvgw7Yh18x70b2L0L4Wrr3ov/lBEUaLFzrFsqhJkHIqjqhdH6ZJgSP4rNk0M2rMV0K/ScmAsKF3NT9a8CAGafUJnwcvXJk8/hIOzqXmPxnnH5aQg4FHIq8/324BDOwZ088Fw6YmD/iw5VkANNhwvyFOk8HlxFGfNJDSL4KSxpdbUgeHFpAVU0nXZUNXkNZWmHIE9DICTO5YNBlrbEyV4VCg8yiu5vbscSNYH38fooWUsG2CnvSrbvHTjnjQF6+gzgBaIW6XKpaqhXcGMo/+90VFz2uhtFhhh5kE4tXURYnASmyVccU3uwEC3rFTkwaiUvoPAzvAbTVz6FtBZdqp1lgpTV7P+9HUE+RMEZEoHgBAd56dk/kbtjz2WyDB61tnNpvEMuncxUBQszLYWin6TOPdX9uu2iu2J3MrmHu8nqKBjzD+lDZEpRImtanEIlQJWd6Xzchd9OHqzk3ZB3TDZUlD1GRh28SkxZIEgzDYRp0mWow8fzicR4VJ3zEJJbJ//lXQ+uXpZTWc5sdz6KRb/aSbrFHSa6w2x6ahN2OIJNE+GGhqMf7B2Myj7sHOOVM2mt1OC03/bdr0KvJO1k0S59PesfwqCnGTY2iJR9KL9h7tl9oqsS0WidBD1wpuUV/ZrWTIKZI3idO2M/FIn+yHvOpTGCKXvqFwPUWvYloeDzjmRv97GESS4d1U1tRXv9qOOFa1ISQDam6z4n2k3/+oAdX6BmQ8FjLw6LVbDAg1QLOaQckXS4nLG291sPFcOnG/j1V4UGNmScawPGVtsiG20EYnbxsOErnxuM3LiKdSpJDtUbAsZEpCj/IB+79CQfTOpadVDHFBtX9P2TIZWVhtzfdtzuEjhEpuHGKGV+KwCvoJX5Qfrmxvk3TVFCtEIA0hMsJFKM5/v6ozjY0Wmt9Bq1B7gyy4k8nmJk16pR4Jfwim/21ZGRrCpYwCAuRmNASYvRyd/HoDRNYbninvbTiU6UjlELfjEF2HQCc1AAgCzLPGHsLWLlE7t4M7Imx8LwNepMtFPnx5g2N5yohNleaflb0VqqRWHkz/2r9ZzWPDpORc7tZfbpZhBXY6+L3GHhlCh59NgIwTSGCnJmBGsww5Q7S+iJDTX56UdZIdLvmwXV2pFbbVNc23jZX734YVaKWG2I4ghiUG+JiN9c5siL0zPwb3JxwhajMsHpk7VKtQFMYpfhwwggFK8X6ouqMDDY++B7blxCWj1myYJdnV2HXaAHAyqrZ+b0d6itpmFQJG/LYTy5YVUGqfR7eHsf2w/0/n1OYH4Lz9AasqHeC9tWg+u0RE+B7M6mUA2GCXl5eJsm8Yd0Ethz/bbT77kZu6gFHkvSg0bxp94jdHpWy1qJDo8VJoT0eLShWCD5DCuyUFMxknGdDLj+hJtEwZB233yeRlyAi+G4Xiyq5rj1JOuFamI3D6UfNi/tePq0bGCVCnLYZl/aR2BT5qzDWd3G37OpMeMSQJp2LgyoIWGyIZqyjdk/DAGPViWQkkW3+Roe3b34ZSvEXJwpIVilGYDdRqms2vxhzCAHszZnpz2uVrxkHS1FLDgUTZSMPZDfUi8=\",\n\t\"PublicKey\": \"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAw6p1FKLmlxt+WJkCIxnYdxvQl9JtD5I0l2vPRgHEjD0Xg5rqsdgGKtVRcK9+rDle8nOWcm+lc4s6pjwVdchUOQplk5bM3cC/t5ga6JdIsxc1Mldjdt6xre5f81I0FglbceERxF8+tHw2vy+nXo/ALr2IYJTNpgBfp2dvAp9/PQ2K04qSLD+G3apjVK52MmiYln0mqp67JK6yeaaQnUzIqrZ3W2byQ8/h0N3aC52uGkuvon2mM5wX9Z26PCWxMeDpHhAY3j0yFJ0XfkcFsJQxoVXpFExAPLsar7IekS2D50N+fqUcqkekE5z4RJ2Mq/MV+BBAoKCnC4l5rUGH4jPuWQIDAQAB\",\n\t\"KeyId\": \"key-shh6ae51484m0hzzxb6pq\",\n\t\"TokenExpireTime\": \"2026-10-31T22:04:54Z\"\n}",
+    "body" : "{\n\t\"RequestId\": \"52b46396-afc9-45f6-872f-85ef33d35f37\",\n\t\"ImportToken\": \"AAAAAAAAAAE2YzlmNGJlZS1hNGZmLTRkNGUtOGVhYi00Nzk4ZjI3ZWRlMWJrZXktc2hoNmFlNTFkYThtMjJsMTBsbWRrAAAAAAAAAAAAAAAAAAAAauZvKVJTQUVTX09BRVBfU0hBXzI1NgAAYTFlYTUyN2JlNWM1NjlmZDhkNmM0ZWE3NWM1NTgxYTljZjA4NGQyYjFkMGQ3YzU5N2JjMzMyYWVjODIyYjljMwAAAAAAAAABAAAAAAAAAAoyMDIzMTIxOTA2tJN3qBYbANSKpES46uh3HdqC96KGSs/vAAAAAAAAAAC5p4lHJ3OlflvoL+U2KWDL+nogU8wN8KbajvNQympSLE3f6h48ewzTcxorvU4QHss0ovAEqGnBO16Xkoww6VdK6sHVbn3Aay+9JHkgEBFQG8h2dvibYG20epXT0TKubNY5Refb19FfSA4HudoK7NpEgdnSdyUzDr+XsHWHNad6U9sItGt6VlMmU682UcenMy5s1oDebQgQbmnXBHXSm5iz/nFkbYjOPyFEPgvEDR2nuc5zCGMJbM63t4NunSVd55yiY/qiGJ6BzIQ7EUMk0qKZjbi9kYyXjYPsA+Rwmj0P9VjWdHEwkXX+ILzT1adK0MVJ5AGr9q2l//x62V1kMhx7tEUQ7iQBuIJrhwT9NdgTG7gMvR0Ua6Bds6uJy3r1Ka432hqVK0yvWgfMic/oEsIsxnTzzcq4+UH+ll+th8aG3hB9NyEaQGyxqGDcdO/SqzrXc3J03VfJEBS3RhBImoO2qVyfT6xt4Y35umEbuq5ir2b8R3tQR3G0QevecduJzTXxnFwuTTFrXZMHxJYEY+I70p+RBYoPIe+xr6tFH43MWSOIMpj7yNP781tQBXq1Qtq4kZ+fQGtM2R0bLmyyRZTlQ5X2OWBp0dxhKCdMvCkXs1SvxAooni8nFvR3nXsCZazgkUM3PtAgWL8qFCe8WI0oqK05jB8pS+Y066Zs0FWDA6hPuPChPwM4DZHPB2Uk/YUhSIubpU+4FRvv5bf7ssi0yKo9WCoyJQrPgPW7G8vLV/LGFmEPop2cd1z2cKnDiphzHumgQwl/Hx8zSqrP4PDWpvU62DtYJRCH/QCggGVBWwtH0WE54UxV0+2xV2/C7AinCHYsBQ5p/yMbIeNzcBaSY7f9qfkf1CCoxHn29fgNe4MoJgbTn/Dn4+wGN99lhSwUk3mhdDBb69Teyr1VWX0NJTh9Unpd8juGNU+N3IkSVVhHGOsMh0cuS0EEeDQSMJc0X/unzK2c0ioNkRzJKl/4JD19y//HP1OmGf+6wzsgg0LloMIIi9btERO8znmz2lmTCsnYBYXwIlua+YFnrz/ID+DoywdH0Eovl5U9gqOTkNl/m4+qhL/7UEFt1n1RlS/begYzYDzUBC1/ztFqWx1a3ptCToA2QyYtkH/xEUG8qZPx1kOZPuarMl19eum6gknSjz+YXYrX3Hqjabj8H1vCUlZ34pN+HbSu2Q8Ag8jlkXBopiKre+kT51L+CI0tatPbQe4b4/0ABbF5EBA+F21FFVjurzlGXCcevH5SPrtHJ4xT7v2ijqb/MuKM0bfrrVKnXkhQP6+X5OZGMXiWWD5/huCGzSPEpPbv9isyojtsmKSNGsjDLAvYERn3RQBbGPliSl1SjxxKd9NLQbPwqJouetHc2QNHl9NbimtbY9Kmv3K50DDNP5OTdyzW+j7RxZzuX+7c63KhTmCzC9AArqNe0yQnXgmbarHMn3LiPBTA0Hl9hFx5WwbLPrzrsGk1n6OrX5yMoSb4Ra3eWzocSNeo9imy96s3f1NzQZIJCS715J0cjD1ZLYb9BSKepROPEgs2n4ZGV++IyF/jugtroe8J1VontaNCRkQMJbUQWnBH94Rxm+hFio7SkgQyKTaeUTUTR8iancKq2Jw6r+u6QAvny9fmlWtLSdBCUQqkTESkbKuk\",\n\t\"PublicKey\": \"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqJTlNvTOmT+03qeY+sp054Me8YBq4UFhplP/q8nnpWyCrQlj/WyEDTMeksHXwZv8+npRl8pynrfG2dhK1Nt/vqJGo9eG8Sr+GZ1YEZzpuL44PGpCW4jsVhhXg5P+5Pb11U7gdGrM9IxQ8iE+XyxLMF2KNbH8o31XsXu4jhI8r54ONyG/6ivC9e3dDo2ylLvknR3vYbhCt2ffvn6KUhKofxK/ZGW8D7ypOanR39scSrCN8XZgrZQm3+N5J9Tz6wzfcVGSqqlyMTz0Bmn2rp8Vb0yFBkfYHB9lbk+DqF6L/fCfkekXgriOLs1FkI+jqr0mSq8ggUKBAlskE0UuFiD6UQIDAQAB\",\n\t\"KeyId\": \"key-shh6ae51da8m22l10lmdk\",\n\t\"TokenExpireTime\": \"2026-10-31T22:43:53Z\"\n}",
     "headers" : {
       "Server" : "Tengine/2.5.7_20220713195920",
-      "Date" : "Fri, 30 Oct 2026 22:04:54 GMT",
+      "Date" : "Fri, 30 Oct 2026 22:43:54 GMT",
       "Content-Type" : "application/json"
     }
   },
-  "uuid" : "db037d18-ad79-4af9-9995-8ecebd9e83fa",
+  "uuid" : "c1559f4a-8e83-42e4-8ec3-4824c9cd740e",
   "persistent" : true,
-  "insertionIndex" : 74
+  "insertionIndex" : 80
 }

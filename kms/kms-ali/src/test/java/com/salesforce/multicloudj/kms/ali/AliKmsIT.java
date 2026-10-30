@@ -89,7 +89,7 @@ public class AliKmsIT extends AbstractKmsIT {
 
     @Override
     public String getKeyName(String testName) {
-      return "multicloudj-13-" + testName;
+      return "multicloudj-15-" + testName;
     }
 
     @Override

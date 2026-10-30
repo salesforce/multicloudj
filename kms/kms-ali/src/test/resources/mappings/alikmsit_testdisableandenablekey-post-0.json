@@ -1,9 +1,14 @@
 {
-  "id" : "d0523a6f-5580-4640-9908-9631ec67d85c",
+  "id" : "d39a2108-b598-4244-9841-8780817f4abe",
   "name" : "AliKmsIT_testDisableAndEnableKey-POST-0",
   "request" : {
     "urlPath" : "/",
     "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "ScheduleKeyDeletion"
+      }
+    },
     "queryParameters" : {
       "PendingWindowInDays" : {
         "hasExactly" : [ {
@@ -12,21 +17,21 @@
       },
       "KeyId" : {
         "hasExactly" : [ {
-          "equalTo" : "key-shh6ae5148chibwxvclgn"
+          "equalTo" : "key-shh6ae51dafm4c6rsws0s"
         } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n\t\"RequestId\": \"59e9dc30-d7ab-4767-a514-74252039a77a\"\n}",
+    "body" : "{\n\t\"RequestId\": \"e10c6261-33c7-4706-ab6a-4b7516abbe43\"\n}",
     "headers" : {
       "Server" : "Tengine/2.5.7_20220713195920",
-      "Date" : "Fri, 30 Oct 2026 22:05:07 GMT",
+      "Date" : "Fri, 30 Oct 2026 22:44:06 GMT",
       "Content-Type" : "application/json"
     }
   },
-  "uuid" : "d0523a6f-5580-4640-9908-9631ec67d85c",
+  "uuid" : "d39a2108-b598-4244-9841-8780817f4abe",
   "persistent" : true,
-  "insertionIndex" : 78
+  "insertionIndex" : 84
 }

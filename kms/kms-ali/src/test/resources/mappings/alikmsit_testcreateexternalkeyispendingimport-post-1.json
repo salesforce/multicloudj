@@ -1,27 +1,32 @@
 {
-  "id" : "12532ce7-3054-430a-bac9-0a52db4fcb31",
+  "id" : "ec8f7963-c24f-4362-a162-d7322cab5736",
   "name" : "AliKmsIT_testCreateExternalKeyIsPendingImport-POST-1",
   "request" : {
     "urlPath" : "/",
     "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "DeleteAlias"
+      }
+    },
     "queryParameters" : {
       "AliasName" : {
         "hasExactly" : [ {
-          "equalTo" : "alias/multicloudj-12-external"
+          "equalTo" : "alias/multicloudj-15-external"
         } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n\t\"RequestId\": \"58cdc08b-d535-43ab-a3e2-d968d53848e2\"\n}",
+    "body" : "{\n\t\"RequestId\": \"735d1a8d-65a5-4d16-8e53-a2c37cd5e182\"\n}",
     "headers" : {
       "Server" : "Tengine/2.5.7_20220713195920",
-      "Date" : "Fri, 30 Oct 2026 22:05:38 GMT",
+      "Date" : "Fri, 30 Oct 2026 22:44:37 GMT",
       "Content-Type" : "application/json"
     }
   },
-  "uuid" : "12532ce7-3054-430a-bac9-0a52db4fcb31",
+  "uuid" : "ec8f7963-c24f-4362-a162-d7322cab5736",
   "persistent" : true,
-  "insertionIndex" : 129
+  "insertionIndex" : 135
 }

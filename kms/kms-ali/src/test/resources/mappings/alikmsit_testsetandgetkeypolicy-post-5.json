@@ -1,32 +1,37 @@
 {
-  "id" : "2056078a-af28-4a0e-9ad6-c49895007699",
+  "id" : "7df6ac9e-04e7-42a6-9095-5ecb7e5a8b9f",
   "name" : "AliKmsIT_testSetAndGetKeyPolicy-POST-5",
   "request" : {
     "urlPath" : "/",
     "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "CreateAlias"
+      }
+    },
     "queryParameters" : {
       "AliasName" : {
         "hasExactly" : [ {
-          "equalTo" : "alias/multicloudj-12-policy"
+          "equalTo" : "alias/multicloudj-15-policy"
         } ]
       },
       "KeyId" : {
         "hasExactly" : [ {
-          "equalTo" : "key-shh6ae5147dl69nipvg30"
+          "equalTo" : "key-shh6ae51da1sszahe05dh"
         } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n\t\"RequestId\": \"660bf7b9-1f56-45f2-94db-9f9923400e11\"\n}",
+    "body" : "{\n\t\"RequestId\": \"65b6e894-becf-40a4-9de6-2182f7ef95ff\"\n}",
     "headers" : {
       "Server" : "Tengine/2.5.7_20220713195920",
-      "Date" : "Fri, 30 Oct 2026 22:04:46 GMT",
+      "Date" : "Fri, 30 Oct 2026 22:43:46 GMT",
       "Content-Type" : "application/json"
     }
   },
-  "uuid" : "2056078a-af28-4a0e-9ad6-c49895007699",
+  "uuid" : "7df6ac9e-04e7-42a6-9095-5ecb7e5a8b9f",
   "persistent" : true,
-  "insertionIndex" : 63
+  "insertionIndex" : 69
 }
