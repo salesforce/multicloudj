@@ -115,7 +115,11 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
   private final Batcher.Options receiveBatcherOptions;
   protected final CredentialsOverrider credentialsOverrider;
 
-  /** Synchronization lock for thread-safe access to subscription state and queue operations. */
+  /**
+   * Synchronization lock for thread-safe access to subscription state and queue operations. Fair,
+   * so receivers woken by {@code batchArrived} are not repeatedly beaten to the queue by newly
+   * arriving callers, which starves a waiting receive() for seconds under concurrent consumers.
+   */
   private final ReentrantLock lock;
 
   /** Condition variable signaled when new batches of messages arrive in the queue. */
@@ -156,13 +160,13 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
       String subscriptionName,
       String region,
       CredentialsOverrider credentialsOverrider) {
-    this(providerId, subscriptionName, region, credentialsOverrider, new ReentrantLock());
+    this(providerId, subscriptionName, region, credentialsOverrider, new ReentrantLock(true));
   }
 
   /**
    * Package-private constructor accepting the {@link ReentrantLock} that guards the receive queue
-   * and prefetch state; production callers use the four-argument constructor (a plain {@code new
-   * ReentrantLock()}). Tests may inject an instrumented lock to force specific interleavings.
+   * and prefetch state; production callers use the four-argument constructor (a fair {@code new
+   * ReentrantLock(true)}). Tests may inject an instrumented lock to force specific interleavings.
    */
   AbstractSubscription(
       String providerId,
@@ -207,7 +211,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
         builder.nackVisibilityTimeout == null ? Duration.ZERO : builder.nackVisibilityTimeout;
     this.retryConfig = builder.retryConfig;
 
-    this.lock = new ReentrantLock();
+    this.lock = new ReentrantLock(true);
     this.batchArrived = this.lock.newCondition();
 
     this.receiveBatcherOptions = createReceiveBatcherOptions();

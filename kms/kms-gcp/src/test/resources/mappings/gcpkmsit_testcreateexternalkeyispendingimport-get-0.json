@@ -1,0 +1,62 @@
+{
+  "id" : "53345e4c-3ab1-4941-9f9a-ba2f18a61d10",
+  "name" : "GcpKmsIT_testCreateExternalKeyIsPendingImport-GET-0",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-external-r2/cryptoKeyVersions",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "6"
+      }
+    },
+    "queryParameters" : {
+      "filter" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "view" : {
+        "hasExactly" : [ {
+          "equalTo" : "0"
+        } ]
+      },
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      },
+      "orderBy" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "pageSize" : {
+        "hasExactly" : [ {
+          "equalTo" : "0"
+        } ]
+      },
+      "pageToken" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sun, 18 Oct 2026 06:16:12 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "53345e4c-3ab1-4941-9f9a-ba2f18a61d10",
+  "persistent" : true,
+  "insertionIndex" : 60
+}

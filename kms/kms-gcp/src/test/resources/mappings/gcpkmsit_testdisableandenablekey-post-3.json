@@ -1,0 +1,47 @@
+{
+  "id" : "b43a4d64-4c2f-41f6-aae4-974cbe0bc41f",
+  "name" : "GcpKmsIT_testDisableAndEnableKey-POST-3",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-toggle-r2/cryptoKeyVersions/1",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      },
+      "updateMask" : {
+        "hasExactly" : [ {
+          "equalTo" : "state"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"name\":\"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-toggle-r2/cryptoKeyVersions/1\",\"state\":1}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-toggle-r2/cryptoKeyVersions/1\",\n  \"state\": 1,\n  \"createTime\": \"2026-10-18T06:15:52.913223551Z\",\n  \"protectionLevel\": 1,\n  \"algorithm\": 1,\n  \"generateTime\": \"2026-10-18T06:15:52.913223551Z\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sun, 18 Oct 2026 06:15:56 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "b43a4d64-4c2f-41f6-aae4-974cbe0bc41f",
+  "persistent" : true,
+  "insertionIndex" : 27
+}
