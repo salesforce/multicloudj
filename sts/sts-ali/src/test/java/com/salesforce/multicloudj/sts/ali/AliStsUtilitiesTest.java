@@ -102,6 +102,14 @@ class AliStsUtilitiesTest {
   }
 
   @Test
+  void endpointWithSchemeDefaultPortIsAccepted() {
+    SignedAuthRequest signed =
+        endpointSigner("https://sts.example.com:443").newCloudNativeAuthSignedRequest(null);
+
+    Assertions.assertEquals("sts.example.com", URI.create(signed.getSignedIdentity()).getHost());
+  }
+
+  @Test
   void noEndpointKeepsRegionalDefault() {
     StsUtilities stsUtil = endpointSigner(null);
 
@@ -114,7 +122,14 @@ class AliStsUtilitiesTest {
   @Test
   void endpointWithPortOrPathIsRejected() {
     for (String endpoint :
-        new String[] {"https://sts.example.com:8443", "https://sts.example.com/proxy"}) {
+        new String[] {
+          "https://sts.example.com:8443",
+          "https://sts.example.com/proxy",
+          "https://sts.example.com/?a=b",
+          "https://sts.example.com/#frag",
+          "https://sts.example.com?a=b",
+          "http://sts.example.com:443"
+        }) {
       StsUtilities stsUtil = endpointSigner(endpoint);
       Assertions.assertThrows(
           InvalidArgumentException.class,
