@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -49,5 +50,33 @@ class ValidateOptionsTest {
     assertThrows(
         UnsupportedOperationException.class,
         () -> options.getExpectedCustomHeaders().put("x-b", "2"));
+  }
+
+  @Test
+  void expectedHeaderNamesAreLowercased() {
+    ValidateOptions options =
+        ValidateOptions.builder().withExpectedCustomHeader("X-Vault-Server-ID", "v").build();
+
+    assertEquals(Map.of("x-vault-server-id", "v"), options.getExpectedCustomHeaders());
+  }
+
+  @Test
+  void caseInsensitiveDuplicateNamesAreRejected() {
+    ValidateOptions.Builder builder =
+        ValidateOptions.builder()
+            .withExpectedCustomHeader("X-A", "1")
+            .withExpectedCustomHeader("x-a", "2");
+
+    assertThrows(InvalidArgumentException.class, builder::build);
+  }
+
+  @Test
+  void blankNameOrNullValueIsRejected() {
+    ValidateOptions.Builder blankName = ValidateOptions.builder().withExpectedCustomHeader("", "v");
+    ValidateOptions.Builder nullValue =
+        ValidateOptions.builder().withExpectedCustomHeader("x-a", null);
+
+    assertThrows(InvalidArgumentException.class, blankName::build);
+    assertThrows(InvalidArgumentException.class, nullValue::build);
   }
 }

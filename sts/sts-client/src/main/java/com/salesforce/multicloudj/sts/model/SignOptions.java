@@ -1,6 +1,5 @@
 package com.salesforce.multicloudj.sts.model;
 
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.Getter;
@@ -11,12 +10,13 @@ import lombok.Getter;
  *
  * <p>All options are optional; an instance built with no customization requests the default signing
  * behavior. Custom headers are applied to the request that gets signed, and the exclusion flags let
- * a caller drop headers that a downstream verifier does not expect.
+ * a caller drop headers that a downstream verifier does not expect. Header names are
+ * case-insensitive and are normalized to lowercase.
  */
 @Getter
 public class SignOptions {
 
-  /** Additional headers to set on the request that is signed. */
+  /** Additional headers to set on the request that is signed, keyed by lowercase name. */
   private final Map<String, String> customHeaders;
 
   /** When true, the request payload hash header is not added to the signed request. */
@@ -33,7 +33,7 @@ public class SignOptions {
   private final boolean actionInQueryString;
 
   private SignOptions(Builder builder) {
-    this.customHeaders = Collections.unmodifiableMap(new LinkedHashMap<>(builder.customHeaders));
+    this.customHeaders = HeaderNames.normalize(builder.customHeaders);
     this.excludeRequestHashHeader = builder.excludeRequestHashHeader;
     this.excludeContentTypeHeader = builder.excludeContentTypeHeader;
     this.actionInQueryString = builder.actionInQueryString;

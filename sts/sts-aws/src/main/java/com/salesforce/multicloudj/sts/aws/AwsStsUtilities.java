@@ -29,6 +29,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import javax.crypto.Mac;
@@ -52,6 +53,14 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
       DateTimeFormatter.ofPattern("yyyyMMdd").withLocale(Locale.US);
   private static final String REQUEST_HASH_HEADER = "x-request-hash";
   private static final String CONTENT_TYPE_HEADER = "content-type";
+  private static final Set<String> SIGNER_OWNED_HEADERS =
+      Set.of(
+          "host",
+          "x-amz-date",
+          "x-amz-security-token",
+          "authorization",
+          "content-type",
+          REQUEST_HASH_HEADER);
   private static final String CONTENT_TYPE_VALUE =
       "application/x-www-form-urlencoded; charset=utf-8";
 
@@ -139,8 +148,13 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
       headers.put(REQUEST_HASH_HEADER, getSha256Hash(payload));
     }
     // Caller supplied custom headers (e.g. a federation target resource) are always signed. Names
-    // must already be lowercase to satisfy the SigV4 canonical rules.
+    // arrive lowercase, as the SigV4 canonical rules require. Names the signer sets itself are
+    // rejected so a caller cannot replace the signing date, credentials, or host.
     for (Map.Entry<String, String> header : options.getCustomHeaders().entrySet()) {
+      if (SIGNER_OWNED_HEADERS.contains(header.getKey())) {
+        throw new InvalidArgumentException(
+            "custom header \"" + header.getKey() + "\" is reserved by the signer");
+      }
       headers.put(header.getKey(), header.getValue());
     }
 

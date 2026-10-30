@@ -14,6 +14,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
+import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -97,6 +98,42 @@ class GcpStsVerifierTest {
 
     CallerIdentity identity = verifier().verifySignedAuthRequest(jwt, options);
     Assertions.assertEquals("my-project", identity.getAccountId());
+  }
+
+  @Test
+  void mixedCaseExpectedClaimMatchesMixedCaseSignedClaim() throws Exception {
+    GcpStsUtilities signer =
+        new GcpStsUtilities.Builder()
+            .build(
+                (serviceAccountName, payload) -> {
+                  JsonWebToken.Payload claims =
+                      GsonFactory.getDefaultInstance()
+                          .createJsonParser(payload)
+                          .parse(JsonWebToken.Payload.class);
+                  JsonWebSignature.Header header =
+                      new JsonWebSignature.Header()
+                          .setAlgorithm("RS256")
+                          .setType("JWT")
+                          .setKeyId(KID);
+                  try {
+                    return JsonWebSignature.signUsingRsaSha256(
+                        keyPair.getPrivate(), GsonFactory.getDefaultInstance(), header, claims);
+                  } catch (java.security.GeneralSecurityException e) {
+                    throw new IOException(e);
+                  }
+                },
+                SERVICE_ACCOUNT);
+    String jwt =
+        signer
+            .newCloudNativeAuthSignedRequest(
+                null, SignOptions.builder().withCustomHeader("X-Tenant", "t1").build())
+            .getSignedIdentity();
+    ValidateOptions options =
+        ValidateOptions.builder().withExpectedCustomHeader("X-TENANT", "t1").build();
+
+    CallerIdentity identity = verifier().verifySignedAuthRequest(jwt, options);
+
+    Assertions.assertEquals(SERVICE_ACCOUNT, identity.getUserId());
   }
 
   @Test
