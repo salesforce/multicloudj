@@ -14,7 +14,6 @@ import com.salesforce.multicloudj.kms.model.KeyRef;
 import com.salesforce.multicloudj.kms.model.PrincipalType;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import org.junit.jupiter.api.Disabled;
 
 public class AliKmsIT extends AbstractKmsIT {
 
@@ -82,6 +81,13 @@ public class AliKmsIT extends AbstractKmsIT {
     }
 
     @Override
+    public List<String> getRecordingCaptureHeaders() {
+      // The SDK signs with ACS3-HMAC-SHA256, which sends the API name in this header rather than
+      // as an Action query parameter; without it, calls with the same parameters are ambiguous.
+      return List.of("x-acs-action");
+    }
+
+    @Override
     public String getKeyName(String testName) {
       return "multicloudj-tests-0-" + testName;
     }
@@ -101,7 +107,8 @@ public class AliKmsIT extends AbstractKmsIT {
     @Override
     public KeyPrincipal getGranteePrincipal() {
       // Must be an existing RAM role in ACCOUNT_ID when recording; RAM ARNs must be lowercase.
-      return KeyPrincipal.of(PrincipalType.IDENTITY, "acs:ram::" + ACCOUNT_ID + ":role/chameleon-test-2");
+      return KeyPrincipal.of(
+          PrincipalType.IDENTITY, "acs:ram::" + ACCOUNT_ID + ":role/chameleon-test-2");
     }
 
     @Override
