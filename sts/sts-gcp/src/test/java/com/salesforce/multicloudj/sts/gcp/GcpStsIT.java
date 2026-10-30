@@ -8,6 +8,8 @@ import com.salesforce.multicloudj.common.gcp.util.MockGoogleCredentialsFactory;
 import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
 import com.salesforce.multicloudj.sts.client.AbstractStsIT;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
+import com.salesforce.multicloudj.sts.driver.AbstractStsUtilities;
+import com.salesforce.multicloudj.sts.driver.AbstractStsVerifier;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -63,6 +65,23 @@ public class GcpStsIT extends AbstractStsIT {
     @Override
     public boolean supportsGetAccessToken() {
       return true;
+    }
+
+    @Override
+    public AbstractStsUtilities<?> createStsUtilitiesDriver() {
+      throw new UnsupportedOperationException(
+          "IAM Credentials signJwt uses gRPC, which WireMock cannot record");
+    }
+
+    @Override
+    public AbstractStsVerifier createStsVerifierDriver() {
+      throw new UnsupportedOperationException(
+          "IAM Credentials signJwt uses gRPC, which WireMock cannot record");
+    }
+
+    @Override
+    public boolean supportsCloudNativeAuthReplay() {
+      return false;
     }
 
     @Override

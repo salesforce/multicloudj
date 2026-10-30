@@ -1,11 +1,17 @@
 package com.salesforce.multicloudj.sts.client;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
+import com.salesforce.multicloudj.sts.driver.AbstractStsUtilities;
+import com.salesforce.multicloudj.sts.driver.AbstractStsVerifier;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
+import com.salesforce.multicloudj.sts.model.SignOptions;
+import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -46,6 +52,17 @@ public abstract class AbstractStsIT {
     // TODO: supports getAccessToken
     // remove it when alibaba provides the get session token in cn-shanghai
     boolean supportsGetAccessToken();
+
+    // Method to create a utilities driver that signs cloud native auth requests
+    AbstractStsUtilities<?> createStsUtilitiesDriver();
+
+    // Method to create a verifier driver whose outbound verification calls are routed to the
+    // WireMock server
+    AbstractStsVerifier createStsVerifierDriver();
+
+    // Whether the sign -> verify round trip can be recorded and replayed through WireMock for this
+    // provider.
+    boolean supportsCloudNativeAuthReplay();
   }
 
   protected abstract Harness createHarness();
@@ -122,5 +139,46 @@ public abstract class AbstractStsIT {
     Assertions.assertNotNull(credentials.getAccessKeySecret());
     Assertions.assertNotNull(credentials.getAccessKeyId());
     Assertions.assertNotNull(credentials.getSecurityToken());
+  }
+
+  private static final String CONFORMANCE_HEADER = "X-Conformance-Header";
+
+  private String signIdentityWithConformanceHeader() {
+    StsUtilities utilities = new StsUtilities(harness.createStsUtilitiesDriver());
+    SignedAuthRequest signed =
+        utilities.newCloudNativeAuthSignedRequest(
+            null, SignOptions.builder().withCustomHeader(CONFORMANCE_HEADER, "v1").build());
+    Assertions.assertNotNull(signed.getSignedIdentity(), "Signed identity shouldn't be empty");
+    return signed.getSignedIdentity();
+  }
+
+  @Test
+  public void testSignedIdentityWithMixedCaseCustomHeaderValidates() {
+    Assumptions.assumeTrue(
+        harness.supportsCloudNativeAuthReplay(),
+        "Skipping test as harness does not support cloud native auth replay");
+    String signedIdentity = signIdentityWithConformanceHeader();
+    StsVerifier verifier = new StsVerifier(harness.createStsVerifierDriver());
+    CallerIdentity identity =
+        verifier.validateSignedAuthRequest(
+            signedIdentity,
+            ValidateOptions.builder().withExpectedCustomHeader(CONFORMANCE_HEADER, "v1").build());
+    Assertions.assertNotNull(identity, "Identity shouldn't be empty");
+    Assertions.assertNotNull(identity.getCloudResourceName());
+    Assertions.assertNotNull(identity.getAccountId());
+  }
+
+  @Test
+  public void testSignedIdentityWithWrongCustomHeaderValueIsRejected() {
+    Assumptions.assumeTrue(
+        harness.supportsCloudNativeAuthReplay(),
+        "Skipping test as harness does not support cloud native auth replay");
+    String signedIdentity = signIdentityWithConformanceHeader();
+    StsVerifier verifier = new StsVerifier(harness.createStsVerifierDriver());
+    ValidateOptions wrongValue =
+        ValidateOptions.builder().withExpectedCustomHeader(CONFORMANCE_HEADER, "v2").build();
+    Assertions.assertThrows(
+        InvalidArgumentException.class,
+        () -> verifier.validateSignedAuthRequest(signedIdentity, wrongValue));
   }
 }
