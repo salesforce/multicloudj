@@ -172,9 +172,101 @@ class AwsStsUtilitiesTest {
     Assertions.assertFalse(params.containsKey("Authorization"), params.keySet().toString());
   }
 
+  @Test
+  void endpointOverrideSetsSignedHostAndIdentityRoot() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK, REGION, URI.create("https://sts.amazonaws.com"))
+            .newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(URI.create("https://sts.amazonaws.com/"), signed.getRequest().uri());
+    Assertions.assertTrue(
+        signed.getSignedIdentity().startsWith("https://sts.amazonaws.com/?"),
+        signed.getSignedIdentity());
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        signed.getRequest().headers().firstValue("authorization").orElseThrow());
+  }
+
+  @Test
+  void endpointOverrideWithPortSignsHostWithPort() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK, REGION, URI.create("https://localhost:8443"))
+            .newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(URI.create("https://localhost:8443/"), signed.getRequest().uri());
+    Assertions.assertTrue(
+        signed.getSignedIdentity().startsWith("https://localhost:8443/?"),
+        signed.getSignedIdentity());
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        signed.getRequest().headers().firstValue("authorization").orElseThrow());
+  }
+
+  @Test
+  void endpointWithPathQueryOrFragmentIsRejected() {
+    for (String endpoint : new String[] {"https://h/proxy", "https://h/?a=b", "https://h/#frag"}) {
+      AwsStsUtilities utilities = signer(FIXED_CLOCK, REGION, URI.create(endpoint));
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> utilities.newCloudNativeAuthSignedRequest(formRequest(), null),
+          endpoint);
+    }
+  }
+
+  @Test
+  void endpointWithRootPathIsAccepted() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK, REGION, URI.create("https://sts.amazonaws.com/"))
+            .newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(URI.create("https://sts.amazonaws.com/"), signed.getRequest().uri());
+  }
+
+  @Test
+  void missingRegionIsRejected() {
+    for (String blank : new String[] {null, "", "  "}) {
+      AwsStsUtilities utilities = signer(FIXED_CLOCK, blank, null);
+      InvalidArgumentException e =
+          Assertions.assertThrows(
+              InvalidArgumentException.class,
+              () -> utilities.newCloudNativeAuthSignedRequest(formRequest(), null));
+      Assertions.assertTrue(e.getMessage().contains("region is required"), e.getMessage());
+    }
+  }
+
+  @Test
+  void missingRegionIsRejectedEvenWithEndpointOverride() {
+    AwsStsUtilities utilities =
+        signer(FIXED_CLOCK, null, URI.create("https://sts.amazonaws.com"));
+    Assertions.assertThrows(
+        InvalidArgumentException.class,
+        () -> utilities.newCloudNativeAuthSignedRequest(formRequest(), null));
+  }
+
+  @Test
+  void noEndpointKeepsRegionalDefault() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(
+        URI.create("https://sts.us-west-2.amazonaws.com/"), signed.getRequest().uri());
+    Assertions.assertTrue(
+        signed.getSignedIdentity().startsWith("https://sts.us-west-2.amazonaws.com/?"),
+        signed.getSignedIdentity());
+  }
+
   private static AwsStsUtilities signer(Clock clock) {
+    return signer(clock, REGION, null);
+  }
+
+  private static AwsStsUtilities signer(Clock clock, String signerRegion, URI endpoint) {
     AwsStsUtilities.Builder builder = new AwsStsUtilities.Builder();
-    builder.withRegion(REGION);
+    if (signerRegion != null) {
+      builder.withRegion(signerRegion);
+    }
+    if (endpoint != null) {
+      builder.withEndpoint(endpoint);
+    }
     builder.withCredentialsOverrider(
         new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentials(CREDS)

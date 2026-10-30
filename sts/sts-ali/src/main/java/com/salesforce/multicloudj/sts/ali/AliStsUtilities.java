@@ -50,6 +50,7 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
 
   @Override
   protected SignedAuthRequest newCloudNativeAuthSignedRequest(HttpRequest request) {
+    String domain = signingDomain();
     BasicSessionCredentials credentials;
     try {
       if (credentialsOverrider != null
@@ -68,7 +69,7 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
     }
 
     CommonRequest commonRequest = new CommonRequest();
-    commonRequest.setSysDomain(String.format(SIGN_STS_ENDPOINT, region));
+    commonRequest.setSysDomain(domain);
     commonRequest.setSysProduct(SERVICE_SIGNING_NAME);
     commonRequest.setSysAction(DEFAULT_API_ACTION_NAME);
     commonRequest.setSysVersion(DEFAULT_API_VERSION);
@@ -120,6 +121,22 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
             credentials.getAccessKeySecret(),
             credentials.getSessionToken()),
         signedIdentity);
+  }
+
+  /**
+   * Returns the domain the request is signed for. The request domain is a bare host, so an endpoint
+   * port or path cannot be carried and is rejected rather than silently dropped.
+   */
+  private String signingDomain() {
+    if (endpoint == null) {
+      return String.format(SIGN_STS_ENDPOINT, region);
+    }
+    String path = endpoint.getRawPath();
+    if (endpoint.getPort() != -1 || (path != null && !path.isEmpty() && !"/".equals(path))) {
+      throw new InvalidArgumentException(
+          "endpoint must be a bare host without a port or path: " + endpoint);
+    }
+    return endpoint.getHost();
   }
 
   public static class Builder extends AbstractStsUtilities.Builder<AliStsUtilities> {

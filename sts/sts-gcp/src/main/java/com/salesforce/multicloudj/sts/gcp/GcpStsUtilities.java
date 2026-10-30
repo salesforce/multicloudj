@@ -210,11 +210,23 @@ public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
               .build();
     }
 
-    IamCredentialsSettings settings =
+    return IamCredentialsClient.create(iamCredentialsSettings(signingCredentials));
+  }
+
+  /**
+   * Builds the IAM Credentials client settings. The client's endpoint is a {@code host:port} pair,
+   * so an overriding endpoint without an explicit port uses 443.
+   */
+  IamCredentialsSettings iamCredentialsSettings(GoogleCredentials signingCredentials)
+      throws IOException {
+    IamCredentialsSettings.Builder settings =
         IamCredentialsSettings.newBuilder()
-            .setCredentialsProvider(FixedCredentialsProvider.create(signingCredentials))
-            .build();
-    return IamCredentialsClient.create(settings);
+            .setCredentialsProvider(FixedCredentialsProvider.create(signingCredentials));
+    if (endpoint != null) {
+      int port = endpoint.getPort() == -1 ? 443 : endpoint.getPort();
+      settings.setEndpoint(endpoint.getHost() + ":" + port);
+    }
+    return settings.build();
   }
 
   /**
