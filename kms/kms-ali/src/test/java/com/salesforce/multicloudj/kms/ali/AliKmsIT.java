@@ -26,6 +26,7 @@ public class AliKmsIT extends AbstractKmsIT {
   public static class HarnessImpl implements Harness {
     private static final String REGION = "cn-shanghai";
     private static final String ENDPOINT = "kms." + REGION + ".aliyuncs.com";
+    // Must be the account that owns KMS_INSTANCE_ID when recording.
     private static final String ACCOUNT_ID = "1234567890123456";
     // Must be an existing KMS instance in REGION when recording: key policies are only supported
     // for keys in a KMS instance. It is a constant because it is part of recorded request bodies.
@@ -72,7 +73,7 @@ public class AliKmsIT extends AbstractKmsIT {
 
     @Override
     public List<String> getWiremockExtensions() {
-      return List.of();
+      return List.of(AliRpcAuthStrippingTransformer.class.getName());
     }
 
     @Override
@@ -92,11 +93,14 @@ public class AliKmsIT extends AbstractKmsIT {
 
     @Override
     public KeyPrincipal getAdminPrincipal() {
-      return KeyPrincipal.of(PrincipalType.IDENTITY, "acs:ram::" + ACCOUNT_ID + ":role/kms-admin");
+      // Account-wide access (acs:ram::<uid>:*), as in the default key policy, so the recording
+      // identity keeps control of the key after its policy is replaced.
+      return KeyPrincipal.of(PrincipalType.ACCOUNT, ACCOUNT_ID);
     }
 
     @Override
     public KeyPrincipal getGranteePrincipal() {
+      // Must be an existing RAM role in ACCOUNT_ID when recording; RAM ARNs must be lowercase.
       return KeyPrincipal.of(PrincipalType.IDENTITY, "acs:ram::" + ACCOUNT_ID + ":role/kms-user");
     }
 
