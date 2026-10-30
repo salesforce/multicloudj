@@ -10,6 +10,9 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Assertions;
@@ -17,6 +20,13 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 class AwsStsUtilitiesTest {
+
+  private static final Clock FIXED_CLOCK =
+      Clock.fixed(Instant.parse("2026-10-30T12:00:00Z"), ZoneOffset.UTC);
+  private static final String REGION = "us-west-2";
+  private static final StsCredentials CREDS =
+      new StsCredentials(
+          "AKIDEXAMPLE", "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY", "FAKE_SESSION_TOKEN");
 
   private static StsCredentials credentials;
   private static String region;
@@ -43,6 +53,51 @@ class AwsStsUtilitiesTest {
         credentials.getAccessKeySecret(), signed.getCredentials().getAccessKeySecret());
     Assertions.assertEquals(
         credentials.getSecurityToken(), signed.getCredentials().getSecurityToken());
+  }
+
+  @Test
+  void defaultSignatureMatchesAwsSdkSigner() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        signed.getRequest().headers().firstValue("authorization").orElseThrow());
+  }
+
+  @Test
+  void excludedHashAndContentTypeSignatureMatchesAwsSdkSigner() {
+    SignOptions options =
+        SignOptions.builder()
+            .withExcludeRequestHashHeader(true)
+            .withExcludeContentTypeHeader(true)
+            .build();
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+    String authorization = signed.getRequest().headers().firstValue("authorization").orElseThrow();
+    Assertions.assertTrue(
+        authorization.contains("SignedHeaders=host;x-amz-date;x-amz-security-token,"));
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK), authorization);
+  }
+
+  private static AwsStsUtilities signer(Clock clock) {
+    AwsStsUtilities.Builder builder = new AwsStsUtilities.Builder();
+    builder.withRegion(REGION);
+    builder.withCredentialsOverrider(
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(CREDS)
+            .build());
+    return new AwsStsUtilities(builder, clock);
+  }
+
+  private static HttpRequest formRequest() {
+    return HttpRequest.newBuilder()
+        .POST(HttpRequest.BodyPublishers.ofString("Action=GetCallerIdentity&Version=2011-06-15"))
+        .uri(URI.create("https://sts.us-west-2.amazonaws.com/"))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .build();
   }
 
   private static StsUtilities stsUtil() {

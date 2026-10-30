@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -59,12 +60,20 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
   // than rebuilt every request.
   private volatile DefaultCredentialsProvider defaultCredentialsProvider;
 
+  private final Clock clock;
+
   public AwsStsUtilities(Builder builder) {
-    super(builder);
+    this(builder, Clock.systemUTC());
   }
 
   public AwsStsUtilities() {
-    super(new Builder());
+    this(new Builder(), Clock.systemUTC());
+  }
+
+  // Lets tests pin the signing time.
+  AwsStsUtilities(Builder builder, Clock clock) {
+    super(builder);
+    this.clock = clock;
   }
 
   @Override
@@ -110,7 +119,7 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
     // Assemble the canonical header set. host, the signing date, and the session token (when the
     // credentials are temporary) are always signed. Header names must be lowercase per the SigV4
     // canonical rules; the TreeMap keeps them sorted.
-    Instant now = Instant.now();
+    Instant now = clock.instant();
     String amzDate = AMZ_DATE_FORMAT.format(now.atOffset(ZoneOffset.UTC));
     String dateStamp = AMZ_DATESTAMP_FORMAT.format(now.atOffset(ZoneOffset.UTC));
 
