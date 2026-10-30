@@ -7,16 +7,30 @@ import com.salesforce.multicloudj.common.ali.util.TestsUtilAli;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.sts.client.AbstractStsIT;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
+import com.salesforce.multicloudj.sts.driver.AbstractStsUtilities;
+import com.salesforce.multicloudj.sts.driver.AbstractStsVerifier;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 public class AliStsIT extends AbstractStsIT {
   @Override
   protected Harness createHarness() {
     return new HarnessImpl();
   }
+
+  @Override
+  @Test
+  @Disabled("recorded on dedicated machines")
+  public void testSignedIdentityWithMixedCaseCustomHeaderValidates() {}
+
+  @Override
+  @Test
+  @Disabled("recorded on dedicated machines")
+  public void testSignedIdentityWithWrongCustomHeaderValueIsRejected() {}
 
   public static class HarnessImpl implements AbstractStsIT.Harness {
     int port = ThreadLocalRandom.current().nextInt(2000, 20000);
@@ -68,6 +82,21 @@ public class AliStsIT extends AbstractStsIT {
      */
     @Override
     public boolean supportsGetAccessToken() {
+      return false;
+    }
+
+    @Override
+    public AbstractStsUtilities<?> createStsUtilitiesDriver() {
+      throw new UnsupportedOperationException("cloud native auth replay is not supported");
+    }
+
+    @Override
+    public AbstractStsVerifier createStsVerifierDriver() {
+      throw new UnsupportedOperationException("cloud native auth replay is not supported");
+    }
+
+    @Override
+    public boolean supportsCloudNativeAuthReplay() {
       return false;
     }
 
