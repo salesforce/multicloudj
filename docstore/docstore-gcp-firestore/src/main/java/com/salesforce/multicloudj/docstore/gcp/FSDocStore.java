@@ -364,10 +364,13 @@ public class FSDocStore extends AbstractDocStore {
         // which exception to throw. This is always correct for a single-Do action.
         // For multi-action batches, however, we can't guarantee throwing the exact
         // exception for each individual action.
-        // It's a weird thing that firestore throws two different errors for precondition
-        // failures. For create with exists precondition, it aborts the transaction with Conflict.
-        if (e.getCause().getMessage().contains("FAILED_PRECONDITION")
-            || (e instanceof AbortedException && e.getMessage().equals("Conflict"))) {
+        // Firestore reports precondition failures in two ways. A create with an exists=false
+        // precondition fails with HTTP 409, which gax surfaces as ABORTED; the response body
+        // status (ALREADY_EXISTS) separates it from a genuine transaction abort.
+        String causeMessage = e.getCause() != null ? e.getCause().getMessage() : null;
+        if (causeMessage != null
+            && (causeMessage.contains("FAILED_PRECONDITION")
+                || (e instanceof AbortedException && causeMessage.contains("ALREADY_EXISTS")))) {
           if (writes.get(0).getKind() == ActionKind.ACTION_KIND_CREATE) {
             throw new ResourceAlreadyExistsException(e);
           } else {
