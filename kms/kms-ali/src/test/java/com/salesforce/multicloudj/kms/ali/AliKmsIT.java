@@ -1,6 +1,9 @@
 package com.salesforce.multicloudj.kms.ali;
 
 import com.aliyun.kms20160120.Client;
+import com.aliyun.kms20160120.models.DeleteAliasRequest;
+import com.aliyun.kms20160120.models.ListAliasesByKeyIdRequest;
+import com.aliyun.kms20160120.models.ListAliasesByKeyIdResponseBody;
 import com.aliyun.kms20160120.models.ScheduleKeyDeletionRequest;
 import com.aliyun.teaopenapi.models.Config;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
@@ -107,6 +110,19 @@ public class AliKmsIT extends AbstractKmsIT {
     @Override
     public void deleteKey(KeyRef keyRef) {
       try {
+        // Aliases outlive a key that is only scheduled for deletion, so they are deleted first to
+        // let the next recording create the same alias names.
+        ListAliasesByKeyIdResponseBody.ListAliasesByKeyIdResponseBodyAliases aliases =
+            kmsClient
+                .listAliasesByKeyId(new ListAliasesByKeyIdRequest().setKeyId(keyRef.getKeyId()))
+                .getBody()
+                .getAliases();
+        if (aliases != null && aliases.getAlias() != null) {
+          for (ListAliasesByKeyIdResponseBody.ListAliasesByKeyIdResponseBodyAliasesAlias alias :
+              aliases.getAlias()) {
+            kmsClient.deleteAlias(new DeleteAliasRequest().setAliasName(alias.getAliasName()));
+          }
+        }
         kmsClient.scheduleKeyDeletion(
             new ScheduleKeyDeletionRequest().setKeyId(keyRef.getKeyId()).setPendingWindowInDays(7));
       } catch (Exception e) {

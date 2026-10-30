@@ -45,6 +45,7 @@ final class ErrorCodeMapping {
           new Rule(Match.PREFIX, "Forbidden.KeyNotEnabled", FailedPreconditionException.class),
           new Rule(
               Match.EQUALS, "Forbidden.KeyPolicyUnSupported", UnSupportedOperationException.class),
+          new Rule(Match.EQUALS, "UnsupportedOperation", UnSupportedOperationException.class),
           new Rule(Match.PREFIX, "InvalidParameter", InvalidArgumentException.class),
           new Rule(Match.PREFIX, "MissingParameter", InvalidArgumentException.class),
           new Rule(Match.EQUALS, "Rejected.ValidationFailed", InvalidArgumentException.class),
