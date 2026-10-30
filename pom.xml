@@ -73,6 +73,8 @@
         <aws-sdk.version>2.56.0</aws-sdk.version>
         <commons-codec.version>1.16.0</commons-codec.version>
         <wiremock-grpc.version>0.11.0</wiremock-grpc.version>
+        <protobuf.version>4.33.6</protobuf.version>
+        <grpc.version>1.83.0</grpc.version>
         <opentelemetry.version>1.62.0</opentelemetry.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <revision>0.2.5-SNAPSHOT</revision>
@@ -97,6 +99,15 @@
     <!-- All module dependencies and versions -->
     <dependencyManagement>
         <dependencies>
+            <!-- Aligns every io.grpc artifact, including the grpc-servlet-jakarta and grpc-netty
+                 pulled in by wiremock-grpc-extension, with the grpc-core used by the GCP SDKs. -->
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-bom</artifactId>
+                <version>${grpc.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
