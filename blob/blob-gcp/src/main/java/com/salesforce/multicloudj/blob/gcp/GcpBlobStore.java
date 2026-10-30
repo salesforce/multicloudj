@@ -761,16 +761,27 @@ public class GcpBlobStore extends AbstractBlobStore {
     // lifecycle-expiration custom time is anchored to the object's creation time.
     // The object is already committed, so the legal hold is applied even if the tag write fails.
     // If both fail, the legal hold failure is thrown with the tag failure attached as suppressed.
+    boolean hasTags = mpu.getTags() != null && !mpu.getTags().isEmpty();
+    ObjectLockConfiguration lockConfig = mpu.getObjectLock();
+    boolean hasLegalHold = lockConfig != null && lockConfig.isLegalHold();
+    if (!hasTags && !hasLegalHold) {
+      return new MultipartUploadResponse(response.etag(), response.crc32c());
+    }
+
+    Blob completed = getCompletedMultipartBlob(mpu, response);
     RuntimeException tagFailure = null;
     try {
-      if (mpu.getTags() != null && !mpu.getTags().isEmpty()) {
-        doSetTags(mpu.getKey(), mpu.getTags());
+      if (hasTags) {
+        storage.update(
+            toTagUpdate(completed, mpu.getTags()), Storage.BlobTargetOption.generationMatch());
       }
     } catch (RuntimeException e) {
       tagFailure = e;
     }
     try {
-      applyMultipartLegalHold(mpu);
+      if (hasLegalHold) {
+        applyMultipartLegalHold(completed, lockConfig);
+      }
     } catch (RuntimeException e) {
       if (tagFailure != null) {
         e.addSuppressed(tagFailure);
@@ -784,12 +795,31 @@ public class GcpBlobStore extends AbstractBlobStore {
     return new MultipartUploadResponse(response.etag(), response.crc32c());
   }
 
-  private void applyMultipartLegalHold(MultipartUpload mpu) {
-    ObjectLockConfiguration lockConfig = mpu.getObjectLock();
-    if (lockConfig == null || !lockConfig.isLegalHold()) {
-      return;
-    }
+  /**
+   * Reads the object produced by a completed multipart upload. The completion response does not
+   * expose the object generation, so the latest generation is read and its CRC32C is compared with
+   * the one returned by completion. A mismatch means another writer replaced the key after
+   * completion, and that object must not receive this upload's tags, expiration, or legal hold.
+   * Updates made with the returned blob use {@code generationMatch} to reject a replacement that
+   * happens after this read.
+   */
+  private Blob getCompletedMultipartBlob(
+      MultipartUpload mpu, CompleteMultipartUploadResponse response) {
     Blob blob = getRequiredBlob(transformer.toBlobId(bucket, mpu.getKey(), null));
+    if (response.crc32c() != null && !response.crc32c().equals(blob.getCrc32c())) {
+      throw new FailedPreconditionException(
+          "Object "
+              + bucket
+              + "/"
+              + mpu.getKey()
+              + " was replaced after multipart upload "
+              + mpu.getId()
+              + " completed; its tags and legal hold were not applied");
+    }
+    return blob;
+  }
+
+  private void applyMultipartLegalHold(Blob blob, ObjectLockConfiguration lockConfig) {
     BlobInfo.Builder builder = blob.toBuilder();
     if (Boolean.TRUE.equals(lockConfig.getUseEventBasedHold())) {
       builder.setEventBasedHold(true);
@@ -798,7 +828,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       builder.setTemporaryHold(true);
       builder.setEventBasedHold(false);
     }
-    storage.update(builder.build());
+    storage.update(builder.build(), Storage.BlobTargetOption.generationMatch());
   }
 
   @Override
@@ -947,7 +977,10 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected void doSetTags(String key, Map<String, String> tags) {
     Blob blob = getRequiredBlob(transformer.toBlobId(key, null));
+    storage.update(toTagUpdate(blob, tags));
+  }
 
+  private BlobInfo toTagUpdate(Blob blob, Map<String, String> tags) {
     // Copy all existing metadata
     Map<String, String> metadata =
         blob.getMetadata() != null ? new HashMap<>(blob.getMetadata()) : new HashMap<>();
@@ -992,7 +1025,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       }
     }
 
-    storage.update(builder.build());
+    return builder.build();
   }
 
   @Override
