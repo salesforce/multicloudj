@@ -72,7 +72,7 @@ public class AliKmsIT extends AbstractKmsIT {
 
     @Override
     public List<String> getWiremockExtensions() {
-      return List.of(AliRpcAuthStrippingTransformer.class.getName());
+      return List.of();
     }
 
     @Override
