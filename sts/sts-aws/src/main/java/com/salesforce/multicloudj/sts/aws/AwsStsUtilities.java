@@ -112,8 +112,11 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
       options = SignOptions.builder().build();
     }
 
-    String stsEndpoint = String.format(SIGN_STS_ENDPOINT, region);
-    URI uri = URI.create(stsEndpoint);
+    if (region == null || region.isBlank()) {
+      throw new InvalidArgumentException("region is required");
+    }
+    URI uri = signingUri();
+    String stsEndpoint = uri.toString();
 
     // The request is optional. When one is supplied we sign its body; otherwise there is no service
     // payload and we sign a bare GetCallerIdentity.
@@ -142,7 +145,7 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
     String dateStamp = AMZ_DATESTAMP_FORMAT.format(now.atOffset(ZoneOffset.UTC));
 
     SortedMap<String, String> headers = new TreeMap<>();
-    headers.put("host", uri.getHost());
+    headers.put("host", hostHeaderValue(uri));
     headers.put("x-amz-date", amzDate);
     if (signingCredentials.getSecurityToken() != null
         && !signingCredentials.getSecurityToken().isEmpty()) {
@@ -190,6 +193,30 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
     String signedIdentity = buildSignedIdentity(uri, headers);
 
     return new SignedAuthRequest(builder.build(), signingCredentials, signedIdentity);
+  }
+
+  /**
+   * Returns the root URI the request is signed against: the configured endpoint, or the regional
+   * default. The SigV4 canonical URI is fixed at {@code /}, so an endpoint path cannot be signed,
+   * and a query or fragment would not be covered by the signature.
+   */
+  private URI signingUri() {
+    if (endpoint == null) {
+      return URI.create(String.format(SIGN_STS_ENDPOINT, region));
+    }
+    String path = endpoint.getRawPath();
+    if ((path != null && !path.isEmpty() && !"/".equals(path))
+        || endpoint.getRawQuery() != null
+        || endpoint.getRawFragment() != null) {
+      throw new InvalidArgumentException(
+          "endpoint must not have a path, query, or fragment: " + endpoint);
+    }
+    return URI.create(endpoint.getScheme() + "://" + endpoint.getRawAuthority() + "/");
+  }
+
+  /** The signed host header carries the port only when the endpoint states one explicitly. */
+  private static String hostHeaderValue(URI uri) {
+    return uri.getPort() == -1 ? uri.getHost() : uri.getHost() + ":" + uri.getPort();
   }
 
   /**

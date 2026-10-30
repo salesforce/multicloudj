@@ -2,11 +2,14 @@ package com.salesforce.multicloudj.sts.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.driver.AbstractStsUtilities;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import java.net.URI;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceLoader;
@@ -44,6 +47,28 @@ class StsUtilitiesTest {
     when(serviceLoader.iterator()).thenReturn(providerIterator);
 
     verifyServiceLoader(serviceLoader, true);
+  }
+
+  @Test
+  public void withEndpointRejectsRelativeUri() {
+    TestConcreteAbstractStsUtilities provider = new TestConcreteAbstractStsUtilities();
+    ServiceLoader<TestConcreteAbstractStsUtilities> serviceLoader = mock(ServiceLoader.class);
+    when(serviceLoader.iterator()).thenReturn(List.of(provider).iterator());
+
+    try (MockedStatic<ServiceLoader> serviceLoaderStatic =
+        Mockito.mockStatic(ServiceLoader.class)) {
+      serviceLoaderStatic
+          .when(() -> ServiceLoader.load(AbstractStsUtilities.class))
+          .thenReturn(serviceLoader);
+      StsUtilities.StsUtilityBuilder builder = StsUtilities.builder("mockProviderId");
+
+      assertThrows(
+          InvalidArgumentException.class,
+          () -> builder.withEndpoint(URI.create("sts.example.com")));
+      assertThrows(InvalidArgumentException.class, () -> builder.withEndpoint(null));
+      assertThrows(
+          InvalidArgumentException.class, () -> builder.withEndpoint(URI.create("https:///x")));
+    }
   }
 
   private void verifyServiceLoader(ServiceLoader<?> serviceLoader, boolean useTestProvider) {

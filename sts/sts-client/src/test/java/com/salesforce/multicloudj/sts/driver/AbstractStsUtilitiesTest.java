@@ -9,6 +9,7 @@ import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.net.URI;
 import java.net.http.HttpRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -86,5 +87,15 @@ class AbstractStsUtilitiesTest {
     SignedAuthRequest signedAuthRequest = stsUtilities.newCloudNativeAuthSignedRequest(request);
     assertNotNull(signedAuthRequest.getRequest());
     assertEquals(signedAuthRequest.getCredentials(), credentials);
+  }
+
+  @Test
+  void endpointIsPropagatedToDriver() {
+    URI endpoint = URI.create("https://sts.example.com");
+    stsUtilitiesDriver.withEndpoint(endpoint);
+
+    TestStsUtilities stsUtilities = stsUtilitiesDriver.build();
+
+    assertEquals(endpoint, stsUtilities.endpoint);
   }
 }

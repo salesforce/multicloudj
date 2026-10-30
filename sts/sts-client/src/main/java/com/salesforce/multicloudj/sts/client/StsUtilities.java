@@ -2,11 +2,13 @@ package com.salesforce.multicloudj.sts.client;
 
 import com.google.common.collect.ImmutableSet;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.driver.AbstractStsUtilities;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
+import java.net.URI;
 import java.net.http.HttpRequest;
 import java.util.ServiceLoader;
 
@@ -150,6 +152,21 @@ public class StsUtilities {
      */
     public StsUtilityBuilder withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
       this.builder.withCredentialsOverrider(credentialsOverrider);
+      return this;
+    }
+
+    /**
+     * Sets the endpoint the provider uses to produce the signed identity.
+     *
+     * @param endpoint The absolute endpoint to set, including a scheme and host.
+     * @return This StsUtilityBuilder instance.
+     * @throws InvalidArgumentException if the endpoint is null, not absolute, or has no host.
+     */
+    public StsUtilityBuilder withEndpoint(URI endpoint) {
+      if (endpoint == null || !endpoint.isAbsolute() || endpoint.getHost() == null) {
+        throw new InvalidArgumentException("endpoint must be an absolute URI with a host");
+      }
+      this.builder.withEndpoint(endpoint);
       return this;
     }
 
