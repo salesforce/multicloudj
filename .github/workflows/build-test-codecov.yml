@@ -11,12 +11,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v6
         with:
           java-version: "17"
           distribution: "temurin"
@@ -34,7 +34,7 @@ jobs:
           head -n 20 ./coverage-report/target/site/jacoco-aggregate/jacoco.xml || echo "Report missing or empty"
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         continue-on-error: true
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

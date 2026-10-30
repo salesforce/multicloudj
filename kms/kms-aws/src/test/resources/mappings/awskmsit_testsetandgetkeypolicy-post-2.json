@@ -1,0 +1,33 @@
+{
+  "id" : "28232ba3-ab6d-4813-811d-f54da9985c96",
+  "name" : "AwsKmsIT_testSetAndGetKeyPolicy-POST-2",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.ListAliases"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"KeyId\":\"638b1505-dac8-4b98-aca3-7c43c58608b1\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"AliasCount\":1,\"Aliases\":[{\"AliasArn\":\"arn:aws:kms:us-west-2:654654370895:alias/multicloudj-kms-it-policy\",\"AliasName\":\"alias/multicloudj-kms-it-policy\",\"CreationDate\":1.793171075598E9,\"LastUpdatedDate\":1.793171075598E9,\"TargetKeyId\":\"638b1505-dac8-4b98-aca3-7c43c58608b1\"}],\"Truncated\":false}",
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "51602ec1-636d-4884-b7b1-4ffdd4361600",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Wed, 28 Oct 2026 07:04:36 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "28232ba3-ab6d-4813-811d-f54da9985c96",
+  "persistent" : true,
+  "insertionIndex" : 53
+}

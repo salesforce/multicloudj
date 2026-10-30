@@ -1,0 +1,33 @@
+{
+  "id" : "ad8cca7f-93f1-407b-96bc-451c504902e7",
+  "name" : "AwsKmsIT_testDisableAndEnableKey-POST-2",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.ListAliases"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"KeyId\":\"440e9d59-1c2d-4115-a07a-0a3f27e0c938\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"AliasCount\":1,\"Aliases\":[{\"AliasArn\":\"arn:aws:kms:us-west-2:654654370895:alias/multicloudj-kms-it-toggle\",\"AliasName\":\"alias/multicloudj-kms-it-toggle\",\"CreationDate\":1.792431945691E9,\"LastUpdatedDate\":1.792431945691E9,\"TargetKeyId\":\"440e9d59-1c2d-4115-a07a-0a3f27e0c938\"}],\"Truncated\":false}",
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "1f23a30f-7f43-4148-8bdf-7839e33bdbdf",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Mon, 19 Oct 2026 17:45:47 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "ad8cca7f-93f1-407b-96bc-451c504902e7",
+  "persistent" : true,
+  "insertionIndex" : 23
+}
