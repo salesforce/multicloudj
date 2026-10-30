@@ -89,18 +89,31 @@ class TablestoreRetryStrategyTest {
   }
 
   @Test
-  void capsPauseAtTimeLeftBeforeTotalTimeout() {
+  void doesNotRetryWhenPauseDoesNotEndBeforeTotalTimeout() {
     RetryStrategy strategy =
         new TablestoreRetryStrategy(
             RetryConfig.builder()
                 .mode(RetryConfig.Mode.FIXED)
-                .fixedDelayMillis(60_000)
-                .totalTimeout(1000L)
+                .fixedDelayMillis(1000)
+                .totalTimeout(200L)
                 .build());
 
-    long pause = nextPause(strategy);
+    assertEquals(0, nextPause(strategy));
+    assertEquals(0, strategy.getRetries());
+  }
 
-    assertTrue(pause > 0 && pause <= 1000, "pause was " + pause);
+  @Test
+  void retriesWhenPauseEndsBeforeTotalTimeout() {
+    RetryStrategy strategy =
+        new TablestoreRetryStrategy(
+            RetryConfig.builder()
+                .mode(RetryConfig.Mode.FIXED)
+                .fixedDelayMillis(10)
+                .totalTimeout(60_000L)
+                .build());
+
+    assertEquals(10, nextPause(strategy));
+    assertEquals(1, strategy.getRetries());
   }
 
   @Test

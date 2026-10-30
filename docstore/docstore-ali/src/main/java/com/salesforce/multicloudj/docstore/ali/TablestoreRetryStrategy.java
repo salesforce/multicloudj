@@ -73,9 +73,7 @@ final class TablestoreRetryStrategy implements RetryStrategy {
       return 0;
     }
     long pause = retryConfig.getMode() == null ? sdkPause : configuredPause();
-    // A retry is not started after the total timeout, so the pause is capped at the time left.
-    pause = Math.min(pause, deadlineMillis - System.currentTimeMillis());
-    if (pause <= 0) {
+    if (pause >= deadlineMillis - System.currentTimeMillis()) {
       return 0;
     }
     retries++;
