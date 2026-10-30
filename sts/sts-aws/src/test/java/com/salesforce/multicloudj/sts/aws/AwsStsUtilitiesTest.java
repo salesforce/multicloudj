@@ -14,7 +14,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -119,6 +121,55 @@ class AwsStsUtilitiesTest {
           () -> signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options),
           name);
     }
+  }
+
+  @Test
+  void signedRequestUsesConventionalHeaderNames() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    List<String> names = new ArrayList<>(signed.getRequest().headers().map().keySet());
+    Assertions.assertTrue(
+        names.containsAll(
+            List.of(
+                "Authorization",
+                "X-Amz-Date",
+                "X-Amz-Security-Token",
+                "Content-Type",
+                "X-Request-Hash")),
+        names.toString());
+  }
+
+  @Test
+  void minimalHeaderSetReplaysWithOnlyAuthorizationDateAndToken() {
+    SignOptions options =
+        SignOptions.builder()
+            .withExcludeRequestHashHeader(true)
+            .withExcludeContentTypeHeader(true)
+            .build();
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+    List<String> names = new ArrayList<>(signed.getRequest().headers().map().keySet());
+    Assertions.assertEquals(3, names.size(), names.toString());
+    Assertions.assertTrue(
+        names.containsAll(List.of("Authorization", "X-Amz-Date", "X-Amz-Security-Token")),
+        names.toString());
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        signed.getRequest().headers().firstValue("Authorization").orElseThrow());
+  }
+
+  @Test
+  void signedIdentityKeepsLowercaseHeaderKeys() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Map<String, String> params =
+        parseQuery(URI.create(signed.getSignedIdentity()).getRawQuery());
+    Assertions.assertTrue(params.containsKey("authorization"), params.keySet().toString());
+    Assertions.assertTrue(params.containsKey("x-amz-date"), params.keySet().toString());
+    Assertions.assertFalse(params.containsKey("Authorization"), params.keySet().toString());
   }
 
   private static AwsStsUtilities signer(Clock clock) {
