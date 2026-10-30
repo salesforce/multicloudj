@@ -67,6 +67,8 @@ public abstract class AbstractStsIT {
 
   protected abstract Harness createHarness();
 
+  private static final String CONFORMANCE_HEADER = "X-Conformance-Header";
+
   private Harness harness;
 
   /** Initializes the WireMock server before all tests. */
@@ -141,8 +143,6 @@ public abstract class AbstractStsIT {
     Assertions.assertNotNull(credentials.getSecurityToken());
   }
 
-  private static final String CONFORMANCE_HEADER = "X-Conformance-Header";
-
   private String signIdentityWithConformanceHeader() {
     StsUtilities utilities = new StsUtilities(harness.createStsUtilitiesDriver());
     SignedAuthRequest signed =
@@ -152,6 +152,8 @@ public abstract class AbstractStsIT {
     return signed.getSignedIdentity();
   }
 
+  // Exercises sign -> expected-header check -> replay; signature validity is covered by provider
+  // unit tests.
   @Test
   public void testSignedIdentityWithMixedCaseCustomHeaderValidates() {
     Assumptions.assumeTrue(
