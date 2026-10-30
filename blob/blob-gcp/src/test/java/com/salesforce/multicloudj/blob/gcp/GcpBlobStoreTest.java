@@ -1,12 +1,12 @@
 package com.salesforce.multicloudj.blob.gcp;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -22,6 +22,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -4693,6 +4694,135 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoCompleteMultipartUpload_WritesTagsAndExpirationFromCreationTime() {
+    Map<String, String> tags = new HashMap<>();
+    tags.put("Env", "Prod");
+    tags.put("owner", "a b/c&d=e");
+    tags.put(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "30");
+    MultipartUpload mpu =
+        MultipartUpload.builder()
+            .bucket(TEST_BUCKET)
+            .key(TEST_KEY)
+            .id("test-upload-id")
+            .tags(tags)
+            .build();
+    when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+        .thenReturn(CompleteMultipartUploadResponse.builder().etag("complete-etag").build());
+
+    OffsetDateTime creationTime = OffsetDateTime.now(ZoneOffset.UTC).minusDays(2);
+    when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, null)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+    when(mockBlob.getMetadata()).thenReturn(Map.of("key1", "value1"));
+    when(mockBlob.getCreateTimeOffsetDateTime()).thenReturn(creationTime);
+    Blob.Builder mockBuilder = mock(Blob.Builder.class);
+    Blob updatedBlob = mock(Blob.class);
+    when(mockBlob.toBuilder()).thenReturn(mockBuilder);
+    when(mockBuilder.setMetadata(anyMap())).thenReturn(mockBuilder);
+    when(mockBuilder.build()).thenReturn(updatedBlob);
+
+    gcpBlobStore.doCompleteMultipartUpload(
+        mpu,
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L)));
+
+    ArgumentCaptor<Map<String, String>> metadataCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(mockBuilder).setMetadata(metadataCaptor.capture());
+    assertEquals(
+        Map.of(
+            "key1", "value1",
+            "gcp-tag-Env", "Prod",
+            "gcp-tag-owner", "a b/c&d=e",
+            "gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "30"),
+        metadataCaptor.getValue());
+    verify(mockBuilder).setCustomTimeOffsetDateTime(creationTime.plusDays(30));
+    verify(mockStorage).update(updatedBlob, Storage.BlobTargetOption.generationMatch());
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_WithoutTagsOrLegalHoldDoesNotReadOrUpdateObject() {
+    MultipartUpload mpu =
+        MultipartUpload.builder().bucket(TEST_BUCKET).key(TEST_KEY).id("test-upload-id").build();
+    when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+        .thenReturn(CompleteMultipartUploadResponse.builder().etag("complete-etag").build());
+
+    gcpBlobStore.doCompleteMultipartUpload(
+        mpu,
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L)));
+
+    verify(mockStorage, never()).get(any(BlobId.class));
+    verify(mockStorage, never()).update(any(BlobInfo.class));
+    verify(mockStorage, never()).update(any(BlobInfo.class), any(Storage.BlobTargetOption.class));
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_MatchingCrc32cAppliesTagsToCompletedObject() {
+    MultipartUpload mpu =
+        MultipartUpload.builder()
+            .bucket(TEST_BUCKET)
+            .key(TEST_KEY)
+            .id("test-upload-id")
+            .tags(Map.of("Env", "Prod"))
+            .build();
+    when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+        .thenReturn(
+            CompleteMultipartUploadResponse.builder()
+                .etag("complete-etag")
+                .crc32c("jaLPjA==")
+                .build());
+
+    Blob.Builder tagBuilder = mock(Blob.Builder.class);
+    Blob taggedBlob = mock(Blob.class);
+    when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, null)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+    when(mockBlob.getCrc32c()).thenReturn("jaLPjA==");
+    when(mockBlob.toBuilder()).thenReturn(tagBuilder);
+    when(tagBuilder.setMetadata(anyMap())).thenReturn(tagBuilder);
+    when(tagBuilder.build()).thenReturn(taggedBlob);
+
+    gcpBlobStore.doCompleteMultipartUpload(
+        mpu,
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L)));
+
+    verify(mockStorage).update(taggedBlob, Storage.BlobTargetOption.generationMatch());
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_ReplacedObjectIsNotTaggedOrHeld() {
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder().legalHold(true).useEventBasedHold(true).build();
+    MultipartUpload mpu =
+        MultipartUpload.builder()
+            .bucket(TEST_BUCKET)
+            .key(TEST_KEY)
+            .id("test-upload-id")
+            .tags(Map.of("Env", "Prod"))
+            .objectLock(objectLock)
+            .build();
+    when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+        .thenReturn(
+            CompleteMultipartUploadResponse.builder()
+                .etag("complete-etag")
+                .crc32c("jaLPjA==")
+                .build());
+
+    when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, null)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+    when(mockBlob.getCrc32c()).thenReturn("OGE8Qg==");
+
+    assertThrows(
+        FailedPreconditionException.class,
+        () ->
+            gcpBlobStore.doCompleteMultipartUpload(
+                mpu,
+                List.of(
+                    new com.salesforce.multicloudj.blob.driver.UploadPartResponse(
+                        1, "etag-1", 1024L))));
+
+    verify(mockBlob, never()).toBuilder();
+    verify(mockStorage, never()).update(any(BlobInfo.class));
+    verify(mockStorage, never()).update(any(BlobInfo.class), any(Storage.BlobTargetOption.class));
+  }
+
+  @Test
   void testDoCompleteMultipartUpload_AppliesEventBasedLegalHold() {
     // Given
     ObjectLockConfiguration objectLock =
@@ -4721,7 +4851,6 @@ class GcpBlobStoreTest {
     when(blobBuilder.setEventBasedHold(true)).thenReturn(blobBuilder);
     when(blobBuilder.setTemporaryHold(false)).thenReturn(blobBuilder);
     when(blobBuilder.build()).thenReturn(updatedBlobInfo);
-    when(mockStorage.update(updatedBlobInfo)).thenReturn(updatedBlobInfo);
 
     // When
     gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
@@ -4729,7 +4858,7 @@ class GcpBlobStoreTest {
     // Then
     verify(blobBuilder).setEventBasedHold(true);
     verify(blobBuilder).setTemporaryHold(false);
-    verify(mockStorage).update(updatedBlobInfo);
+    verify(mockStorage).update(updatedBlobInfo, Storage.BlobTargetOption.generationMatch());
   }
 
   @Test
@@ -4761,7 +4890,6 @@ class GcpBlobStoreTest {
     when(blobBuilder.setTemporaryHold(true)).thenReturn(blobBuilder);
     when(blobBuilder.setEventBasedHold(false)).thenReturn(blobBuilder);
     when(blobBuilder.build()).thenReturn(updatedBlobInfo);
-    when(mockStorage.update(updatedBlobInfo)).thenReturn(updatedBlobInfo);
 
     // When
     gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
@@ -4769,11 +4897,11 @@ class GcpBlobStoreTest {
     // Then
     verify(blobBuilder).setTemporaryHold(true);
     verify(blobBuilder).setEventBasedHold(false);
-    verify(mockStorage).update(updatedBlobInfo);
+    verify(mockStorage).update(updatedBlobInfo, Storage.BlobTargetOption.generationMatch());
   }
 
   @Test
-  void testDoCompleteMultipartUpload_LegalHoldFailureDoesNotFailCompletion() {
+  void testDoCompleteMultipartUpload_LegalHoldFailurePropagates() {
     ObjectLockConfiguration objectLock =
         ObjectLockConfiguration.builder().legalHold(true).useEventBasedHold(true).build();
     MultipartUpload mpu =
@@ -4798,9 +4926,107 @@ class GcpBlobStoreTest {
     when(blob.toBuilder()).thenReturn(blobBuilder);
     when(blobBuilder.setEventBasedHold(true)).thenReturn(blobBuilder);
     when(blobBuilder.setTemporaryHold(false)).thenReturn(blobBuilder);
-    when(blobBuilder.build()).thenThrow(new RuntimeException("update failed"));
+    Blob heldBlob = mock(Blob.class);
+    when(blobBuilder.build()).thenReturn(heldBlob);
+    RuntimeException holdFailure = new RuntimeException("legal hold update failed");
+    when(mockStorage.update(heldBlob, Storage.BlobTargetOption.generationMatch()))
+        .thenThrow(holdFailure);
 
-    assertDoesNotThrow(() -> gcpBlobStore.doCompleteMultipartUpload(mpu, parts));
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class, () -> gcpBlobStore.doCompleteMultipartUpload(mpu, parts));
+
+    assertSame(holdFailure, thrown);
+    assertEquals(0, thrown.getSuppressed().length);
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_TagAndLegalHoldFailureThrowsLegalHoldWithTagSuppressed() {
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder().legalHold(true).useEventBasedHold(true).build();
+    MultipartUpload mpu =
+        MultipartUpload.builder()
+            .bucket(TEST_BUCKET)
+            .key(TEST_KEY)
+            .id("test-upload-id")
+            .tags(Map.of("Env", "Prod"))
+            .objectLock(objectLock)
+            .build();
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts =
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L));
+    when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+        .thenReturn(CompleteMultipartUploadResponse.builder().etag("complete-etag").build());
+
+    Blob blob = mock(Blob.class);
+    Blob.Builder tagBuilder = mock(Blob.Builder.class);
+    Blob.Builder holdBuilder = mock(Blob.Builder.class);
+    Blob taggedBlob = mock(Blob.class);
+    Blob heldBlob = mock(Blob.class);
+    RuntimeException tagFailure = new RuntimeException("tag update failed");
+    RuntimeException holdFailure = new RuntimeException("legal hold update failed");
+    when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, null)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(blob);
+    when(blob.toBuilder()).thenReturn(tagBuilder, holdBuilder);
+    when(tagBuilder.setMetadata(anyMap())).thenReturn(tagBuilder);
+    when(tagBuilder.build()).thenReturn(taggedBlob);
+    when(holdBuilder.setEventBasedHold(true)).thenReturn(holdBuilder);
+    when(holdBuilder.setTemporaryHold(false)).thenReturn(holdBuilder);
+    when(holdBuilder.build()).thenReturn(heldBlob);
+    when(mockStorage.update(taggedBlob, Storage.BlobTargetOption.generationMatch()))
+        .thenThrow(tagFailure);
+    when(mockStorage.update(heldBlob, Storage.BlobTargetOption.generationMatch()))
+        .thenThrow(holdFailure);
+
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class, () -> gcpBlobStore.doCompleteMultipartUpload(mpu, parts));
+
+    assertSame(holdFailure, thrown);
+    assertArrayEquals(new Throwable[] {tagFailure}, thrown.getSuppressed());
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_TagFailureStillAppliesLegalHold() {
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder().legalHold(true).useEventBasedHold(true).build();
+    MultipartUpload mpu =
+        MultipartUpload.builder()
+            .bucket(TEST_BUCKET)
+            .key(TEST_KEY)
+            .id("test-upload-id")
+            .tags(Map.of("Env", "Prod"))
+            .objectLock(objectLock)
+            .build();
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts =
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L));
+    when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+        .thenReturn(CompleteMultipartUploadResponse.builder().etag("complete-etag").build());
+
+    Blob blob = mock(Blob.class);
+    Blob.Builder tagBuilder = mock(Blob.Builder.class);
+    Blob.Builder holdBuilder = mock(Blob.Builder.class);
+    Blob taggedBlob = mock(Blob.class);
+    Blob heldBlob = mock(Blob.class);
+    RuntimeException tagFailure = new RuntimeException("tag update failed");
+    when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, null)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(blob);
+    when(blob.toBuilder()).thenReturn(tagBuilder, holdBuilder);
+    when(tagBuilder.setMetadata(anyMap())).thenReturn(tagBuilder);
+    when(tagBuilder.build()).thenReturn(taggedBlob);
+    when(holdBuilder.setEventBasedHold(true)).thenReturn(holdBuilder);
+    when(holdBuilder.setTemporaryHold(false)).thenReturn(holdBuilder);
+    when(holdBuilder.build()).thenReturn(heldBlob);
+    when(mockStorage.update(taggedBlob, Storage.BlobTargetOption.generationMatch()))
+        .thenThrow(tagFailure);
+
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class, () -> gcpBlobStore.doCompleteMultipartUpload(mpu, parts));
+
+    assertSame(tagFailure, thrown);
+    verify(holdBuilder).setEventBasedHold(true);
+    verify(mockStorage).update(heldBlob, Storage.BlobTargetOption.generationMatch());
+    verify(mockStorage, times(1)).get(mockBlobId);
   }
 
   @Test

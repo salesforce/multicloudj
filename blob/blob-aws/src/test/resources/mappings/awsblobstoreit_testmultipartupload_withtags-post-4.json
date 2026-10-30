@@ -1,0 +1,38 @@
+{
+  "id" : "8e6fae65-ea1b-455a-8fad-21d697c6feab",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_withTags-POST-4",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-withTags",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "qBYcu4RQrVoury_1R2UaACrLMaQQn1L4z.xs2S.q_tTgtpGudbKbvP6f58mBNeFwWfwX3LxsVRWzQlUPw0M7A2R0D9EE6iSSRUu55LLzXZDjATvXWukh9sSlgR1GllPQIIoq4Lh5PYSnslQx1VxcBBH0U8HHRZIgTGY6QqTI0N8K2fP3BWRfqx.lbgfTQxnh"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><PartNumber>1</PartNumber></Part><Part><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><PartNumber>2</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<CompleteMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Location>https://s3.us-west-2.amazonaws.com/chameleon-jcloud/conformance-tests%2Fmultipart-withTags</Location><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-withTags</Key><ETag>\"63a814bc1f352d8149b1dd9f3747e89e-2\"</ETag><ChecksumCRC64NVME>xd07QWveTJk=</ChecksumCRC64NVME><ChecksumType>FULL_OBJECT</ChecksumType></CompleteMultipartUploadResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "S1JW9XD78YA0KJCT",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "7DNkMwQ60qO4sTNToRku51Dnnb4NPVRC9xqbHH2ZU2UnrvRHpDO6oj3K/dSGQyN8xe0658BL9+w=",
+      "Date" : "Thu, 22 Oct 2026 22:30:18 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "8e6fae65-ea1b-455a-8fad-21d697c6feab",
+  "persistent" : true,
+  "insertionIndex" : 813
+}
