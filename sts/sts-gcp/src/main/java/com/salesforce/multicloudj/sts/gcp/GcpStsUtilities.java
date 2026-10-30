@@ -41,6 +41,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 
 /**
@@ -62,6 +63,8 @@ import org.apache.commons.lang3.StringUtils;
  */
 @AutoService(AbstractStsUtilities.class)
 public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
+  private static final Set<String> RESERVED_CLAIMS =
+      Set.of("iss", "sub", "aud", "iat", "exp", "nbf", "jti");
   private static final long JWT_EXPIRY_SECONDS = 300L;
   private static final String SCOPE = "https://www.googleapis.com/auth/cloud-platform";
   private static final String SA_NAME_FORMAT = "projects/-/serviceAccounts/%s";
@@ -126,6 +129,14 @@ public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
       HttpRequest request, SignOptions options) {
     if (options == null) {
       options = SignOptions.builder().build();
+    }
+
+    // Registered claims identify and bound the token, so a custom header must not replace them.
+    for (String name : options.getCustomHeaders().keySet()) {
+      if (RESERVED_CLAIMS.contains(name)) {
+        throw new InvalidArgumentException(
+            "custom header \"" + name + "\" is reserved by the signer");
+      }
     }
 
     String serviceAccountEmail = resolveServiceAccountEmail();
