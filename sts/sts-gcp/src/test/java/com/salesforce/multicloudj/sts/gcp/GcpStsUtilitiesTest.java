@@ -40,6 +40,7 @@ import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -254,6 +255,22 @@ class GcpStsUtilitiesTest {
         JsonWebSignature.parse(GsonFactory.getDefaultInstance(), signed.getSignedIdentity());
     Assertions.assertEquals("t1", parsed.getPayload().get("x-tenant"));
     Assertions.assertNull(parsed.getPayload().get("X-Tenant"));
+  }
+
+  @Test
+  void registeredClaimNamesAreRejectedAsCustomHeaders() {
+    for (String name : new String[] {"iss", "sub", "aud", "iat", "exp", "nbf", "jti", "ISS"}) {
+      SignOptions signOptions = SignOptions.builder().withCustomHeader(name, "v").build();
+      InvalidArgumentException e =
+          Assertions.assertThrows(
+              InvalidArgumentException.class,
+              () -> signer().newCloudNativeAuthSignedRequest(null, signOptions),
+              name);
+      Assertions.assertEquals(
+          "custom header \"" + name.toLowerCase(Locale.ROOT)
+              + "\" is reserved by the signer",
+          e.getMessage());
+    }
   }
 
   @Test
