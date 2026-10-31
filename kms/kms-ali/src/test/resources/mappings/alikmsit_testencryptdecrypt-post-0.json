@@ -1,0 +1,37 @@
+{
+  "id" : "b539cd80-2e4a-4fa3-b213-d8fd0face5e8",
+  "name" : "AliKmsIT_testEncryptDecrypt-POST-0",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "ScheduleKeyDeletion"
+      }
+    },
+    "queryParameters" : {
+      "PendingWindowInDays" : {
+        "hasExactly" : [ {
+          "equalTo" : "7"
+        } ]
+      },
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae51db7b14so2etha"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"RequestId\": \"f01a7c08-c12a-43fe-83d5-31564195f3f4\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 22:44:12 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "b539cd80-2e4a-4fa3-b213-d8fd0face5e8",
+  "persistent" : true,
+  "insertionIndex" : 94
+}

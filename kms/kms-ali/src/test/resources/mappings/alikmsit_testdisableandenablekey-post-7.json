@@ -1,0 +1,37 @@
+{
+  "id" : "dcad5767-67be-4f01-990c-f3a5fef15dd0",
+  "name" : "AliKmsIT_testDisableAndEnableKey-POST-7",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "CreateAlias"
+      }
+    },
+    "queryParameters" : {
+      "AliasName" : {
+        "hasExactly" : [ {
+          "equalTo" : "alias/multicloudj-15-toggle"
+        } ]
+      },
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae51dafm4c6rsws0s"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"RequestId\": \"b38e477c-950c-4e14-9ef4-5acf7fc92cd8\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 22:44:00 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "dcad5767-67be-4f01-990c-f3a5fef15dd0",
+  "persistent" : true,
+  "insertionIndex" : 91
+}

@@ -1,0 +1,42 @@
+{
+  "id" : "232b3e72-82ca-4c51-acba-c7d699545593",
+  "name" : "AliKmsIT_testDecryptWithWrongEncryptionContext-POST-4",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "Encrypt"
+      }
+    },
+    "queryParameters" : {
+      "EncryptionContext" : {
+        "hasExactly" : [ {
+          "equalTo" : "{\"purpose\":\"conformance\"}"
+        } ]
+      },
+      "Plaintext" : {
+        "hasExactly" : [ {
+          "equalTo" : "bXVsdGljbG91ZGota21zLWNvbmZvcm1hbmNl"
+        } ]
+      },
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae51dbd040c1xtow4"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"KeyId\": \"key-shh6ae51dbd040c1xtow4\",\n\t\"KeyVersionId\": \"key-shh6ae51dbd040c1xtow4-lqi9ehk7ee\",\n\t\"CiphertextBlob\": \"a2V5LXNoaDZhZTUxZGJkMDQwYzF4dG93NC1scWk5ZWhrN2Vl65p//7HSPX+OMJ7ne7qIStrcvSU02Ghd9jcREbd21sC73Y76fvmWZohgBMW/B0tP2jGcOORURD760gxfjG1MsA==\",\n\t\"RequestId\": \"33df87d1-6173-4854-9f30-39f0730c3b1e\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 22:44:14 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "232b3e72-82ca-4c51-acba-c7d699545593",
+  "persistent" : true,
+  "insertionIndex" : 106
+}

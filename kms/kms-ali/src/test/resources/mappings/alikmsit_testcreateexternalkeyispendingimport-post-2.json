@@ -1,0 +1,32 @@
+{
+  "id" : "ed30df81-ae40-4825-9cd8-2edb6f43231c",
+  "name" : "AliKmsIT_testCreateExternalKeyIsPendingImport-POST-2",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "ListAliasesByKeyId"
+      }
+    },
+    "queryParameters" : {
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae51dd3lnf5haqnj8"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"Aliases\": {\n\t\t\"Alias\": [\n\t\t\t{\n\t\t\t\t\"AliasName\": \"alias/multicloudj-15-external\",\n\t\t\t\t\"KeyId\": \"key-shh6ae51dd3lnf5haqnj8\",\n\t\t\t\t\"AliasArn\": \"acs:kms:cn-shanghai:1099202394511537:alias/multicloudj-15-external\"\n\t\t\t}\n\t\t]\n\t},\n\t\"TotalCount\": 1,\n\t\"PageNumber\": 1,\n\t\"PageSize\": 20,\n\t\"RequestId\": \"bf6e1970-eaa9-4182-82a6-28e30df927b7\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 22:44:37 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "ed30df81-ae40-4825-9cd8-2edb6f43231c",
+  "persistent" : true,
+  "insertionIndex" : 136
+}

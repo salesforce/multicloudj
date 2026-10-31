@@ -1,0 +1,32 @@
+{
+  "id" : "da382f29-dbdb-444f-b59a-83da4b229e2b",
+  "name" : "AliKmsIT_testImportKeyMaterial-POST-2",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "ListAliasesByKeyId"
+      }
+    },
+    "queryParameters" : {
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae51da8m22l10lmdk"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"Aliases\": {\n\t\t\"Alias\": [\n\t\t\t{\n\t\t\t\t\"AliasName\": \"alias/multicloudj-15-byok\",\n\t\t\t\t\"KeyId\": \"key-shh6ae51da8m22l10lmdk\",\n\t\t\t\t\"AliasArn\": \"acs:kms:cn-shanghai:1099202394511537:alias/multicloudj-15-byok\"\n\t\t\t}\n\t\t]\n\t},\n\t\"TotalCount\": 1,\n\t\"PageNumber\": 1,\n\t\"PageSize\": 20,\n\t\"RequestId\": \"c281bbca-b4c5-42d7-baaa-1df2a7c7f1ea\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 22:43:56 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "da382f29-dbdb-444f-b59a-83da4b229e2b",
+  "persistent" : true,
+  "insertionIndex" : 77
+}

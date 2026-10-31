@@ -1,0 +1,44 @@
+{
+  "id" : "8c68a193-de75-40aa-85b9-3df31078ddc6",
+  "name" : "AliKmsIT_testDisableAndEnableKey-POST-3",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "Encrypt"
+      }
+    },
+    "queryParameters" : {
+      "EncryptionContext" : {
+        "hasExactly" : [ {
+          "equalTo" : "{\"purpose\":\"conformance\"}"
+        } ]
+      },
+      "Plaintext" : {
+        "hasExactly" : [ {
+          "equalTo" : "bXVsdGljbG91ZGota21zLWNvbmZvcm1hbmNl"
+        } ]
+      },
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae51dafm4c6rsws0s"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"KeyId\": \"key-shh6ae51dafm4c6rsws0s\",\n\t\"KeyVersionId\": \"key-shh6ae51dafm4c6rsws0s-xn865g1idd\",\n\t\"CiphertextBlob\": \"a2V5LXNoaDZhZTUxZGFmbTRjNnJzd3Mwcy14bjg2NWcxaWRkQOszrbOsTtGY6RosRCc0LblVjwsUgR4tQ6LlF71b5MPup+hkpsBSlnTaSxJolov7M9sBXzGHS4qPg3LdOsttXA==\",\n\t\"RequestId\": \"73fe9f0c-c73d-46e9-9a40-5608381b1a76\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 22:44:03 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "8c68a193-de75-40aa-85b9-3df31078ddc6",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-",
+  "requiredScenarioState" : "scenario-1--2",
+  "insertionIndex" : 87
+}

@@ -39,6 +39,8 @@ class ErrorCodeMappingTest {
     "Rejected.PendingDeletion,FailedPreconditionException",
     "Rejected.UnexpectedState,FailedPreconditionException",
     "Forbidden.KeyNotEnabled,FailedPreconditionException",
+    "Forbidden.KeyPolicyUnSupported,UnSupportedOperationException",
+    "UnsupportedOperation,UnSupportedOperationException",
     "InvalidParameter,InvalidArgumentException",
     "InvalidParameter.KeyId,InvalidArgumentException",
     "MissingParameter.Plaintext,InvalidArgumentException",

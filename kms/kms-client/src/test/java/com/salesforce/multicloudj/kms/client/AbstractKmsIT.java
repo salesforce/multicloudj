@@ -76,6 +76,11 @@ public abstract class AbstractKmsIT {
 
     String getKmsEndpoint();
 
+    /** Request headers recorded into stub matchers, for providers that route calls by header. */
+    default List<String> getRecordingCaptureHeaders() {
+      return List.of();
+    }
+
     /**
      * Key name for a test. Must be unique per recording on providers whose key names can never be
      * reused, so harnesses may append a recording-specific suffix.
@@ -124,7 +129,11 @@ public abstract class AbstractKmsIT {
     String testClassName = testInfo.getTestClass().map(Class::getSimpleName).orElse("Unknown");
     String testMethodName =
         testInfo.getTestMethod().map(java.lang.reflect.Method::getName).orElse("unknown");
-    TestsUtil.startWireMockRecording(harness.getKmsEndpoint(), testClassName, testMethodName);
+    TestsUtil.startWireMockRecording(
+        harness.getKmsEndpoint(),
+        testClassName,
+        testMethodName,
+        harness.getRecordingCaptureHeaders());
     kmsClient = new KmsClient(harness.createKms());
   }
 

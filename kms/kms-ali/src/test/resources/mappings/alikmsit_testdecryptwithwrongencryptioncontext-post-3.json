@@ -1,0 +1,37 @@
+{
+  "id" : "19ad4b68-167f-4e86-a9ad-0c7dc3b8a5b2",
+  "name" : "AliKmsIT_testDecryptWithWrongEncryptionContext-POST-3",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "Decrypt"
+      }
+    },
+    "queryParameters" : {
+      "EncryptionContext" : {
+        "hasExactly" : [ {
+          "equalTo" : "{\"purpose\":\"something-else\"}"
+        } ]
+      },
+      "CiphertextBlob" : {
+        "hasExactly" : [ {
+          "equalTo" : "a2V5LXNoaDZhZTUxZGJkMDQwYzF4dG93NC1scWk5ZWhrN2Vl65p//7HSPX+OMJ7ne7qIStrcvSU02Ghd9jcREbd21sC73Y76fvmWZohgBMW/B0tP2jGcOORURD760gxfjG1MsA=="
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "{\n\t\"HttpStatus\": 400,\n\t\"Code\": \"InvalidParameter\",\n\t\"Message\": \"The specified parameter CiphertextBlob is not valid.\",\n\t\"RequestId\": \"c7fa0bcc-5509-4272-bc94-db55396a34ec\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 22:44:15 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "19ad4b68-167f-4e86-a9ad-0c7dc3b8a5b2",
+  "persistent" : true,
+  "insertionIndex" : 105
+}

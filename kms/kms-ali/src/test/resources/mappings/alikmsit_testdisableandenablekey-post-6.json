@@ -1,0 +1,32 @@
+{
+  "id" : "3c1309b4-7285-439b-a1ea-626edf45cc6d",
+  "name" : "AliKmsIT_testDisableAndEnableKey-POST-6",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "DisableKey"
+      }
+    },
+    "queryParameters" : {
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae51dafm4c6rsws0s"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"RequestId\": \"6a8d309e-3fd4-4310-b547-20e125330d4c\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 22:44:01 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "3c1309b4-7285-439b-a1ea-626edf45cc6d",
+  "persistent" : true,
+  "insertionIndex" : 90
+}
