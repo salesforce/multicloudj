@@ -53,26 +53,26 @@
         <releaseTarget>17</releaseTarget>
         <maven.min.version>3.5.0</maven.min.version>
         <java.min.version>${compileSource}</java.min.version>
-        <slf4j.version>2.0.15</slf4j.version>
-        <commons-logging.version>1.3.4</commons-logging.version>
+        <slf4j.version>2.0.20</slf4j.version>
+        <commons-logging.version>1.4.0</commons-logging.version>
         <guava.version>33.7.2-jre</guava.version>
         <guice.version>7.0.0</guice.version>
         <junit.version>6.1.3</junit.version>
-        <mockito.version>5.18.0</mockito.version>
+        <mockito.version>5.24.0</mockito.version>
         <wiremock.version>3.13.2</wiremock.version>
-        <lombok.version>1.18.46</lombok.version>
+        <lombok.version>1.18.48</lombok.version>
         <auto-service.version>1.1.1</auto-service.version>
-        <commons-lang3.version>3.20.0</commons-lang3.version>
+        <commons-lang3.version>3.21.0</commons-lang3.version>
         <httpclient.version>4.5.14</httpclient.version>
         <httpcore.version>4.4.16</httpcore.version>
         <httpasyncclient.version>4.1.5</httpasyncclient.version>
         <reactive-streams.version>1.0.4</reactive-streams.version>
         <eventstream.version>1.0.1</eventstream.version>
         <jmh.version>1.37</jmh.version>
-        <netty.version>4.1.136.Final</netty.version>
-        <jackson.version>2.19.0</jackson.version>
+        <netty.version>4.2.19.Final</netty.version>
+        <jackson.version>2.22</jackson.version>
         <aws-sdk.version>2.57.1</aws-sdk.version>
-        <commons-codec.version>1.16.0</commons-codec.version>
+        <commons-codec.version>1.23.0</commons-codec.version>
         <wiremock-grpc.version>0.11.0</wiremock-grpc.version>
         <protobuf.version>4.36.2</protobuf.version>
         <grpc.version>1.83.0</grpc.version>
@@ -525,12 +525,12 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.4.0</version>
+                    <version>3.6.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-failsafe-plugin</artifactId>
-                    <version>3.4.0</version>
+                    <version>3.6.1</version>
                     <executions>
                         <execution>
                             <goals>
@@ -543,7 +543,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>3.11.2</version>
+                    <version>3.12.0</version>
                     <configuration>
                         <sourcepath>${project.build.directory}/generated-sources/delombok</sourcepath>
                         <doclint>none</doclint>
@@ -571,7 +571,7 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
                     <!-- pin to the version main already resolves by default (3.5.0), NOT #604's inline 3.4.2 which would downgrade the plugin repo-wide. One plugin builds both the main jar and the benchmarks classifier, so they necessarily share this version; pinning here also supplies it to the bare provider declarations. -->
-                    <version>3.5.0</version>
+                    <version>3.5.1</version>
                     <executions>
                         <execution>
                             <id>benchmarks-classifier-jar</id>
@@ -595,7 +595,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-antrun-plugin</artifactId>
-                    <version>3.1.0</version>
+                    <version>3.2.0</version>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -708,7 +708,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
+                <version>3.16.0</version>
                 <configuration>
                     <release>${releaseTarget}</release>
                     <!--
@@ -741,7 +741,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-site-plugin</artifactId>
-                <version>3.21.0</version>
+                <version>3.22.0</version>
                 <configuration>
                     <skipDeploy>true</skipDeploy>
                 </configuration>
@@ -750,7 +750,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.3.0</version>
+                <version>3.11.0</version>
                 <executions>
                     <execution>
                         <goals>
@@ -762,7 +762,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>2.5.0</version>
+                <version>2.7.1</version>
                 <executions>
                     <execution>
                         <goals>
@@ -782,7 +782,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.7</version>
+                <version>0.8.15</version>
                 <executions>
                     <execution>
                         <id>prepare-agent</id>
@@ -848,7 +848,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.11.2</version>
+                <version>3.12.0</version>
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>
@@ -863,7 +863,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
-                <version>1.5.0</version>
+                <version>1.8.0</version>
                 <configuration>
                     <updatePomFile>true</updatePomFile>
                     <flattenMode>oss</flattenMode>
@@ -907,7 +907,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.2.0</version>
+                        <version>3.2.8</version>
                         <configuration>
                             <gpgArguments>
                                 <arg>--pinentry-mode</arg>
@@ -966,13 +966,13 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-project-info-reports-plugin</artifactId>
-                <version>3.4.2</version>  <!-- Use a stable version -->
+                <version>3.9.0</version>  <!-- Use a stable version -->
                 <inherited>false</inherited>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-report-plugin</artifactId>
-                <version>3.4.0</version>
+                <version>3.6.1</version>
                 <configuration>
                     <aggregate>true</aggregate>
                 </configuration>
@@ -981,7 +981,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.11.2</version>
+                <version>3.12.0</version>
                 <reportSets>
                     <reportSet>
                         <id>aggregate</id>
