@@ -183,9 +183,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
       // Pre-write the pool so every measured write is an overwrite, not a create then overwrite.
       if (BENCHMARK_PUT.equals(method)) {
-        seedWritePool(PUT_KEY_PREFIX, PUT_DOC_SIZE);
+        seedWritePool(PUT_KEY_PREFIX, PUT_DOC_SIZE, 1);
       } else if (BENCHMARK_BATCH_PUT.equals(method)) {
-        seedWritePool(BATCH_PUT_KEY_PREFIX, BATCH_PUT_DOC_SIZE);
+        seedWritePool(BATCH_PUT_KEY_PREFIX, BATCH_PUT_DOC_SIZE,
+            Integer.parseInt(params.getParam("batchSize")));
       }
 
       // Pre-filter key lists once so hot-path lookups are O(1)
@@ -212,7 +213,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
     return prefix + Math.floorMod(writeKeySeq.getAndIncrement(), WRITE_KEY_POOL_SIZE);
   }
 
-  private void seedWritePool(String prefix, int docSize) {
+  private void seedWritePool(String prefix, int docSize, int batchSize) {
     // 400 per batch stays under Firestore's 500-write-per-commit limit, same as teardown.
     int chunkSize = 400;
     for (int start = 0; start < WRITE_KEY_POOL_SIZE; start += chunkSize) {
@@ -221,7 +222,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
       for (int i = start; i < end; i++) {
         String key = prefix + i;
         benchmarkCreatedKeys.add(key);
-        documents.add(new Document(createPlayer(key, 0, docSize)));
+        // Same field values the benchmark writes to this key, so overwrites touch no extra indexes.
+        documents.add(new Document(createPlayer(key, i % batchSize, docSize)));
       }
       docStoreClient.batchPut(documents);
     }
