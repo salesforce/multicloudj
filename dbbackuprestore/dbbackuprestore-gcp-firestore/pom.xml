@@ -94,12 +94,12 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-firestore</artifactId>
-            <version>3.31.2</version>
+            <version>3.49.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-firestore-admin</artifactId>
-            <version>3.31.2</version>
+            <version>3.49.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.auto.service</groupId>

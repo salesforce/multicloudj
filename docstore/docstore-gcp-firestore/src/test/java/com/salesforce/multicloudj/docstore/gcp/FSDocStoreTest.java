@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.gax.retrying.RetrySettings;
+import com.google.api.gax.rpc.AbortedException;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.ServerStream;
 import com.google.api.gax.rpc.ServerStreamingCallable;
@@ -238,6 +239,48 @@ public class FSDocStoreTest {
     Assertions.assertTrue(firestoreDoc.containsFields("content"));
     Assertions.assertEquals(
         "This is test content", firestoreDoc.getFieldsOrThrow("content").getStringValue());
+  }
+
+  private static Action createAction() {
+    return new TestAction(
+        ActionKind.ACTION_KIND_CREATE,
+        new com.salesforce.multicloudj.docstore.driver.Document(
+            new HashMap<>(Map.of("title", "TestDoc"))),
+        null,
+        null);
+  }
+
+  private static AbortedException abortedWithBody(String body) {
+    StatusCode statusCode = mock(StatusCode.class);
+    when(statusCode.getCode()).thenReturn(StatusCode.Code.ABORTED);
+    return new AbortedException(new RuntimeException(body), statusCode, false);
+  }
+
+  @Test
+  void testRunActionsCreateOnExistingDocumentThrowsAlreadyExists() {
+    AbortedException alreadyExists =
+        abortedWithBody(
+            "{\"error\": {\"code\": 409, \"message\": \"Document already exists\","
+                + " \"status\": \"ALREADY_EXISTS\"}}");
+    when(mockFirestoreClient.commit(any(CommitRequest.class))).thenThrow(alreadyExists);
+
+    Assertions.assertThrows(
+        ResourceAlreadyExistsException.class,
+        () -> docStore.runActions(List.of(createAction()), null));
+  }
+
+  @Test
+  void testRunActionsTransactionAbortIsRethrown() {
+    AbortedException aborted =
+        abortedWithBody(
+            "{\"error\": {\"code\": 409, \"message\": \"Too much contention\","
+                + " \"status\": \"ABORTED\"}}");
+    when(mockFirestoreClient.commit(any(CommitRequest.class))).thenThrow(aborted);
+
+    AbortedException thrown =
+        Assertions.assertThrows(
+            AbortedException.class, () -> docStore.runActions(List.of(createAction()), null));
+    Assertions.assertSame(aborted, thrown);
   }
 
   @Test

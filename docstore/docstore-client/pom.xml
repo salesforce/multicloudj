@@ -188,7 +188,7 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>4.36.2</version>
+            <version>${protobuf.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -199,7 +199,7 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java-util</artifactId>
-            <version>3.25.5</version>
+            <version>${protobuf.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
