@@ -970,6 +970,10 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       STORAGE.put(versionedKey, blob);
       LATEST_VERSIONS.put(baseKey, versionId);
 
+      if (mpu.getTags() != null && !mpu.getTags().isEmpty()) {
+        TAGS.put(versionedKey, new HashMap<>(mpu.getTags()));
+      }
+
       // Store object lock configuration if provided on the multipart upload
       if (mpu.getObjectLock() != null) {
         ObjectLockConfiguration lockConfig = mpu.getObjectLock();

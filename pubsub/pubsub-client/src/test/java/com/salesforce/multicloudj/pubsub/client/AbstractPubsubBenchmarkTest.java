@@ -80,6 +80,9 @@ public abstract class AbstractPubsubBenchmarkTest {
     String getTopicName();
 
     String getSubscriptionName();
+
+    /** Discards messages left on the subscription by earlier runs; no-op unless overridden. */
+    default void purge() throws Exception {}
   }
 
   protected abstract Harness createHarness();
@@ -106,6 +109,14 @@ public abstract class AbstractPubsubBenchmarkTest {
       logger.info(">>> Setup: Creating harness...");
       harness = createHarness();
       drainExecutor = Executors.newSingleThreadExecutor();
+
+      // Before the subscription client exists, so a leftover backlog is never prefetched.
+      logger.info(">>> Setup: Purging subscription...");
+      try {
+        harness.purge();
+      } catch (Exception e) {
+        logger.warn(">>> Setup: purge failed ({}), continuing anyway", e.getMessage());
+      }
 
       logger.info(">>> Setup: Creating topic...");
       AbstractTopic<?> topic = harness.createTopic();
