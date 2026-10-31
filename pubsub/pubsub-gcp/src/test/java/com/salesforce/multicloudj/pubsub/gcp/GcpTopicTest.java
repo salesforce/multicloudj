@@ -39,6 +39,7 @@ import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.IOException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -405,6 +406,23 @@ public class GcpTopicTest {
 
   @Test
   void testRetryConfigAppliedToPublishSettings() throws Exception {
+    RetrySettings retrySettings =
+        publishRetrySettings(RetryConfig.builder().maxAttempts(7).totalTimeout(9000L).build());
+
+    assertEquals(7, retrySettings.getMaxAttempts());
+    assertEquals(9000L, retrySettings.getTotalTimeoutDuration().toMillis());
+  }
+
+  @Test
+  void testUnsetTotalTimeoutAppliesNoTotalTimeLimitToPublishSettings() throws Exception {
+    RetrySettings retrySettings =
+        publishRetrySettings(RetryConfig.builder().maxAttempts(7).build());
+
+    assertEquals(7, retrySettings.getMaxAttempts());
+    assertEquals(Duration.ZERO, retrySettings.getTotalTimeoutDuration());
+  }
+
+  private RetrySettings publishRetrySettings(RetryConfig retryConfig) throws Exception {
     TopicAdminClient mockClient = mock(TopicAdminClient.class);
     @SuppressWarnings("unchecked")
     UnaryCallable<PublishRequest, PublishResponse> mockCallable = mock(UnaryCallable.class);
@@ -416,7 +434,7 @@ public class GcpTopicTest {
         new GcpTopic()
             .builder()
             .withTopicName(VALID_TOPIC_NAME)
-            .withRetryConfig(RetryConfig.builder().maxAttempts(7).totalTimeout(9000L).build())
+            .withRetryConfig(retryConfig)
             .build();
     List<Message> messages = new ArrayList<>();
     messages.add(Message.builder().withBody("test".getBytes()).build());
@@ -427,9 +445,7 @@ public class GcpTopicTest {
 
       topicWithRetry.doSendBatch(messages);
 
-      RetrySettings retrySettings = captor.getValue().publishSettings().getRetrySettings();
-      assertEquals(7, retrySettings.getMaxAttempts());
-      assertEquals(9000L, retrySettings.getTotalTimeoutDuration().toMillis());
+      return captor.getValue().publishSettings().getRetrySettings();
     } finally {
       topicWithRetry.close();
     }
