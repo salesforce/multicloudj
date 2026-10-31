@@ -23,11 +23,13 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import javax.crypto.Mac;
@@ -51,6 +53,23 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
       DateTimeFormatter.ofPattern("yyyyMMdd").withLocale(Locale.US);
   private static final String REQUEST_HASH_HEADER = "x-request-hash";
   private static final String CONTENT_TYPE_HEADER = "content-type";
+  private static final Set<String> SIGNER_OWNED_HEADERS =
+      Set.of(
+          "host",
+          "x-amz-date",
+          "x-amz-security-token",
+          "authorization",
+          "content-type",
+          REQUEST_HASH_HEADER);
+  // AWS SDK clients send these headers in this form, and some SigV4 verifiers look them up
+  // case-sensitively. Signing still uses the lowercase canonical names.
+  private static final Map<String, String> CONVENTIONAL_HEADER_NAMES =
+      Map.of(
+          "authorization", "Authorization",
+          "x-amz-date", "X-Amz-Date",
+          "x-amz-security-token", "X-Amz-Security-Token",
+          CONTENT_TYPE_HEADER, "Content-Type",
+          REQUEST_HASH_HEADER, "X-Request-Hash");
   private static final String CONTENT_TYPE_VALUE =
       "application/x-www-form-urlencoded; charset=utf-8";
 
@@ -59,12 +78,20 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
   // than rebuilt every request.
   private volatile DefaultCredentialsProvider defaultCredentialsProvider;
 
+  private final Clock clock;
+
   public AwsStsUtilities(Builder builder) {
-    super(builder);
+    this(builder, Clock.systemUTC());
   }
 
   public AwsStsUtilities() {
-    super(new Builder());
+    this(new Builder(), Clock.systemUTC());
+  }
+
+  // Lets tests pin the signing time.
+  AwsStsUtilities(Builder builder, Clock clock) {
+    super(builder);
+    this.clock = clock;
   }
 
   @Override
@@ -85,8 +112,11 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
       options = SignOptions.builder().build();
     }
 
-    String stsEndpoint = String.format(SIGN_STS_ENDPOINT, region);
-    URI uri = URI.create(stsEndpoint);
+    if (region == null || region.isBlank()) {
+      throw new InvalidArgumentException("region is required");
+    }
+    URI uri = signingUri();
+    String stsEndpoint = uri.toString();
 
     // The request is optional. When one is supplied we sign its body; otherwise there is no service
     // payload and we sign a bare GetCallerIdentity.
@@ -110,12 +140,12 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
     // Assemble the canonical header set. host, the signing date, and the session token (when the
     // credentials are temporary) are always signed. Header names must be lowercase per the SigV4
     // canonical rules; the TreeMap keeps them sorted.
-    Instant now = Instant.now();
+    Instant now = clock.instant();
     String amzDate = AMZ_DATE_FORMAT.format(now.atOffset(ZoneOffset.UTC));
     String dateStamp = AMZ_DATESTAMP_FORMAT.format(now.atOffset(ZoneOffset.UTC));
 
     SortedMap<String, String> headers = new TreeMap<>();
-    headers.put("host", uri.getHost());
+    headers.put("host", hostHeaderValue(uri));
     headers.put("x-amz-date", amzDate);
     if (signingCredentials.getSecurityToken() != null
         && !signingCredentials.getSecurityToken().isEmpty()) {
@@ -130,8 +160,13 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
       headers.put(REQUEST_HASH_HEADER, getSha256Hash(payload));
     }
     // Caller supplied custom headers (e.g. a federation target resource) are always signed. Names
-    // must already be lowercase to satisfy the SigV4 canonical rules.
+    // arrive lowercase, as the SigV4 canonical rules require. Names the signer sets itself are
+    // rejected so a caller cannot replace the signing date, credentials, or host.
     for (Map.Entry<String, String> header : options.getCustomHeaders().entrySet()) {
+      if (SIGNER_OWNED_HEADERS.contains(header.getKey())) {
+        throw new InvalidArgumentException(
+            "custom header \"" + header.getKey() + "\" is reserved by the signer");
+      }
       headers.put(header.getKey(), header.getValue());
     }
 
@@ -149,13 +184,53 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
             ? HttpRequest.BodyPublishers.ofByteArray(payload)
             : HttpRequest.BodyPublishers.noBody();
     HttpRequest.Builder builder = HttpRequest.newBuilder(signedUri).method("POST", bodyPublisher);
-    headers.forEach(builder::setHeader);
+    headers.forEach(
+        (name, value) ->
+            builder.setHeader(CONVENTIONAL_HEADER_NAMES.getOrDefault(name, name), value));
 
     // The signed identity encodes the STS endpoint, action/version, and every request header as
     // query parameters, so it can be parsed back into a POST and replayed against AWS STS.
     String signedIdentity = buildSignedIdentity(uri, headers);
 
     return new SignedAuthRequest(builder.build(), signingCredentials, signedIdentity);
+  }
+
+  /**
+   * Returns the root URI the request is signed against: the configured endpoint, or the regional
+   * default. The SigV4 canonical URI is fixed at {@code /}, so an endpoint path cannot be signed,
+   * and a query or fragment would not be covered by the signature.
+   */
+  private URI signingUri() {
+    if (endpoint == null) {
+      return URI.create(String.format(SIGN_STS_ENDPOINT, region));
+    }
+    String path = endpoint.getRawPath();
+    if ((path != null && !path.isEmpty() && !"/".equals(path))
+        || endpoint.getRawQuery() != null
+        || endpoint.getRawFragment() != null) {
+      throw new InvalidArgumentException(
+          "endpoint must not have a path, query, or fragment: " + endpoint);
+    }
+    // Built from scheme, host, and port alone so the URI and the signed host header cannot differ.
+    String scheme = endpoint.getScheme().toLowerCase(Locale.ROOT);
+    return URI.create(scheme + "://" + endpoint.getHost() + portSuffix(scheme, endpoint) + "/");
+  }
+
+  /**
+   * The signed host header carries the port only when it is not the scheme default, matching the
+   * Host header an HTTP client sends.
+   */
+  private static String hostHeaderValue(URI uri) {
+    return uri.getHost() + portSuffix(uri.getScheme(), uri);
+  }
+
+  private static String portSuffix(String scheme, URI uri) {
+    int port = uri.getPort();
+    boolean isDefault =
+        port == -1
+            || ("https".equalsIgnoreCase(scheme) && port == 443)
+            || ("http".equalsIgnoreCase(scheme) && port == 80);
+    return isDefault ? "" : ":" + port;
   }
 
   /**

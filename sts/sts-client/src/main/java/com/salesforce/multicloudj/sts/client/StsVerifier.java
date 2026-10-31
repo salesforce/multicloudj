@@ -25,6 +25,16 @@ public class StsVerifier {
   }
 
   /**
+   * Constructor for StsVerifier backed by an already constructed driver, for callers such as tests
+   * that supply a preconfigured driver.
+   *
+   * @param verifier The driver used to back this verifier.
+   */
+  protected StsVerifier(AbstractStsVerifier verifier) {
+    this.verifier = verifier;
+  }
+
+  /**
    * Creates a new StsVerifierBuilder for the specified provider.
    *
    * @param providerId The ID of the provider/substrate such as aws.

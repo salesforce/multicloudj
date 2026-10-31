@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.sts.aws;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.client.StsUtilities;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -10,13 +11,25 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 class AwsStsUtilitiesTest {
+
+  private static final Clock FIXED_CLOCK =
+      Clock.fixed(Instant.parse("2026-10-30T12:00:00Z"), ZoneOffset.UTC);
+  private static final String REGION = "us-west-2";
+  private static final StsCredentials CREDS =
+      new StsCredentials(
+          "AKIDEXAMPLE", "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY", "FAKE_SESSION_TOKEN");
 
   private static StsCredentials credentials;
   private static String region;
@@ -43,6 +56,271 @@ class AwsStsUtilitiesTest {
         credentials.getAccessKeySecret(), signed.getCredentials().getAccessKeySecret());
     Assertions.assertEquals(
         credentials.getSecurityToken(), signed.getCredentials().getSecurityToken());
+  }
+
+  @Test
+  void defaultSignatureMatchesAwsSdkSigner() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        signed.getRequest().headers().firstValue("authorization").orElseThrow());
+  }
+
+  @Test
+  void excludedHashAndContentTypeSignatureMatchesAwsSdkSigner() {
+    SignOptions options =
+        SignOptions.builder()
+            .withExcludeRequestHashHeader(true)
+            .withExcludeContentTypeHeader(true)
+            .build();
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+    String authorization = signed.getRequest().headers().firstValue("authorization").orElseThrow();
+    Assertions.assertTrue(
+        authorization.contains("SignedHeaders=host;x-amz-date;x-amz-security-token,"));
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK), authorization);
+  }
+
+  @Test
+  void mixedCaseCustomHeaderIsSignedCanonically() {
+    SignOptions options =
+        SignOptions.builder()
+            .withCustomHeader("X-Vault-AWS-IAM-Server-ID", "vault.example.com")
+            .build();
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+    String authorization = signed.getRequest().headers().firstValue("authorization").orElseThrow();
+    Assertions.assertTrue(
+        authorization.contains(
+            "SignedHeaders=content-type;host;x-amz-date;x-amz-security-token;"
+                + "x-request-hash;x-vault-aws-iam-server-id,"),
+        authorization);
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK), authorization);
+  }
+
+  @Test
+  void customHeaderCollidingWithSignerHeaderIsRejected() {
+    for (String name :
+        new String[] {
+          "X-Amz-Date",
+          "host",
+          "Authorization",
+          "x-amz-security-token",
+          "content-type",
+          "x-request-hash"
+        }) {
+      SignOptions options = SignOptions.builder().withCustomHeader(name, "v").build();
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options),
+          name);
+    }
+  }
+
+  @Test
+  void signedRequestUsesConventionalHeaderNames() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    List<String> names = new ArrayList<>(signed.getRequest().headers().map().keySet());
+    Assertions.assertTrue(
+        names.containsAll(
+            List.of(
+                "Authorization",
+                "X-Amz-Date",
+                "X-Amz-Security-Token",
+                "Content-Type",
+                "X-Request-Hash")),
+        names.toString());
+  }
+
+  @Test
+  void excludedOptionsEmitOnlyAuthorizationDateAndToken() {
+    SignOptions options =
+        SignOptions.builder()
+            .withExcludeRequestHashHeader(true)
+            .withExcludeContentTypeHeader(true)
+            .build();
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+    List<String> names = new ArrayList<>(signed.getRequest().headers().map().keySet());
+    Assertions.assertEquals(3, names.size(), names.toString());
+    Assertions.assertTrue(
+        names.containsAll(List.of("Authorization", "X-Amz-Date", "X-Amz-Security-Token")),
+        names.toString());
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        signed.getRequest().headers().firstValue("Authorization").orElseThrow());
+  }
+
+  @Test
+  void customHeaderKeepsLowercaseNameOnRequest() {
+    SignOptions options = SignOptions.builder().withCustomHeader("X-Foo", "bar").build();
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+    // The header map is case-insensitive, so compare against a plain list of the stored names.
+    List<String> names = new ArrayList<>(signed.getRequest().headers().map().keySet());
+    Assertions.assertTrue(names.contains("x-foo"), names.toString());
+    Assertions.assertFalse(names.contains("X-Foo"), names.toString());
+  }
+
+  @Test
+  void signedIdentityKeepsLowercaseHeaderKeys() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Map<String, String> params =
+        parseQuery(URI.create(signed.getSignedIdentity()).getRawQuery());
+    Assertions.assertTrue(params.containsKey("authorization"), params.keySet().toString());
+    Assertions.assertTrue(params.containsKey("x-amz-date"), params.keySet().toString());
+    Assertions.assertFalse(params.containsKey("Authorization"), params.keySet().toString());
+  }
+
+  @Test
+  void endpointOverrideSetsSignedHostAndIdentityRoot() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK, REGION, URI.create("https://sts.amazonaws.com"))
+            .newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(URI.create("https://sts.amazonaws.com/"), signed.getRequest().uri());
+    Assertions.assertTrue(
+        signed.getSignedIdentity().startsWith("https://sts.amazonaws.com/?"),
+        signed.getSignedIdentity());
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        signed.getRequest().headers().firstValue("authorization").orElseThrow());
+  }
+
+  @Test
+  void endpointOverrideWithPortSignsHostWithPort() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK, REGION, URI.create("https://localhost:8443"))
+            .newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(URI.create("https://localhost:8443/"), signed.getRequest().uri());
+    Assertions.assertTrue(
+        signed.getSignedIdentity().startsWith("https://localhost:8443/?"),
+        signed.getSignedIdentity());
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        signed.getRequest().headers().firstValue("authorization").orElseThrow());
+  }
+
+  @Test
+  void endpointWithHttpsDefaultPortOmitsPort() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK, REGION, URI.create("https://sts.amazonaws.com:443"))
+            .newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(URI.create("https://sts.amazonaws.com/"), signed.getRequest().uri());
+    Assertions.assertTrue(
+        signed.getSignedIdentity().startsWith("https://sts.amazonaws.com/?"),
+        signed.getSignedIdentity());
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        signed.getRequest().headers().firstValue("authorization").orElseThrow());
+  }
+
+  @Test
+  void endpointWithHttpDefaultPortOmitsPort() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK, REGION, URI.create("http://localhost:80"))
+            .newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(URI.create("http://localhost/"), signed.getRequest().uri());
+    Assertions.assertTrue(
+        signed.getSignedIdentity().startsWith("http://localhost/?"), signed.getSignedIdentity());
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        signed.getRequest().headers().firstValue("authorization").orElseThrow());
+  }
+
+  @Test
+  void endpointWithPathQueryOrFragmentIsRejected() {
+    for (String endpoint : new String[] {"https://h/proxy", "https://h/?a=b", "https://h/#frag"}) {
+      AwsStsUtilities utilities = signer(FIXED_CLOCK, REGION, URI.create(endpoint));
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> utilities.newCloudNativeAuthSignedRequest(formRequest(), null),
+          endpoint);
+    }
+  }
+
+  @Test
+  void endpointWithRootPathIsAccepted() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK, REGION, URI.create("https://sts.amazonaws.com/"))
+            .newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(URI.create("https://sts.amazonaws.com/"), signed.getRequest().uri());
+  }
+
+  @Test
+  void missingRegionIsRejected() {
+    for (String blank : new String[] {null, "", "  "}) {
+      AwsStsUtilities utilities = signer(FIXED_CLOCK, blank, null);
+      InvalidArgumentException e =
+          Assertions.assertThrows(
+              InvalidArgumentException.class,
+              () -> utilities.newCloudNativeAuthSignedRequest(formRequest(), null));
+      Assertions.assertTrue(e.getMessage().contains("region is required"), e.getMessage());
+    }
+  }
+
+  @Test
+  void missingRegionIsRejectedEvenWithEndpointOverride() {
+    AwsStsUtilities utilities =
+        signer(FIXED_CLOCK, null, URI.create("https://sts.amazonaws.com"));
+    Assertions.assertThrows(
+        InvalidArgumentException.class,
+        () -> utilities.newCloudNativeAuthSignedRequest(formRequest(), null));
+  }
+
+  @Test
+  void noEndpointKeepsRegionalDefault() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(
+        URI.create("https://sts.us-west-2.amazonaws.com/"), signed.getRequest().uri());
+    Assertions.assertTrue(
+        signed.getSignedIdentity().startsWith("https://sts.us-west-2.amazonaws.com/?"),
+        signed.getSignedIdentity());
+  }
+
+  private static AwsStsUtilities signer(Clock clock) {
+    return signer(clock, REGION, null);
+  }
+
+  private static AwsStsUtilities signer(Clock clock, String signerRegion, URI endpoint) {
+    AwsStsUtilities.Builder builder = new AwsStsUtilities.Builder();
+    if (signerRegion != null) {
+      builder.withRegion(signerRegion);
+    }
+    if (endpoint != null) {
+      builder.withEndpoint(endpoint);
+    }
+    builder.withCredentialsOverrider(
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(CREDS)
+            .build());
+    return new AwsStsUtilities(builder, clock);
+  }
+
+  private static HttpRequest formRequest() {
+    return HttpRequest.newBuilder()
+        .POST(HttpRequest.BodyPublishers.ofString("Action=GetCallerIdentity&Version=2011-06-15"))
+        .uri(URI.create("https://sts.us-west-2.amazonaws.com/"))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .build();
   }
 
   private static StsUtilities stsUtil() {

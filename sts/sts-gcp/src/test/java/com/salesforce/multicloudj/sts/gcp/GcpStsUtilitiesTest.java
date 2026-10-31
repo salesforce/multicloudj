@@ -34,11 +34,13 @@ import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.math.BigInteger;
+import java.net.URI;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,6 +69,65 @@ class GcpStsUtilitiesTest {
   void builderAndDefaultBuildProduceGcpUtilities() {
     Assertions.assertEquals("gcp", new GcpStsUtilities().builder().build().getProviderId());
     Assertions.assertEquals("gcp", new GcpStsUtilities.Builder().build().getProviderId());
+  }
+
+  @Test
+  void endpointOverrideSetsIamCredentialsEndpoint() throws Exception {
+    GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+    builder.withEndpoint(URI.create("https://iamcredentials.example.com"));
+    GoogleCredentials creds = Mockito.mock(GoogleCredentials.class);
+
+    IamCredentialsSettings settings = builder.build().iamCredentialsSettings(creds);
+
+    Assertions.assertEquals("iamcredentials.example.com:443", settings.getEndpoint());
+  }
+
+  @Test
+  void endpointOverrideWithPortKeepsPort() throws Exception {
+    GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+    builder.withEndpoint(URI.create("https://localhost:8443"));
+    GoogleCredentials creds = Mockito.mock(GoogleCredentials.class);
+
+    IamCredentialsSettings settings = builder.build().iamCredentialsSettings(creds);
+
+    Assertions.assertEquals("localhost:8443", settings.getEndpoint());
+  }
+
+  @Test
+  void endpointWithPathQueryOrFragmentIsRejected() {
+    for (String endpoint :
+        new String[] {
+          "https://h/proxy", "https://h/?a=b", "https://h?a=b", "https://h/#frag"
+        }) {
+      GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+      builder.withEndpoint(URI.create(endpoint));
+      GcpStsUtilities utilities = builder.build();
+      GoogleCredentials creds = Mockito.mock(GoogleCredentials.class);
+
+      Assertions.assertThrows(
+          InvalidArgumentException.class, () -> utilities.iamCredentialsSettings(creds), endpoint);
+    }
+  }
+
+  @Test
+  void endpointWithRootPathIsAccepted() throws Exception {
+    GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+    builder.withEndpoint(URI.create("https://iamcredentials.example.com/"));
+
+    IamCredentialsSettings settings =
+        builder.build().iamCredentialsSettings(Mockito.mock(GoogleCredentials.class));
+
+    Assertions.assertEquals("iamcredentials.example.com:443", settings.getEndpoint());
+  }
+
+  @Test
+  void noEndpointKeepsDefaultIamCredentialsEndpoint() throws Exception {
+    GoogleCredentials creds = Mockito.mock(GoogleCredentials.class);
+
+    IamCredentialsSettings settings = new GcpStsUtilities().iamCredentialsSettings(creds);
+
+    Assertions.assertEquals(
+        IamCredentialsSettings.getDefaultEndpoint(), settings.getEndpoint());
   }
 
   @Test
@@ -183,6 +244,33 @@ class GcpStsUtilitiesTest {
         JsonWebSignature.parse(GsonFactory.getDefaultInstance(), signed.getSignedIdentity());
     Assertions.assertEquals("example", parsed.getPayload().get("x-request-source"));
     Assertions.assertEquals("tenant-42", parsed.getPayload().get("x-tenant-id"));
+  }
+
+  @Test
+  void customHeaderClaimNamesAreLowercased() throws Exception {
+    SignOptions signOptions = SignOptions.builder().withCustomHeader("X-Tenant", "t1").build();
+    SignedAuthRequest signed = signer().newCloudNativeAuthSignedRequest(null, signOptions);
+
+    JsonWebSignature parsed =
+        JsonWebSignature.parse(GsonFactory.getDefaultInstance(), signed.getSignedIdentity());
+    Assertions.assertEquals("t1", parsed.getPayload().get("x-tenant"));
+    Assertions.assertNull(parsed.getPayload().get("X-Tenant"));
+  }
+
+  @Test
+  void registeredClaimNamesAreRejectedAsCustomHeaders() {
+    for (String name : new String[] {"iss", "sub", "aud", "iat", "exp", "nbf", "jti", "ISS"}) {
+      SignOptions signOptions = SignOptions.builder().withCustomHeader(name, "v").build();
+      InvalidArgumentException e =
+          Assertions.assertThrows(
+              InvalidArgumentException.class,
+              () -> signer().newCloudNativeAuthSignedRequest(null, signOptions),
+              name);
+      Assertions.assertEquals(
+          "custom header \"" + name.toLowerCase(Locale.ROOT)
+              + "\" is reserved by the signer",
+          e.getMessage());
+    }
   }
 
   @Test

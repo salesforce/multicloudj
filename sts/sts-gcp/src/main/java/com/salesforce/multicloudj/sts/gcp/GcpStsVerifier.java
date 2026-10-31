@@ -150,6 +150,9 @@ public class GcpStsVerifier extends AbstractStsVerifier {
     for (Map.Entry<String, String> expected : options.getExpectedCustomHeaders().entrySet()) {
       Object actual = payload.get(expected.getKey());
       if (actual == null) {
+        actual = claimDifferingOnlyByCase(payload, expected.getKey());
+      }
+      if (actual == null) {
         throw new InvalidArgumentException(
             "expected custom header \"" + expected.getKey() + "\" not found in JWT claims");
       }
@@ -158,6 +161,22 @@ public class GcpStsVerifier extends AbstractStsVerifier {
             "custom header \"" + expected.getKey() + "\" has an unexpected value");
       }
     }
+  }
+
+  // Header names are case-insensitive, so accept a claim whose name differs only by case. More than
+  // one such claim is ambiguous and is rejected rather than picking one.
+  private static Object claimDifferingOnlyByCase(JsonWebSignature.Payload payload, String name) {
+    Object match = null;
+    for (Map.Entry<String, Object> claim : payload.entrySet()) {
+      if (claim.getKey().equalsIgnoreCase(name)) {
+        if (match != null) {
+          throw new InvalidArgumentException(
+              "custom header \"" + name + "\" matches more than one JWT claim");
+        }
+        match = claim.getValue();
+      }
+    }
+    return match;
   }
 
   private static String projectIdFromIssuer(String issuer) {

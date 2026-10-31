@@ -2,11 +2,13 @@ package com.salesforce.multicloudj.sts.client;
 
 import com.google.common.collect.ImmutableSet;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.driver.AbstractStsUtilities;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
+import java.net.URI;
 import java.net.http.HttpRequest;
 import java.util.ServiceLoader;
 
@@ -24,6 +26,16 @@ public class StsUtilities {
    */
   protected StsUtilities(StsUtilityBuilder builder) {
     this.stsUtility = builder.stsUtility;
+  }
+
+  /**
+   * Constructor for StsUtilities backed by an already constructed driver, for callers such as tests
+   * that supply a preconfigured driver.
+   *
+   * @param stsUtility The driver used to back this utility.
+   */
+  protected StsUtilities(AbstractStsUtilities<?> stsUtility) {
+    this.stsUtility = stsUtility;
   }
 
   /**
@@ -150,6 +162,30 @@ public class StsUtilities {
      */
     public StsUtilityBuilder withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
       this.builder.withCredentialsOverrider(credentialsOverrider);
+      return this;
+    }
+
+    /**
+     * Sets the endpoint the provider uses to produce the signed identity.
+     *
+     * @param endpoint The absolute http or https endpoint to set, including a host.
+     * @return This StsUtilityBuilder instance.
+     * @throws InvalidArgumentException if the endpoint is null, not absolute, has no host, carries
+     *     user info, or uses a scheme other than http or https.
+     */
+    public StsUtilityBuilder withEndpoint(URI endpoint) {
+      if (endpoint == null || !endpoint.isAbsolute() || endpoint.getHost() == null) {
+        throw new InvalidArgumentException("endpoint must be an absolute URI with a host");
+      }
+      if (!"http".equalsIgnoreCase(endpoint.getScheme())
+          && !"https".equalsIgnoreCase(endpoint.getScheme())) {
+        throw new InvalidArgumentException("endpoint scheme must be http or https: " + endpoint);
+      }
+      // User info in an endpoint would leak credentials into logs and request URLs.
+      if (endpoint.getRawUserInfo() != null) {
+        throw new InvalidArgumentException("endpoint must not contain user info");
+      }
+      this.builder.withEndpoint(endpoint);
       return this;
     }
 

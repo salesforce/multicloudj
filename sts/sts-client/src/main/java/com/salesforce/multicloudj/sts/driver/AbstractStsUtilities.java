@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
+import java.net.URI;
 import java.net.http.HttpRequest;
 import lombok.Getter;
 
@@ -11,11 +12,13 @@ public abstract class AbstractStsUtilities<T extends AbstractStsUtilities<T>> im
   protected final String providerId;
   protected final String region;
   protected final CredentialsOverrider credentialsOverrider;
+  protected final URI endpoint;
 
   public AbstractStsUtilities(AbstractStsUtilities.Builder<T> builder) {
     this.providerId = builder.providerId;
     this.region = builder.region;
     this.credentialsOverrider = builder.credentialsOverrider;
+    this.endpoint = builder.endpoint;
   }
 
   /** {@inheritDoc} */
@@ -53,6 +56,7 @@ public abstract class AbstractStsUtilities<T extends AbstractStsUtilities<T>> im
     protected String providerId;
     protected String region;
     protected CredentialsOverrider credentialsOverrider;
+    protected URI endpoint;
 
     /**
      * Method to supply region
@@ -74,6 +78,17 @@ public abstract class AbstractStsUtilities<T extends AbstractStsUtilities<T>> im
     public AbstractStsUtilities.Builder withCredentialsOverrider(
         CredentialsOverrider credentialsOverrider) {
       this.credentialsOverrider = credentialsOverrider;
+      return this;
+    }
+
+    /**
+     * Sets the endpoint the provider uses to produce the signed identity.
+     *
+     * @param endpoint The endpoint to set.
+     * @return An instance of self
+     */
+    public AbstractStsUtilities.Builder withEndpoint(URI endpoint) {
+      this.endpoint = endpoint;
       return this;
     }
 

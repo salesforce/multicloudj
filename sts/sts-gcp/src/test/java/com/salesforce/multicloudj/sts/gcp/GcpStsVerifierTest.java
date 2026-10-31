@@ -14,14 +14,17 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
+import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -97,6 +100,74 @@ class GcpStsVerifierTest {
 
     CallerIdentity identity = verifier().verifySignedAuthRequest(jwt, options);
     Assertions.assertEquals("my-project", identity.getAccountId());
+  }
+
+  @Test
+  void mixedCaseExpectedClaimMatchesMixedCaseSignedClaim() throws Exception {
+    GcpStsUtilities signer =
+        new GcpStsUtilities.Builder()
+            .build(
+                (serviceAccountName, payload) -> {
+                  JsonWebToken.Payload claims =
+                      GsonFactory.getDefaultInstance()
+                          .createJsonParser(payload)
+                          .parse(JsonWebToken.Payload.class);
+                  JsonWebSignature.Header header =
+                      new JsonWebSignature.Header()
+                          .setAlgorithm("RS256")
+                          .setType("JWT")
+                          .setKeyId(KID);
+                  try {
+                    return JsonWebSignature.signUsingRsaSha256(
+                        keyPair.getPrivate(), GsonFactory.getDefaultInstance(), header, claims);
+                  } catch (GeneralSecurityException e) {
+                    throw new IOException(e);
+                  }
+                },
+                SERVICE_ACCOUNT);
+    String jwt =
+        signer
+            .newCloudNativeAuthSignedRequest(
+                null, SignOptions.builder().withCustomHeader("X-Tenant", "t1").build())
+            .getSignedIdentity();
+    ValidateOptions options =
+        ValidateOptions.builder().withExpectedCustomHeader("X-TENANT", "t1").build();
+
+    CallerIdentity identity = verifier().verifySignedAuthRequest(jwt, options);
+
+    Assertions.assertEquals(SERVICE_ACCOUNT, identity.getUserId());
+  }
+
+  @Test
+  void claimDifferingOnlyByCaseSatisfiesExpectedHeader() throws Exception {
+    String jwt = signJwtWithClaims(Map.of("X-Tenant", "t1"));
+    ValidateOptions options =
+        ValidateOptions.builder().withExpectedCustomHeader("x-tenant", "t1").build();
+
+    CallerIdentity identity = verifier().verifySignedAuthRequest(jwt, options);
+
+    Assertions.assertEquals(SERVICE_ACCOUNT, identity.getUserId());
+  }
+
+  @Test
+  void exactLowercaseClaimIsPreferredOverCaseVariant() throws Exception {
+    String jwt = signJwtWithClaims(Map.of("x-tenant", "t1", "X-Tenant", "other"));
+    ValidateOptions options =
+        ValidateOptions.builder().withExpectedCustomHeader("x-tenant", "t1").build();
+
+    CallerIdentity identity = verifier().verifySignedAuthRequest(jwt, options);
+
+    Assertions.assertEquals(SERVICE_ACCOUNT, identity.getUserId());
+  }
+
+  @Test
+  void ambiguousCaseVariantClaimsAreRejected() throws Exception {
+    String jwt = signJwtWithClaims(Map.of("X-Tenant", "t1", "x-TENANT", "t1"));
+    ValidateOptions options =
+        ValidateOptions.builder().withExpectedCustomHeader("x-tenant", "t1").build();
+
+    Assertions.assertThrows(
+        InvalidArgumentException.class, () -> verifier().verifySignedAuthRequest(jwt, options));
   }
 
   @Test
@@ -355,7 +426,20 @@ class GcpStsVerifierTest {
     return signJwt(issuedAt, KID, targetResource);
   }
 
+  private String signJwtWithClaims(Map<String, String> extraClaims) throws Exception {
+    return signJwtWithExtraClaims(Instant.now(), KID, extraClaims);
+  }
+
   private String signJwt(Instant issuedAt, String kid, String targetResource) throws Exception {
+    return signJwtWithExtraClaims(
+        issuedAt,
+        kid,
+        targetResource == null ? Map.of() : Map.of("x-target-resource", targetResource));
+  }
+
+  private String signJwtWithExtraClaims(
+      Instant issuedAt, String kid, Map<String, String> extraClaims)
+      throws Exception {
     JsonWebSignature.Header header =
         new JsonWebSignature.Header().setAlgorithm("RS256").setType("JWT").setKeyId(kid);
     JsonWebToken.Payload payload = new JsonWebToken.Payload();
@@ -363,9 +447,7 @@ class GcpStsVerifierTest {
     payload.setSubject(SERVICE_ACCOUNT);
     payload.setIssuedAtTimeSeconds(issuedAt.getEpochSecond());
     payload.setExpirationTimeSeconds(issuedAt.plusSeconds(300).getEpochSecond());
-    if (targetResource != null) {
-      payload.set("x-target-resource", targetResource);
-    }
+    extraClaims.forEach(payload::set);
     return JsonWebSignature.signUsingRsaSha256(
         keyPair.getPrivate(), GsonFactory.getDefaultInstance(), header, payload);
   }

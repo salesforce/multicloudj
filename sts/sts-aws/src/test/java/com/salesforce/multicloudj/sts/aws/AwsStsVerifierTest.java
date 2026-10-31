@@ -9,10 +9,16 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import com.salesforce.multicloudj.sts.model.CredentialsType;
+import com.salesforce.multicloudj.sts.model.SignOptions;
+import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
+import com.salesforce.multicloudj.sts.model.StsCredentials;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
+import java.time.Clock;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -89,6 +95,33 @@ class AwsStsVerifierTest {
         new AwsStsVerifier.Builder().build(httpClient).verifySignedAuthRequest(IDENTITY, options);
 
     Assertions.assertEquals("123456789012", identity.getAccountId());
+  }
+
+  @Test
+  void mixedCaseExpectedHeaderMatchesMixedCaseSignedHeader() throws Exception {
+    AwsStsUtilities signerUtil = new AwsStsUtilities(signerBuilder(), Clock.systemUTC());
+    SignedAuthRequest signed =
+        signerUtil.newCloudNativeAuthSignedRequest(
+            null, SignOptions.builder().withCustomHeader("X-Tenant", "t1").build());
+    ValidateOptions options =
+        ValidateOptions.builder().withExpectedCustomHeader("X-TENANT", "t1").build();
+
+    CallerIdentity identity =
+        new AwsStsVerifier.Builder()
+            .build(okClient())
+            .verifySignedAuthRequest(signed.getSignedIdentity(), options);
+
+    Assertions.assertEquals("123456789012", identity.getAccountId());
+  }
+
+  private static AwsStsUtilities.Builder signerBuilder() {
+    AwsStsUtilities.Builder builder = new AwsStsUtilities.Builder();
+    builder.withRegion("us-west-2");
+    builder.withCredentialsOverrider(
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(new StsCredentials("AKIDEXAMPLE", "secret", "token"))
+            .build());
+    return builder;
   }
 
   @Test
