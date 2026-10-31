@@ -77,6 +77,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
   private static final int PUT_DOC_SIZE = 500;
   private static final String BATCH_PUT_KEY_PREFIX = "benchmarkbatchput-player-";
   private static final int BATCH_PUT_DOC_SIZE = 200;
+  // Must match the BatchParams field name.
+  private static final String BATCH_SIZE_PARAM = "batchSize";
+  // Stays under Firestore's 500-write-per-commit limit.
+  private static final int SEED_CHUNK_SIZE = 400;
 
   private static final String BENCHMARK_PUT = "benchmarkPut";
   private static final String BENCHMARK_GET = "benchmarkGet";
@@ -183,10 +187,11 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
       // Pre-write the pool so every measured write is an overwrite, not a create then overwrite.
       if (BENCHMARK_PUT.equals(method)) {
+        // benchmarkPut writes baseValue 0 for every key; batchSize 1 makes the seed write 0 too.
         seedWritePool(PUT_KEY_PREFIX, PUT_DOC_SIZE, 1);
       } else if (BENCHMARK_BATCH_PUT.equals(method)) {
         seedWritePool(BATCH_PUT_KEY_PREFIX, BATCH_PUT_DOC_SIZE,
-            Integer.parseInt(params.getParam("batchSize")));
+            Integer.parseInt(params.getParam(BATCH_SIZE_PARAM)));
       }
 
       // Pre-filter key lists once so hot-path lookups are O(1)
@@ -214,10 +219,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
   }
 
   private void seedWritePool(String prefix, int docSize, int batchSize) {
-    // 400 per batch stays under Firestore's 500-write-per-commit limit, same as teardown.
-    int chunkSize = 400;
-    for (int start = 0; start < WRITE_KEY_POOL_SIZE; start += chunkSize) {
-      int end = Math.min(start + chunkSize, WRITE_KEY_POOL_SIZE);
+    for (int start = 0; start < WRITE_KEY_POOL_SIZE; start += SEED_CHUNK_SIZE) {
+      int end = Math.min(start + SEED_CHUNK_SIZE, WRITE_KEY_POOL_SIZE);
       List<Document> documents = new ArrayList<>(end - start);
       for (int i = start; i < end; i++) {
         String key = prefix + i;
