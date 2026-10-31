@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.docstore.ali;
 import static com.salesforce.multicloudj.docstore.ali.AliCodec.decodeDoc;
 import static com.salesforce.multicloudj.docstore.ali.ErrorCodeMapping.OTS_CONDITIONAL_CHECK_FAILED;
 
+import com.alicloud.openservices.tablestore.ClientConfiguration;
 import com.alicloud.openservices.tablestore.ClientException;
 import com.alicloud.openservices.tablestore.SyncClient;
 import com.alicloud.openservices.tablestore.TableStoreException;
@@ -42,6 +43,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.UUID;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
@@ -134,7 +136,42 @@ public class AliDocStore extends AbstractDocStore {
           TableStoreCredentialsProvider.getCredentialsProvider(
               builder.getCredentialsOverrider(), builder.getRegion());
       return new SyncClient(
-          endpoint, provider, builder.getInstanceId(), null, new ResourceManager(null, null));
+          endpoint,
+          provider,
+          builder.getInstanceId(),
+          buildClientConfiguration(builder.getRetryConfig()),
+          new ResourceManager(null, null));
+    }
+
+    /**
+     * Builds the Tablestore client configuration for {@code retryConfig}, or returns null so the
+     * SDK applies its defaults when no RetryConfig is set.
+     *
+     * <p>{@code maxAttempts}, {@code mode}, the delay fields and {@code totalTimeout} are applied
+     * by a {@link TablestoreRetryStrategy}. {@code attemptTimeout} sets the connection timeout and
+     * the socket timeout of each attempt. The time a sync call waits for its result covers the
+     * retry deadline.
+     */
+    static ClientConfiguration buildClientConfiguration(RetryConfig retryConfig) {
+      if (retryConfig == null) {
+        return null;
+      }
+      ClientConfiguration configuration = new ClientConfiguration();
+      configuration.setRetryStrategy(new TablestoreRetryStrategy(retryConfig));
+      if (retryConfig.getAttemptTimeout() != null) {
+        int attemptTimeout = (int) Math.min(Integer.MAX_VALUE, retryConfig.getAttemptTimeout());
+        configuration.setConnectionTimeoutInMillisecond(attemptTimeout);
+        configuration.setSocketTimeoutInMillisecond(attemptTimeout);
+      }
+      // SyncClient fails a call it has waited on longer than this, 60s by default, even while the
+      // retry strategy would keep retrying. The wait covers the retry deadline plus the connection
+      // and socket timeouts of one more attempt, since the last attempt may start just before the
+      // deadline.
+      configuration.setSyncClientWaitFutureTimeoutInMillis(
+          TablestoreRetryStrategy.totalTimeoutMillis(retryConfig)
+              + configuration.getConnectionTimeoutInMillisecond()
+              + configuration.getSocketTimeoutInMillisecond());
+      return configuration;
     }
 
     public Builder() {

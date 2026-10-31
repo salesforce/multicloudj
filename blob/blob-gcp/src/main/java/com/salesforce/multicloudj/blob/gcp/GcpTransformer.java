@@ -32,6 +32,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
+import com.salesforce.multicloudj.common.gcp.GcpRetrySettings;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
@@ -716,51 +717,9 @@ public class GcpTransformer {
    * @throws InvalidArgumentException if retryConfig is null
    */
   public RetrySettings toGcpRetrySettings(RetryConfig retryConfig) {
-    if (retryConfig == null) {
-      throw new InvalidArgumentException("RetryConfig cannot be null");
-    }
     // StorageOptions applies these defaults only when no RetrySettings are set at all, and
     // RetrySettings.newBuilder() starts every field at 0, so start from the defaults explicitly.
-    RetrySettings.Builder settingsBuilder = ServiceOptions.getDefaultRetrySettings().toBuilder();
-
-    if (retryConfig.getMaxAttempts() != null) {
-      settingsBuilder.setMaxAttempts(retryConfig.getMaxAttempts());
-    }
-
-    if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
-      settingsBuilder
-          .setInitialRetryDelayDuration(Duration.ofMillis(retryConfig.getInitialDelayMillis()))
-          .setMaxRetryDelayDuration(Duration.ofMillis(retryConfig.getMaxDelayMillis()));
-      // 0 means unset, so the GCS default multiplier is kept.
-      if (retryConfig.getMultiplier() != 0) {
-        settingsBuilder.setRetryDelayMultiplier(retryConfig.getMultiplier());
-      }
-    } else if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
-      // FIXED mode is simulated by setting multiplier to 1.0 and both delays to the same value
-      settingsBuilder
-          .setInitialRetryDelayDuration(Duration.ofMillis(retryConfig.getFixedDelayMillis()))
-          .setRetryDelayMultiplier(1.0)
-          .setMaxRetryDelayDuration(Duration.ofMillis(retryConfig.getFixedDelayMillis()));
-    }
-
-    if (retryConfig.getTotalTimeout() != null) {
-      settingsBuilder.setTotalTimeoutDuration(Duration.ofMillis(retryConfig.getTotalTimeout()));
-    } else {
-      // RetryConfig documents an unset totalTimeout as no limit. The GCS client treats a zero total
-      // timeout as unbounded, so retries stop only at maxAttempts instead of the 50s default.
-      settingsBuilder.setTotalTimeoutDuration(Duration.ZERO);
-    }
-
-    // Set attempt timeout if provided
-    if (retryConfig.getAttemptTimeout() != null) {
-      Duration attemptTimeout = Duration.ofMillis(retryConfig.getAttemptTimeout());
-      settingsBuilder
-          .setInitialRpcTimeoutDuration(attemptTimeout)
-          .setRpcTimeoutMultiplier(1.0)
-          .setMaxRpcTimeoutDuration(attemptTimeout);
-    }
-
-    return settingsBuilder.build();
+    return GcpRetrySettings.apply(ServiceOptions.getDefaultRetrySettings(), retryConfig);
   }
 
   /**

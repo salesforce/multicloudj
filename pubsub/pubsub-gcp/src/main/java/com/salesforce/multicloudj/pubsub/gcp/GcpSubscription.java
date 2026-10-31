@@ -27,6 +27,7 @@ import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
+import com.salesforce.multicloudj.common.gcp.GcpRetrySettings;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
@@ -143,7 +144,7 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
             settingsBuilder.modifyAckDeadlineSettings(),
             settingsBuilder.getSubscriptionSettings())) {
       callSettings.setRetrySettings(
-          RetrySettingsUtil.apply(callSettings.getRetrySettings(), retryConfig));
+          GcpRetrySettings.apply(callSettings.getRetrySettings(), retryConfig));
     }
   }
 

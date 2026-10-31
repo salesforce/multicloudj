@@ -3,17 +3,21 @@ package com.salesforce.multicloudj.docstore.gcp;
 import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.rpc.AbortedException;
 import com.google.api.gax.rpc.ApiException;
+import com.google.api.gax.rpc.ServerStreamingCallSettings;
 import com.google.api.gax.rpc.StatusCode;
+import com.google.api.gax.rpc.UnaryCallSettings;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auto.service.AutoService;
 import com.google.cloud.firestore.v1.FirestoreClient;
 import com.google.cloud.firestore.v1.FirestoreSettings;
 import com.google.firestore.v1.BatchGetDocumentsRequest;
+import com.google.firestore.v1.BatchGetDocumentsResponse;
 import com.google.firestore.v1.CommitRequest;
 import com.google.firestore.v1.CommitResponse;
 import com.google.firestore.v1.DocumentMask;
 import com.google.firestore.v1.Precondition;
 import com.google.firestore.v1.RunQueryRequest;
+import com.google.firestore.v1.RunQueryResponse;
 import com.google.firestore.v1.StructuredQuery;
 import com.google.firestore.v1.Value;
 import com.google.firestore.v1.Write;
@@ -26,6 +30,8 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
+import com.salesforce.multicloudj.common.gcp.GcpRetrySettings;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.Action;
@@ -1084,11 +1090,36 @@ public class FSDocStore extends AbstractDocStore {
             .filter(h -> !h.isEmpty())
             .ifPresent(
                 host -> settingsBuilder.setCredentialsProvider(NoCredentialsProvider.create()));
+        if (getRetryConfig() != null) {
+          applyRetryConfig(settingsBuilder, getRetryConfig());
+        }
         // Build the client
         return FirestoreClient.create(settingsBuilder.build());
       } catch (Exception e) {
         throw new SubstrateSdkException("Failed to build Firestore V1 client", e);
       }
+    }
+
+    /**
+     * Overlays {@code retryConfig} onto the per-method retry settings of the Firestore RPCs this
+     * driver issues: commit for writes, batchGetDocuments for gets and runQuery for queries.
+     */
+    static void applyRetryConfig(
+        FirestoreSettings.Builder settingsBuilder, RetryConfig retryConfig) {
+      UnaryCallSettings.Builder<CommitRequest, CommitResponse> commitSettings =
+          settingsBuilder.commitSettings();
+      commitSettings.setRetrySettings(
+          GcpRetrySettings.apply(commitSettings.getRetrySettings(), retryConfig));
+
+      ServerStreamingCallSettings.Builder<BatchGetDocumentsRequest, BatchGetDocumentsResponse>
+          batchGetSettings = settingsBuilder.batchGetDocumentsSettings();
+      batchGetSettings.setRetrySettings(
+          GcpRetrySettings.apply(batchGetSettings.getRetrySettings(), retryConfig));
+
+      ServerStreamingCallSettings.Builder<RunQueryRequest, RunQueryResponse> runQuerySettings =
+          settingsBuilder.runQuerySettings();
+      runQuerySettings.setRetrySettings(
+          GcpRetrySettings.apply(runQuerySettings.getRetrySettings(), retryConfig));
     }
 
     @Override
