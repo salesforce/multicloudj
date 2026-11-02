@@ -105,6 +105,27 @@ class AwsStsUtilitiesTest {
   }
 
   @Test
+  void customHeaderValueWhitespaceIsNormalizedLikeAwsSdkSigner() {
+    String[][] cases = {{"a  b", "a b"}, {" lead", "lead"}, {"trail ", "trail"}, {"a\tb", "a b"}};
+    for (String[] c : cases) {
+      SignOptions options = SignOptions.builder().withCustomHeader("x-foo", c[0]).build();
+      SignedAuthRequest signed =
+          signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+      Assertions.assertEquals(
+          SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+          signed.getRequest().headers().firstValue("authorization").orElseThrow(),
+          c[0]);
+      Assertions.assertEquals(
+          c[1], signed.getRequest().headers().firstValue("x-foo").orElseThrow(), c[0]);
+      Assertions.assertEquals(
+          c[1],
+          parseQuery(URI.create(signed.getSignedIdentity()).getRawQuery()).get("x-foo"),
+          c[0]);
+    }
+  }
+
+  @Test
   void customHeaderCollidingWithSignerHeaderIsRejected() {
     for (String name :
         new String[] {
