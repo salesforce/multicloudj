@@ -120,21 +120,28 @@ class AliStsUtilitiesTest {
   }
 
   @Test
-  void endpointWithPortOrPathIsRejected() {
+  void endpointWithPathQueryOrFragmentIsRejected() {
     for (String endpoint :
         new String[] {
-          "https://sts.example.com:8443",
           "https://sts.example.com/proxy",
           "https://sts.example.com/?a=b",
           "https://sts.example.com/#frag",
-          "https://sts.example.com?a=b",
-          "http://sts.example.com:443"
+          "https://sts.example.com?a=b"
         }) {
-      StsUtilities stsUtil = endpointSigner(endpoint);
+      StsUtilities.StsUtilityBuilder builder = StsUtilities.builder("ali");
       Assertions.assertThrows(
           InvalidArgumentException.class,
-          () -> stsUtil.newCloudNativeAuthSignedRequest(null),
+          () -> builder.withEndpoint(URI.create(endpoint)),
           endpoint);
+    }
+  }
+
+  @Test
+  void endpointWithNonDefaultPortIsRejectedAtBuild() {
+    for (String endpoint :
+        new String[] {"https://sts.example.com:8443", "http://sts.example.com:443"}) {
+      Assertions.assertThrows(
+          InvalidArgumentException.class, () -> endpointSigner(endpoint), endpoint);
     }
   }
 

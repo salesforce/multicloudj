@@ -267,10 +267,10 @@ class AwsStsUtilitiesTest {
   @Test
   void endpointWithPathQueryOrFragmentIsRejected() {
     for (String endpoint : new String[] {"https://h/proxy", "https://h/?a=b", "https://h/#frag"}) {
-      AwsStsUtilities utilities = signer(FIXED_CLOCK, REGION, URI.create(endpoint));
+      AwsStsUtilities.Builder builder = new AwsStsUtilities.Builder();
       Assertions.assertThrows(
           InvalidArgumentException.class,
-          () -> utilities.newCloudNativeAuthSignedRequest(formRequest(), null),
+          () -> builder.withEndpoint(URI.create(endpoint)),
           endpoint);
     }
   }

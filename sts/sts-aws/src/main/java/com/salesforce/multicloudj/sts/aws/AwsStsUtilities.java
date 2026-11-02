@@ -207,19 +207,11 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
 
   /**
    * Returns the root URI the request is signed against: the configured endpoint, or the regional
-   * default. The SigV4 canonical URI is fixed at {@code /}, so an endpoint path cannot be signed,
-   * and a query or fragment would not be covered by the signature.
+   * default. The builder has already rejected an endpoint path, query, or fragment.
    */
   private URI signingUri() {
     if (endpoint == null) {
       return URI.create(String.format(SIGN_STS_ENDPOINT, region));
-    }
-    String path = endpoint.getRawPath();
-    if ((path != null && !path.isEmpty() && !"/".equals(path))
-        || endpoint.getRawQuery() != null
-        || endpoint.getRawFragment() != null) {
-      throw new InvalidArgumentException(
-          "endpoint must not have a path, query, or fragment: " + endpoint);
     }
     // Built from scheme, host, and port alone so the URI and the signed host header cannot differ.
     String scheme = endpoint.getScheme().toLowerCase(Locale.ROOT);
