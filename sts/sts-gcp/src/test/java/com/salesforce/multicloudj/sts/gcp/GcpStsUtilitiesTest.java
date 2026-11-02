@@ -257,8 +257,8 @@ class GcpStsUtilitiesTest {
   }
 
   @Test
-  void registeredClaimNamesAreRejectedAsCustomHeaders() {
-    for (String name : new String[] {"iss", "sub", "aud", "iat", "exp", "nbf", "jti", "ISS"}) {
+  void signerOwnedClaimNamesAreRejectedAsCustomHeaders() {
+    for (String name : new String[] {"iss", "sub", "iat", "exp", "nbf", "ISS"}) {
       SignOptions signOptions = SignOptions.builder().withCustomHeader(name, "v").build();
       InvalidArgumentException e =
           Assertions.assertThrows(
@@ -270,6 +270,23 @@ class GcpStsUtilitiesTest {
               + "\" is reserved by the signer",
           e.getMessage());
     }
+  }
+
+  @Test
+  void audienceAndJwtIdAreAllowedAsCustomHeaders() throws Exception {
+    SignOptions signOptions =
+        SignOptions.builder()
+            .withCustomHeader("aud", "https://service.example.com")
+            .withCustomHeader("jti", "request-1")
+            .build();
+    SignedAuthRequest signed = signer().newCloudNativeAuthSignedRequest(null, signOptions);
+
+    JsonWebSignature.Payload claims =
+        JsonWebSignature.parse(GsonFactory.getDefaultInstance(), signed.getSignedIdentity())
+            .getPayload();
+    Assertions.assertEquals("https://service.example.com", claims.get("aud"));
+    Assertions.assertEquals("request-1", claims.get("jti"));
+    Assertions.assertEquals(SERVICE_ACCOUNT, claims.getIssuer());
   }
 
   @Test

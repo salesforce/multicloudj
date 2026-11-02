@@ -63,8 +63,10 @@ import org.apache.commons.lang3.StringUtils;
  */
 @AutoService(AbstractStsUtilities.class)
 public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
-  private static final Set<String> RESERVED_CLAIMS =
-      Set.of("iss", "sub", "aud", "iat", "exp", "nbf", "jti");
+  // Claims the signer sets itself, plus nbf: custom header values are strings, and a string nbf is
+  // not a valid JWT NumericDate. Other registered claims such as aud and jti are left to the
+  // caller, who may supply them as custom headers.
+  private static final Set<String> RESERVED_CLAIMS = Set.of("iss", "sub", "iat", "exp", "nbf");
   private static final long JWT_EXPIRY_SECONDS = 300L;
   private static final String SCOPE = "https://www.googleapis.com/auth/cloud-platform";
   private static final String SA_NAME_FORMAT = "projects/-/serviceAccounts/%s";
@@ -131,7 +133,7 @@ public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
       options = SignOptions.builder().build();
     }
 
-    // Registered claims identify and bound the token, so a custom header must not replace them.
+    // These claims identify and bound the token, so a custom header must not replace them.
     for (String name : options.getCustomHeaders().keySet()) {
       if (RESERVED_CLAIMS.contains(name)) {
         throw new InvalidArgumentException(

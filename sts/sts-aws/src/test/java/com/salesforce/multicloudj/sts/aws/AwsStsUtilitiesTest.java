@@ -132,9 +132,7 @@ class AwsStsUtilitiesTest {
           "X-Amz-Date",
           "host",
           "Authorization",
-          "x-amz-security-token",
-          "content-type",
-          "x-request-hash"
+          "x-amz-security-token"
         }) {
       SignOptions options = SignOptions.builder().withCustomHeader(name, "v").build();
       Assertions.assertThrows(
@@ -142,6 +140,25 @@ class AwsStsUtilitiesTest {
           () -> signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options),
           name);
     }
+  }
+
+  @Test
+  void customContentTypeAndRequestHashReplaceGeneratedValues() {
+    SignOptions options =
+        SignOptions.builder()
+            .withCustomHeader("Content-Type", "application/x-www-form-urlencoded")
+            .withCustomHeader("X-Request-Hash", "caller-hash")
+            .build();
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+    Map<String, List<String>> headers = signed.getRequest().headers().map();
+    Assertions.assertEquals(
+        List.of("application/x-www-form-urlencoded"), headers.get("Content-Type"));
+    Assertions.assertEquals(List.of("caller-hash"), headers.get("X-Request-Hash"));
+    Assertions.assertEquals(
+        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        signed.getRequest().headers().firstValue("authorization").orElseThrow());
   }
 
   @Test
