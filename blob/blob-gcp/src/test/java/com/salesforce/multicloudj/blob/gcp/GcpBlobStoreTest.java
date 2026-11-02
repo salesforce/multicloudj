@@ -47,6 +47,7 @@ import com.google.cloud.storage.CopyWriter;
 import com.google.cloud.storage.GrpcStorageOptions;
 import com.google.cloud.storage.HttpStorageOptions;
 import com.google.cloud.storage.MultipartUploadClient;
+import com.google.cloud.storage.ParallelCompositeUploadBlobWriteSessionConfig.PartNamingStrategy;
 import com.google.cloud.storage.RequestBody;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
@@ -68,6 +69,7 @@ import com.google.cloud.storage.transfermanager.DownloadResult;
 import com.google.cloud.storage.transfermanager.ParallelDownloadConfig;
 import com.google.cloud.storage.transfermanager.ParallelUploadConfig;
 import com.google.cloud.storage.transfermanager.TransferManager;
+import com.google.cloud.storage.transfermanager.TransferManagerConfig;
 import com.google.cloud.storage.transfermanager.TransferStatus;
 import com.google.cloud.storage.transfermanager.UploadJob;
 import com.google.cloud.storage.transfermanager.UploadResult;
@@ -295,6 +297,21 @@ class GcpBlobStoreTest {
     assertNotNull(store);
     assertEquals(GcpConstants.PROVIDER_ID, store.getProviderId());
     assertEquals(TEST_BUCKET, store.getBucket());
+  }
+
+  @Test
+  void testBuildTransferManagerConfig_namesPartsUnderDestinationObject() {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withBucket(TEST_BUCKET).withParallelUploadsEnabled(true);
+
+    TransferManagerConfig config =
+        GcpBlobStore.Builder.buildTransferManagerConfig(
+            builder, GcpBlobStore.Builder.buildStorageOptions(builder));
+
+    assertEquals(
+        PartNamingStrategy.useObjectNameAsPrefix(),
+        config.getParallelCompositeUploadPartNamingStrategy());
   }
 
   @Test

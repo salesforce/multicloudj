@@ -19,6 +19,7 @@ import com.google.cloud.storage.HttpMethod;
 import com.google.cloud.storage.HttpStorageOptions;
 import com.google.cloud.storage.MultipartUploadClient;
 import com.google.cloud.storage.MultipartUploadSettings;
+import com.google.cloud.storage.ParallelCompositeUploadBlobWriteSessionConfig.PartNamingStrategy;
 import com.google.cloud.storage.RequestBody;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
@@ -1875,6 +1876,11 @@ public class GcpBlobStore extends AbstractBlobStore {
       if (options == null) {
         return null;
       }
+      return buildTransferManagerConfig(builder, options).getService();
+    }
+
+    static TransferManagerConfig buildTransferManagerConfig(
+        Builder builder, StorageOptions options) {
       TransferManagerConfig.Builder configBuilder =
           TransferManagerConfig.newBuilder().setStorageOptions(options);
 
@@ -1904,11 +1910,23 @@ public class GcpBlobStore extends AbstractBlobStore {
           Objects.requireNonNullElse(builder.getParallelDownloadsEnabled(), Boolean.TRUE));
 
       // Map parallelUploadsEnabled -> setAllowParallelCompositeUpload.
+      // Known limitation: parallel composite upload builds each part from the destination
+      // BlobInfo, so parts inherit the retention and holds set by a directory upload with object
+      // lock. GCS then rejects deleting those parts during cleanup, leaving them behind and
+      // reporting the file as failed even though the composed object was created. The
+      // TransferManager API offers no way to strip these fields from parts
+      // (https://github.com/googleapis/google-cloud-java/issues/14892).
       if (builder.getParallelUploadsEnabled() != null) {
         configBuilder.setAllowParallelCompositeUpload(builder.getParallelUploadsEnabled());
       }
 
-      return configBuilder.build().getService();
+      // The GCS default names parallel composite upload parts at the bucket root, outside the
+      // destination key. Naming them after the destination object keeps part creation, compose
+      // and cleanup within any credential scope that covers the destination key's prefix.
+      configBuilder.setParallelCompositeUploadPartNamingStrategy(
+          PartNamingStrategy.useObjectNameAsPrefix());
+
+      return configBuilder.build();
     }
 
     private static CloseableHttpClient buildHttpClient(Builder builder) {
