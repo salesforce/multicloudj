@@ -53,14 +53,10 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
       DateTimeFormatter.ofPattern("yyyyMMdd").withLocale(Locale.US);
   private static final String REQUEST_HASH_HEADER = "x-request-hash";
   private static final String CONTENT_TYPE_HEADER = "content-type";
+  // Headers that carry the signing date, credentials, or host. content-type and x-request-hash are
+  // not listed: a caller may supply its own value, which replaces the generated one.
   private static final Set<String> SIGNER_OWNED_HEADERS =
-      Set.of(
-          "host",
-          "x-amz-date",
-          "x-amz-security-token",
-          "authorization",
-          "content-type",
-          REQUEST_HASH_HEADER);
+      Set.of("host", "x-amz-date", "x-amz-security-token", "authorization");
   // AWS SDK clients send these headers in this form, and some SigV4 verifiers look them up
   // case-sensitively. Signing still uses the lowercase canonical names.
   private static final Map<String, String> CONVENTIONAL_HEADER_NAMES =
@@ -161,7 +157,8 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
     }
     // Caller supplied custom headers (e.g. a federation target resource) are always signed. Names
     // arrive lowercase, as the SigV4 canonical rules require. Names the signer sets itself are
-    // rejected so a caller cannot replace the signing date, credentials, or host. Values are
+    // rejected so a caller cannot replace the signing date, credentials, or host. A custom
+    // content-type or x-request-hash replaces the generated value. Values are
     // normalized the way SigV4 canonicalizes them, so the value sent, the value signed, and the
     // value a verifier recomputes from are the same.
     for (Map.Entry<String, String> header : options.getCustomHeaders().entrySet()) {

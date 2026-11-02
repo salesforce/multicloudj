@@ -104,8 +104,44 @@ class GcpStsVerifierTest {
 
   @Test
   void mixedCaseExpectedClaimMatchesMixedCaseSignedClaim() throws Exception {
-    GcpStsUtilities signer =
-        new GcpStsUtilities.Builder()
+    String jwt =
+        localKeySigner()
+            .newCloudNativeAuthSignedRequest(
+                null, SignOptions.builder().withCustomHeader("X-Tenant", "t1").build())
+            .getSignedIdentity();
+    ValidateOptions options =
+        ValidateOptions.builder().withExpectedCustomHeader("X-TENANT", "t1").build();
+
+    CallerIdentity identity = verifier().verifySignedAuthRequest(jwt, options);
+
+    Assertions.assertEquals(SERVICE_ACCOUNT, identity.getUserId());
+  }
+
+  @Test
+  void audienceAndJwtIdCustomClaimsSignAndVerify() throws Exception {
+    String jwt =
+        localKeySigner()
+            .newCloudNativeAuthSignedRequest(
+                null,
+                SignOptions.builder()
+                    .withCustomHeader("aud", "https://service.example.com")
+                    .withCustomHeader("jti", "request-1")
+                    .build())
+            .getSignedIdentity();
+    ValidateOptions options =
+        ValidateOptions.builder()
+            .withExpectedCustomHeader("aud", "https://service.example.com")
+            .withExpectedCustomHeader("jti", "request-1")
+            .build();
+
+    CallerIdentity identity = verifier().verifySignedAuthRequest(jwt, options);
+
+    Assertions.assertEquals(SERVICE_ACCOUNT, identity.getUserId());
+  }
+
+  /** A real GcpStsUtilities whose IAM signJwt call is replaced by signing with the test key. */
+  private GcpStsUtilities localKeySigner() {
+    return new GcpStsUtilities.Builder()
             .build(
                 (serviceAccountName, payload) -> {
                   JsonWebToken.Payload claims =
@@ -125,17 +161,6 @@ class GcpStsVerifierTest {
                   }
                 },
                 SERVICE_ACCOUNT);
-    String jwt =
-        signer
-            .newCloudNativeAuthSignedRequest(
-                null, SignOptions.builder().withCustomHeader("X-Tenant", "t1").build())
-            .getSignedIdentity();
-    ValidateOptions options =
-        ValidateOptions.builder().withExpectedCustomHeader("X-TENANT", "t1").build();
-
-    CallerIdentity identity = verifier().verifySignedAuthRequest(jwt, options);
-
-    Assertions.assertEquals(SERVICE_ACCOUNT, identity.getUserId());
   }
 
   @Test
