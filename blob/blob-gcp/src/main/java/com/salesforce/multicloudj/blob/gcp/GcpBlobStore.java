@@ -1910,6 +1910,12 @@ public class GcpBlobStore extends AbstractBlobStore {
           Objects.requireNonNullElse(builder.getParallelDownloadsEnabled(), Boolean.TRUE));
 
       // Map parallelUploadsEnabled -> setAllowParallelCompositeUpload.
+      // Known limitation: parallel composite upload builds each part from the destination
+      // BlobInfo, so parts inherit the retention and holds set by a directory upload with object
+      // lock. GCS then rejects deleting those parts during cleanup, leaving them behind and
+      // reporting the file as failed even though the composed object was created. The
+      // TransferManager API offers no way to strip these fields from parts
+      // (https://github.com/googleapis/google-cloud-java/issues/14892).
       if (builder.getParallelUploadsEnabled() != null) {
         configBuilder.setAllowParallelCompositeUpload(builder.getParallelUploadsEnabled());
       }
