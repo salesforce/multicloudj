@@ -19,6 +19,7 @@ import com.google.cloud.storage.HttpMethod;
 import com.google.cloud.storage.HttpStorageOptions;
 import com.google.cloud.storage.MultipartUploadClient;
 import com.google.cloud.storage.MultipartUploadSettings;
+import com.google.cloud.storage.ParallelCompositeUploadBlobWriteSessionConfig.PartNamingStrategy;
 import com.google.cloud.storage.RequestBody;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
@@ -1875,6 +1876,11 @@ public class GcpBlobStore extends AbstractBlobStore {
       if (options == null) {
         return null;
       }
+      return buildTransferManagerConfig(builder, options).getService();
+    }
+
+    static TransferManagerConfig buildTransferManagerConfig(
+        Builder builder, StorageOptions options) {
       TransferManagerConfig.Builder configBuilder =
           TransferManagerConfig.newBuilder().setStorageOptions(options);
 
@@ -1908,7 +1914,13 @@ public class GcpBlobStore extends AbstractBlobStore {
         configBuilder.setAllowParallelCompositeUpload(builder.getParallelUploadsEnabled());
       }
 
-      return configBuilder.build().getService();
+      // The GCS default names parallel composite upload parts at the bucket root, outside the
+      // destination key. Naming them after the destination object keeps part creation, compose
+      // and cleanup within any credential scope that covers the destination key's prefix.
+      configBuilder.setParallelCompositeUploadPartNamingStrategy(
+          PartNamingStrategy.useObjectNameAsPrefix());
+
+      return configBuilder.build();
     }
 
     private static CloseableHttpClient buildHttpClient(Builder builder) {
