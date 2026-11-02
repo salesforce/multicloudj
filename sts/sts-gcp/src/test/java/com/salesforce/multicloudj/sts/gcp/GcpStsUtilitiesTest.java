@@ -94,10 +94,10 @@ class GcpStsUtilitiesTest {
   }
 
   @Test
-  void endpointWithPathQueryOrFragmentIsRejected() {
+  void endpointWithPathQueryFragmentOrHttpIsRejected() {
     for (String endpoint :
         new String[] {
-          "https://h/proxy", "https://h/?a=b", "https://h?a=b", "https://h/#frag"
+          "https://h/proxy", "https://h/?a=b", "https://h?a=b", "https://h/#frag", "http://h"
         }) {
       GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
 

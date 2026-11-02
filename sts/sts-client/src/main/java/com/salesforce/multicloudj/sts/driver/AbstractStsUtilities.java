@@ -85,11 +85,11 @@ public abstract class AbstractStsUtilities<T extends AbstractStsUtilities<T>> im
     /**
      * Sets the endpoint the provider uses to produce the signed identity.
      *
-     * @param endpoint The absolute http or https endpoint to set: a host and optional port, with no
-     *     path other than {@code /}.
+     * @param endpoint The absolute https endpoint to set: a host and optional port, with no path
+     *     other than {@code /}.
      * @return An instance of self
      * @throws InvalidArgumentException if the endpoint is null, not absolute, has no host, carries
-     *     user info, uses a scheme other than http or https, or has a path, query, or fragment.
+     *     user info, uses a scheme other than https, or has a path, query, or fragment.
      */
     public AbstractStsUtilities.Builder withEndpoint(URI endpoint) {
       validateEndpoint(endpoint);
@@ -98,7 +98,9 @@ public abstract class AbstractStsUtilities<T extends AbstractStsUtilities<T>> im
     }
 
     /**
-     * Checks the rules every provider shares. No provider can carry an endpoint path: the SigV4
+     * Checks the rules every provider shares. Only https is accepted: the verifiers reject signed
+     * identities for any other scheme, and the signed request carries credentials. No provider can
+     * carry an endpoint path: the SigV4
      * canonical URI is fixed at {@code /}, and the other providers take a bare host. A query or
      * fragment would not be covered by the signature.
      */
@@ -106,9 +108,8 @@ public abstract class AbstractStsUtilities<T extends AbstractStsUtilities<T>> im
       if (endpoint == null || !endpoint.isAbsolute() || endpoint.getHost() == null) {
         throw new InvalidArgumentException("endpoint must be an absolute URI with a host");
       }
-      if (!"http".equalsIgnoreCase(endpoint.getScheme())
-          && !"https".equalsIgnoreCase(endpoint.getScheme())) {
-        throw new InvalidArgumentException("endpoint scheme must be http or https: " + endpoint);
+      if (!"https".equalsIgnoreCase(endpoint.getScheme())) {
+        throw new InvalidArgumentException("endpoint scheme must be https: " + endpoint);
       }
       // User info in an endpoint would leak credentials into logs and request URLs.
       if (endpoint.getRawUserInfo() != null) {

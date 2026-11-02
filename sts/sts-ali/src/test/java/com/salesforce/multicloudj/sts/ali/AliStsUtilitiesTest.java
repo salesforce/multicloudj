@@ -120,13 +120,15 @@ class AliStsUtilitiesTest {
   }
 
   @Test
-  void endpointWithPathQueryOrFragmentIsRejected() {
+  void endpointWithPathQueryFragmentOrHttpIsRejected() {
     for (String endpoint :
         new String[] {
           "https://sts.example.com/proxy",
           "https://sts.example.com/?a=b",
           "https://sts.example.com/#frag",
-          "https://sts.example.com?a=b"
+          "https://sts.example.com?a=b",
+          "http://sts.example.com",
+          "http://sts.example.com:443"
         }) {
       StsUtilities.StsUtilityBuilder builder = StsUtilities.builder("ali");
       Assertions.assertThrows(
@@ -138,11 +140,8 @@ class AliStsUtilitiesTest {
 
   @Test
   void endpointWithNonDefaultPortIsRejectedAtBuild() {
-    for (String endpoint :
-        new String[] {"https://sts.example.com:8443", "http://sts.example.com:443"}) {
-      Assertions.assertThrows(
-          InvalidArgumentException.class, () -> endpointSigner(endpoint), endpoint);
-    }
+    Assertions.assertThrows(
+        InvalidArgumentException.class, () -> endpointSigner("https://sts.example.com:8443"));
   }
 
   private static StsUtilities endpointSigner(String endpoint) {

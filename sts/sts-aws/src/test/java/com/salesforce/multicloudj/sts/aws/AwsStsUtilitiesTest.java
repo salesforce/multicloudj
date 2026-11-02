@@ -251,17 +251,14 @@ class AwsStsUtilitiesTest {
   }
 
   @Test
-  void endpointWithHttpDefaultPortOmitsPort() {
-    SignedAuthRequest signed =
-        signer(FIXED_CLOCK, REGION, URI.create("http://localhost:80"))
-            .newCloudNativeAuthSignedRequest(formRequest(), null);
-
-    Assertions.assertEquals(URI.create("http://localhost/"), signed.getRequest().uri());
-    Assertions.assertTrue(
-        signed.getSignedIdentity().startsWith("http://localhost/?"), signed.getSignedIdentity());
-    Assertions.assertEquals(
-        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
-        signed.getRequest().headers().firstValue("authorization").orElseThrow());
+  void httpEndpointIsRejected() {
+    for (String endpoint : new String[] {"http://localhost", "http://localhost:80"}) {
+      AwsStsUtilities.Builder builder = new AwsStsUtilities.Builder();
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> builder.withEndpoint(URI.create(endpoint)),
+          endpoint);
+    }
   }
 
   @Test

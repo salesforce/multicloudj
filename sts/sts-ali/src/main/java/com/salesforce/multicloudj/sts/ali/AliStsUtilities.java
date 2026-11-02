@@ -126,15 +126,14 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
 
   /**
    * The request domain is a bare host, so a non-default port cannot be carried and is rejected
-   * rather than silently dropped. A port equal to the scheme default is the same as no port.
+   * rather than silently dropped. Port 443, the https default, is the same as no port.
    */
   private void validateEndpointPort() {
     if (endpoint == null) {
       return;
     }
     int port = endpoint.getPort();
-    int defaultPort = "http".equalsIgnoreCase(endpoint.getScheme()) ? 80 : 443;
-    if (port != -1 && port != defaultPort) {
+    if (port != -1 && port != 443) {
       throw new InvalidArgumentException(
           "endpoint must not have a non-default port: " + endpoint);
     }
