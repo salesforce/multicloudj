@@ -2,8 +2,10 @@ package com.salesforce.multicloudj.sts.driver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -97,5 +99,35 @@ class AbstractStsUtilitiesTest {
     TestStsUtilities stsUtilities = stsUtilitiesDriver.build();
 
     assertEquals(endpoint, stsUtilities.endpoint);
+  }
+
+  @Test
+  void driverBuilderRejectsInvalidEndpoint() {
+    for (String endpoint :
+        new String[] {
+          "sts.example.com",
+          "https:///x",
+          "https://user:secret@sts.example.com",
+          "ftp://sts.example.com",
+          "https://sts.example.com/proxy",
+          "https://sts.example.com/?a=b",
+          "https://sts.example.com?a=b",
+          "https://sts.example.com/#frag"
+        }) {
+      assertThrows(
+          InvalidArgumentException.class,
+          () -> stsUtilitiesDriver.withEndpoint(URI.create(endpoint)),
+          endpoint);
+    }
+    assertThrows(InvalidArgumentException.class, () -> stsUtilitiesDriver.withEndpoint(null));
+  }
+
+  @Test
+  void driverBuilderAcceptsHostWithOptionalPortAndRootPath() {
+    for (String endpoint :
+        new String[] {"https://sts.example.com", "HTTPS://sts.example.com/", "https://h:8443"}) {
+      stsUtilitiesDriver.withEndpoint(URI.create(endpoint));
+      assertEquals(URI.create(endpoint), stsUtilitiesDriver.build().endpoint, endpoint);
+    }
   }
 }

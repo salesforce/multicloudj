@@ -37,6 +37,7 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
 
   public AliStsUtilities(Builder builder) {
     super(builder);
+    validateEndpointPort();
   }
 
   public AliStsUtilities() {
@@ -124,27 +125,24 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
   }
 
   /**
-   * Returns the domain the request is signed for. The request domain is a bare host, so a
-   * non-default port, path, query, or fragment cannot be carried and is rejected rather than
-   * silently dropped. A port equal to the scheme default is the same as no port.
+   * The request domain is a bare host, so a non-default port cannot be carried and is rejected
+   * rather than silently dropped. A port equal to the scheme default is the same as no port.
    */
-  private String signingDomain() {
+  private void validateEndpointPort() {
     if (endpoint == null) {
-      return String.format(SIGN_STS_ENDPOINT, region);
+      return;
     }
-    String path = endpoint.getRawPath();
     int port = endpoint.getPort();
     int defaultPort = "http".equalsIgnoreCase(endpoint.getScheme()) ? 80 : 443;
-    boolean extraPort = port != -1 && port != defaultPort;
-    if (extraPort
-        || (path != null && !path.isEmpty() && !"/".equals(path))
-        || endpoint.getRawQuery() != null
-        || endpoint.getRawFragment() != null) {
+    if (port != -1 && port != defaultPort) {
       throw new InvalidArgumentException(
-          "endpoint must be a bare host without a non-default port, path, query, or fragment: "
-              + endpoint);
+          "endpoint must not have a non-default port: " + endpoint);
     }
-    return endpoint.getHost();
+  }
+
+  /** Returns the domain the request is signed for: the endpoint host, or the regional default. */
+  private String signingDomain() {
+    return endpoint == null ? String.format(SIGN_STS_ENDPOINT, region) : endpoint.getHost();
   }
 
   public static class Builder extends AbstractStsUtilities.Builder<AliStsUtilities> {

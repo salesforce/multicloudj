@@ -100,12 +100,11 @@ class GcpStsUtilitiesTest {
           "https://h/proxy", "https://h/?a=b", "https://h?a=b", "https://h/#frag"
         }) {
       GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
-      builder.withEndpoint(URI.create(endpoint));
-      GcpStsUtilities utilities = builder.build();
-      GoogleCredentials creds = Mockito.mock(GoogleCredentials.class);
 
       Assertions.assertThrows(
-          InvalidArgumentException.class, () -> utilities.iamCredentialsSettings(creds), endpoint);
+          InvalidArgumentException.class,
+          () -> builder.withEndpoint(URI.create(endpoint)),
+          endpoint);
     }
   }
 

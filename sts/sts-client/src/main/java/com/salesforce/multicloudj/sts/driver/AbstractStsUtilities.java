@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.sts.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.SignOptions;
@@ -84,12 +85,42 @@ public abstract class AbstractStsUtilities<T extends AbstractStsUtilities<T>> im
     /**
      * Sets the endpoint the provider uses to produce the signed identity.
      *
-     * @param endpoint The endpoint to set.
+     * @param endpoint The absolute http or https endpoint to set: a host and optional port, with no
+     *     path other than {@code /}.
      * @return An instance of self
+     * @throws InvalidArgumentException if the endpoint is null, not absolute, has no host, carries
+     *     user info, uses a scheme other than http or https, or has a path, query, or fragment.
      */
     public AbstractStsUtilities.Builder withEndpoint(URI endpoint) {
+      validateEndpoint(endpoint);
       this.endpoint = endpoint;
       return this;
+    }
+
+    /**
+     * Checks the rules every provider shares. No provider can carry an endpoint path: the SigV4
+     * canonical URI is fixed at {@code /}, and the other providers take a bare host. A query or
+     * fragment would not be covered by the signature.
+     */
+    private static void validateEndpoint(URI endpoint) {
+      if (endpoint == null || !endpoint.isAbsolute() || endpoint.getHost() == null) {
+        throw new InvalidArgumentException("endpoint must be an absolute URI with a host");
+      }
+      if (!"http".equalsIgnoreCase(endpoint.getScheme())
+          && !"https".equalsIgnoreCase(endpoint.getScheme())) {
+        throw new InvalidArgumentException("endpoint scheme must be http or https: " + endpoint);
+      }
+      // User info in an endpoint would leak credentials into logs and request URLs.
+      if (endpoint.getRawUserInfo() != null) {
+        throw new InvalidArgumentException("endpoint must not contain user info");
+      }
+      String path = endpoint.getRawPath();
+      if ((path != null && !path.isEmpty() && !"/".equals(path))
+          || endpoint.getRawQuery() != null
+          || endpoint.getRawFragment() != null) {
+        throw new InvalidArgumentException(
+            "endpoint must not have a path, query, or fragment: " + endpoint);
+      }
     }
 
     @Override
