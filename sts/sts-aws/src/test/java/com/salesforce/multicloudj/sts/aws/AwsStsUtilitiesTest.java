@@ -2,14 +2,18 @@ package com.salesforce.multicloudj.sts.aws;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.client.StsUtilities;
+import com.salesforce.multicloudj.sts.driver.FlowCollector;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.net.http.HttpRequest;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
@@ -17,10 +21,18 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.auth.signer.Aws4Signer;
+import software.amazon.awssdk.auth.signer.params.Aws4SignerParams;
+import software.amazon.awssdk.http.SdkHttpFullRequest;
+import software.amazon.awssdk.http.SdkHttpMethod;
+import software.amazon.awssdk.regions.Region;
 
 class AwsStsUtilitiesTest {
 
@@ -64,7 +76,7 @@ class AwsStsUtilitiesTest {
         signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), null);
 
     Assertions.assertEquals(
-        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        awsSdkAuthorization(signed),
         signed.getRequest().headers().firstValue("authorization").orElseThrow());
   }
 
@@ -82,7 +94,7 @@ class AwsStsUtilitiesTest {
     Assertions.assertTrue(
         authorization.contains("SignedHeaders=host;x-amz-date;x-amz-security-token,"));
     Assertions.assertEquals(
-        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK), authorization);
+        awsSdkAuthorization(signed), authorization);
   }
 
   @Test
@@ -101,7 +113,7 @@ class AwsStsUtilitiesTest {
                 + "x-request-hash;x-vault-aws-iam-server-id,"),
         authorization);
     Assertions.assertEquals(
-        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK), authorization);
+        awsSdkAuthorization(signed), authorization);
   }
 
   @Test
@@ -113,7 +125,7 @@ class AwsStsUtilitiesTest {
           signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
 
       Assertions.assertEquals(
-          SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+          awsSdkAuthorization(signed),
           signed.getRequest().headers().firstValue("authorization").orElseThrow(),
           c[0]);
       Assertions.assertEquals(
@@ -157,7 +169,7 @@ class AwsStsUtilitiesTest {
         List.of("application/x-www-form-urlencoded"), headers.get("Content-Type"));
     Assertions.assertEquals(List.of("caller-hash"), headers.get("X-Request-Hash"));
     Assertions.assertEquals(
-        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        awsSdkAuthorization(signed),
         signed.getRequest().headers().firstValue("authorization").orElseThrow());
   }
 
@@ -194,7 +206,7 @@ class AwsStsUtilitiesTest {
         names.containsAll(List.of("Authorization", "X-Amz-Date", "X-Amz-Security-Token")),
         names.toString());
     Assertions.assertEquals(
-        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        awsSdkAuthorization(signed),
         signed.getRequest().headers().firstValue("Authorization").orElseThrow());
   }
 
@@ -233,7 +245,7 @@ class AwsStsUtilitiesTest {
         signed.getSignedIdentity().startsWith("https://sts.amazonaws.com/?"),
         signed.getSignedIdentity());
     Assertions.assertEquals(
-        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        awsSdkAuthorization(signed),
         signed.getRequest().headers().firstValue("authorization").orElseThrow());
   }
 
@@ -248,7 +260,7 @@ class AwsStsUtilitiesTest {
         signed.getSignedIdentity().startsWith("https://localhost:8443/?"),
         signed.getSignedIdentity());
     Assertions.assertEquals(
-        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        awsSdkAuthorization(signed),
         signed.getRequest().headers().firstValue("authorization").orElseThrow());
   }
 
@@ -263,7 +275,7 @@ class AwsStsUtilitiesTest {
         signed.getSignedIdentity().startsWith("https://sts.amazonaws.com/?"),
         signed.getSignedIdentity());
     Assertions.assertEquals(
-        SigV4Oracle.authorization(signed, CREDS, REGION, FIXED_CLOCK),
+        awsSdkAuthorization(signed),
         signed.getRequest().headers().firstValue("authorization").orElseThrow());
   }
 
@@ -565,6 +577,70 @@ class AwsStsUtilitiesTest {
       restoreProperty("aws.accessKeyId", priorAccessKey);
       restoreProperty("aws.secretAccessKey", priorSecretKey);
     }
+  }
+
+  /**
+   * Returns the Authorization header value the AWS SDK's own SigV4 signer computes for a request
+   * produced by the signer under test, so tests can assert the two signatures are equal. All
+   * signing is delegated to the SDK.
+   *
+   * <p>{@link Aws4Signer} is deprecated, but it is the SDK signer that signs only the headers
+   * present on the request. Its replacement, {@code AwsV4HttpSigner}, always adds and signs an
+   * {@code x-amz-content-sha256} header, so its signature could never match.
+   */
+  @SuppressWarnings("deprecation")
+  private static String awsSdkAuthorization(SignedAuthRequest signed) {
+    HttpRequest request = signed.getRequest();
+    SdkHttpFullRequest.Builder sdkRequest =
+        SdkHttpFullRequest.builder()
+            .method(SdkHttpMethod.fromValue(request.method()))
+            .uri(request.uri());
+    // The SDK signer derives the date, session token, and Authorization headers itself.
+    Set<String> signerOutputs = Set.of("authorization", "x-amz-date", "x-amz-security-token");
+    request
+        .headers()
+        .map()
+        .forEach(
+            (name, values) -> {
+              if (!signerOutputs.contains(name.toLowerCase(Locale.ROOT))) {
+                sdkRequest.putHeader(name, values);
+              }
+            });
+    byte[] body = bodyOf(request);
+    sdkRequest.contentStreamProvider(() -> new ByteArrayInputStream(body));
+
+    SdkHttpFullRequest result =
+        Aws4Signer.create()
+            .sign(
+                sdkRequest.build(),
+                Aws4SignerParams.builder()
+                    .awsCredentials(
+                        AwsSessionCredentials.create(
+                            CREDS.getAccessKeyId(),
+                            CREDS.getAccessKeySecret(),
+                            CREDS.getSecurityToken()))
+                    .signingName("sts")
+                    .signingRegion(Region.of(REGION))
+                    .signingClockOverride(FIXED_CLOCK)
+                    .build());
+    return result.firstMatchingHeader("Authorization").orElseThrow();
+  }
+
+  private static byte[] bodyOf(HttpRequest request) {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    request
+        .bodyPublisher()
+        .ifPresent(
+            publisher -> {
+              FlowCollector<ByteBuffer> collector = new FlowCollector<>();
+              publisher.subscribe(collector);
+              for (ByteBuffer buffer : collector.items().join()) {
+                byte[] chunk = new byte[buffer.remaining()];
+                buffer.get(chunk);
+                out.writeBytes(chunk);
+              }
+            });
+    return out.toByteArray();
   }
 
   private static void restoreProperty(String key, String priorValue) {
