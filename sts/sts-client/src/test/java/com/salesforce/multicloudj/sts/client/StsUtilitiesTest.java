@@ -73,7 +73,7 @@ class StsUtilitiesTest {
   }
 
   @Test
-  public void withEndpointRejectsUserInfoAndNonHttpScheme() {
+  public void withEndpointRejectsUserInfoAndNonHttpsScheme() {
     TestConcreteAbstractStsUtilities provider = new TestConcreteAbstractStsUtilities();
     ServiceLoader<TestConcreteAbstractStsUtilities> serviceLoader = mock(ServiceLoader.class);
     when(serviceLoader.iterator()).thenReturn(List.of(provider).iterator());
@@ -91,7 +91,9 @@ class StsUtilitiesTest {
       assertThrows(
           InvalidArgumentException.class, () -> builder.withEndpoint(URI.create("ftp://h")));
       assertSame(builder, builder.withEndpoint(URI.create("HTTPS://sts.example.com")));
-      assertSame(builder, builder.withEndpoint(URI.create("http://localhost:8080")));
+      assertThrows(
+          InvalidArgumentException.class,
+          () -> builder.withEndpoint(URI.create("http://localhost:8080")));
     }
   }
 

@@ -109,6 +109,8 @@ class AbstractStsUtilitiesTest {
           "https:///x",
           "https://user:secret@sts.example.com",
           "ftp://sts.example.com",
+          "http://sts.example.com",
+          "http://sts.example.com:80",
           "https://sts.example.com/proxy",
           "https://sts.example.com/?a=b",
           "https://sts.example.com?a=b",

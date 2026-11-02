@@ -213,26 +213,22 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
     if (endpoint == null) {
       return URI.create(String.format(SIGN_STS_ENDPOINT, region));
     }
-    // Built from scheme, host, and port alone so the URI and the signed host header cannot differ.
-    String scheme = endpoint.getScheme().toLowerCase(Locale.ROOT);
-    return URI.create(scheme + "://" + endpoint.getHost() + portSuffix(scheme, endpoint) + "/");
+    // Built from host and port alone so the URI and the signed host header cannot differ. The
+    // builder only accepts https.
+    return URI.create("https://" + endpoint.getHost() + portSuffix(endpoint) + "/");
   }
 
   /**
-   * The signed host header carries the port only when it is not the scheme default, matching the
+   * The signed host header carries the port only when it is not the https default, matching the
    * Host header an HTTP client sends.
    */
   private static String hostHeaderValue(URI uri) {
-    return uri.getHost() + portSuffix(uri.getScheme(), uri);
+    return uri.getHost() + portSuffix(uri);
   }
 
-  private static String portSuffix(String scheme, URI uri) {
+  private static String portSuffix(URI uri) {
     int port = uri.getPort();
-    boolean isDefault =
-        port == -1
-            || ("https".equalsIgnoreCase(scheme) && port == 443)
-            || ("http".equalsIgnoreCase(scheme) && port == 80);
-    return isDefault ? "" : ":" + port;
+    return port == -1 || port == 443 ? "" : ":" + port;
   }
 
   /**

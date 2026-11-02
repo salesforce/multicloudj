@@ -168,11 +168,11 @@ public class StsUtilities {
     /**
      * Sets the endpoint the provider uses to produce the signed identity.
      *
-     * @param endpoint The absolute http or https endpoint to set: a host and optional port, with no
-     *     path other than {@code /}.
+     * @param endpoint The absolute https endpoint to set: a host and optional port, with no path
+     *     other than {@code /}.
      * @return This StsUtilityBuilder instance.
      * @throws InvalidArgumentException if the endpoint is null, not absolute, has no host, carries
-     *     user info, uses a scheme other than http or https, or has a path, query, or fragment.
+     *     user info, uses a scheme other than https, or has a path, query, or fragment.
      */
     public StsUtilityBuilder withEndpoint(URI endpoint) {
       this.builder.withEndpoint(endpoint);
