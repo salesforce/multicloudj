@@ -161,13 +161,15 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
     }
     // Caller supplied custom headers (e.g. a federation target resource) are always signed. Names
     // arrive lowercase, as the SigV4 canonical rules require. Names the signer sets itself are
-    // rejected so a caller cannot replace the signing date, credentials, or host.
+    // rejected so a caller cannot replace the signing date, credentials, or host. Values are
+    // normalized the way SigV4 canonicalizes them, so the value sent, the value signed, and the
+    // value a verifier recomputes from are the same.
     for (Map.Entry<String, String> header : options.getCustomHeaders().entrySet()) {
       if (SIGNER_OWNED_HEADERS.contains(header.getKey())) {
         throw new InvalidArgumentException(
             "custom header \"" + header.getKey() + "\" is reserved by the signer");
       }
-      headers.put(header.getKey(), header.getValue());
+      headers.put(header.getKey(), canonicalHeaderValue(header.getValue()));
     }
 
     // Authorization is not itself a signed header, so it is added after signing. host was signed
@@ -193,6 +195,14 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
     String signedIdentity = buildSignedIdentity(uri, headers);
 
     return new SignedAuthRequest(builder.build(), signingCredentials, signedIdentity);
+  }
+
+  /**
+   * Trims a header value and collapses each run of whitespace to a single space, as the SigV4
+   * canonical header rules require.
+   */
+  static String canonicalHeaderValue(String value) {
+    return value.trim().replaceAll("\\s+", " ");
   }
 
   /**

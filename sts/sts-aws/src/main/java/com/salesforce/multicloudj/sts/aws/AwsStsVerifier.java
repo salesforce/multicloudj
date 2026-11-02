@@ -157,7 +157,9 @@ public class AwsStsVerifier extends AbstractStsVerifier {
         throw new InvalidArgumentException(
             "expected custom header \"" + expected.getKey() + "\" not found in signed request");
       }
-      if (!actual.equals(expected.getValue())) {
+      // The signer normalizes header values as SigV4 does, so compare the normalized forms.
+      if (!AwsStsUtilities.canonicalHeaderValue(actual)
+          .equals(AwsStsUtilities.canonicalHeaderValue(expected.getValue()))) {
         throw new InvalidArgumentException(
             "custom header \"" + expected.getKey() + "\" has an unexpected value");
       }

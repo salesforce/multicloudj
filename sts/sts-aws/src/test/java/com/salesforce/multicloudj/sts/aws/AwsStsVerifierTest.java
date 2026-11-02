@@ -114,6 +114,23 @@ class AwsStsVerifierTest {
     Assertions.assertEquals("123456789012", identity.getAccountId());
   }
 
+  @Test
+  void expectedHeaderValueWhitespaceIsNormalizedLikeTheSigner() throws Exception {
+    AwsStsUtilities signerUtil = new AwsStsUtilities(signerBuilder(), Clock.systemUTC());
+    SignedAuthRequest signed =
+        signerUtil.newCloudNativeAuthSignedRequest(
+            null, SignOptions.builder().withCustomHeader("x-tenant", " t1  t2 ").build());
+    ValidateOptions options =
+        ValidateOptions.builder().withExpectedCustomHeader("x-tenant", " t1  t2 ").build();
+
+    CallerIdentity identity =
+        new AwsStsVerifier.Builder()
+            .build(okClient())
+            .verifySignedAuthRequest(signed.getSignedIdentity(), options);
+
+    Assertions.assertEquals("123456789012", identity.getAccountId());
+  }
+
   private static AwsStsUtilities.Builder signerBuilder() {
     AwsStsUtilities.Builder builder = new AwsStsUtilities.Builder();
     builder.withRegion("us-west-2");
