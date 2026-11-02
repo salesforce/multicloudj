@@ -993,6 +993,26 @@ public class GcpSubscriptionTest {
 
   @Test
   void testRetryConfigAppliedToAllSubscriptionCallSettings() throws Exception {
+    for (RetrySettings retrySettings :
+        subscriptionRetrySettings(
+            RetryConfig.builder().maxAttempts(7).totalTimeout(9000L).build())) {
+      assertEquals(7, retrySettings.getMaxAttempts());
+      assertEquals(9000L, retrySettings.getTotalTimeoutDuration().toMillis());
+    }
+  }
+
+  @Test
+  void testUnsetTotalTimeoutAppliesNoTotalTimeLimitToAllSubscriptionCallSettings()
+      throws Exception {
+    for (RetrySettings retrySettings :
+        subscriptionRetrySettings(RetryConfig.builder().maxAttempts(7).build())) {
+      assertEquals(7, retrySettings.getMaxAttempts());
+      assertEquals(java.time.Duration.ZERO, retrySettings.getTotalTimeoutDuration());
+    }
+  }
+
+  private List<RetrySettings> subscriptionRetrySettings(RetryConfig retryConfig)
+      throws Exception {
     @SuppressWarnings("unchecked")
     UnaryCallable<com.google.pubsub.v1.AcknowledgeRequest, Empty> mockCallable =
         mock(UnaryCallable.class);
@@ -1003,8 +1023,7 @@ public class GcpSubscriptionTest {
             (GcpSubscription.Builder)
                 new GcpSubscription.Builder()
                     .withSubscriptionName(VALID_SUBSCRIPTION_NAME)
-                    .withRetryConfig(
-                        RetryConfig.builder().maxAttempts(7).totalTimeout(9000L).build()));
+                    .withRetryConfig(retryConfig));
 
     try (MockedStatic<SubscriptionAdminClient> clientStatic =
         mockStatic(SubscriptionAdminClient.class)) {
@@ -1017,15 +1036,11 @@ public class GcpSubscriptionTest {
       subscriptionWithRetry.doSendAcks(List.of(new GcpSubscription.GcpAckID("ack-id")));
 
       SubscriptionAdminSettings settings = captor.getValue();
-      for (RetrySettings retrySettings :
-          List.of(
-              settings.pullSettings().getRetrySettings(),
-              settings.acknowledgeSettings().getRetrySettings(),
-              settings.modifyAckDeadlineSettings().getRetrySettings(),
-              settings.getSubscriptionSettings().getRetrySettings())) {
-        assertEquals(7, retrySettings.getMaxAttempts());
-        assertEquals(9000L, retrySettings.getTotalTimeoutDuration().toMillis());
-      }
+      return List.of(
+          settings.pullSettings().getRetrySettings(),
+          settings.acknowledgeSettings().getRetrySettings(),
+          settings.modifyAckDeadlineSettings().getRetrySettings(),
+          settings.getSubscriptionSettings().getRetrySettings());
     } finally {
       subscriptionWithRetry.close();
     }

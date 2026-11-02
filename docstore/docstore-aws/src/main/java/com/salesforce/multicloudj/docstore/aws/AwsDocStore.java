@@ -5,6 +5,7 @@ import static com.salesforce.multicloudj.docstore.aws.AwsCodec.encodeValue;
 
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.AwsRetryClassifier;
+import com.salesforce.multicloudj.common.aws.AwsRetryStrategies;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -1118,7 +1119,7 @@ public class AwsDocStore extends AbstractDocStore {
       providerId("aws");
     }
 
-    private static DynamoDbClient buildDDBClient(Builder builder) {
+    static DynamoDbClient buildDDBClient(Builder builder) {
       DynamoDbClientBuilder clientBuilder =
           DynamoDbClient.builder().region(Region.of(builder.getRegion()));
 
@@ -1131,6 +1132,11 @@ public class AwsDocStore extends AbstractDocStore {
 
       if (builder.getEndpoint() != null) {
         clientBuilder.endpointOverride(builder.getEndpoint());
+      }
+
+      if (builder.getRetryConfig() != null) {
+        clientBuilder.overrideConfiguration(
+            config -> AwsRetryStrategies.applyRetryConfig(config, builder.getRetryConfig()));
       }
 
       return clientBuilder.build();

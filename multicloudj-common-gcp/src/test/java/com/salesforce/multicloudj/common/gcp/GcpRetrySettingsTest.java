@@ -1,4 +1,4 @@
-package com.salesforce.multicloudj.pubsub.gcp;
+package com.salesforce.multicloudj.common.gcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -9,7 +9,7 @@ import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
-public class RetrySettingsUtilTest {
+public class GcpRetrySettingsTest {
 
   private static final RetrySettings BASE =
       RetrySettings.newBuilder()
@@ -34,12 +34,33 @@ public class RetrySettingsUtilTest {
             .maxDelayMillis(8000L)
             .build();
 
-    RetrySettings settings = RetrySettingsUtil.apply(BASE, config);
+    RetrySettings settings = GcpRetrySettings.apply(BASE, config);
 
     assertEquals(5, settings.getMaxAttempts());
     assertEquals(Duration.ofMillis(200), settings.getInitialRetryDelayDuration());
     assertEquals(3.0, settings.getRetryDelayMultiplier());
     assertEquals(Duration.ofMillis(8000), settings.getMaxRetryDelayDuration());
+  }
+
+  @Test
+  void testUnsetTotalTimeoutWithMaxAttemptsHasNoTimeLimit() {
+    RetryConfig config = RetryConfig.builder().maxAttempts(5).build();
+
+    RetrySettings settings = GcpRetrySettings.apply(BASE, config);
+
+    assertEquals(5, settings.getMaxAttempts());
+    assertEquals(Duration.ZERO, settings.getTotalTimeoutDuration());
+  }
+
+  @Test
+  void testUnsetTotalTimeoutWithoutMaxAttemptsKeepsBaseTotalTimeout() {
+    RetryConfig config =
+        RetryConfig.builder().mode(RetryConfig.Mode.FIXED).fixedDelayMillis(500L).build();
+
+    RetrySettings settings = GcpRetrySettings.apply(BASE, config);
+
+    assertEquals(0, settings.getMaxAttempts());
+    assertEquals(Duration.ofSeconds(60), settings.getTotalTimeoutDuration());
   }
 
   @Test
@@ -51,7 +72,7 @@ public class RetrySettingsUtilTest {
             .maxDelayMillis(8000L)
             .build();
 
-    RetrySettings settings = RetrySettingsUtil.apply(BASE, config);
+    RetrySettings settings = GcpRetrySettings.apply(BASE, config);
 
     assertEquals(2.0, settings.getRetryDelayMultiplier());
   }
@@ -61,7 +82,7 @@ public class RetrySettingsUtilTest {
     RetryConfig config =
         RetryConfig.builder().mode(RetryConfig.Mode.FIXED).fixedDelayMillis(500L).build();
 
-    RetrySettings settings = RetrySettingsUtil.apply(BASE, config);
+    RetrySettings settings = GcpRetrySettings.apply(BASE, config);
 
     assertEquals(Duration.ofMillis(500), settings.getInitialRetryDelayDuration());
     assertEquals(Duration.ofMillis(500), settings.getMaxRetryDelayDuration());
@@ -72,7 +93,7 @@ public class RetrySettingsUtilTest {
   void testUnsetFieldsKeepBaseValues() {
     RetryConfig config = RetryConfig.builder().totalTimeout(2000L).build();
 
-    RetrySettings settings = RetrySettingsUtil.apply(BASE, config);
+    RetrySettings settings = GcpRetrySettings.apply(BASE, config);
 
     assertEquals(Duration.ofMillis(2000), settings.getTotalTimeoutDuration());
     assertEquals(0, settings.getMaxAttempts());
@@ -88,7 +109,7 @@ public class RetrySettingsUtilTest {
   void testAttemptTimeoutSetsConstantRpcTimeout() {
     RetryConfig config = RetryConfig.builder().attemptTimeout(3000L).build();
 
-    RetrySettings settings = RetrySettingsUtil.apply(BASE, config);
+    RetrySettings settings = GcpRetrySettings.apply(BASE, config);
 
     assertEquals(Duration.ofMillis(3000), settings.getInitialRpcTimeoutDuration());
     assertEquals(Duration.ofMillis(3000), settings.getMaxRpcTimeoutDuration());
@@ -98,7 +119,7 @@ public class RetrySettingsUtilTest {
 
   @Test
   void testNullConfigRejected() {
-    assertThrows(InvalidArgumentException.class, () -> RetrySettingsUtil.apply(BASE, null));
+    assertThrows(InvalidArgumentException.class, () -> GcpRetrySettings.apply(BASE, null));
   }
 
   @Test
@@ -110,7 +131,7 @@ public class RetrySettingsUtilTest {
             .maxDelayMillis(500L)
             .build();
 
-    RetrySettings settings = RetrySettingsUtil.apply(BASE, config);
+    RetrySettings settings = GcpRetrySettings.apply(BASE, config);
 
     assertEquals(Duration.ofMillis(500L), settings.getMaxRetryDelayDuration());
   }

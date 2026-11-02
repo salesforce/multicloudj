@@ -23,6 +23,7 @@ import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
+import com.salesforce.multicloudj.common.gcp.GcpRetrySettings;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
@@ -211,7 +212,7 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
     }
     UnaryCallSettings.Builder<?, ?> publishSettings = settingsBuilder.publishSettings();
     publishSettings.setRetrySettings(
-        RetrySettingsUtil.apply(publishSettings.getRetrySettings(), retryConfig));
+        GcpRetrySettings.apply(publishSettings.getRetrySettings(), retryConfig));
   }
 
   /** Builder for creating GcpTopic instances. */

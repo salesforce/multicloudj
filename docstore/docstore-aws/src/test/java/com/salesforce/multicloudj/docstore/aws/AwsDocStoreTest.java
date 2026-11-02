@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.docstore.client.DocStoreClient;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.Action;
@@ -25,6 +26,7 @@ import java.io.IOException;
 import java.io.NotSerializableException;
 import java.lang.reflect.Field;
 import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,6 +42,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
@@ -1246,5 +1249,41 @@ public class AwsDocStoreTest {
     Assertions.assertFalse(replace.hasExpressionAttributeValues());
     Assertions.assertNull(put.conditionExpression());
     Assertions.assertFalse(put.hasExpressionAttributeNames());
+  }
+
+  @Test
+  void testBuildDDBClientAppliesRetryConfig() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .maxAttempts(4)
+            .initialDelayMillis(50)
+            .maxDelayMillis(500)
+            .attemptTimeout(1000L)
+            .totalTimeout(5000L)
+            .build();
+    AwsDocStore.Builder builder =
+        new AwsDocStore.Builder().withRegion("us-west-2").withRetryConfig(retryConfig);
+
+    try (DynamoDbClient client = AwsDocStore.Builder.buildDDBClient(builder)) {
+      ClientOverrideConfiguration config =
+          client.serviceClientConfiguration().overrideConfiguration();
+      Assertions.assertEquals(4, config.retryStrategy().orElseThrow().maxAttempts());
+      Assertions.assertEquals(
+          Duration.ofMillis(1000), config.apiCallAttemptTimeout().orElseThrow());
+      Assertions.assertEquals(Duration.ofMillis(5000), config.apiCallTimeout().orElseThrow());
+    }
+  }
+
+  @Test
+  void testBuildDDBClientWithoutRetryConfigKeepsSdkTimeouts() {
+    AwsDocStore.Builder builder = new AwsDocStore.Builder().withRegion("us-west-2");
+
+    try (DynamoDbClient client = AwsDocStore.Builder.buildDDBClient(builder)) {
+      ClientOverrideConfiguration config =
+          client.serviceClientConfiguration().overrideConfiguration();
+      Assertions.assertTrue(config.apiCallAttemptTimeout().isEmpty());
+      Assertions.assertTrue(config.apiCallTimeout().isEmpty());
+    }
   }
 }

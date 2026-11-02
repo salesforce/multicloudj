@@ -1,6 +1,8 @@
 package com.salesforce.multicloudj.docstore.client;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.ActionList;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
@@ -129,6 +131,22 @@ public class DocStoreClient {
     public DocStoreClientBuilder withCredentialsOverrider(
         CredentialsOverrider credentialsOverrider) {
       this.docStoreBuilder.withCredentialsOverrider(credentialsOverrider);
+      return this;
+    }
+
+    /**
+     * Sets the retry configuration applied to requests made to the provider.
+     *
+     * <p>If not set, the provider SDK's default retry behavior is used. When set, each provider
+     * maps the fields onto its native SDK's retry settings with the semantics documented on {@link
+     * RetryConfig}; a field the provider's SDK has no equivalent for is not applied.
+     *
+     * @param retryConfig The retry configuration
+     * @return This builder instance
+     * @throws InvalidArgumentException if the configuration is invalid
+     */
+    public DocStoreClientBuilder withRetryConfig(RetryConfig retryConfig) {
+      this.docStoreBuilder.withRetryConfig(retryConfig);
       return this;
     }
 

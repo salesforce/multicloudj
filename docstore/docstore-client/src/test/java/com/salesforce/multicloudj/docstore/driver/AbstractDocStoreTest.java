@@ -1,7 +1,9 @@
 package com.salesforce.multicloudj.docstore.driver;
 
 import com.google.protobuf.Timestamp;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.testtypes.Book;
 import com.salesforce.multicloudj.docstore.driver.testtypes.Person;
@@ -184,5 +186,31 @@ public class AbstractDocStoreTest {
             null,
             Map.of("price", 4, "author.lastName", "Frank"));
     Assertions.assertDoesNotThrow(() -> docStore.toDriverAction(update2));
+  }
+
+  @Test
+  void testWithRetryConfigStoresValidConfig() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(3)
+            .fixedDelayMillis(100)
+            .build();
+    TestDocStore.Builder builder = new TestDocStore.Builder().withRetryConfig(retryConfig);
+    Assertions.assertSame(retryConfig, builder.getRetryConfig());
+  }
+
+  @Test
+  void testWithRetryConfigAcceptsNull() {
+    TestDocStore.Builder builder = new TestDocStore.Builder().withRetryConfig(null);
+    Assertions.assertNull(builder.getRetryConfig());
+  }
+
+  @Test
+  void testWithRetryConfigRejectsInvalidConfig() {
+    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(0).build();
+    Assertions.assertThrows(
+        InvalidArgumentException.class,
+        () -> new TestDocStore.Builder().withRetryConfig(retryConfig));
   }
 }
