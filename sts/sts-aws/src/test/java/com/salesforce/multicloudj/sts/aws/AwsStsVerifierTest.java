@@ -142,6 +142,64 @@ class AwsStsVerifierTest {
   }
 
   @Test
+  void expectedHeaderMatchesSignedHeaderDifferingOnlyByCase() throws Exception {
+    // A signer that kept the caller's casing produces a mixed-case identity parameter.
+    String identity = IDENTITY.replace("x-target-resource=", "X-Target-Resource=");
+    ValidateOptions options =
+        ValidateOptions.builder()
+            .withExpectedCustomHeader("X-Target-Resource", "my-service")
+            .build();
+
+    CallerIdentity identityResult =
+        new AwsStsVerifier.Builder().build(okClient()).verifySignedAuthRequest(identity, options);
+
+    Assertions.assertEquals("123456789012", identityResult.getAccountId());
+  }
+
+  @Test
+  void headerDifferingOnlyByCaseWithWrongValueFails() {
+    AwsStsVerifier verifier = new AwsStsVerifier.Builder().build(mock(HttpClient.class));
+    String identity = IDENTITY.replace("x-target-resource=", "X-Target-Resource=");
+    ValidateOptions options =
+        ValidateOptions.builder().withExpectedCustomHeader("x-target-resource", "other").build();
+
+    Assertions.assertThrows(
+        InvalidArgumentException.class, () -> verifier.verifySignedAuthRequest(identity, options));
+  }
+
+  @Test
+  void exactLowercaseHeaderIsPreferredOverCaseVariant() throws Exception {
+    String identity = IDENTITY + "&X-Target-Resource=other";
+    ValidateOptions options =
+        ValidateOptions.builder()
+            .withExpectedCustomHeader("x-target-resource", "my-service")
+            .build();
+
+    CallerIdentity identityResult =
+        new AwsStsVerifier.Builder().build(okClient()).verifySignedAuthRequest(identity, options);
+
+    Assertions.assertEquals("123456789012", identityResult.getAccountId());
+  }
+
+  @Test
+  void ambiguousCaseVariantHeadersAreRejected() {
+    AwsStsVerifier verifier = new AwsStsVerifier.Builder().build(mock(HttpClient.class));
+    String identity =
+        IDENTITY.replace("x-target-resource=my-service", "X-Target-Resource=my-service")
+            + "&X-TARGET-RESOURCE=other";
+    ValidateOptions options =
+        ValidateOptions.builder()
+            .withExpectedCustomHeader("x-target-resource", "my-service")
+            .build();
+
+    InvalidArgumentException e =
+        Assertions.assertThrows(
+            InvalidArgumentException.class,
+            () -> verifier.verifySignedAuthRequest(identity, options));
+    Assertions.assertTrue(e.getMessage().contains("more than one"), e.getMessage());
+  }
+
+  @Test
   void mismatchedExpectedCustomHeaderFails() {
     AwsStsVerifier verifier = new AwsStsVerifier.Builder().build(mock(HttpClient.class));
     ValidateOptions options =
