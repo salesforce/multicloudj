@@ -83,6 +83,25 @@ public class AliTransformerTest {
   }
 
   @Test
+  void testToPutObjectRequest_tagValueWithReservedCharsIsUrlEncoded() {
+    var request =
+        UploadRequest.builder().withKey("key").withTags(Map.of("Env", "a b/c=d")).build();
+
+    var actual = transformer.toPutObjectRequest(request, BinaryData.fromBytes("data".getBytes()));
+
+    assertEquals("Env=a%20b%2Fc%3Dd", actual.tagging());
+  }
+
+  @Test
+  void testToPutObjectRequest_nonAsciiTagValueIsUtf8PercentEncoded() {
+    var request = UploadRequest.builder().withKey("key").withTags(Map.of("k", "é")).build();
+
+    var actual = transformer.toPutObjectRequest(request, BinaryData.fromBytes("data".getBytes()));
+
+    assertEquals("k=%C3%A9", actual.tagging());
+  }
+
+  @Test
   void testToPutObjectRequestWithCreateIfAbsentForbidsOverwrite() {
     UploadRequest request =
         UploadRequest.builder().withKey("some-key").withCreateIfAbsent(true).build();
@@ -483,6 +502,45 @@ public class AliTransformerTest {
     assertEquals(BUCKET, actual.bucket());
     assertEquals("key", actual.key());
     assertEquals(metadata, actual.metadata());
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_tagValueWithReservedCharsIsUrlEncoded() {
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey("key")
+            .withTags(Map.of("Env", "a b/c=d"))
+            .build();
+
+    var actual = transformer.toInitiateMultipartUploadRequest(request);
+
+    assertEquals("Env=a%20b%2Fc%3Dd", actual.tagging());
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_tagDelimitersCannotInjectExtraTags() {
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey("key")
+            .withTags(Map.of("k&x=y", "v&z=1"))
+            .build();
+
+    var actual = transformer.toInitiateMultipartUploadRequest(request);
+
+    assertEquals("k%26x%3Dy=v%26z%3D1", actual.tagging());
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_plainTagsAreUnchanged() {
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey("key")
+            .withTags(Map.of("expiration-days", "30"))
+            .build();
+
+    var actual = transformer.toInitiateMultipartUploadRequest(request);
+
+    assertEquals("expiration-days=30", actual.tagging());
   }
 
   private Map<String, String> initiateMetadataFor(
@@ -913,6 +971,21 @@ public class AliTransformerTest {
     assertEquals("object-1", actual.key());
     assertEquals("tag-1=tag-value-1", actual.tagging());
     assertEquals("value-1", actual.metadata().get("key-1"));
+  }
+
+  @Test
+  void testToPresignedUploadRequest_tagValueWithReservedCharsIsUrlEncoded() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .tags(Map.of("Env", "a b/c=d"))
+            .duration(Duration.ofHours(1))
+            .build();
+
+    var actual = transformer.toPresignedPutObjectRequest(request);
+
+    assertEquals("Env=a%20b%2Fc%3Dd", actual.tagging());
   }
 
   @Test
