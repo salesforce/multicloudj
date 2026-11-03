@@ -60,6 +60,12 @@ Pull and inspect OCI/Docker container images from cloud-hosted registries in a c
 
 - [Container Registry](registry-guide.html)
 
+## 🔐 KMS
+
+Create and manage encryption keys, key policies, and imported key material in a cloud-neutral way.
+
+- [KMS](kms-guide.html)
+
 ---
 
 ## 🧪 Testing
