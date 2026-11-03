@@ -1350,27 +1350,19 @@ public class GcpBlobStore extends AbstractBlobStore {
               ? new Storage.BlobListOption[] {Storage.BlobListOption.prefix(prefix)}
               : new Storage.BlobListOption[0];
 
-      var blobInfos = new ArrayList<com.salesforce.multicloudj.blob.driver.BlobInfo>();
+      // Delete while listing to bound memory; later pages resume after the last listed name,
+      // so deleting earlier objects does not skip any.
+      List<BlobId> batch = new ArrayList<>(MAX_OBJECTS_PER_BATCH_DELETE);
       for (Blob blob : storage.list(getBucket(), options).iterateAll()) {
-        blobInfos.add(
-            com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-                .withKey(blob.getName())
-                .withObjectSize(blob.getSize())
-                .build());
+        batch.add(BlobId.of(getBucket(), blob.getName()));
+        if (batch.size() == MAX_OBJECTS_PER_BATCH_DELETE) {
+          // Batch delete is a JSON-API feature with no gRPC equivalent; run it on the HTTP client.
+          httpStorage.delete(batch);
+          batch = new ArrayList<>(MAX_OBJECTS_PER_BATCH_DELETE);
+        }
       }
-
-      // Partition the blobs into smaller chunks for batch deletion
-      var partitionedBlobLists = transformer.partitionList(blobInfos, MAX_OBJECTS_PER_BATCH_DELETE);
-
-      // Delete each partition
-      for (var blobList : partitionedBlobLists) {
-        List<BlobId> blobIds =
-            blobList.stream()
-                .map(blobInfo -> BlobId.of(getBucket(), blobInfo.getKey()))
-                .collect(Collectors.toList());
-
-        // Batch delete is a JSON-API feature with no gRPC equivalent; run it on the HTTP client.
-        httpStorage.delete(blobIds);
+      if (!batch.isEmpty()) {
+        httpStorage.delete(batch);
       }
 
     } catch (Exception e) {
