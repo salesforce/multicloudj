@@ -1245,8 +1245,8 @@ public class GcpBlobStore extends AbstractBlobStore {
     return blob.getName().endsWith("/") && size != null && size == 0L;
   }
 
-  // True when the full object key starts with any of the exclusion prefixes. Null or empty
-  // exclusions never match, preserving the behavior of requests that don't set them.
+  // True when the full object key starts with any exclusion prefix. A null or empty list
+  // excludes nothing.
   private static boolean isExcluded(String key, List<String> prefixesToExclude) {
     if (prefixesToExclude == null || prefixesToExclude.isEmpty()) {
       return false;

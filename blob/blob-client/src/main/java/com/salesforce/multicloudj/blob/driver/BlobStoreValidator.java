@@ -234,8 +234,9 @@ public class BlobStoreValidator {
   }
 
   /**
-   * Validates the input request. This validates that the request is not null and that the local
-   * destination directory is not null or empty.
+   * Validates the input request. This validates that the request is not null, that the local
+   * destination directory is not null or empty, and that no {@code prefixesToExclude} entry is
+   * null or empty.
    *
    * @param request the request to inspect.
    */
