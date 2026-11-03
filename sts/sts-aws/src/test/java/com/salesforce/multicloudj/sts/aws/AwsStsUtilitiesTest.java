@@ -166,28 +166,31 @@ class AwsStsUtilitiesTest {
 
     Map<String, List<String>> headers = signed.getRequest().headers().map();
     Assertions.assertEquals(
-        List.of("application/x-www-form-urlencoded"), headers.get("Content-Type"));
-    Assertions.assertEquals(List.of("caller-hash"), headers.get("X-Request-Hash"));
+        List.of("application/x-www-form-urlencoded"), headers.get("content-type"));
+    Assertions.assertEquals(List.of("caller-hash"), headers.get("x-request-hash"));
     Assertions.assertEquals(
         awsSdkAuthorization(signed),
         signed.getRequest().headers().firstValue("authorization").orElseThrow());
   }
 
   @Test
-  void signedRequestUsesConventionalHeaderNames() {
+  void signedRequestUsesLowercaseHeaderNames() {
     SignedAuthRequest signed =
         signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), null);
 
     List<String> names = new ArrayList<>(signed.getRequest().headers().map().keySet());
-    Assertions.assertTrue(
-        names.containsAll(
-            List.of(
-                "Authorization",
-                "X-Amz-Date",
-                "X-Amz-Security-Token",
-                "Content-Type",
-                "X-Request-Hash")),
-        names.toString());
+    Assertions.assertEquals(
+        List.of(
+            "authorization",
+            "content-type",
+            "x-amz-date",
+            "x-amz-security-token",
+            "x-request-hash"),
+        names);
+    // Lookups are case-insensitive, so a reader asking for the conventional name still finds it.
+    Assertions.assertEquals(
+        awsSdkAuthorization(signed),
+        signed.getRequest().headers().firstValue("Authorization").orElseThrow());
   }
 
   @Test
@@ -203,7 +206,7 @@ class AwsStsUtilitiesTest {
     List<String> names = new ArrayList<>(signed.getRequest().headers().map().keySet());
     Assertions.assertEquals(3, names.size(), names.toString());
     Assertions.assertTrue(
-        names.containsAll(List.of("Authorization", "X-Amz-Date", "X-Amz-Security-Token")),
+        names.containsAll(List.of("authorization", "x-amz-date", "x-amz-security-token")),
         names.toString());
     Assertions.assertEquals(
         awsSdkAuthorization(signed),

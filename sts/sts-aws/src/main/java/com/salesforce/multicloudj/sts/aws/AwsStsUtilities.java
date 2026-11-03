@@ -57,15 +57,6 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
   // not listed: a caller may supply its own value, which replaces the generated one.
   private static final Set<String> SIGNER_OWNED_HEADERS =
       Set.of("host", "x-amz-date", "x-amz-security-token", "authorization");
-  // AWS SDK clients send these headers in this form, and some SigV4 verifiers look them up
-  // case-sensitively. Signing still uses the lowercase canonical names.
-  private static final Map<String, String> CONVENTIONAL_HEADER_NAMES =
-      Map.of(
-          "authorization", "Authorization",
-          "x-amz-date", "X-Amz-Date",
-          "x-amz-security-token", "X-Amz-Security-Token",
-          CONTENT_TYPE_HEADER, "Content-Type",
-          REQUEST_HASH_HEADER, "X-Request-Hash");
   private static final String CONTENT_TYPE_VALUE =
       "application/x-www-form-urlencoded; charset=utf-8";
 
@@ -182,10 +173,10 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
         hasBody
             ? HttpRequest.BodyPublishers.ofByteArray(payload)
             : HttpRequest.BodyPublishers.noBody();
+    // Header names stay in the lowercase form they were signed with. HTTP header names are
+    // case-insensitive, so readers should look them up that way, e.g. headers().firstValue(..).
     HttpRequest.Builder builder = HttpRequest.newBuilder(signedUri).method("POST", bodyPublisher);
-    headers.forEach(
-        (name, value) ->
-            builder.setHeader(CONVENTIONAL_HEADER_NAMES.getOrDefault(name, name), value));
+    headers.forEach(builder::setHeader);
 
     // The signed identity encodes the STS endpoint, action/version, and every request header as
     // query parameters, so it can be parsed back into a POST and replayed against AWS STS.
