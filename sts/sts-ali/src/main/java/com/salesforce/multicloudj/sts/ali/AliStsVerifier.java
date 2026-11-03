@@ -9,6 +9,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.driver.AbstractStsVerifier;
+import com.salesforce.multicloudj.sts.driver.CustomHeaderLookup;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.io.IOException;
@@ -122,10 +123,8 @@ public class AliStsVerifier extends AbstractStsVerifier {
       return;
     }
     for (Map.Entry<String, String> expected : options.getExpectedCustomHeaders().entrySet()) {
-      String actual = params.get(expected.getKey());
-      if (actual == null) {
-        actual = paramDifferingOnlyByCase(params, expected.getKey());
-      }
+      String actual =
+          CustomHeaderLookup.find(params, expected.getKey(), "signed request parameter");
       if (actual == null) {
         throw new InvalidArgumentException(
             "expected custom header \"" + expected.getKey() + "\" not found in signed request");
@@ -135,23 +134,6 @@ public class AliStsVerifier extends AbstractStsVerifier {
             "custom header \"" + expected.getKey() + "\" has an unexpected value");
       }
     }
-  }
-
-  // Header names are case-insensitive, so accept a parameter whose name differs only by case, as
-  // produced by a signer that kept the caller's casing. More than one such parameter is ambiguous
-  // and is rejected rather than picking one.
-  private static String paramDifferingOnlyByCase(Map<String, String> params, String name) {
-    String match = null;
-    for (Map.Entry<String, String> param : params.entrySet()) {
-      if (param.getKey().equalsIgnoreCase(name)) {
-        if (match != null) {
-          throw new InvalidArgumentException(
-              "custom header \"" + name + "\" matches more than one signed request parameter");
-        }
-        match = param.getValue();
-      }
-    }
-    return match;
   }
 
   private static CallerIdentity parseCallerIdentity(String responseBody) {

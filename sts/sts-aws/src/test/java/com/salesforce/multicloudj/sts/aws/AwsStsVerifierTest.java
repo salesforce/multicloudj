@@ -168,17 +168,19 @@ class AwsStsVerifierTest {
   }
 
   @Test
-  void exactLowercaseHeaderIsPreferredOverCaseVariant() throws Exception {
+  void lowercaseHeaderAndCaseVariantAreRejectedAsAmbiguous() {
+    AwsStsVerifier verifier = new AwsStsVerifier.Builder().build(mock(HttpClient.class));
     String identity = IDENTITY + "&X-Target-Resource=other";
     ValidateOptions options =
         ValidateOptions.builder()
             .withExpectedCustomHeader("x-target-resource", "my-service")
             .build();
 
-    CallerIdentity identityResult =
-        new AwsStsVerifier.Builder().build(okClient()).verifySignedAuthRequest(identity, options);
-
-    Assertions.assertEquals("123456789012", identityResult.getAccountId());
+    InvalidArgumentException e =
+        Assertions.assertThrows(
+            InvalidArgumentException.class,
+            () -> verifier.verifySignedAuthRequest(identity, options));
+    Assertions.assertTrue(e.getMessage().contains("more than one"), e.getMessage());
   }
 
   @Test

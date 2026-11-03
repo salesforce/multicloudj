@@ -18,6 +18,7 @@ import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.sts.driver.AbstractStsVerifier;
+import com.salesforce.multicloudj.sts.driver.CustomHeaderLookup;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.io.IOException;
@@ -148,10 +149,7 @@ public class GcpStsVerifier extends AbstractStsVerifier {
       return;
     }
     for (Map.Entry<String, String> expected : options.getExpectedCustomHeaders().entrySet()) {
-      Object actual = payload.get(expected.getKey());
-      if (actual == null) {
-        actual = claimDifferingOnlyByCase(payload, expected.getKey());
-      }
+      Object actual = CustomHeaderLookup.find(payload, expected.getKey(), "JWT claim");
       if (actual == null) {
         throw new InvalidArgumentException(
             "expected custom header \"" + expected.getKey() + "\" not found in JWT claims");
@@ -161,22 +159,6 @@ public class GcpStsVerifier extends AbstractStsVerifier {
             "custom header \"" + expected.getKey() + "\" has an unexpected value");
       }
     }
-  }
-
-  // Header names are case-insensitive, so accept a claim whose name differs only by case. More than
-  // one such claim is ambiguous and is rejected rather than picking one.
-  private static Object claimDifferingOnlyByCase(JsonWebSignature.Payload payload, String name) {
-    Object match = null;
-    for (Map.Entry<String, Object> claim : payload.entrySet()) {
-      if (claim.getKey().equalsIgnoreCase(name)) {
-        if (match != null) {
-          throw new InvalidArgumentException(
-              "custom header \"" + name + "\" matches more than one JWT claim");
-        }
-        match = claim.getValue();
-      }
-    }
-    return match;
   }
 
   private static String projectIdFromIssuer(String issuer) {

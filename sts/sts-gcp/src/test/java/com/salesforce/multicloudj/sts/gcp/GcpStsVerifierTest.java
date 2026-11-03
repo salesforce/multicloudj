@@ -175,14 +175,16 @@ class GcpStsVerifierTest {
   }
 
   @Test
-  void exactLowercaseClaimIsPreferredOverCaseVariant() throws Exception {
+  void lowercaseClaimAndCaseVariantAreRejectedAsAmbiguous() throws Exception {
     String jwt = signJwtWithClaims(Map.of("x-tenant", "t1", "X-Tenant", "other"));
     ValidateOptions options =
         ValidateOptions.builder().withExpectedCustomHeader("x-tenant", "t1").build();
 
-    CallerIdentity identity = verifier().verifySignedAuthRequest(jwt, options);
-
-    Assertions.assertEquals(SERVICE_ACCOUNT, identity.getUserId());
+    InvalidArgumentException e =
+        Assertions.assertThrows(
+            InvalidArgumentException.class,
+            () -> verifier().verifySignedAuthRequest(jwt, options));
+    Assertions.assertTrue(e.getMessage().contains("more than one"), e.getMessage());
   }
 
   @Test
