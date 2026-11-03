@@ -1,0 +1,37 @@
+{
+  "id" : "a452bdac-802a-4d0b-8fc2-a2f098186d30",
+  "name" : "AliBlobStoreIT_testMultipartUpload_withTags-GET-2",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-withTags",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Tagging>\n  <TagSet>\n    <Tag>\n      <Key>Env</Key>\n      <Value>a b/c=d</Value>\n    </Tag>\n    <Tag>\n      <Key>expiration-days</Key>\n      <Value>30</Value>\n    </Tag>\n    <Tag>\n      <Key>tag1</Key>\n      <Value>value1</Value>\n    </Tag>\n  </TagSet>\n</Tagging>\n",
+    "headers" : {
+      "x-oss-request-id" : "6AE8E4D446D8993539066237",
+      "x-oss-server-time" : "36",
+      "Server" : "AliyunOSS",
+      "Date" : "Mon, 02 Nov 2026 19:30:28 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "a452bdac-802a-4d0b-8fc2-a2f098186d30",
+  "persistent" : true,
+  "insertionIndex" : 784
+}
