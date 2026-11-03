@@ -4053,9 +4053,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_withTags() {
-    // Ali: no recorded mappings for this test.
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
-
     String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withTags";
     // Mixed-case keys, values with spaces and URL-reserved characters, and the reserved
     // lifecycle-expiration tag must all round-trip unchanged.

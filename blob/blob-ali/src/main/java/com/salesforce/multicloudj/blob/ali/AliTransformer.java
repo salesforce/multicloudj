@@ -84,6 +84,8 @@ import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -226,10 +228,16 @@ public class AliTransformer {
     return builder.build();
   }
 
-  private String encodeTags(Map<String, String> tags) {
+  // OSS requires the x-oss-tagging header to be UTF-8 URL-encoded query parameters; spaces must
+  // be %20 rather than '+'.
+  private static String encodeTags(Map<String, String> tags) {
     return tags.entrySet().stream()
-        .map(e -> e.getKey() + "=" + e.getValue())
+        .map(e -> urlEncode(e.getKey()) + "=" + urlEncode(e.getValue()))
         .collect(Collectors.joining("&"));
+  }
+
+  private static String urlEncode(String value) {
+    return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
   }
 
 

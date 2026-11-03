@@ -1,0 +1,42 @@
+{
+  "id" : "6a950ebf-05cd-4cea-a4ed-e30756d45c59",
+  "name" : "AliBlobStoreIT_testMultipartUpload_withTags-POST-8",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-withTags",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "uploads" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<InitiateMultipartUploadResult>\n  <EncodingType>url</EncodingType>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests%2Fmultipart-withTags</Key>\n  <UploadId>D255DE5F967747B9B91697357E2FA198</UploadId>\n</InitiateMultipartUploadResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6AE8E4CCB899983831466C31",
+      "x-oss-server-time" : "49",
+      "Server" : "AliyunOSS",
+      "Date" : "Mon, 02 Nov 2026 19:30:20 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "6a950ebf-05cd-4cea-a4ed-e30756d45c59",
+  "persistent" : true,
+  "insertionIndex" : 790
+}

@@ -73,6 +73,14 @@ public abstract class AbstractDocstoreBenchmarkTest {
   // Put and BatchPut reuse these keys so teardown has a fixed number of documents to delete.
   private static final int WRITE_KEY_POOL_SIZE = 20_000;
   private final AtomicLong writeKeySeq = new AtomicLong();
+  private static final String PUT_KEY_PREFIX = "benchmarkput-player-";
+  private static final int PUT_DOC_SIZE = 500;
+  private static final String BATCH_PUT_KEY_PREFIX = "benchmarkbatchput-player-";
+  private static final int BATCH_PUT_DOC_SIZE = 200;
+  // Must match the BatchParams field name.
+  private static final String BATCH_SIZE_PARAM = "batchSize";
+  // Stays under Firestore's 500-write-per-commit limit.
+  private static final int SEED_CHUNK_SIZE = 400;
 
   private static final String BENCHMARK_PUT = "benchmarkPut";
   private static final String BENCHMARK_GET = "benchmarkGet";
@@ -177,6 +185,15 @@ public abstract class AbstractDocstoreBenchmarkTest {
       }
       setupTestData();
 
+      // Pre-write the pool so every measured write is an overwrite, not a create then overwrite.
+      if (BENCHMARK_PUT.equals(method)) {
+        // benchmarkPut writes baseValue 0 for every key; batchSize 1 makes the seed write 0 too.
+        seedWritePool(PUT_KEY_PREFIX, PUT_DOC_SIZE, 1);
+      } else if (BENCHMARK_BATCH_PUT.equals(method)) {
+        seedWritePool(BATCH_PUT_KEY_PREFIX, BATCH_PUT_DOC_SIZE,
+            Integer.parseInt(params.getParam(BATCH_SIZE_PARAM)));
+      }
+
       // Pre-filter key lists once so hot-path lookups are O(1)
       smallPlayerKeys = Collections.unmodifiableList(
           documentKeys.stream()
@@ -199,6 +216,20 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
   private String nextPooledKey(String prefix) {
     return prefix + Math.floorMod(writeKeySeq.getAndIncrement(), WRITE_KEY_POOL_SIZE);
+  }
+
+  private void seedWritePool(String prefix, int docSize, int batchSize) {
+    for (int start = 0; start < WRITE_KEY_POOL_SIZE; start += SEED_CHUNK_SIZE) {
+      int end = Math.min(start + SEED_CHUNK_SIZE, WRITE_KEY_POOL_SIZE);
+      List<Document> documents = new ArrayList<>(end - start);
+      for (int i = start; i < end; i++) {
+        String key = prefix + i;
+        benchmarkCreatedKeys.add(key);
+        // Same field values the benchmark writes to this key, so overwrites touch no extra indexes.
+        documents.add(new Document(createPlayer(key, i % batchSize, docSize)));
+      }
+      docStoreClient.batchPut(documents);
+    }
   }
 
   @TearDown(Level.Trial)
@@ -396,12 +427,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @Benchmark
   @Threads(4)
   public void benchmarkPut(Blackhole bh) {
-    final String baseKey = "benchmarkput-player-";
-    final int docSize = 500;
     try {
-      String key = nextPooledKey(baseKey);
+      String key = nextPooledKey(PUT_KEY_PREFIX);
       benchmarkCreatedKeys.add(key);
-      Player player = createPlayer(key, 0, docSize);
+      Player player = createPlayer(key, 0, PUT_DOC_SIZE);
       docStoreClient.put(new Document(player));
       bh.consume(player.getPName());
     } catch (Exception e) {
@@ -441,15 +470,12 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @Benchmark
   @Threads(1)
   public void benchmarkBatchPut(Blackhole bh, BatchParams p) {
-    final String baseKey = "benchmarkbatchput-player-";
-    final int docSize = 200;
-
     try {
       List<Document> documents = new ArrayList<>();
       for (int i = 0; i < p.batchSize; i++) {
-        String key = nextPooledKey(baseKey);
+        String key = nextPooledKey(BATCH_PUT_KEY_PREFIX);
         benchmarkCreatedKeys.add(key);
-        Player player = createPlayer(key, i, docSize);
+        Player player = createPlayer(key, i, BATCH_PUT_DOC_SIZE);
         documents.add(new Document(player));
       }
 
