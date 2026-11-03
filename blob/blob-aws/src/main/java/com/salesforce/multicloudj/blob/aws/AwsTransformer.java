@@ -255,11 +255,6 @@ public class AwsTransformer {
   }
 
   public PutObjectRequest toRequest(UploadRequest request) {
-    List<Tag> tags =
-        request.getTags().entrySet().stream()
-            .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
-            .collect(Collectors.toList());
-
     // Copy the application-supplied metadata and stamp the SDK's correlation id, service id and
     // tenant id onto the stored object so they persist in S3 alongside the user's metadata and can
     // be traced from the object's S3 access/audit logs. Each key is skipped when the request
@@ -272,8 +267,18 @@ public class AwsTransformer {
         PutObjectRequest.builder()
             .bucket(getBucket())
             .key(request.getKey())
-            .metadata(metadata)
-            .tagging(Tagging.builder().tagSet(tags).build());
+            .metadata(metadata);
+
+    // Only set tagging when tags are present. An empty Tagging still emits an x-amz-tagging
+    // header, which the presigner then signs; clients uploading through the presigned URL do not
+    // send that header, so S3-compatible stores (e.g. MinIO) reject the PUT with HTTP 400.
+    if (request.getTags() != null && !request.getTags().isEmpty()) {
+      List<Tag> tags =
+          request.getTags().entrySet().stream()
+              .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
+              .collect(Collectors.toList());
+      builder.tagging(Tagging.builder().tagSet(tags).build());
+    }
 
     if (request.isCreateIfAbsent()) {
       builder.ifNoneMatch("*");

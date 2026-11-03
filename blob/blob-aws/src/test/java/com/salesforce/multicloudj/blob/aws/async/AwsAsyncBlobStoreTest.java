@@ -96,6 +96,8 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.MockedStatic;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.ResponseBytes;
@@ -107,10 +109,12 @@ import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.internal.async.ByteArrayAsyncResponseTransformer;
 import software.amazon.awssdk.core.internal.async.InputStreamResponseTransformer;
 import software.amazon.awssdk.http.SdkHttpResponse;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3CrtAsyncClientBuilder;
+import software.amazon.awssdk.services.s3.S3ServiceClientConfiguration;
 import software.amazon.awssdk.services.s3.crt.S3CrtHttpConfiguration;
 import software.amazon.awssdk.services.s3.crt.S3CrtProxyConfiguration;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
@@ -1385,6 +1389,31 @@ public class AwsAsyncBlobStoreTest {
     List<Tag> actualTags = actualPutObjectTaggingRequest.tagging().tagSet();
     assertTrue(actualTags.contains(Tag.builder().key("key1").value("value1").build()));
     assertTrue(actualTags.contains(Tag.builder().key("key2").value("value2").build()));
+  }
+
+  @Test
+  void testGetPresignerUsesClientEndpointOverride() {
+    when(mockS3Client.serviceClientConfiguration())
+        .thenReturn(
+            S3ServiceClientConfiguration.builder()
+                .region(Region.US_EAST_2)
+                .endpointOverride(URI.create("http://minio:9001"))
+                .credentialsProvider(
+                    StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create("admin", "password")))
+                .build());
+
+    try (S3Presigner presigner = aws.getPresigner()) {
+      PresignedGetObjectRequest presigned =
+          presigner.presignGetObject(
+              GetObjectPresignRequest.builder()
+                  .signatureDuration(Duration.ofMinutes(5))
+                  .getObjectRequest(
+                      GetObjectRequest.builder().bucket("bucket-1").key("object-1").build())
+                  .build());
+      assertEquals("minio", presigned.url().getHost());
+      assertEquals(9001, presigned.url().getPort());
+    }
   }
 
   @Test
