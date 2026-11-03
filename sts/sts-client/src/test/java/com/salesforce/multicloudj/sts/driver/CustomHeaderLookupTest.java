@@ -26,6 +26,13 @@ class CustomHeaderLookupTest {
   }
 
   @Test
+  void expectedNameIsLowercasedToo() {
+    Map<String, String> values = Map.of("x-tenant", "t1");
+
+    Assertions.assertEquals("t1", CustomHeaderLookup.find(values, "X-Tenant", "parameter"));
+  }
+
+  @Test
   void returnsNullWhenNoNameMatches() {
     Assertions.assertNull(CustomHeaderLookup.find(Map.of("other", "v"), "x-tenant", "parameter"));
   }

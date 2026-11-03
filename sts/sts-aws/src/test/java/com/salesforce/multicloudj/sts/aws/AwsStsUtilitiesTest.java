@@ -118,7 +118,9 @@ class AwsStsUtilitiesTest {
 
   @Test
   void customHeaderValueWhitespaceIsNormalizedLikeAwsSdkSigner() {
-    String[][] cases = {{"a  b", "a b"}, {" lead", "lead"}, {"trail ", "trail"}, {"a\tb", "a b"}};
+    String[][] cases = {
+      {"a  b", "a b"}, {" lead", "lead"}, {"trail ", "trail"}, {"a\tb", "a b"}, {"a\r\n b", "a b"}
+    };
     for (String[] c : cases) {
       SignOptions options = SignOptions.builder().withCustomHeader("x-foo", c[0]).build();
       SignedAuthRequest signed =

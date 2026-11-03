@@ -175,6 +175,19 @@ class GcpStsVerifierTest {
   }
 
   @Test
+  void claimDifferingOnlyByCaseWithWrongValueFails() throws Exception {
+    String jwt = signJwtWithClaims(Map.of("X-Tenant", "other"));
+    ValidateOptions options =
+        ValidateOptions.builder().withExpectedCustomHeader("x-tenant", "t1").build();
+
+    InvalidArgumentException e =
+        Assertions.assertThrows(
+            InvalidArgumentException.class,
+            () -> verifier().verifySignedAuthRequest(jwt, options));
+    Assertions.assertTrue(e.getMessage().contains("unexpected value"), e.getMessage());
+  }
+
+  @Test
   void lowercaseClaimAndCaseVariantAreRejectedAsAmbiguous() throws Exception {
     String jwt = signJwtWithClaims(Map.of("x-tenant", "t1", "X-Tenant", "other"));
     ValidateOptions options =
@@ -193,8 +206,11 @@ class GcpStsVerifierTest {
     ValidateOptions options =
         ValidateOptions.builder().withExpectedCustomHeader("x-tenant", "t1").build();
 
-    Assertions.assertThrows(
-        InvalidArgumentException.class, () -> verifier().verifySignedAuthRequest(jwt, options));
+    InvalidArgumentException e =
+        Assertions.assertThrows(
+            InvalidArgumentException.class,
+            () -> verifier().verifySignedAuthRequest(jwt, options));
+    Assertions.assertTrue(e.getMessage().contains("more than one"), e.getMessage());
   }
 
   @Test
