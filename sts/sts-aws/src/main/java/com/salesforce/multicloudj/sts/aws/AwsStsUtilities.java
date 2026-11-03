@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
@@ -57,6 +58,12 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
   // not listed: a caller may supply its own value, which replaces the generated one.
   private static final Set<String> SIGNER_OWNED_HEADERS =
       Set.of("host", "x-amz-date", "x-amz-security-token", "authorization");
+  // An HTTP header name is an RFC 7230 token; names arrive lowercase, so only lowercase letters are
+  // listed. The JDK HTTP client also refuses to set the restricted names below (host is already
+  // signer owned). Both are checked before signing, so a bad name is reported as invalid input.
+  private static final Pattern HEADER_NAME_TOKEN = Pattern.compile("[!#$%&'*+.^_`|~0-9a-z-]+");
+  private static final Set<String> CLIENT_RESTRICTED_HEADERS =
+      Set.of("connection", "content-length", "expect", "upgrade");
   private static final String CONTENT_TYPE_VALUE =
       "application/x-www-form-urlencoded; charset=utf-8";
 
@@ -156,6 +163,11 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
       if (SIGNER_OWNED_HEADERS.contains(header.getKey())) {
         throw new InvalidArgumentException(
             "custom header \"" + header.getKey() + "\" is reserved by the signer");
+      }
+      if (!HEADER_NAME_TOKEN.matcher(header.getKey()).matches()
+          || CLIENT_RESTRICTED_HEADERS.contains(header.getKey())) {
+        throw new InvalidArgumentException(
+            "custom header \"" + header.getKey() + "\" is not a valid request header name");
       }
       headers.put(header.getKey(), canonicalHeaderValue(header.getValue()));
     }

@@ -155,6 +155,45 @@ class AwsStsUtilitiesTest {
   }
 
   @Test
+  void invalidOrClientRestrictedHeaderNameIsRejectedBeforeSigning() {
+    for (String name :
+        new String[] {
+          "x foo", "x:foo", "x(foo)", "xé", "Connection", "content-length", "expect", "upgrade"
+        }) {
+      SignOptions options = SignOptions.builder().withCustomHeader(name, "v").build();
+      InvalidArgumentException e =
+          Assertions.assertThrows(
+              InvalidArgumentException.class,
+              () -> signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options),
+              name);
+      Assertions.assertTrue(e.getMessage().contains("not a valid request header name"), name);
+    }
+  }
+
+  @Test
+  void invalidHeaderNameIsInvalidArgumentThroughPublicApi() {
+    SignOptions options = SignOptions.builder().withCustomHeader("x foo", "v").build();
+
+    Assertions.assertThrows(
+        InvalidArgumentException.class,
+        () -> stsUtil().newCloudNativeAuthSignedRequest(sampleRequest(), options));
+  }
+
+  @Test
+  void tokenPunctuationIsAllowedInHeaderNames() {
+    SignOptions options =
+        SignOptions.builder().withCustomHeader("x-a_b.c!#$%&'*+^`|~1", "v").build();
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+    Assertions.assertEquals(
+        "v", signed.getRequest().headers().firstValue("x-a_b.c!#$%&'*+^`|~1").orElseThrow());
+    Assertions.assertEquals(
+        awsSdkAuthorization(signed),
+        signed.getRequest().headers().firstValue("authorization").orElseThrow());
+  }
+
+  @Test
   void customContentTypeAndRequestHashReplaceGeneratedValues() {
     SignOptions options =
         SignOptions.builder()
