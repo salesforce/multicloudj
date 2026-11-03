@@ -520,7 +520,7 @@ class GcpBlobStoreTest {
 
     @SuppressWarnings("unchecked")
     Page<Blob> page = mock(Page.class);
-    when(page.getValues()).thenReturn(Arrays.asList(blob1, blob2));
+    when(page.iterateAll()).thenReturn(Arrays.asList(blob1, blob2));
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
 
     List<com.salesforce.multicloudj.blob.driver.BlobInfo> blobInfos =
@@ -3636,7 +3636,7 @@ class GcpBlobStoreTest {
     when(blob2.getSize()).thenReturn(2048L);
 
     Page<Blob> mockPage = mock(Page.class);
-    when(mockPage.getValues()).thenReturn(List.of(blob1, blob2));
+    when(mockPage.iterateAll()).thenReturn(List.of(blob1, blob2));
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
 
@@ -3684,7 +3684,7 @@ class GcpBlobStoreTest {
     }
 
     Page<Blob> mockPage = mock(Page.class);
-    when(mockPage.getValues()).thenReturn(largeList);
+    when(mockPage.iterateAll()).thenReturn(largeList);
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
 
@@ -3711,7 +3711,7 @@ class GcpBlobStoreTest {
     String prefix = null;
 
     Page<Blob> mockPage = mock(Page.class);
-    when(mockPage.getValues()).thenReturn(List.of());
+    when(mockPage.iterateAll()).thenReturn(List.of());
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
 
@@ -3721,6 +3721,38 @@ class GcpBlobStoreTest {
     gcpBlobStore.deleteDirectory(prefix);
 
     verify(mockStorage).list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class));
+  }
+
+  @Test
+  void testDeleteDirectory_DeletesBlobsFromAllListingPages() {
+    String prefix = "uploads/";
+    Blob firstPageBlob = mock(Blob.class);
+    Blob secondPageBlob = mock(Blob.class);
+    when(firstPageBlob.getName()).thenReturn("uploads/file1.txt");
+    when(secondPageBlob.getName()).thenReturn("uploads/file2.txt");
+    when(firstPageBlob.getSize()).thenReturn(1024L);
+    when(secondPageBlob.getSize()).thenReturn(2048L);
+
+    Page<Blob> mockPage = mock(Page.class);
+    // getValues() holds only the first page; iterateAll() follows the page tokens.
+    lenient().when(mockPage.getValues()).thenReturn(List.of(firstPageBlob));
+    when(mockPage.iterateAll()).thenReturn(List.of(firstPageBlob, secondPageBlob));
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+    when(mockTransformer.partitionList(any(), eq(1000)))
+        .thenAnswer(
+            invocation ->
+                List.of(
+                    invocation.<List<com.salesforce.multicloudj.blob.driver.BlobInfo>>getArgument(
+                        0)));
+
+    gcpBlobStore.deleteDirectory(prefix);
+
+    verify(mockStorage)
+        .delete(
+            List.of(
+                BlobId.of(TEST_BUCKET, "uploads/file1.txt"),
+                BlobId.of(TEST_BUCKET, "uploads/file2.txt")));
   }
 
   @Test

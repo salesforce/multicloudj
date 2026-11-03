@@ -1350,14 +1350,8 @@ public class GcpBlobStore extends AbstractBlobStore {
               ? new Storage.BlobListOption[] {Storage.BlobListOption.prefix(prefix)}
               : new Storage.BlobListOption[0];
 
-      List<Blob> blobs = new ArrayList<>();
-      for (Blob blob : storage.list(getBucket(), options).getValues()) {
-        blobs.add(blob);
-      }
-
-      // Convert GCP Blob objects to DriverBlobInfo objects for partitioning
       var blobInfos = new ArrayList<com.salesforce.multicloudj.blob.driver.BlobInfo>();
-      for (Blob blob : blobs) {
+      for (Blob blob : storage.list(getBucket(), options).iterateAll()) {
         blobInfos.add(
             com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
                 .withKey(blob.getName())
