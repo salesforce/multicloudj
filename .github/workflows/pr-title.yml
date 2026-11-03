@@ -6,6 +6,9 @@ name: PR Title
 on:
   pull_request_target:
     types: [opened, edited, synchronize, reopened]
+    # Only main releases via release-please; other bases (e.g. the docs `site` branch) have no
+    # release-please-config.json to validate against.
+    branches: [main]
 
 permissions:
   contents: read
