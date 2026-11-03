@@ -247,6 +247,16 @@ public class BlobStoreValidator {
         || request.getLocalDestinationDirectory().trim().isEmpty()) {
       throw new IllegalArgumentException("Local destination directory cannot be null or empty");
     }
+    // Exclusions are matched with String#startsWith: a null entry would throw mid-listing and
+    // an empty entry matches every key, silently excluding the whole directory. Whitespace is
+    // a legal key prefix, so only truly empty entries are rejected.
+    if (request.getPrefixesToExclude() != null) {
+      for (String prefixToExclude : request.getPrefixesToExclude()) {
+        if (prefixToExclude == null || prefixToExclude.isEmpty()) {
+          throw new IllegalArgumentException("prefixesToExclude entries cannot be null or empty");
+        }
+      }
+    }
   }
 
   /**

@@ -23,6 +23,34 @@ public class BlobStoreValidatorTest {
 
   private final BlobStoreValidator validator = new BlobStoreValidator();
 
+  private static DirectoryDownloadRequest downloadRequestExcluding(List<String> prefixes) {
+    return DirectoryDownloadRequest.builder()
+        .prefixToDownload("dir/")
+        .localDestinationDirectory("/tmp/dest")
+        .prefixesToExclude(prefixes)
+        .build();
+  }
+
+  @Test
+  void validateDirectoryDownload_rejectsNullOrEmptyExclusionPrefix() {
+    var e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> validator.validate(downloadRequestExcluding(List.of("dir/a/", ""))));
+    assertEquals("prefixesToExclude entries cannot be null or empty", e.getMessage());
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> validator.validate(downloadRequestExcluding(Arrays.asList("dir/a/", null))));
+  }
+
+  @Test
+  void validateDirectoryDownload_acceptsWhitespaceAndAbsentExclusions() {
+    validator.validate(downloadRequestExcluding(List.of(" ", "dir/a/")));
+    validator.validate(downloadRequestExcluding(null));
+    validator.validate(downloadRequestExcluding(List.of()));
+  }
+
   @Test
   void testValidateKey() {
     Arrays.asList(null, "", "    ")
