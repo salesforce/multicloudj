@@ -35,40 +35,30 @@ class BatchOperationExceptionTest {
   }
 
   @Test
-  void messageListsItemIdsWithExceptionTypesAndOmitsProviderMessages() {
+  void messageHasOnlyTheFailureCount() {
     BatchOperationException e =
         new BatchOperationException(List.of(denied("a"), transientFailure("b")));
 
-    assertEquals(
-        "Batch operation failed for 2 item(s): a (UnAuthorizedException), b"
-            + " (ResourceExhaustedException)",
-        e.getMessage());
+    assertEquals("Batch operation failed for 2 item(s)", e.getMessage());
     assertFalse(e.getMessage().contains("provider detail"));
+    assertFalse(e.getMessage().contains("UnAuthorizedException"));
   }
 
   @Test
-  void messageListsAtMostTenItemsAndCountsTheRest() {
+  void messageOmitsItemIdsWhileAllFailuresRemainAvailableForLargeBatches() {
     List<ItemFailure> failures = new ArrayList<>();
+    List<String> ids = new ArrayList<>();
     for (int i = 1; i <= 13; i++) {
-      failures.add(denied("k" + i));
+      failures.add(denied("key-" + i));
+      ids.add("key-" + i);
     }
 
     BatchOperationException e = new BatchOperationException(failures);
 
+    assertEquals("Batch operation failed for 13 item(s)", e.getMessage());
+    assertFalse(e.getMessage().contains("key-"));
     assertEquals(13, e.getFailures().size());
-    assertTrue(e.getMessage().contains("k10 ("));
-    assertFalse(e.getMessage().contains("k11"));
-    assertTrue(e.getMessage().endsWith(" and 3 more"));
-  }
-
-  @Test
-  void messageOmitsRemainderWhenExactlyTenFail() {
-    List<ItemFailure> failures = new ArrayList<>();
-    for (int i = 1; i <= 10; i++) {
-      failures.add(denied("k" + i));
-    }
-
-    assertFalse(new BatchOperationException(failures).getMessage().contains("more"));
+    assertEquals(ids, e.getFailedItemIds());
   }
 
   @Test

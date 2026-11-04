@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import lombok.Getter;
 
 /**
  * The failure of a single item within a batch operation.
@@ -16,9 +17,14 @@ public final class ItemFailure implements Serializable {
 
   private static final long serialVersionUID = 1L;
 
-  private final String itemId;
-  private final SubstrateSdkException exception;
-  private final Map<String, String> attributes;
+  /** Identifies the failed item; never null. */
+  @Getter private final String itemId;
+
+  /** The reason the item failed; never null. */
+  @Getter private final SubstrateSdkException exception;
+
+  /** Additional values that, with the item id, identify the item; unmodifiable and never null. */
+  @Getter private final Map<String, String> attributes;
 
   /**
    * Creates a failure with no additional identifying attributes.
@@ -44,21 +50,6 @@ public final class ItemFailure implements Serializable {
         attributes == null || attributes.isEmpty()
             ? Collections.emptyMap()
             : Collections.unmodifiableMap(new LinkedHashMap<>(attributes));
-  }
-
-  public String getItemId() {
-    return itemId;
-  }
-
-  public SubstrateSdkException getException() {
-    return exception;
-  }
-
-  /**
-   * @return an unmodifiable map of the additional identifying attributes; never null
-   */
-  public Map<String, String> getAttributes() {
-    return attributes;
   }
 
   /**

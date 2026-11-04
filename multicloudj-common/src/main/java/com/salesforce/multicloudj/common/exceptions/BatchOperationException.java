@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import lombok.Getter;
 
 /**
  * Thrown when a batch operation completed but one or more of its items failed.
@@ -18,9 +19,9 @@ import java.util.stream.Collectors;
 public class BatchOperationException extends SubstrateSdkException {
 
   private static final long serialVersionUID = 1L;
-  private static final int MAX_ITEMS_IN_MESSAGE = 10;
 
-  private final List<ItemFailure> failures;
+  /** The failed items in failure order; unmodifiable. */
+  @Getter private final List<ItemFailure> failures;
 
   /**
    * @param failures the per-item failures; must not be null or empty
@@ -49,13 +50,6 @@ public class BatchOperationException extends SubstrateSdkException {
   }
 
   /**
-   * @return an unmodifiable list of the failed items, in failure order
-   */
-  public List<ItemFailure> getFailures() {
-    return failures;
-  }
-
-  /**
    * @return the ids of the failed items, in failure order
    */
   public List<String> getFailedItemIds() {
@@ -69,17 +63,7 @@ public class BatchOperationException extends SubstrateSdkException {
 
   private static String buildMessage(Collection<ItemFailure> failures) {
     requireNonEmpty(failures);
-    String listed =
-        failures.stream()
-            .limit(MAX_ITEMS_IN_MESSAGE)
-            .map(f -> f.getItemId() + " (" + f.getException().getClass().getSimpleName() + ")")
-            .collect(Collectors.joining(", "));
-    int remaining = failures.size() - MAX_ITEMS_IN_MESSAGE;
-    return "Batch operation failed for "
-        + failures.size()
-        + " item(s): "
-        + listed
-        + (remaining > 0 ? " and " + remaining + " more" : "");
+    return "Batch operation failed for " + failures.size() + " item(s)";
   }
 
   private static void requireNonEmpty(Collection<ItemFailure> failures) {
