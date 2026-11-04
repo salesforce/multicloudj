@@ -7,6 +7,8 @@ import com.github.tomakehurst.wiremock.matching.BinaryEqualToPattern;
 import com.github.tomakehurst.wiremock.matching.ContentPattern;
 import com.github.tomakehurst.wiremock.matching.RegexPattern;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
+import com.salesforce.multicloudj.common.util.common.TestsUtil.BeforeTruncationTransformer;
+import com.salesforce.multicloudj.common.util.common.TestsUtil.TruncateRequestBodyTransformer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -28,8 +30,13 @@ import java.util.regex.Pattern;
  * only the part order, the {@code content-id} of each part and each part's HTTP request line are
  * matched; everything else in a part is wildcarded. If the recorded body is not a well-formed
  * batch, the generic boundary handling is used.
+ *
+ * <p>This transformer runs before body-size truncation so that batch body matchers are rewritten
+ * into their size-independent form before truncation can discard them. Other bodies over the
+ * truncation limit are left untouched and dropped by the truncation step.
  */
-public class MultipartBoundaryTransformer extends StubMappingTransformer {
+public class MultipartBoundaryTransformer extends StubMappingTransformer
+    implements BeforeTruncationTransformer {
 
   private static final Pattern BOUNDARY_PATTERN =
       Pattern.compile("--(__END_OF_PART__[a-f0-9-]+__)");
@@ -55,9 +62,11 @@ public class MultipartBoundaryTransformer extends StubMappingTransformer {
 
     List<ContentPattern<?>> newPatterns = new ArrayList<>();
     boolean modified = false;
+    boolean batch = BATCH_URL.equals(stubMapping.getRequest().getUrl());
 
     for (ContentPattern<?> pattern : bodyPatterns) {
-      if (pattern instanceof BinaryEqualToPattern) {
+      if (pattern instanceof BinaryEqualToPattern
+          && (batch || !exceedsTruncationLimit(pattern, parameters))) {
         String base64Content = pattern.getExpected();
         byte[] binaryContent = Base64.getDecoder().decode(base64Content);
         String textContent = new String(binaryContent, StandardCharsets.UTF_8);
@@ -65,10 +74,7 @@ public class MultipartBoundaryTransformer extends StubMappingTransformer {
         Matcher matcher = BOUNDARY_PATTERN.matcher(textContent);
         if (matcher.find()) {
           String boundaryLiteral = "--" + matcher.group(1);
-          String batchRegex =
-              BATCH_URL.equals(stubMapping.getRequest().getUrl())
-                  ? buildBatchRegex(textContent, boundaryLiteral)
-                  : null;
+          String batchRegex = batch ? buildBatchRegex(textContent, boundaryLiteral) : null;
           if (batchRegex != null) {
             newPatterns.add(new RegexPattern(batchRegex));
             modified = true;
@@ -97,6 +103,14 @@ public class MultipartBoundaryTransformer extends StubMappingTransformer {
     }
 
     return stubMapping;
+  }
+
+  private static boolean exceedsTruncationLimit(ContentPattern<?> pattern, Parameters parameters) {
+    String key = TruncateRequestBodyTransformer.TRUNCATE_MATCHER_REQUEST_BODY_OVER;
+    if (parameters == null || !parameters.containsKey(key)) {
+      return false;
+    }
+    return pattern.getExpected().length() > parameters.getInt(key);
   }
 
   /**

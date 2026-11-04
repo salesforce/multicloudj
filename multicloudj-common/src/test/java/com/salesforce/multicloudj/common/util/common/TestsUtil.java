@@ -130,6 +130,14 @@ public class TestsUtil {
     }
   }
 
+  /**
+   * Marks a {@link StubMappingTransformer} that must see the recorded request body matchers before
+   * {@link TruncateRequestBodyTransformer} drops or truncates them. Transformers that rewrite a
+   * body matcher into a size-independent form (for example, a regex that wildcards volatile
+   * content) implement this so the rewrite does not depend on the size of the original body.
+   */
+  public interface BeforeTruncationTransformer {}
+
   public static class TruncateRequestBodyTransformer extends StubMappingTransformer {
 
     public static final String TRUNCATE_MATCHER_REQUEST_BODY_OVER =
@@ -145,6 +153,12 @@ public class TestsUtil {
         int truncateMatcherRequestBodyOver = parameters.getInt(TRUNCATE_MATCHER_REQUEST_BODY_OVER);
 
         for (ContentPattern<?> pattern : bodyPatterns) {
+          if (pattern instanceof RegexPattern) {
+            // Regexes are only produced by transformers that deliberately rewrote the matcher;
+            // truncating one would corrupt it.
+            newPatterns.add(pattern);
+            continue;
+          }
           boolean overLimit = pattern.getExpected().length() > truncateMatcherRequestBodyOver;
           if (overLimit && pattern instanceof BinaryEqualToPattern) {
             // Binary bodies (e.g. an octet-stream multipart part) are recorded by WireMock as a
@@ -262,14 +276,19 @@ public class TestsUtil {
     extensions.add(new StubNamingTransformer());
     extensions.add(new QueryParamCountTransformer());
     extensions.add(new QueryParamCountFilter());
-    extensions.add(new TruncateRequestBodyTransformer());
 
-    // Load additional extensions if provided
+    // WireMock applies recording transformers in registration order, so transformers that need the
+    // original body matchers are registered ahead of the truncating transformer.
+    List<Extension> afterTruncation = new ArrayList<>();
     for (String extensionClass : extensionInstances) {
       try {
         Class<?> clazz = Class.forName(extensionClass);
         Extension extension = (Extension) clazz.getDeclaredConstructor().newInstance();
-        extensions.add(extension);
+        if (extension instanceof BeforeTruncationTransformer) {
+          extensions.add(extension);
+        } else {
+          afterTruncation.add(extension);
+        }
         logger.info("Loaded WireMock extension: {}", extensionClass);
 
         if (extension instanceof StubMappingTransformer) {
@@ -279,6 +298,8 @@ public class TestsUtil {
         logger.warn("Failed to load WireMock extension: {}", extensionClass, e);
       }
     }
+    extensions.add(new TruncateRequestBodyTransformer());
+    extensions.addAll(afterTruncation);
 
     wireMockServer =
         new WireMockServer(
