@@ -80,7 +80,6 @@ import com.google.cloud.storage.transfermanager.TransferStatus;
 import com.google.cloud.storage.transfermanager.UploadJob;
 import com.google.cloud.storage.transfermanager.UploadResult;
 import com.google.common.io.ByteStreams;
-import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
@@ -118,8 +117,10 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStore;
 import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStoreProvider;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
@@ -1199,9 +1200,9 @@ class GcpBlobStoreTest {
           return id.equals(absentId) ? Boolean.FALSE : Boolean.TRUE;
         });
 
-    BlobBatchDeleteException e =
+    BatchOperationException e =
         assertThrows(
-            BlobBatchDeleteException.class,
+            BatchOperationException.class,
             () ->
                 gcpBlobStore.doDelete(
                     List.of(
@@ -1210,19 +1211,19 @@ class GcpBlobStoreTest {
                         new BlobIdentifier("absent.txt", null),
                         new BlobIdentifier("broken.txt", null))));
 
-    assertEquals(Set.of("broken.txt", "denied.txt"), new HashSet<>(e.getFailedKeys()));
+    assertEquals(Set.of("broken.txt", "denied.txt"), new HashSet<>(e.getFailedItemIds()));
     assertEquals(2, e.getFailures().size());
-    Map<String, BlobBatchDeleteException.Failure> byKey = new HashMap<>();
-    e.getFailures().forEach(f -> byKey.put(f.getKey(), f));
-    BlobBatchDeleteException.Failure broken = byKey.get("broken.txt");
-    assertEquals("503", broken.getCode());
-    assertNull(broken.getVersionId());
-    assertEquals("backend unavailable", broken.getMessage());
+    Map<String, ItemFailure> byKey = new HashMap<>();
+    e.getFailures().forEach(f -> byKey.put(f.getItemId(), f));
+    ItemFailure broken = byKey.get("broken.txt");
+    assertTrue(broken.getAttributes().isEmpty());
+    assertEquals(UnknownException.class, broken.getException().getClass());
     assertTrue(broken.isRetryable());
-    BlobBatchDeleteException.Failure denied = byKey.get("denied.txt");
-    assertEquals("403", denied.getCode());
-    assertEquals("42", denied.getVersionId());
+    ItemFailure denied = byKey.get("denied.txt");
+    assertEquals(Map.of(BlobIdentifier.VERSION_ID_ATTRIBUTE, "42"), denied.getAttributes());
+    assertEquals(UnAuthorizedException.class, denied.getException().getClass());
     assertFalse(denied.isRetryable());
+    assertFalse(e.isRetryable());
     assertFalse(e.getMessage().contains("caller lacks permission"));
   }
 
@@ -1233,9 +1234,9 @@ class GcpBlobStoreTest {
     List<List<BlobId>> submitted =
         stubDeleteBatches(mockStorage, id -> new StorageException(403, "denied"));
 
-    BlobBatchDeleteException e =
+    BatchOperationException e =
         assertThrows(
-            BlobBatchDeleteException.class,
+            BatchOperationException.class,
             () ->
                 gcpBlobStore.doDelete(
                     List.of(
@@ -1243,14 +1244,14 @@ class GcpBlobStoreTest {
                         new BlobIdentifier("dup.txt", null))));
 
     assertEquals(List.of(List.of(dup, dup)), submitted);
-    assertEquals(List.of("dup.txt", "dup.txt"), e.getFailedKeys());
+    assertEquals(List.of("dup.txt", "dup.txt"), e.getFailedItemIds());
   }
 
   @Test
-  void testMapException_BatchDeleteExceptionPassesThrough() {
-    BlobBatchDeleteException failure =
-        new BlobBatchDeleteException(
-            List.of(new BlobBatchDeleteException.Failure("a.txt", null, "403", null, false)));
+  void testMapException_BatchOperationExceptionPassesThrough() {
+    BatchOperationException failure =
+        new BatchOperationException(
+            List.of(new ItemFailure("a.txt", new UnAuthorizedException("denied"))));
 
     assertSame(failure, gcpBlobStore.mapException(failure));
   }
@@ -3878,14 +3879,17 @@ class GcpBlobStoreTest {
                     ? new StorageException(403, "denied")
                     : Boolean.TRUE);
 
-    BlobBatchDeleteException e =
+    BatchOperationException e =
         assertThrows(
-            BlobBatchDeleteException.class, () -> gcpBlobStore.deleteDirectory("uploads/"));
+            BatchOperationException.class, () -> gcpBlobStore.deleteDirectory("uploads/"));
 
     // The first batch failing must not stop the later batches from being deleted.
     assertEquals(List.of(1000, 1000, 500), batchSizes(submitted));
-    assertEquals(failing, new HashSet<>(e.getFailedKeys()));
+    assertEquals(failing, new HashSet<>(e.getFailedItemIds()));
     assertEquals(3, e.getFailures().size());
+    assertTrue(
+        e.getFailures().stream()
+            .allMatch(f -> f.getException() instanceof UnAuthorizedException));
   }
 
   @Test

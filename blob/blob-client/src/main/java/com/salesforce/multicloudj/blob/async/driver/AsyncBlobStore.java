@@ -1,6 +1,5 @@
 package com.salesforce.multicloudj.blob.async.driver;
 
-import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -25,6 +24,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.service.SdkService;
 import java.io.File;
 import java.io.InputStream;
@@ -149,9 +149,9 @@ public interface AsyncBlobStore extends SdkService, AutoCloseable {
    * Performs args validation and passes the call to substrate-specific delete method
    *
    * <p>Blobs that do not exist count as deleted. If some blobs cannot be deleted, the future
-   * completes exceptionally with a {@link BlobBatchDeleteException} naming the failed keys; every
-   * other blob was deleted. Providers that cannot report per-object results may surface a
-   * request-level error instead.
+   * completes exceptionally with a {@link BatchOperationException} whose failed item ids are the
+   * keys of those blobs; every other blob was deleted. Providers that cannot report per-object
+   * results may surface a request-level error instead.
    *
    * @param objects A collection of BlobIdentifiers representing the blobs to delete
    */
@@ -300,8 +300,9 @@ public interface AsyncBlobStore extends SdkService, AutoCloseable {
    * Deletes the content from the substrate-specific Blob storage that contains the prefix
    *
    * <p>If some blobs cannot be deleted, the future completes exceptionally with a {@link
-   * BlobBatchDeleteException} naming the failed keys; every other matching blob was deleted.
-   * Providers that cannot report per-object results may surface a request-level error instead.
+   * BatchOperationException} whose failed item ids are the keys of those blobs; every other
+   * matching blob was deleted. Providers that cannot report per-object results may surface a
+   * request-level error instead.
    *
    * @param prefix The prefix of blobs that should be deleted (e.g. the directory)
    */

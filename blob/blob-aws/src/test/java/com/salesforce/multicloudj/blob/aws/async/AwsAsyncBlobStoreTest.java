@@ -20,7 +20,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.blob.aws.AwsTransformerSupplier;
-import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
@@ -50,6 +49,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -990,11 +990,14 @@ public class AwsAsyncBlobStoreTest {
                             new BlobIdentifier("object-2", "version-2")))
                     .get());
 
-    BlobBatchDeleteException e =
-        assertInstanceOf(BlobBatchDeleteException.class, thrown.getCause());
-    assertEquals(List.of("object-2"), e.getFailedKeys());
-    assertEquals("AccessDenied", e.getFailures().get(0).getCode());
-    assertEquals("version-2", e.getFailures().get(0).getVersionId());
+    BatchOperationException e =
+        assertInstanceOf(BatchOperationException.class, thrown.getCause());
+    assertEquals(List.of("object-2"), e.getFailedItemIds());
+    assertEquals(UnAuthorizedException.class, e.getFailures().get(0).getException().getClass());
+    assertFalse(e.getFailures().get(0).isRetryable());
+    assertEquals(
+        Map.of(BlobIdentifier.VERSION_ID_ATTRIBUTE, "version-2"),
+        e.getFailures().get(0).getAttributes());
   }
 
   @Test
@@ -2205,9 +2208,9 @@ public class AwsAsyncBlobStoreTest {
         S3Object.builder().key("file4.txt").size(1L).build());
 
     ExecutionException thrown = assertThrows(ExecutionException.class, result::get);
-    BlobBatchDeleteException e =
-        assertInstanceOf(BlobBatchDeleteException.class, thrown.getCause());
-    assertEquals(List.of("file1.txt", "file4.txt"), e.getFailedKeys());
+    BatchOperationException e =
+        assertInstanceOf(BatchOperationException.class, thrown.getCause());
+    assertEquals(List.of("file1.txt", "file4.txt"), e.getFailedItemIds());
     verify(mockS3Client, times(3)).deleteObjects(any(DeleteObjectsRequest.class));
   }
 
@@ -2233,9 +2236,9 @@ public class AwsAsyncBlobStoreTest {
             .build());
 
     ExecutionException thrown = assertThrows(ExecutionException.class, result::get);
-    BlobBatchDeleteException e =
-        assertInstanceOf(BlobBatchDeleteException.class, thrown.getCause());
-    assertEquals(List.of("file1.txt", "file2.txt"), e.getFailedKeys());
+    BatchOperationException e =
+        assertInstanceOf(BatchOperationException.class, thrown.getCause());
+    assertEquals(List.of("file1.txt", "file2.txt"), e.getFailedItemIds());
   }
 
   @Test

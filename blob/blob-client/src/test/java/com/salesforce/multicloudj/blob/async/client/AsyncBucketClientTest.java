@@ -24,7 +24,6 @@ import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
-import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -55,9 +54,12 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
+import com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
@@ -449,16 +451,19 @@ public class AsyncBucketClientTest {
         UnAuthorizedException.class);
   }
 
-  private static BlobBatchDeleteException batchDeleteFailure() {
-    return new BlobBatchDeleteException(
+  private static BatchOperationException batchDeleteFailure() {
+    return new BatchOperationException(
         List.of(
-            new BlobBatchDeleteException.Failure("object-1", null, "AccessDenied", null, false),
-            new BlobBatchDeleteException.Failure("object-2", "v2", null, null, false)));
+            new ItemFailure("object-1", new UnAuthorizedException("denied")),
+            new ItemFailure(
+                "object-2",
+                new ResourceExhaustedException("slow down"),
+                Map.of(BlobIdentifier.VERSION_ID_ATTRIBUTE, "v2"))));
   }
 
   @Test
   void testBulkDeleteSurfacesBatchDeleteExceptionUnchanged() {
-    BlobBatchDeleteException failure = batchDeleteFailure();
+    BatchOperationException failure = batchDeleteFailure();
     List<BlobIdentifier> objects = List.of(new BlobIdentifier("object-1", null));
     when(mockBlobStore.delete(objects))
         .thenReturn(CompletableFuture.failedFuture(new CompletionException(failure)));
@@ -467,7 +472,11 @@ public class AsyncBucketClientTest {
         assertThrows(ExecutionException.class, () -> client.delete(objects).get());
 
     assertSame(failure, error.getCause());
-    assertEquals(List.of("object-1", "object-2"), failure.getFailedKeys());
+    BatchOperationException thrown = (BatchOperationException) error.getCause();
+    assertEquals(List.of("object-1", "object-2"), thrown.getFailedItemIds());
+    assertEquals(
+        Map.of(BlobIdentifier.VERSION_ID_ATTRIBUTE, "v2"),
+        thrown.getFailures().get(1).getAttributes());
     verify(mockBlobStore, never()).mapException(any());
   }
 
@@ -484,7 +493,7 @@ public class AsyncBucketClientTest {
 
   @Test
   void testDeleteDirectorySurfacesBatchDeleteExceptionUnchanged() {
-    BlobBatchDeleteException failure = batchDeleteFailure();
+    BatchOperationException failure = batchDeleteFailure();
     when(mockBlobStore.deleteDirectory("files"))
         .thenReturn(CompletableFuture.failedFuture(new CompletionException(failure)));
 

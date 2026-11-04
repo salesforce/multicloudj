@@ -1,7 +1,6 @@
 package com.salesforce.multicloudj.blob.client;
 
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
-import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -28,6 +27,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
@@ -331,11 +331,12 @@ public class BucketClient implements AutoCloseable {
    * Deletes a collection of Blobs from a substrate-specific Blob storage.
    *
    * <p>Blobs that do not exist count as deleted. If some blobs cannot be deleted, a {@link
-   * BlobBatchDeleteException} naming the failed keys is thrown; every other blob was deleted.
-   * Providers that cannot report per-object results may surface a request-level error instead.
+   * BatchOperationException} is thrown whose failed item ids are the keys of those blobs; every
+   * other blob was deleted. Providers that cannot report per-object results may surface a
+   * request-level error instead.
    *
    * @param objects A collection of blob identifiers to delete
-   * @throws BlobBatchDeleteException Thrown if some of the blobs could not be deleted.
+   * @throws BatchOperationException Thrown if some of the blobs could not be deleted.
    * @throws SubstrateSdkException Thrown if the operation fails. Will not throw an exception if a
    *     blob in the list does not exist.
    */
@@ -347,13 +348,14 @@ public class BucketClient implements AutoCloseable {
    * Deletes a collection of Blobs from a substrate-specific Blob storage.
    *
    * <p>Blobs that do not exist count as deleted. If some blobs cannot be deleted, a {@link
-   * BlobBatchDeleteException} naming the failed keys is thrown; every other blob was deleted.
-   * Providers that cannot report per-object results may surface a request-level error instead.
+   * BatchOperationException} is thrown whose failed item ids are the keys of those blobs; every
+   * other blob was deleted. Providers that cannot report per-object results may surface a
+   * request-level error instead.
    *
    * @param objects A collection of blob identifiers to delete
    * @param operationContext Per-call observability context carrying the correlation ID. May be
    *     null, in which case tracing is treated as disabled.
-   * @throws BlobBatchDeleteException Thrown if some of the blobs could not be deleted.
+   * @throws BatchOperationException Thrown if some of the blobs could not be deleted.
    * @throws SubstrateSdkException Thrown if the operation fails. Will not throw an exception if a
    *     blob in the list does not exist.
    */

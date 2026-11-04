@@ -50,7 +50,6 @@ import com.google.cloud.storage.transfermanager.UploadResult;
 import com.google.common.collect.Iterators;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
-import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreBuilder;
@@ -87,9 +86,11 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
@@ -505,9 +506,9 @@ public class GcpBlobStore extends AbstractBlobStore {
         objects.stream()
             .map(obj -> transformer.toBlobId(bucket, obj.getKey(), obj.getVersionId()))
             .collect(Collectors.toList());
-    List<BlobBatchDeleteException.Failure> failures = deleteBatch(blobIds);
+    List<ItemFailure> failures = deleteBatch(blobIds);
     if (!failures.isEmpty()) {
-      throw new BlobBatchDeleteException(failures);
+      throw new BatchOperationException(failures);
     }
   }
 
@@ -519,8 +520,8 @@ public class GcpBlobStore extends AbstractBlobStore {
    * The client splits the batch into multiple HTTP requests when it exceeds the per-request call
    * limit.
    */
-  private List<BlobBatchDeleteException.Failure> deleteBatch(List<BlobId> blobIds) {
-    List<BlobBatchDeleteException.Failure> failures = new ArrayList<>();
+  private List<ItemFailure> deleteBatch(List<BlobId> blobIds) {
+    List<ItemFailure> failures = new ArrayList<>();
     if (blobIds.isEmpty()) {
       return failures;
     }
@@ -536,14 +537,14 @@ public class GcpBlobStore extends AbstractBlobStore {
                 @Override
                 public void error(StorageException e) {
                   failures.add(
-                      new BlobBatchDeleteException.Failure(
+                      new ItemFailure(
                           blobId.getName(),
+                          mapException(e),
                           blobId.getGeneration() == null
                               ? null
-                              : String.valueOf(blobId.getGeneration()),
-                          String.valueOf(e.getCode()),
-                          e.getMessage(),
-                          e.isRetryable()));
+                              : Map.of(
+                                  BlobIdentifier.VERSION_ID_ATTRIBUTE,
+                                  String.valueOf(blobId.getGeneration()))));
                 }
               });
     }
@@ -1394,7 +1395,7 @@ public class GcpBlobStore extends AbstractBlobStore {
             ? new Storage.BlobListOption[] {Storage.BlobListOption.prefix(prefix)}
             : new Storage.BlobListOption[0];
 
-    List<BlobBatchDeleteException.Failure> failures = new ArrayList<>();
+    List<ItemFailure> failures = new ArrayList<>();
     // Delete while listing to bound memory; later pages resume after the last listed name,
     // so deleting earlier objects does not skip any.
     List<BlobId> batch = new ArrayList<>(MAX_OBJECTS_PER_BATCH_DELETE);
@@ -1409,7 +1410,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       failures.addAll(deleteBatch(batch));
     }
     if (!failures.isEmpty()) {
-      throw new BlobBatchDeleteException(failures);
+      throw new BatchOperationException(failures);
     }
   }
 

@@ -6,7 +6,6 @@ import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
 import com.salesforce.multicloudj.blob.aws.AwsSdkService;
 import com.salesforce.multicloudj.blob.aws.AwsTransformer;
 import com.salesforce.multicloudj.blob.aws.AwsTransformerSupplier;
-import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -37,7 +36,9 @@ import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.AwsRetryStrategies;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -330,10 +331,10 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
         .deleteObjects(request)
         .thenAccept(
             response -> {
-              List<BlobBatchDeleteException.Failure> failures =
+              List<ItemFailure> failures =
                   transformer.toBatchDeleteFailures(response);
               if (!failures.isEmpty()) {
-                throw new BlobBatchDeleteException(failures);
+                throw new BatchOperationException(failures);
               }
             });
   }
@@ -559,7 +560,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   protected CompletableFuture<Void> doDeleteDirectory(String prefix) {
     // Each element resolves to the chunk's per-object failures, or null when the chunk fully
     // succeeded. Keeping the futures in chunk order makes the merged failures deterministic.
-    List<CompletableFuture<BlobBatchDeleteException>> deletes = new ArrayList<>();
+    List<CompletableFuture<BatchOperationException>> deletes = new ArrayList<>();
 
     // When listed batches of blobs come in, partition them into groups, then delete them
     Consumer<ListBlobsBatch> consumer =
@@ -569,12 +570,12 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           for (List<BlobInfo> blobList : partitionedBlobLists) {
             deletes.add(
                 doDelete(transformer.toBlobIdentifiers(blobList))
-                    .thenApply(ignored -> (BlobBatchDeleteException) null)
+                    .thenApply(ignored -> (BatchOperationException) null)
                     .exceptionally(
                         t -> {
                           Throwable cause = t instanceof CompletionException ? t.getCause() : t;
-                          if (cause instanceof BlobBatchDeleteException) {
-                            return (BlobBatchDeleteException) cause;
+                          if (cause instanceof BatchOperationException) {
+                            return (BatchOperationException) cause;
                           }
                           throw t instanceof CompletionException
                               ? (CompletionException) t
@@ -590,15 +591,15 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             ignored -> CompletableFuture.allOf(deletes.toArray(new CompletableFuture[0])))
         .thenAccept(
             ignored -> {
-              List<BlobBatchDeleteException> chunkFailures = new ArrayList<>();
-              for (CompletableFuture<BlobBatchDeleteException> delete : deletes) {
-                BlobBatchDeleteException failure = delete.join();
+              List<BatchOperationException> chunkFailures = new ArrayList<>();
+              for (CompletableFuture<BatchOperationException> delete : deletes) {
+                BatchOperationException failure = delete.join();
                 if (failure != null) {
                   chunkFailures.add(failure);
                 }
               }
               if (!chunkFailures.isEmpty()) {
-                throw BlobBatchDeleteException.merge(chunkFailures);
+                throw BatchOperationException.merge(chunkFailures);
               }
             });
   }

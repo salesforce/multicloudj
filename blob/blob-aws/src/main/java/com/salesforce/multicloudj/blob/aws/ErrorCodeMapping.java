@@ -34,4 +34,11 @@ public class ErrorCodeMapping {
   static Class<? extends SubstrateSdkException> getException(String errorCode) {
     return ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
   }
+
+  /**
+   * @return the exception class mapped to the error code, or null if the code is null or unmapped
+   */
+  static Class<? extends SubstrateSdkException> findException(String errorCode) {
+    return errorCode == null ? null : ERROR_MAPPING.get(errorCode);
+  }
 }

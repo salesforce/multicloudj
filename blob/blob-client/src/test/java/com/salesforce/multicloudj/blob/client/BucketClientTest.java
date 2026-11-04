@@ -21,7 +21,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
-import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -47,8 +46,10 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
@@ -373,12 +374,10 @@ public class BucketClientTest {
   }
 
   @Test
-  void testBulkDeletePassesBatchDeleteExceptionThroughProviderMapping() {
-    BlobBatchDeleteException failure =
-        new BlobBatchDeleteException(
-            List.of(
-                new BlobBatchDeleteException.Failure(
-                    "object-1", null, "AccessDenied", null, false)));
+  void testBulkDeletePassesBatchOperationExceptionThroughProviderMapping() {
+    BatchOperationException failure =
+        new BatchOperationException(
+            List.of(new ItemFailure("object-1", new UnAuthorizedException("denied"))));
     List<BlobIdentifier> objects = List.of(new BlobIdentifier("object-1", null));
     doThrow(failure).when(mockBlobStore).delete(objects);
     doAnswer(
@@ -388,11 +387,13 @@ public class BucketClientTest {
         .when(mockBlobStore)
         .mapException(any());
 
-    BlobBatchDeleteException thrown =
-        assertThrows(BlobBatchDeleteException.class, () -> client.delete(objects));
+    BatchOperationException thrown =
+        assertThrows(BatchOperationException.class, () -> client.delete(objects));
 
     assertSame(failure, thrown);
-    assertEquals(List.of("object-1"), thrown.getFailedKeys());
+    assertEquals(List.of("object-1"), thrown.getFailedItemIds());
+    assertEquals(
+        UnAuthorizedException.class, thrown.getFailures().get(0).getException().getClass());
   }
 
   @Test

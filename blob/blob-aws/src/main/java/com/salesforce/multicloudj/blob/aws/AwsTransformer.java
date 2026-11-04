@@ -1,7 +1,6 @@
 package com.salesforce.multicloudj.blob.aws;
 
 import com.salesforce.multicloudj.blob.aws.async.S3LoggingTransferListener;
-import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -35,8 +34,12 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.util.HexUtil;
@@ -58,6 +61,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.awscore.presigner.PresignedRequest;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
@@ -104,6 +109,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRetentionRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.S3Error;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.services.s3.model.StorageClass;
@@ -145,7 +151,11 @@ public class AwsTransformer {
   private static final Set<String> ALREADY_ABSENT_DELETE_ERROR_CODES =
       Set.of("NoSuchKey", "NoSuchVersion");
 
-  /** Per-object error codes of a multi-object delete that S3 documents as transient. */
+  /**
+   * Per-object error codes of a multi-object delete that S3 documents as transient. They are
+   * reported as retryable even when the error code mapping classifies them as a type that is not
+   * retryable by default, or does not classify them at all.
+   */
   private static final Set<String> TRANSIENT_DELETE_ERROR_CODES =
       Set.of("InternalError", "SlowDown", "ServiceUnavailable");
 
@@ -557,15 +567,15 @@ public class AwsTransformer {
 
   /**
    * Extracts the per-object failures of a multi-object delete. S3 reports a missing key or version
-   * as a per-object error even though the object is already gone, so those are not failures. An
-   * error without a code is a failure that is not retryable.
+   * as a per-object error even though the object is already gone, so those are not failures. Each
+   * failure carries an exception classified from the error code; an error whose code is missing or
+   * unmapped is a plain, non-retryable {@link SubstrateSdkException}.
    *
    * @throws IllegalStateException if an error names no key, because the failed object cannot be
    *     identified and must not be dropped silently
    */
-  public List<BlobBatchDeleteException.Failure> toBatchDeleteFailures(
-      DeleteObjectsResponse response) {
-    List<BlobBatchDeleteException.Failure> failures = new ArrayList<>();
+  public List<ItemFailure> toBatchDeleteFailures(DeleteObjectsResponse response) {
+    List<ItemFailure> failures = new ArrayList<>();
     for (S3Error error : response.errors()) {
       String code = error.code();
       if (code != null && ALREADY_ABSENT_DELETE_ERROR_CODES.contains(code)) {
@@ -578,15 +588,33 @@ public class AwsTransformer {
                 + ", message="
                 + error.message());
       }
-      failures.add(
-          new BlobBatchDeleteException.Failure(
-              error.key(),
-              error.versionId(),
-              code,
-              error.message(),
-              code != null && TRANSIENT_DELETE_ERROR_CODES.contains(code)));
+      Map<String, String> attributes =
+          error.versionId() == null
+              ? null
+              : Map.of(BlobIdentifier.VERSION_ID_ATTRIBUTE, error.versionId());
+      failures.add(new ItemFailure(error.key(), toBatchDeleteItemException(error), attributes));
     }
     return failures;
+  }
+
+  private static SubstrateSdkException toBatchDeleteItemException(S3Error error) {
+    String code = error.code();
+    AwsServiceException cause =
+        S3Exception.builder()
+            .message(error.message())
+            .awsErrorDetails(
+                AwsErrorDetails.builder()
+                    .errorCode(code)
+                    .errorMessage(error.message())
+                    .build())
+            .build();
+    boolean transientCode = code != null && TRANSIENT_DELETE_ERROR_CODES.contains(code);
+    Class<? extends SubstrateSdkException> mapped = ErrorCodeMapping.findException(code);
+    if (mapped == null && !transientCode) {
+      return new SubstrateSdkException(error.message(), cause);
+    }
+    return ExceptionHandler.build(
+        mapped != null ? mapped : UnknownException.class, cause, transientCode ? true : null);
   }
 
   public CopyObjectRequest toRequest(CopyRequest request) {

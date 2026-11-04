@@ -20,7 +20,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -49,10 +48,13 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
@@ -806,9 +808,9 @@ public class AwsBlobStoreTest {
                     deleteError("object-3", null, "InternalError"))
                 .build());
 
-    BlobBatchDeleteException e =
+    BatchOperationException e =
         assertThrows(
-            BlobBatchDeleteException.class,
+            BatchOperationException.class,
             () ->
                 aws.doDelete(
                     List.of(
@@ -816,15 +818,62 @@ public class AwsBlobStoreTest {
                         new BlobIdentifier("object-2", "version-2"),
                         new BlobIdentifier("object-3", null))));
 
-    assertEquals(List.of("object-2", "object-3"), e.getFailedKeys());
-    BlobBatchDeleteException.Failure denied = e.getFailures().get(0);
-    assertEquals("version-2", denied.getVersionId());
-    assertEquals("AccessDenied", denied.getCode());
-    assertEquals("detail for object-2", denied.getMessage());
+    assertEquals(List.of("object-2", "object-3"), e.getFailedItemIds());
+    ItemFailure denied = e.getFailures().get(0);
+    assertEquals(
+        Map.of(BlobIdentifier.VERSION_ID_ATTRIBUTE, "version-2"), denied.getAttributes());
+    assertEquals(UnAuthorizedException.class, denied.getException().getClass());
+    assertTrue(denied.getException().getMessage().contains("detail for object-2"));
     assertFalse(denied.isRetryable());
+    assertTrue(e.getFailures().get(1).getAttributes().isEmpty());
     assertTrue(e.getFailures().get(1).isRetryable());
     assertFalse(e.isRetryable());
     assertFalse(e.getMessage().contains("detail for"));
+  }
+
+  @Test
+  void testDoBulkDelete_TransientCodesAreRetryable() {
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(
+            DeleteObjectsResponse.builder()
+                .errors(
+                    deleteError("object-1", null, "InternalError"),
+                    deleteError("object-2", null, "SlowDown"),
+                    deleteError("object-3", null, "ServiceUnavailable"))
+                .build());
+
+    BatchOperationException e =
+        assertThrows(
+            BatchOperationException.class,
+            () ->
+                aws.doDelete(
+                    List.of(
+                        new BlobIdentifier("object-1", null),
+                        new BlobIdentifier("object-2", null),
+                        new BlobIdentifier("object-3", null))));
+
+    assertEquals(List.of("object-1", "object-2", "object-3"), e.getFailedItemIds());
+    assertTrue(e.getFailures().stream().allMatch(ItemFailure::isRetryable));
+    assertTrue(e.isRetryable());
+  }
+
+  @Test
+  void testDoBulkDelete_UnmappedCodeIsPlainNonRetryableException() {
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(
+            DeleteObjectsResponse.builder()
+                .errors(deleteError("object-1", null, "SomethingNew"))
+                .build());
+
+    BatchOperationException e =
+        assertThrows(
+            BatchOperationException.class,
+            () -> aws.doDelete(List.of(new BlobIdentifier("object-1", null))));
+
+    ItemFailure failure = e.getFailures().get(0);
+    assertEquals(SubstrateSdkException.class, failure.getException().getClass());
+    assertFalse(failure.isRetryable());
+    assertFalse(e.isRetryable());
   }
 
   @Test
@@ -840,7 +889,7 @@ public class AwsBlobStoreTest {
   }
 
   @Test
-  void testDoBulkDelete_ErrorWithoutCodeThrowsBatchDeleteExceptionWithKey() {
+  void testDoBulkDelete_ErrorWithoutCodeThrowsBatchOperationExceptionWithKey() {
     when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
         .thenReturn(
             DeleteObjectsResponse.builder()
@@ -849,17 +898,17 @@ public class AwsBlobStoreTest {
                     deleteError("object-2", null, "NoSuchKey"))
                 .build());
 
-    BlobBatchDeleteException e =
+    BatchOperationException e =
         assertThrows(
-            BlobBatchDeleteException.class,
+            BatchOperationException.class,
             () ->
                 aws.doDelete(
                     List.of(
                         new BlobIdentifier("object-1", null),
                         new BlobIdentifier("object-2", null))));
 
-    assertEquals(List.of("object-1"), e.getFailedKeys());
-    assertNull(e.getFailures().get(0).getCode());
+    assertEquals(List.of("object-1"), e.getFailedItemIds());
+    assertEquals(SubstrateSdkException.class, e.getFailures().get(0).getException().getClass());
     assertFalse(e.getFailures().get(0).isRetryable());
   }
 
@@ -880,12 +929,10 @@ public class AwsBlobStoreTest {
   }
 
   @Test
-  void testMapException_BatchDeleteExceptionPassesThrough() {
-    BlobBatchDeleteException failure =
-        new BlobBatchDeleteException(
-            List.of(
-                new BlobBatchDeleteException.Failure(
-                    "object-1", null, "AccessDenied", null, false)));
+  void testMapException_BatchOperationExceptionPassesThrough() {
+    BatchOperationException failure =
+        new BatchOperationException(
+            List.of(new ItemFailure("object-1", new UnAuthorizedException("denied"))));
 
     assertSame(failure, aws.mapException(failure));
   }
