@@ -546,7 +546,7 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
         .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
         .s3Client(s3Client);
     // The presigner does not inherit the client's endpoint; without this, URLs for custom
-    // endpoints (e.g. MinIO) are signed against s3.amazonaws.com.
+    // endpoints are signed against s3.amazonaws.com.
     s3Client.serviceClientConfiguration().endpointOverride().ifPresent(builder::endpointOverride);
     return builder.build();
   }

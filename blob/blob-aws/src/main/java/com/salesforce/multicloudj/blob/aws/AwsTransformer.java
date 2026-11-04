@@ -271,7 +271,7 @@ public class AwsTransformer {
 
     // Only set tagging when tags are present. An empty Tagging still emits an x-amz-tagging
     // header, which the presigner then signs; clients uploading through the presigned URL do not
-    // send that header, so S3-compatible stores (e.g. MinIO) reject the PUT with HTTP 400.
+    // send that header, so S3-compatible stores reject the PUT with HTTP 400.
     if (request.getTags() != null && !request.getTags().isEmpty()) {
       List<Tag> tags =
           request.getTags().entrySet().stream()
