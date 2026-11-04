@@ -515,25 +515,11 @@ class GcpBlobStoreTest {
     Blob blob2 = mock(Blob.class);
     when(blob1.getName()).thenReturn("some/prefix/key1");
     when(blob2.getName()).thenReturn("some/prefix/key2");
-    when(blob1.getSize()).thenReturn(1L);
-    when(blob2.getSize()).thenReturn(2L);
 
     @SuppressWarnings("unchecked")
     Page<Blob> page = mock(Page.class);
-    when(page.getValues()).thenReturn(Arrays.asList(blob1, blob2));
+    when(page.iterateAll()).thenReturn(Arrays.asList(blob1, blob2));
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
-
-    List<com.salesforce.multicloudj.blob.driver.BlobInfo> blobInfos =
-        List.of(
-            com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-                .withKey("some/prefix/key1")
-                .withObjectSize(1L)
-                .build(),
-            com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-                .withKey("some/prefix/key2")
-                .withObjectSize(2L)
-                .build());
-    when(mockTransformer.partitionList(any(), eq(1000))).thenReturn(List.of(blobInfos));
 
     hybridStore.doDeleteDirectory(prefix);
 
@@ -3631,78 +3617,55 @@ class GcpBlobStoreTest {
     Blob blob1 = mock(Blob.class);
     Blob blob2 = mock(Blob.class);
     when(blob1.getName()).thenReturn("uploads/file1.txt");
-    when(blob1.getSize()).thenReturn(1024L);
     when(blob2.getName()).thenReturn("uploads/file2.txt");
-    when(blob2.getSize()).thenReturn(2048L);
 
     Page<Blob> mockPage = mock(Page.class);
-    when(mockPage.getValues()).thenReturn(List.of(blob1, blob2));
+    when(mockPage.iterateAll()).thenReturn(List.of(blob1, blob2));
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-
-    // Mock transformer partitioning
-    List<com.salesforce.multicloudj.blob.driver.BlobInfo> blobInfos =
-        List.of(
-            com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-                .withKey("uploads/file1.txt")
-                .withObjectSize(1024L)
-                .build(),
-            com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-                .withKey("uploads/file2.txt")
-                .withObjectSize(2048L)
-                .build());
-    when(mockTransformer.partitionList(any(), eq(1000))).thenReturn(List.of(blobInfos));
 
     // When
     gcpBlobStore.deleteDirectory(prefix);
 
     // Then
     verify(mockStorage).list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class));
-    verify(mockStorage).delete(any(List.class));
+    verify(mockStorage)
+        .delete(
+            List.of(
+                BlobId.of(TEST_BUCKET, "uploads/file1.txt"),
+                BlobId.of(TEST_BUCKET, "uploads/file2.txt")));
   }
 
   @Test
   void testDeleteDirectory_LargeBatch() throws Exception {
     // Given
     String prefix = "uploads/";
-
-    // Create a large list of blobs (more than batch size)
-    List<Blob> largeList = new ArrayList<>();
-    List<com.salesforce.multicloudj.blob.driver.BlobInfo> blobInfos = new ArrayList<>();
-
-    for (int i = 0; i < 2500; i++) {
-      Blob mockBlob = mock(Blob.class);
-      when(mockBlob.getName()).thenReturn("uploads/file" + i + ".txt");
-      when(mockBlob.getSize()).thenReturn(1024L);
-      largeList.add(mockBlob);
-
-      blobInfos.add(
-          com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-              .withKey("uploads/file" + i + ".txt")
-              .withObjectSize(1024L)
-              .build());
-    }
-
+    List<Blob> blobs = mockBlobs(prefix, 2500);
     Page<Blob> mockPage = mock(Page.class);
-    when(mockPage.getValues()).thenReturn(largeList);
+    when(mockPage.iterateAll()).thenReturn(blobs);
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-
-    // Mock transformer to return partitioned lists (3 batches for 2500 items)
-    List<List<com.salesforce.multicloudj.blob.driver.BlobInfo>> partitions =
-        List.of(
-            blobInfos.subList(0, 1000),
-            blobInfos.subList(1000, 2000),
-            blobInfos.subList(2000, 2500));
-    when(mockTransformer.partitionList(any(), eq(1000))).thenReturn(partitions);
 
     // When
     gcpBlobStore.deleteDirectory(prefix);
 
     // Then
     verify(mockStorage).list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class));
-    verify(mockStorage, Mockito.times(3))
-        .delete(any(List.class)); // Should be called 3 times for 3 batches
+    assertEquals(List.of(1000, 1000, 500), capturedDeleteBatchSizes(3));
+  }
+
+  @Test
+  void testDeleteDirectory_ExactMultipleOfBatchSizeSendsNoEmptyBatch() {
+    String prefix = "uploads/";
+    List<Blob> blobs = mockBlobs(prefix, 2000);
+    Page<Blob> mockPage = mock(Page.class);
+    when(mockPage.iterateAll()).thenReturn(blobs);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+
+    gcpBlobStore.deleteDirectory(prefix);
+
+    assertEquals(List.of(1000, 1000), capturedDeleteBatchSizes(2));
   }
 
   @Test
@@ -3711,16 +3674,56 @@ class GcpBlobStoreTest {
     String prefix = null;
 
     Page<Blob> mockPage = mock(Page.class);
-    when(mockPage.getValues()).thenReturn(List.of());
+    when(mockPage.iterateAll()).thenReturn(List.of());
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
-
-    when(mockTransformer.partitionList(any(), eq(1000))).thenReturn(List.of());
 
     // When & Then - should not throw exception
     gcpBlobStore.deleteDirectory(prefix);
 
     verify(mockStorage).list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class));
+    verify(mockStorage, never()).delete(anyList());
+  }
+
+  @Test
+  void testDeleteDirectory_DeletesBlobsFromAllListingPages() {
+    String prefix = "uploads/";
+    Blob firstPageBlob = mock(Blob.class);
+    Blob secondPageBlob = mock(Blob.class);
+    when(firstPageBlob.getName()).thenReturn("uploads/file1.txt");
+    when(secondPageBlob.getName()).thenReturn("uploads/file2.txt");
+
+    Page<Blob> mockPage = mock(Page.class);
+    // getValues() holds only the first page; iterateAll() follows the page tokens.
+    lenient().when(mockPage.getValues()).thenReturn(List.of(firstPageBlob));
+    when(mockPage.iterateAll()).thenReturn(List.of(firstPageBlob, secondPageBlob));
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+
+    gcpBlobStore.deleteDirectory(prefix);
+
+    verify(mockStorage)
+        .delete(
+            List.of(
+                BlobId.of(TEST_BUCKET, "uploads/file1.txt"),
+                BlobId.of(TEST_BUCKET, "uploads/file2.txt")));
+  }
+
+  private static List<Blob> mockBlobs(String prefix, int count) {
+    List<Blob> blobs = new ArrayList<>();
+    for (int i = 0; i < count; i++) {
+      Blob blob = mock(Blob.class);
+      when(blob.getName()).thenReturn(prefix + "file" + i + ".txt");
+      blobs.add(blob);
+    }
+    return blobs;
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<Integer> capturedDeleteBatchSizes(int expectedCalls) {
+    ArgumentCaptor<List<BlobId>> captor = ArgumentCaptor.forClass(List.class);
+    verify(mockStorage, Mockito.times(expectedCalls)).delete(captor.capture());
+    return captor.getAllValues().stream().map(List::size).toList();
   }
 
   @Test
