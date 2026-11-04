@@ -540,12 +540,15 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
    * @return Returns an S3Presigner for the current credentials
    */
   protected S3Presigner getPresigner() {
-    return S3Presigner.builder()
+    S3Presigner.Builder builder = S3Presigner.builder()
         .credentialsProvider(s3Client.serviceClientConfiguration().credentialsProvider())
         .region(Region.of(getRegion()))
         .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
-        .s3Client(s3Client)
-        .build();
+        .s3Client(s3Client);
+    // The presigner does not inherit the client's endpoint; without this, URLs for custom
+    // endpoints are signed against s3.amazonaws.com.
+    s3Client.serviceClientConfiguration().endpointOverride().ifPresent(builder::endpointOverride);
+    return builder.build();
   }
 
   /**

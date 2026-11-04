@@ -86,6 +86,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.MockedStatic;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.ResponseBytes;
@@ -95,9 +97,11 @@ import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
 import software.amazon.awssdk.http.SdkHttpResponse;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
+import software.amazon.awssdk.services.s3.S3ServiceClientConfiguration;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
@@ -1432,6 +1436,57 @@ public class AwsBlobStoreTest {
     List<Tag> actualTags = actualPutObjectTaggingRequest.tagging().tagSet();
     assertTrue(actualTags.contains(Tag.builder().key("key1").value("value1").build()));
     assertTrue(actualTags.contains(Tag.builder().key("key2").value("value2").build()));
+  }
+
+  @Test
+  void testGetPresignerUsesClientEndpointOverride() {
+    when(mockS3Client.serviceClientConfiguration())
+        .thenReturn(
+            S3ServiceClientConfiguration.builder()
+                .region(Region.US_EAST_2)
+                .endpointOverride(URI.create("http://minio:9001"))
+                .credentialsProvider(
+                    StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create("admin", "password")))
+                .build());
+
+    try (S3Presigner presigner = aws.getPresigner()) {
+      PresignedGetObjectRequest presigned =
+          presigner.presignGetObject(
+              GetObjectPresignRequest.builder()
+                  .signatureDuration(Duration.ofMinutes(5))
+                  .getObjectRequest(
+                      GetObjectRequest.builder().bucket("bucket-1").key("object-1").build())
+                  .build());
+      assertEquals("minio", presigned.url().getHost());
+      assertEquals(9001, presigned.url().getPort());
+    }
+  }
+
+  @Test
+  void testDoPresignUploadWithoutTagsSignsOnlyHost() {
+    when(mockS3Client.serviceClientConfiguration())
+        .thenReturn(
+            S3ServiceClientConfiguration.builder()
+                .region(Region.US_EAST_2)
+                .endpointOverride(URI.create("http://minio:9001"))
+                .credentialsProvider(
+                    StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create("admin", "password")))
+                .build());
+
+    PresignedUrlResponse presigned =
+        aws.doPresign(
+            PresignedUrlRequest.builder()
+                .type(PresignedOperation.UPLOAD)
+                .key("object-1")
+                .duration(Duration.ofMinutes(5))
+                .build());
+
+    // A signed x-amz-tagging header would force every uploader to replay it.
+    String query = presigned.getUrl().getQuery();
+    assertTrue(query.contains("X-Amz-SignedHeaders=host"));
+    assertFalse(query.contains("x-amz-tagging"));
   }
 
   @Test

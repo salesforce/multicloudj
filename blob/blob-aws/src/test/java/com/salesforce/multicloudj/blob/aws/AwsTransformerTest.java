@@ -161,6 +161,15 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testUploadWithoutTagsOmitsTagging() {
+    UploadRequest request = UploadRequest.builder().withKey(SOME_KEY).build();
+
+    PutObjectRequest actual = transformer.toRequest(request);
+
+    assertNull(actual.tagging());
+  }
+
+  @Test
   void testUploadWithKmsKey() {
     var key = "some-key";
     var metadata = Map.of("some-key", "some-value");
@@ -1236,6 +1245,19 @@ public class AwsTransformerTest {
     assertEquals(metadata, actualRequest.putObjectRequest().metadata());
     assertNull(actualRequest.putObjectRequest().serverSideEncryptionAsString());
     assertNull(actualRequest.putObjectRequest().ssekmsKeyId());
+  }
+
+  @Test
+  void testToPutObjectPresignRequestWithoutTagsOmitsTagging() {
+    PresignedUrlRequest presignedUrlRequest =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(4))
+            .build();
+    PutObjectPresignRequest actualRequest =
+        transformer.toPutObjectPresignRequest(presignedUrlRequest);
+    assertNull(actualRequest.putObjectRequest().tagging());
   }
 
   @Test
