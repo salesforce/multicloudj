@@ -6,6 +6,7 @@ import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
 import com.salesforce.multicloudj.blob.aws.AwsSdkService;
 import com.salesforce.multicloudj.blob.aws.AwsTransformer;
 import com.salesforce.multicloudj.blob.aws.AwsTransformerSupplier;
+import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -325,7 +326,16 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   @Override
   protected CompletableFuture<Void> doDelete(Collection<BlobIdentifier> objects) {
     var request = transformer.toDeleteRequests(objects);
-    return client.deleteObjects(request).thenAccept(response -> {});
+    return client
+        .deleteObjects(request)
+        .thenAccept(
+            response -> {
+              List<BlobBatchDeleteException.Failure> failures =
+                  transformer.toBatchDeleteFailures(response);
+              if (!failures.isEmpty()) {
+                throw new BlobBatchDeleteException(failures);
+              }
+            });
   }
 
   @Override
@@ -547,7 +557,9 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
   @Override
   protected CompletableFuture<Void> doDeleteDirectory(String prefix) {
-    List<CompletableFuture<Void>> deletes = new ArrayList<>();
+    // Each element resolves to the chunk's per-object failures, or null when the chunk fully
+    // succeeded. Keeping the futures in chunk order makes the merged failures deterministic.
+    List<CompletableFuture<BlobBatchDeleteException>> deletes = new ArrayList<>();
 
     // When listed batches of blobs come in, partition them into groups, then delete them
     Consumer<ListBlobsBatch> consumer =
@@ -555,13 +567,40 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           List<List<BlobInfo>> partitionedBlobLists =
               transformer.partitionList(batch.getBlobs(), MAX_OBJECTS_PER_DELETE);
           for (List<BlobInfo> blobList : partitionedBlobLists) {
-            deletes.add(doDelete(transformer.toBlobIdentifiers(blobList)));
+            deletes.add(
+                doDelete(transformer.toBlobIdentifiers(blobList))
+                    .thenApply(ignored -> (BlobBatchDeleteException) null)
+                    .exceptionally(
+                        t -> {
+                          Throwable cause = t instanceof CompletionException ? t.getCause() : t;
+                          if (cause instanceof BlobBatchDeleteException) {
+                            return (BlobBatchDeleteException) cause;
+                          }
+                          throw t instanceof CompletionException
+                              ? (CompletionException) t
+                              : new CompletionException(t);
+                        }));
           }
         };
-    // Deletes are only all known once listing completes, so wait on them after it.
+    // Deletes are only all known once listing completes, so wait on them after it. A request-level
+    // failure in any chunk fails the whole operation and takes precedence over per-object
+    // failures reported by other chunks.
     return doList(ListBlobsRequest.builder().withPrefix(prefix).build(), consumer)
         .thenCompose(
-            ignored -> CompletableFuture.allOf(deletes.toArray(new CompletableFuture[0])));
+            ignored -> CompletableFuture.allOf(deletes.toArray(new CompletableFuture[0])))
+        .thenAccept(
+            ignored -> {
+              List<BlobBatchDeleteException> chunkFailures = new ArrayList<>();
+              for (CompletableFuture<BlobBatchDeleteException> delete : deletes) {
+                BlobBatchDeleteException failure = delete.join();
+                if (failure != null) {
+                  chunkFailures.add(failure);
+                }
+              }
+              if (!chunkFailures.isEmpty()) {
+                throw BlobBatchDeleteException.merge(chunkFailures);
+              }
+            });
   }
 
   /**

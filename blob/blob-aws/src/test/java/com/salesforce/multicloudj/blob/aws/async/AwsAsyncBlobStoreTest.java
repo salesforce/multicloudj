@@ -20,6 +20,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.blob.aws.AwsTransformerSupplier;
+import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
@@ -153,6 +154,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingResponse;
+import software.amazon.awssdk.services.s3.model.S3Error;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.Tag;
@@ -939,6 +941,60 @@ public class AwsAsyncBlobStoreTest {
             .map(ObjectIdentifier::key)
             .collect(Collectors.toList());
     assertTrue(identifiers.containsAll(keys));
+  }
+
+  private static S3Error deleteError(String key, String versionId, String code) {
+    return S3Error.builder()
+        .key(key)
+        .versionId(versionId)
+        .code(code)
+        .message("detail for " + key)
+        .build();
+  }
+
+  @Test
+  void testDoBulkDelete_AlreadyAbsentErrorsCountAsDeleted() throws Exception {
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(
+            future(
+                DeleteObjectsResponse.builder()
+                    .errors(
+                        deleteError("object-1", null, "NoSuchKey"),
+                        deleteError("object-2", "version-2", "NoSuchVersion"))
+                    .build()));
+
+    aws.doDelete(
+            List.of(
+                new BlobIdentifier("object-1", null), new BlobIdentifier("object-2", "version-2")))
+        .get();
+  }
+
+  @Test
+  void testDoBulkDelete_OtherErrorsFailWithFailedKeys() {
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(
+            future(
+                DeleteObjectsResponse.builder()
+                    .errors(
+                        deleteError("object-1", null, "NoSuchKey"),
+                        deleteError("object-2", "version-2", "AccessDenied"))
+                    .build()));
+
+    ExecutionException thrown =
+        assertThrows(
+            ExecutionException.class,
+            () ->
+                aws.doDelete(
+                        List.of(
+                            new BlobIdentifier("object-1", null),
+                            new BlobIdentifier("object-2", "version-2")))
+                    .get());
+
+    BlobBatchDeleteException e =
+        assertInstanceOf(BlobBatchDeleteException.class, thrown.getCause());
+    assertEquals(List.of("object-2"), e.getFailedKeys());
+    assertEquals("AccessDenied", e.getFailures().get(0).getCode());
+    assertEquals("version-2", e.getFailures().get(0).getVersionId());
   }
 
   @Test
@@ -2125,6 +2181,100 @@ public class AwsAsyncBlobStoreTest {
     assertEquals(failure, thrown.getCause());
   }
 
+  @Test
+  void doDeleteDirectory_mergesPerObjectFailuresFromAllChunks() {
+    AsyncListing listing = stubAsyncDeleteDirectoryListing();
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(
+            future(
+                DeleteObjectsResponse.builder()
+                    .errors(deleteError("file1.txt", null, "AccessDenied"))
+                    .build()),
+            future(DeleteObjectsResponse.builder().build()),
+            future(
+                DeleteObjectsResponse.builder()
+                    .errors(
+                        deleteError("file3.txt", null, "NoSuchKey"),
+                        deleteError("file4.txt", null, "AccessDenied"))
+                    .build()));
+
+    CompletableFuture<Void> result = aws.doDeleteDirectory("files");
+    listing.deliverPages(
+        S3Object.builder().key("file1.txt").size(1L).build(),
+        S3Object.builder().key("file2.txt").size(1L).build(),
+        S3Object.builder().key("file4.txt").size(1L).build());
+
+    ExecutionException thrown = assertThrows(ExecutionException.class, result::get);
+    BlobBatchDeleteException e =
+        assertInstanceOf(BlobBatchDeleteException.class, thrown.getCause());
+    assertEquals(List.of("file1.txt", "file4.txt"), e.getFailedKeys());
+    verify(mockS3Client, times(3)).deleteObjects(any(DeleteObjectsRequest.class));
+  }
+
+  @Test
+  void doDeleteDirectory_mergesFailuresInChunkOrderRegardlessOfCompletionOrder() {
+    AsyncListing listing = stubAsyncDeleteDirectoryListing();
+    CompletableFuture<DeleteObjectsResponse> first = new CompletableFuture<>();
+    CompletableFuture<DeleteObjectsResponse> second = new CompletableFuture<>();
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(first, second);
+
+    CompletableFuture<Void> result = aws.doDeleteDirectory("files");
+    listing.deliverPages(
+        S3Object.builder().key("file1.txt").size(1L).build(),
+        S3Object.builder().key("file2.txt").size(1L).build());
+    second.complete(
+        DeleteObjectsResponse.builder()
+            .errors(deleteError("file2.txt", null, "AccessDenied"))
+            .build());
+    first.complete(
+        DeleteObjectsResponse.builder()
+            .errors(deleteError("file1.txt", null, "AccessDenied"))
+            .build());
+
+    ExecutionException thrown = assertThrows(ExecutionException.class, result::get);
+    BlobBatchDeleteException e =
+        assertInstanceOf(BlobBatchDeleteException.class, thrown.getCause());
+    assertEquals(List.of("file1.txt", "file2.txt"), e.getFailedKeys());
+  }
+
+  @Test
+  void doDeleteDirectory_requestLevelFailureTakesPrecedenceOverPerObjectFailures() {
+    AsyncListing listing = stubAsyncDeleteDirectoryListing();
+    S3Exception requestFailure = (S3Exception) S3Exception.builder().message("boom").build();
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(
+            future(
+                DeleteObjectsResponse.builder()
+                    .errors(deleteError("file1.txt", null, "AccessDenied"))
+                    .build()),
+            CompletableFuture.failedFuture(requestFailure));
+
+    CompletableFuture<Void> result = aws.doDeleteDirectory("files");
+    listing.deliverPages(
+        S3Object.builder().key("file1.txt").size(1L).build(),
+        S3Object.builder().key("file2.txt").size(1L).build());
+
+    ExecutionException thrown = assertThrows(ExecutionException.class, result::get);
+    assertEquals(requestFailure, thrown.getCause());
+  }
+
+  @Test
+  void doDeleteDirectory_absentObjectsCountAsDeleted() throws Exception {
+    AsyncListing listing = stubAsyncDeleteDirectoryListing();
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(
+            future(
+                DeleteObjectsResponse.builder()
+                    .errors(deleteError("file1.txt", null, "NoSuchKey"))
+                    .build()));
+
+    CompletableFuture<Void> result = aws.doDeleteDirectory("files");
+    listing.deliver(S3Object.builder().key("file1.txt").size(1L).build());
+
+    result.get();
+  }
+
   private AsyncListing stubAsyncDeleteDirectoryListing() {
     AsyncListing listing = new AsyncListing();
     ListObjectsV2Publisher publisher = mock(ListObjectsV2Publisher.class);
@@ -2146,6 +2296,13 @@ public class AwsAsyncBlobStoreTest {
 
     void deliver(S3Object... objects) {
       consumer.accept(ListObjectsV2Response.builder().contents(objects).build());
+      done.complete(null);
+    }
+
+    void deliverPages(S3Object... onePerPage) {
+      for (S3Object object : onePerPage) {
+        consumer.accept(ListObjectsV2Response.builder().contents(object).build());
+      }
       done.complete(null);
     }
   }

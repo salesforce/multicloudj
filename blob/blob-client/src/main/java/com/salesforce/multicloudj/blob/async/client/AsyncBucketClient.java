@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.async.client;
 
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
+import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobClientBuilder;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -79,6 +80,17 @@ public class AsyncBucketClient implements AutoCloseable {
 
   protected <T> T handleException(Throwable ex) {
     throw blobStore.mapException(ex);
+  }
+
+  private <T> T handleBatchDeleteException(Throwable ex) {
+    Throwable failure = ex;
+    while (failure instanceof CompletionException && failure.getCause() != null) {
+      failure = failure.getCause();
+    }
+    if (failure instanceof BlobBatchDeleteException) {
+      throw (BlobBatchDeleteException) failure;
+    }
+    return handleException(ex);
   }
 
   private <T> T handleUploadException(UploadRequest request, Throwable ex) {
@@ -241,13 +253,25 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx -> blobStore.delete(key, versionId).exceptionally(this::handleException));
   }
 
-  /** Deletes a collection of Blobs from a substrate-specific Blob storage. */
+  /**
+   * Deletes a collection of Blobs from a substrate-specific Blob storage.
+   *
+   * <p>Blobs that do not exist count as deleted. If some blobs cannot be deleted, the future
+   * completes exceptionally with a {@link BlobBatchDeleteException} naming the failed keys; every
+   * other blob was deleted. Providers that cannot report per-object results may surface a
+   * request-level error instead.
+   */
   public CompletableFuture<Void> delete(Collection<BlobIdentifier> objects) {
     return delete(objects, null);
   }
 
   /**
    * Deletes a collection of Blobs from a substrate-specific Blob storage.
+   *
+   * <p>Blobs that do not exist count as deleted. If some blobs cannot be deleted, the future
+   * completes exceptionally with a {@link BlobBatchDeleteException} naming the failed keys; every
+   * other blob was deleted. Providers that cannot report per-object results may surface a
+   * request-level error instead.
    *
    * @param operationContext Per-call observability context carrying the correlation ID. May be
    *     null, in which case tracing is treated as disabled.
@@ -258,7 +282,7 @@ public class AsyncBucketClient implements AutoCloseable {
         BlobSpanNames.DELETE,
         bucketAttrs(),
         operationContext,
-        ctx -> blobStore.delete(objects).exceptionally(this::handleException));
+        ctx -> blobStore.delete(objects).exceptionally(this::handleBatchDeleteException));
   }
 
   /** Copies the Blob to other bucket */
@@ -516,13 +540,20 @@ public class AsyncBucketClient implements AutoCloseable {
                 .exceptionally(this::handleException));
   }
 
-  /** Deletes all blobs in the bucket which have keys that start with the given prefix. */
+  /**
+   * Deletes all blobs in the bucket which have keys that start with the given prefix.
+   *
+   * <p>If some blobs cannot be deleted, the future completes exceptionally with a {@link
+   * BlobBatchDeleteException} naming the failed keys; every other matching blob was deleted.
+   * Providers that cannot report per-object results may surface a request-level error instead.
+   */
   public CompletableFuture<Void> deleteDirectory(String prefix) {
     return multiCloudJLogger.traceAsyncOperation(
         BlobSpanNames.DELETE_DIRECTORY,
         bucketAttrs(),
         null,
-        ctx -> blobStore.deleteDirectory(prefix).exceptionally(this::handleException));
+        ctx ->
+            blobStore.deleteDirectory(prefix).exceptionally(this::handleBatchDeleteException));
   }
 
   /** Closes the underlying async blob store and releases any resources. */

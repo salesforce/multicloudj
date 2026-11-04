@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.aws;
 
 import com.salesforce.multicloudj.blob.aws.async.S3LoggingTransferListener;
+import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -52,6 +53,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -75,6 +77,7 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.GetBucketVersioningRequest;
 import software.amazon.awssdk.services.s3.model.GetBucketVersioningResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldRequest;
@@ -100,6 +103,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRetentionRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
+import software.amazon.awssdk.services.s3.model.S3Error;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.services.s3.model.StorageClass;
@@ -134,6 +138,16 @@ public class AwsTransformer {
    * surfacing as {@code x-amz-meta-sdk-logging-tenant-id} in S3.
    */
   public static final String TENANT_ID_METADATA_KEY = SdkLoggingMetadataKeys.TENANT_ID;
+
+  /**
+   * Per-object error codes of a multi-object delete that mean the key or version is already gone.
+   */
+  private static final Set<String> ALREADY_ABSENT_DELETE_ERROR_CODES =
+      Set.of("NoSuchKey", "NoSuchVersion");
+
+  /** Per-object error codes of a multi-object delete that S3 documents as transient. */
+  private static final Set<String> TRANSIENT_DELETE_ERROR_CODES =
+      Set.of("InternalError", "SlowDown", "ServiceUnavailable");
 
   /** Default MIME type used for the request body when the caller does not provide one. */
   private static final String OCTET_STREAM_MIME = "application/octet-stream";
@@ -539,6 +553,40 @@ public class AwsTransformer {
         .bucket(getBucket())
         .delete(Delete.builder().objects(objectIds).build())
         .build();
+  }
+
+  /**
+   * Extracts the per-object failures of a multi-object delete. S3 reports a missing key or version
+   * as a per-object error even though the object is already gone, so those are not failures. An
+   * error without a code is a failure that is not retryable.
+   *
+   * @throws IllegalStateException if an error names no key, because the failed object cannot be
+   *     identified and must not be dropped silently
+   */
+  public List<BlobBatchDeleteException.Failure> toBatchDeleteFailures(
+      DeleteObjectsResponse response) {
+    List<BlobBatchDeleteException.Failure> failures = new ArrayList<>();
+    for (S3Error error : response.errors()) {
+      String code = error.code();
+      if (code != null && ALREADY_ABSENT_DELETE_ERROR_CODES.contains(code)) {
+        continue;
+      }
+      if (error.key() == null) {
+        throw new IllegalStateException(
+            "Multi-object delete reported an error without a key: code="
+                + code
+                + ", message="
+                + error.message());
+      }
+      failures.add(
+          new BlobBatchDeleteException.Failure(
+              error.key(),
+              error.versionId(),
+              code,
+              error.message(),
+              code != null && TRANSIENT_DELETE_ERROR_CODES.contains(code)));
+    }
+    return failures;
   }
 
   public CopyObjectRequest toRequest(CopyRequest request) {

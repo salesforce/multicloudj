@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.aws;
 
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
+import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -329,7 +330,12 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
    */
   @Override
   protected void doDelete(Collection<BlobIdentifier> objects) {
-    s3Client.deleteObjects(transformer.toDeleteRequests(objects));
+    List<BlobBatchDeleteException.Failure> failures =
+        transformer.toBatchDeleteFailures(
+            s3Client.deleteObjects(transformer.toDeleteRequests(objects)));
+    if (!failures.isEmpty()) {
+      throw new BlobBatchDeleteException(failures);
+    }
   }
 
   /**

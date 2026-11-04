@@ -127,6 +127,10 @@ public interface BlobStore extends SdkService, Provider {
   /**
    * Performs args validation and passes the call to substrate-specific delete method
    *
+   * <p>Blobs that do not exist count as deleted. If some blobs cannot be deleted, a {@link
+   * BlobBatchDeleteException} naming the failed keys is thrown; every other blob was deleted.
+   * Providers that cannot report per-object results may surface a request-level error instead.
+   *
    * @param objects A collection of BlobIdentifiers representing the blobs to delete
    */
   void delete(Collection<BlobIdentifier> objects);
@@ -314,6 +318,10 @@ public interface BlobStore extends SdkService, Provider {
 
   /**
    * Deletes a directory (all objects with a given prefix) from the blob store
+   *
+   * <p>If some blobs cannot be deleted, a {@link BlobBatchDeleteException} naming the failed keys
+   * is thrown; every other matching blob was deleted. Providers that cannot report per-object
+   * results may surface a request-level error instead.
    *
    * @param prefix the prefix to delete
    */

@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.async.driver;
 
+import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -147,6 +148,11 @@ public interface AsyncBlobStore extends SdkService, AutoCloseable {
   /**
    * Performs args validation and passes the call to substrate-specific delete method
    *
+   * <p>Blobs that do not exist count as deleted. If some blobs cannot be deleted, the future
+   * completes exceptionally with a {@link BlobBatchDeleteException} naming the failed keys; every
+   * other blob was deleted. Providers that cannot report per-object results may surface a
+   * request-level error instead.
+   *
    * @param objects A collection of BlobIdentifiers representing the blobs to delete
    */
   CompletableFuture<Void> delete(Collection<BlobIdentifier> objects);
@@ -292,6 +298,10 @@ public interface AsyncBlobStore extends SdkService, AutoCloseable {
 
   /**
    * Deletes the content from the substrate-specific Blob storage that contains the prefix
+   *
+   * <p>If some blobs cannot be deleted, the future completes exceptionally with a {@link
+   * BlobBatchDeleteException} naming the failed keys; every other matching blob was deleted.
+   * Providers that cannot report per-object results may surface a request-level error instead.
    *
    * @param prefix The prefix of blobs that should be deleted (e.g. the directory)
    */

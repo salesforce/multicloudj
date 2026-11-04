@@ -18,7 +18,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -37,6 +39,8 @@ import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.BaseServiceException;
+import com.google.cloud.BatchResult;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
@@ -50,6 +54,8 @@ import com.google.cloud.storage.MultipartUploadClient;
 import com.google.cloud.storage.ParallelCompositeUploadBlobWriteSessionConfig.PartNamingStrategy;
 import com.google.cloud.storage.RequestBody;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageBatch;
+import com.google.cloud.storage.StorageBatchResult;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import com.google.cloud.storage.multipartupload.model.AbortMultipartUploadRequest;
@@ -74,6 +80,7 @@ import com.google.cloud.storage.transfermanager.TransferStatus;
 import com.google.cloud.storage.transfermanager.UploadJob;
 import com.google.cloud.storage.transfermanager.UploadResult;
 import com.google.common.io.ByteStreams;
+import com.salesforce.multicloudj.blob.driver.BlobBatchDeleteException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
@@ -125,6 +132,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -144,13 +152,16 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
@@ -409,11 +420,12 @@ class GcpBlobStoreTest {
     BlobId mockBlobId2 = mock(BlobId.class);
     when(mockTransformer.toBlobId(TEST_BUCKET, "key1", "version1")).thenReturn(mockBlobId1);
     when(mockTransformer.toBlobId(TEST_BUCKET, "key2", "version2")).thenReturn(mockBlobId2);
+    List<List<BlobId>> submitted = stubDeleteBatches(mockHttpStorage, id -> Boolean.TRUE);
 
     hybridStore.doDelete(objects);
 
-    verify(mockHttpStorage).delete(Arrays.asList(mockBlobId1, mockBlobId2));
-    verify(mockStorage, never()).delete(anyList());
+    assertEquals(List.of(Arrays.asList(mockBlobId1, mockBlobId2)), submitted);
+    verify(mockStorage, never()).batch();
   }
 
   @Test
@@ -520,14 +532,20 @@ class GcpBlobStoreTest {
     Page<Blob> page = mock(Page.class);
     when(page.iterateAll()).thenReturn(Arrays.asList(blob1, blob2));
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
+    List<List<BlobId>> submitted = stubDeleteBatches(mockHttpStorage, id -> Boolean.TRUE);
 
     hybridStore.doDeleteDirectory(prefix);
 
     // Listing runs on the gRPC (main) client.
     verify(mockStorage).list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class));
     // Batch delete runs on the HTTP client, never on the gRPC client.
-    verify(mockHttpStorage).delete(anyList());
-    verify(mockStorage, never()).delete(anyList());
+    assertEquals(
+        List.of(
+            List.of(
+                BlobId.of(TEST_BUCKET, "some/prefix/key1"),
+                BlobId.of(TEST_BUCKET, "some/prefix/key2"))),
+        submitted);
+    verify(mockStorage, never()).batch();
   }
 
   @Test
@@ -1135,11 +1153,125 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobId(TEST_BUCKET, "key1", "version1")).thenReturn(mockBlobId1);
     when(mockTransformer.toBlobId(TEST_BUCKET, "key2", "version2")).thenReturn(mockBlobId2);
 
+    List<List<BlobId>> submitted = stubDeleteBatches(mockStorage, id -> Boolean.TRUE);
+
     // When
     gcpBlobStore.doDelete(objects);
 
     // Then
-    verify(mockStorage).delete(Arrays.asList(mockBlobId1, mockBlobId2));
+    assertEquals(List.of(Arrays.asList(mockBlobId1, mockBlobId2)), submitted);
+  }
+
+  @Test
+  void testDoDelete_WithCollection_AbsentObjectCountsAsDeleted() {
+    BlobId present = BlobId.of(TEST_BUCKET, "present.txt");
+    BlobId absent = BlobId.of(TEST_BUCKET, "absent.txt");
+    when(mockTransformer.toBlobId(TEST_BUCKET, "present.txt", null)).thenReturn(present);
+    when(mockTransformer.toBlobId(TEST_BUCKET, "absent.txt", null)).thenReturn(absent);
+    List<List<BlobId>> submitted =
+        stubDeleteBatches(mockStorage, id -> id.equals(absent) ? Boolean.FALSE : Boolean.TRUE);
+
+    gcpBlobStore.doDelete(
+        List.of(new BlobIdentifier("present.txt", null), new BlobIdentifier("absent.txt", null)));
+
+    assertEquals(List.of(List.of(present, absent)), submitted);
+  }
+
+  @Test
+  void testDoDelete_WithCollection_ThrowsWithFailedKeysAndKeepsDeletedKeysOut() {
+    BlobId okId = BlobId.of(TEST_BUCKET, "ok.txt");
+    BlobId deniedId = BlobId.of(TEST_BUCKET, "denied.txt", 42L);
+    BlobId absentId = BlobId.of(TEST_BUCKET, "absent.txt");
+    BlobId brokenId = BlobId.of(TEST_BUCKET, "broken.txt");
+    when(mockTransformer.toBlobId(TEST_BUCKET, "ok.txt", null)).thenReturn(okId);
+    when(mockTransformer.toBlobId(TEST_BUCKET, "denied.txt", "42")).thenReturn(deniedId);
+    when(mockTransformer.toBlobId(TEST_BUCKET, "absent.txt", null)).thenReturn(absentId);
+    when(mockTransformer.toBlobId(TEST_BUCKET, "broken.txt", null)).thenReturn(brokenId);
+    stubDeleteBatches(
+        mockStorage,
+        id -> {
+          if (id.equals(deniedId)) {
+            return new StorageException(403, "caller lacks permission");
+          }
+          if (id.equals(brokenId)) {
+            return new StorageException(503, "backend unavailable");
+          }
+          return id.equals(absentId) ? Boolean.FALSE : Boolean.TRUE;
+        });
+
+    BlobBatchDeleteException e =
+        assertThrows(
+            BlobBatchDeleteException.class,
+            () ->
+                gcpBlobStore.doDelete(
+                    List.of(
+                        new BlobIdentifier("ok.txt", null),
+                        new BlobIdentifier("denied.txt", "42"),
+                        new BlobIdentifier("absent.txt", null),
+                        new BlobIdentifier("broken.txt", null))));
+
+    assertEquals(Set.of("broken.txt", "denied.txt"), new HashSet<>(e.getFailedKeys()));
+    assertEquals(2, e.getFailures().size());
+    Map<String, BlobBatchDeleteException.Failure> byKey = new HashMap<>();
+    e.getFailures().forEach(f -> byKey.put(f.getKey(), f));
+    BlobBatchDeleteException.Failure broken = byKey.get("broken.txt");
+    assertEquals("503", broken.getCode());
+    assertNull(broken.getVersionId());
+    assertEquals("backend unavailable", broken.getMessage());
+    assertTrue(broken.isRetryable());
+    BlobBatchDeleteException.Failure denied = byKey.get("denied.txt");
+    assertEquals("403", denied.getCode());
+    assertEquals("42", denied.getVersionId());
+    assertFalse(denied.isRetryable());
+    assertFalse(e.getMessage().contains("caller lacks permission"));
+  }
+
+  @Test
+  void testDoDelete_WithCollection_DuplicateKeysAreEachReported() {
+    BlobId dup = BlobId.of(TEST_BUCKET, "dup.txt");
+    when(mockTransformer.toBlobId(TEST_BUCKET, "dup.txt", null)).thenReturn(dup);
+    List<List<BlobId>> submitted =
+        stubDeleteBatches(mockStorage, id -> new StorageException(403, "denied"));
+
+    BlobBatchDeleteException e =
+        assertThrows(
+            BlobBatchDeleteException.class,
+            () ->
+                gcpBlobStore.doDelete(
+                    List.of(
+                        new BlobIdentifier("dup.txt", null),
+                        new BlobIdentifier("dup.txt", null))));
+
+    assertEquals(List.of(List.of(dup, dup)), submitted);
+    assertEquals(List.of("dup.txt", "dup.txt"), e.getFailedKeys());
+  }
+
+  @Test
+  void testMapException_BatchDeleteExceptionPassesThrough() {
+    BlobBatchDeleteException failure =
+        new BlobBatchDeleteException(
+            List.of(new BlobBatchDeleteException.Failure("a.txt", null, "403", null, false)));
+
+    assertSame(failure, gcpBlobStore.mapException(failure));
+  }
+
+  @Test
+  void testDoDelete_WithCollection_SubmitFailurePropagatesUnwrapped() {
+    BlobId id = BlobId.of(TEST_BUCKET, "key.txt");
+    when(mockTransformer.toBlobId(TEST_BUCKET, "key.txt", null)).thenReturn(id);
+    StorageBatch batch = mock(StorageBatch.class);
+    StorageBatchResult<Boolean> result = mock(StorageBatchResult.class);
+    when(batch.delete(any(BlobId.class))).thenReturn(result);
+    StorageException requestFailure = new StorageException(500, "batch request failed");
+    doThrow(requestFailure).when(batch).submit();
+    when(mockStorage.batch()).thenReturn(batch);
+
+    StorageException thrown =
+        assertThrows(
+            StorageException.class,
+            () -> gcpBlobStore.doDelete(List.of(new BlobIdentifier("key.txt", null))));
+
+    assertSame(requestFailure, thrown);
   }
 
   @Test
@@ -2835,7 +2967,7 @@ class GcpBlobStoreTest {
     gcpBlobStore.doDelete(emptyCollection);
 
     // Should not throw exception and not call storage
-    verify(mockStorage, never()).delete(any(BlobId[].class));
+    verify(mockStorage, never()).batch();
   }
 
   @Test
@@ -3623,17 +3755,19 @@ class GcpBlobStoreTest {
     when(mockPage.iterateAll()).thenReturn(List.of(blob1, blob2));
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
+    List<List<BlobId>> submitted = stubDeleteBatches(mockStorage, id -> Boolean.TRUE);
 
     // When
     gcpBlobStore.deleteDirectory(prefix);
 
     // Then
     verify(mockStorage).list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class));
-    verify(mockStorage)
-        .delete(
+    assertEquals(
+        List.of(
             List.of(
                 BlobId.of(TEST_BUCKET, "uploads/file1.txt"),
-                BlobId.of(TEST_BUCKET, "uploads/file2.txt")));
+                BlobId.of(TEST_BUCKET, "uploads/file2.txt"))),
+        submitted);
   }
 
   @Test
@@ -3645,13 +3779,14 @@ class GcpBlobStoreTest {
     when(mockPage.iterateAll()).thenReturn(blobs);
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
+    List<List<BlobId>> submitted = stubDeleteBatches(mockStorage, id -> Boolean.TRUE);
 
     // When
     gcpBlobStore.deleteDirectory(prefix);
 
     // Then
     verify(mockStorage).list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class));
-    assertEquals(List.of(1000, 1000, 500), capturedDeleteBatchSizes(3));
+    assertEquals(List.of(1000, 1000, 500), batchSizes(submitted));
   }
 
   @Test
@@ -3662,10 +3797,11 @@ class GcpBlobStoreTest {
     when(mockPage.iterateAll()).thenReturn(blobs);
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
+    List<List<BlobId>> submitted = stubDeleteBatches(mockStorage, id -> Boolean.TRUE);
 
     gcpBlobStore.deleteDirectory(prefix);
 
-    assertEquals(List.of(1000, 1000), capturedDeleteBatchSizes(2));
+    assertEquals(List.of(1000, 1000), batchSizes(submitted));
   }
 
   @Test
@@ -3682,7 +3818,7 @@ class GcpBlobStoreTest {
     gcpBlobStore.deleteDirectory(prefix);
 
     verify(mockStorage).list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class));
-    verify(mockStorage, never()).delete(anyList());
+    verify(mockStorage, never()).batch();
   }
 
   @Test
@@ -3699,14 +3835,89 @@ class GcpBlobStoreTest {
     when(mockPage.iterateAll()).thenReturn(List.of(firstPageBlob, secondPageBlob));
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
+    List<List<BlobId>> submitted = stubDeleteBatches(mockStorage, id -> Boolean.TRUE);
 
     gcpBlobStore.deleteDirectory(prefix);
 
-    verify(mockStorage)
-        .delete(
+    assertEquals(
+        List.of(
             List.of(
                 BlobId.of(TEST_BUCKET, "uploads/file1.txt"),
-                BlobId.of(TEST_BUCKET, "uploads/file2.txt")));
+                BlobId.of(TEST_BUCKET, "uploads/file2.txt"))),
+        submitted);
+  }
+
+  @Test
+  void testDeleteDirectory_AbsentObjectsCountAsDeleted() {
+    Page<Blob> mockPage = mock(Page.class);
+    List<Blob> blobs = mockBlobs("uploads/", 3);
+    when(mockPage.iterateAll()).thenReturn(blobs);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+    List<List<BlobId>> submitted = stubDeleteBatches(mockStorage, id -> Boolean.FALSE);
+
+    gcpBlobStore.deleteDirectory("uploads/");
+
+    assertEquals(List.of(3), batchSizes(submitted));
+  }
+
+  @Test
+  void testDeleteDirectory_CollectsFailuresAcrossAllBatchesAndThrowsOnce() {
+    Page<Blob> mockPage = mock(Page.class);
+    List<Blob> blobs = mockBlobs("uploads/", 2500);
+    when(mockPage.iterateAll()).thenReturn(blobs);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+    Set<String> failing =
+        Set.of("uploads/file5.txt", "uploads/file1500.txt", "uploads/file2499.txt");
+    List<List<BlobId>> submitted =
+        stubDeleteBatches(
+            mockStorage,
+            id ->
+                failing.contains(id.getName())
+                    ? new StorageException(403, "denied")
+                    : Boolean.TRUE);
+
+    BlobBatchDeleteException e =
+        assertThrows(
+            BlobBatchDeleteException.class, () -> gcpBlobStore.deleteDirectory("uploads/"));
+
+    // The first batch failing must not stop the later batches from being deleted.
+    assertEquals(List.of(1000, 1000, 500), batchSizes(submitted));
+    assertEquals(failing, new HashSet<>(e.getFailedKeys()));
+    assertEquals(3, e.getFailures().size());
+  }
+
+  @Test
+  void testDeleteDirectory_SubmitFailurePropagatesUnwrapped() {
+    Page<Blob> mockPage = mock(Page.class);
+    List<Blob> blobs = mockBlobs("uploads/", 2);
+    when(mockPage.iterateAll()).thenReturn(blobs);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+    StorageBatch batch = mock(StorageBatch.class);
+    StorageBatchResult<Boolean> result = mock(StorageBatchResult.class);
+    when(batch.delete(any(BlobId.class))).thenReturn(result);
+    StorageException requestFailure = new StorageException(500, "batch request failed");
+    doThrow(requestFailure).when(batch).submit();
+    when(mockStorage.batch()).thenReturn(batch);
+
+    StorageException thrown =
+        assertThrows(StorageException.class, () -> gcpBlobStore.deleteDirectory("uploads/"));
+
+    assertSame(requestFailure, thrown);
+  }
+
+  @Test
+  void testDeleteDirectory_ListingFailurePropagatesUnwrapped() {
+    StorageException listFailure = new StorageException(403, "list denied");
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenThrow(listFailure);
+
+    StorageException thrown =
+        assertThrows(StorageException.class, () -> gcpBlobStore.deleteDirectory("uploads/"));
+
+    assertSame(listFailure, thrown);
   }
 
   private static List<Blob> mockBlobs(String prefix, int count) {
@@ -3719,11 +3930,76 @@ class GcpBlobStoreTest {
     return blobs;
   }
 
+  private static List<Integer> batchSizes(List<List<BlobId>> submitted) {
+    return submitted.stream().map(List::size).toList();
+  }
+
+  /**
+   * Makes {@code storage.batch()} return batches that complete real {@link StorageBatchResult}
+   * instances on submit: a Boolean outcome goes through {@code success} ({@code false} meaning the
+   * object was absent) and a StorageException through {@code error}, so the production callbacks
+   * run exactly as the client library drives them. Returns the BlobIds of every submitted batch, in
+   * submission order, including duplicates.
+   */
   @SuppressWarnings("unchecked")
-  private List<Integer> capturedDeleteBatchSizes(int expectedCalls) {
-    ArgumentCaptor<List<BlobId>> captor = ArgumentCaptor.forClass(List.class);
-    verify(mockStorage, Mockito.times(expectedCalls)).delete(captor.capture());
-    return captor.getAllValues().stream().map(List::size).toList();
+  private static List<List<BlobId>> stubDeleteBatches(
+      Storage storage, Function<BlobId, Object> outcome) {
+    List<List<BlobId>> submitted = new ArrayList<>();
+    when(storage.batch())
+        .thenAnswer(
+            batchInvocation -> {
+              StorageBatch batch = mock(StorageBatch.class);
+              List<BlobId> ids = new ArrayList<>();
+              List<StorageBatchResult<Boolean>> results = new ArrayList<>();
+              when(batch.delete(any(BlobId.class)))
+                  .thenAnswer(
+                      deleteInvocation -> {
+                        ids.add(deleteInvocation.getArgument(0));
+                        StorageBatchResult<Boolean> result = newBatchResult();
+                        results.add(result);
+                        return result;
+                      });
+              doAnswer(
+                      submitInvocation -> {
+                        submitted.add(new ArrayList<>(ids));
+                        for (int n = 0; n < ids.size(); n++) {
+                          Object result = outcome.apply(ids.get(n));
+                          if (result instanceof StorageException) {
+                            completeWithError(results.get(n), (StorageException) result);
+                          } else {
+                            completeWithSuccess(results.get(n), (Boolean) result);
+                          }
+                        }
+                        return null;
+                      })
+                  .when(batch)
+                  .submit();
+              return batch;
+            });
+    return submitted;
+  }
+
+  // StorageBatchResult has a package-private constructor and protected completion methods that
+  // only the client library calls, so they are reached reflectively.
+  @SuppressWarnings("unchecked")
+  private static StorageBatchResult<Boolean> newBatchResult() throws ReflectiveOperationException {
+    Constructor<StorageBatchResult> constructor = StorageBatchResult.class.getDeclaredConstructor();
+    constructor.setAccessible(true);
+    return constructor.newInstance();
+  }
+
+  private static void completeWithSuccess(StorageBatchResult<Boolean> result, Boolean value)
+      throws ReflectiveOperationException {
+    Method success = BatchResult.class.getDeclaredMethod("success", Object.class);
+    success.setAccessible(true);
+    success.invoke(result, value);
+  }
+
+  private static void completeWithError(StorageBatchResult<Boolean> result, StorageException error)
+      throws ReflectiveOperationException {
+    Method failure = BatchResult.class.getDeclaredMethod("error", BaseServiceException.class);
+    failure.setAccessible(true);
+    failure.invoke(result, error);
   }
 
   @Test
