@@ -1,5 +1,5 @@
 {
-  "id" : "b0fa39ee-1a79-4a0f-b842-a907d3231306",
+  "id" : "9de9f071-14d7-4d80-9786-f1a79d8f66c6",
   "name" : "GcpBlobStoreIT_testUploadDirectory_withKmsKey-POST-10",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
@@ -17,7 +17,7 @@
       },
       "name" : {
         "hasExactly" : [ {
-          "equalTo" : "conformance-tests/directory/upload-kms-v1/kms-file1.txt"
+          "equalTo" : "conformance-tests/directory/upload-kms-v1/subdir/kms-file2.txt"
         } ]
       },
       "uploadType" : {
@@ -27,7 +27,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"name\":\"conformance-tests/directory/upload-kms-v1/kms-file1.txt\"}",
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"name\":\"conformance-tests/directory/upload-kms-v1/subdir/kms-file2.txt\"}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -38,16 +38,16 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AJjja9ZMwDrGtkznDtvn1-gx1la3vy2DvAEII-x9_pEyQRyRLyy4cdjeOUgHO4XMkLrf5yj8_dABauxpFP4qGT3UirON4rpJW9NUKjU9VI3d5g",
+      "X-GUploader-UploadID" : "AFy3sg0itxr8j6K8DwNWtCp83WclU13TKkTT04axDrHJRB5VuF7zYSylY_YoIXSt7sT2DIPtQr75MchaoL7lIloQTG8KUtGgmDTkm8cPjspiJw",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Tue, 18 Aug 2026 20:22:23 GMT",
-      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?kmsKeyName=projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test&name=conformance-tests/directory/upload-kms-v1/kms-file1.txt&uploadType=resumable&upload_id=AJjja9ZMwDrGtkznDtvn1-gx1la3vy2DvAEII-x9_pEyQRyRLyy4cdjeOUgHO4XMkLrf5yj8_dABauxpFP4qGT3UirON4rpJW9NUKjU9VI3d5g",
+      "Date" : "Wed, 04 Nov 2026 18:58:17 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?kmsKeyName=projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test&name=conformance-tests/directory/upload-kms-v1/subdir/kms-file2.txt&uploadType=resumable&upload_id=AFy3sg0itxr8j6K8DwNWtCp83WclU13TKkTT04axDrHJRB5VuF7zYSylY_YoIXSt7sT2DIPtQr75MchaoL7lIloQTG8KUtGgmDTkm8cPjspiJw",
       "Content-Type" : "text/plain; charset=utf-8"
     }
   },
-  "uuid" : "b0fa39ee-1a79-4a0f-b842-a907d3231306",
+  "uuid" : "9de9f071-14d7-4d80-9786-f1a79d8f66c6",
   "persistent" : true,
-  "insertionIndex" : 1511
+  "insertionIndex" : 1491
 }

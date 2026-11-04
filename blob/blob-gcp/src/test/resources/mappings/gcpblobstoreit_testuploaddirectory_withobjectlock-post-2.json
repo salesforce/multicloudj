@@ -1,5 +1,5 @@
 {
-  "id" : "f3f5bf45-0e87-4240-9a44-c244ebf01613",
+  "id" : "3c3a7937-68a0-4475-9df3-cf0c0c430885",
   "name" : "GcpBlobStoreIT_testUploadDirectory_WithObjectLock-POST-2",
   "request" : {
     "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdirectory-objectlock%2Fupload-with-lock%2Fsubdir%2Ffile2.txt",
@@ -22,7 +22,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"generation\":\"1785320563806415\",\"name\":\"conformance-tests/directory-objectlock/upload-with-lock/subdir/file2.txt\",\"retention\":{\"mode\":\"Unlocked\",\"retainUntilTime\":\"2020-01-01T00:00:00.000Z\"}}",
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"generation\":\"1793818710868743\",\"name\":\"conformance-tests/directory-objectlock/upload-with-lock/subdir/file2.txt\",\"retention\":{\"mode\":\"Unlocked\",\"retainUntilTime\":\"2020-01-01T00:00:00.000Z\"}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -34,15 +34,16 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AKhXX7IWPSXLc2oUTaVCK6Uy-ICgmvPCD1kihWVSF1HaJjWb49CeWgNXpZkgKuqXx-3D4ErtAVHkynsUf2_B",
+      "X-GUploader-UploadID" : "AFy3sg2-yrmgbf4zCMuue1yDdKW02uu4tPIaAZfhFANWZsFAlrfYw8ii2zTrqvjOpQii3iMlnkH9Kg",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Wed, 29 Jul 2026 10:22:52 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a1a7ed61e0",
+      "Date" : "Wed, 04 Nov 2026 18:58:34 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "f3f5bf45-0e87-4240-9a44-c244ebf01613",
+  "uuid" : "3c3a7937-68a0-4475-9df3-cf0c0c430885",
   "persistent" : true,
-  "insertionIndex" : 1446
+  "insertionIndex" : 1533
 }
