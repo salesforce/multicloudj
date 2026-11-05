@@ -3,8 +3,11 @@ version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
+    # Monthly keeps routine version bumps to one batch of PRs a month. Dependabot
+    # security updates, when enabled in the repository settings, do not follow
+    # this schedule.
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     # Skip versions published less than 7 days ago, so a malicious release is
     # likely to be caught and removed before it is proposed.
     cooldown:
@@ -22,7 +25,7 @@ updates:
   - package-ecosystem: "maven"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 10
     cooldown:
       default-days: 7
@@ -31,7 +34,7 @@ updates:
       include: "scope"
     ignore:
       - dependency-name: "com.salesforce.multicloudj:*"
-    # Grouped so a weekly run yields a few PRs instead of one per artifact. Major
+    # Grouped so a monthly run yields a few PRs instead of one per artifact. Major
     # bumps stay ungrouped so each breaking upgrade is reviewed on its own.
     groups:
       aws-sdk:
