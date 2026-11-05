@@ -1,0 +1,32 @@
+{
+  "id" : "881ed150-862c-4e47-8bc6-2820809e59a8",
+  "name" : "AwsKmsIT_testEncryptDecrypt-POST-1",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.DeleteAlias"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"AliasName\":\"alias/multicloudj-kms-it-crypt\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "af1b2260-6109-4ec8-af38-8ff1fbb721cd",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Mon, 19 Oct 2026 17:45:51 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "881ed150-862c-4e47-8bc6-2820809e59a8",
+  "persistent" : true,
+  "insertionIndex" : 32
+}

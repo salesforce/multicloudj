@@ -1,0 +1,35 @@
+{
+  "id" : "7c3d5e80-dc41-4e10-b17a-47789da86be9",
+  "name" : "AwsBlobStoreIT_testTagging_lifecycleExpiration-PUT-4",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/blob-for-lifecycle-expiration",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Tagging xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><TagSet><Tag><Key>expiration-days</Key><Value>30</Value></Tag></TagSet></Tagging>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "VWC9K0315J0V95CR",
+      "x-amz-id-2" : "ZH93PsCapg1mnw50OxSNC5lCLF/DHlEcv3WZuIuERjtz+6y0UF1mDj/5ZQcisWb/4Zcu5y/15DI9rn3Zu6zI+Z53leAFbg6z8zQOh5VTkXY=",
+      "Date" : "Mon, 14 Sep 2026 18:12:40 GMT"
+    }
+  },
+  "uuid" : "7c3d5e80-dc41-4e10-b17a-47789da86be9",
+  "persistent" : true,
+  "insertionIndex" : 785
+}

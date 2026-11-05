@@ -33,9 +33,12 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
+import com.salesforce.multicloudj.common.aws.AwsRetryStrategies;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -45,7 +48,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -54,7 +56,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -72,6 +78,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.S3CrtAsyncClientBuilder;
 import software.amazon.awssdk.services.s3.crt.S3CrtHttpConfiguration;
+import software.amazon.awssdk.services.s3.crt.S3CrtProxyConfiguration;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectVersionsRequest;
@@ -98,6 +105,24 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   private final S3TransferManager transferManager;
   private final AwsTransformer transformer;
 
+  private final ExecutorService transferManagerExecutor;
+
+  private final AtomicLong streamReadThreadId = new AtomicLong();
+
+  // Store-owned so stream-read threads are reused and released on close(). Non-daemon so an
+  // in-flight stream upload keeps the JVM alive; idle threads still exit after 60s.
+  private final ExecutorService streamReadExecutor =
+      Executors.newCachedThreadPool(
+          runnable -> {
+            Thread thread =
+                new Thread(
+                    runnable,
+                    "multicloudj-aws-async-stream-read-" + streamReadThreadId.incrementAndGet());
+            // Set explicitly: a new thread inherits daemon status from the submitting thread.
+            thread.setDaemon(false);
+            return thread;
+          });
+
   public AwsAsyncBlobStore(
       String bucket,
       String region,
@@ -106,16 +131,39 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       S3AsyncClient client,
       S3TransferManager transferManager,
       AwsTransformerSupplier transformerSupplier) {
+    this(
+        bucket,
+        region,
+        credentialsOverrider,
+        validator,
+        client,
+        transferManager,
+        transformerSupplier,
+        null);
+  }
+
+  AwsAsyncBlobStore(
+      String bucket,
+      String region,
+      CredentialsOverrider credentialsOverrider,
+      BlobStoreValidator validator,
+      S3AsyncClient client,
+      S3TransferManager transferManager,
+      AwsTransformerSupplier transformerSupplier,
+      ExecutorService transferManagerExecutor) {
     super(AwsConstants.PROVIDER_ID, bucket, region, credentialsOverrider, validator);
     this.client = client;
     this.transferManager = transferManager;
     this.transformer = transformerSupplier.get(bucket);
+    this.transferManagerExecutor = transferManagerExecutor;
   }
 
   @Override
   protected CompletableFuture<UploadResponse> doUpload(
       UploadRequest uploadRequest, InputStream inputStream) {
-    return doUpload(uploadRequest, transformer.toAsyncRequestBody(uploadRequest, inputStream));
+    return doUpload(
+        uploadRequest,
+        transformer.toAsyncRequestBody(uploadRequest, inputStream, streamReadExecutor));
   }
 
   @Override
@@ -278,8 +326,23 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
   @Override
   protected CompletableFuture<Void> doDelete(Collection<BlobIdentifier> objects) {
-    var request = transformer.toDeleteRequests(objects);
-    return client.deleteObjects(request).thenAccept(response -> {});
+    return deleteChunk(objects)
+        .thenAccept(
+            failures -> {
+              if (!failures.isEmpty()) {
+                throw new BatchOperationException(failures);
+              }
+            });
+  }
+
+  /**
+   * Deletes one batch of objects and resolves to its per-object failures. Resolves to an empty list
+   * when every object was deleted; fails only on a request-level error.
+   */
+  private CompletableFuture<List<ItemFailure>> deleteChunk(Collection<BlobIdentifier> objects) {
+    return client
+        .deleteObjects(transformer.toDeleteRequests(objects))
+        .thenApply(transformer::toBatchDeleteFailures);
   }
 
   @Override
@@ -356,7 +419,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     UploadPartRequest uploadPartRequest = transformer.toUploadPartRequest(mpu, mpp);
     AsyncRequestBody asyncRequestBody =
         AsyncRequestBody.fromInputStream(
-            mpp.getInputStream(), mpp.getContentLength(), Executors.newSingleThreadExecutor());
+            mpp.getInputStream(), mpp.getContentLength(), streamReadExecutor);
 
     return client
         .uploadPart(uploadPartRequest, asyncRequestBody)
@@ -501,7 +564,9 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
   @Override
   protected CompletableFuture<Void> doDeleteDirectory(String prefix) {
-    List<CompletableFuture> futures = new ArrayList<>();
+    // Kept in chunk order so the combined failures are deterministic regardless of the order in
+    // which the chunk deletes complete.
+    List<CompletableFuture<List<ItemFailure>>> deletes = new ArrayList<>();
 
     // When listed batches of blobs come in, partition them into groups, then delete them
     Consumer<ListBlobsBatch> consumer =
@@ -509,13 +574,23 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           List<List<BlobInfo>> partitionedBlobLists =
               transformer.partitionList(batch.getBlobs(), MAX_OBJECTS_PER_DELETE);
           for (List<BlobInfo> blobList : partitionedBlobLists) {
-            futures.add(doDelete(transformer.toBlobIdentifiers(blobList)));
+            deletes.add(deleteChunk(transformer.toBlobIdentifiers(blobList)));
           }
         };
-    CompletableFuture<Void> listFuture =
-        doList(ListBlobsRequest.builder().withPrefix(prefix).build(), consumer);
-    futures.add(listFuture);
-    return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+    // Deletes are only all known once listing completes, so wait on them after it. A request-level
+    // failure in any chunk fails allOf and so takes precedence over per-object failures reported by
+    // other chunks.
+    return doList(ListBlobsRequest.builder().withPrefix(prefix).build(), consumer)
+        .thenCompose(
+            ignored -> CompletableFuture.allOf(deletes.toArray(new CompletableFuture[0])))
+        .thenAccept(
+            ignored -> {
+              List<ItemFailure> failures = new ArrayList<>();
+              deletes.forEach(delete -> failures.addAll(delete.join()));
+              if (!failures.isEmpty()) {
+                throw new BatchOperationException(failures);
+              }
+            });
   }
 
   /**
@@ -524,11 +599,14 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
    * @return Returns an S3Presigner for the current credentials
    */
   protected S3Presigner getPresigner() {
-    return S3Presigner.builder()
+    S3Presigner.Builder builder = S3Presigner.builder()
         .credentialsProvider(client.serviceClientConfiguration().credentialsProvider())
         .region(Region.of(getRegion()))
-        .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
-        .build();
+        .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build());
+    // The presigner does not inherit the client's endpoint; without this, URLs for custom
+    // endpoints are signed against s3.amazonaws.com.
+    client.serviceClientConfiguration().endpointOverride().ifPresent(builder::endpointOverride);
+    return builder.build();
   }
 
   @Override
@@ -566,8 +644,13 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   /** Closes the underlying S3 async client and transfer manager, releasing any resources. */
   @Override
   public void close() {
+    streamReadExecutor.shutdown();
     if (transferManager != null) {
       transferManager.close();
+    }
+    if (transferManagerExecutor != null) {
+      // S3TransferManager doesn't shut down an executor passed to its builder, so we do it here.
+      transferManagerExecutor.shutdown();
     }
     if (client != null) {
       client.close();
@@ -576,6 +659,28 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
   public static Builder builder() {
     return new Builder();
+  }
+
+  private static ExecutorService newTransferManagerExecutor(int poolSize) {
+    AtomicLong threadId = new AtomicLong();
+    ThreadPoolExecutor executor =
+        new ThreadPoolExecutor(
+            poolSize,
+            poolSize,
+            60L,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(),
+            runnable -> {
+              Thread thread =
+                  new Thread(
+                      runnable, "multicloudj-aws-transfer-manager-" + threadId.incrementAndGet());
+              // Non-daemon so the JVM waits for in-progress uploads and downloads to finish
+              // instead of cutting them off when the application exits.
+              thread.setDaemon(false);
+              return thread;
+            });
+    executor.allowCoreThreadTimeOut(true);
+    return executor;
   }
 
   @Getter
@@ -715,21 +820,9 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
       // Configure retry strategy if specified
       if (config.getRetryConfig() != null) {
-        // Create a temporary transformer instance for retry strategy conversion
-        AwsTransformer transformer = config.getTransformerSupplier().get(config.getBucket());
         builder.overrideConfiguration(
-            overrideConfig -> {
-              overrideConfig.retryStrategy(transformer.toAwsRetryStrategy(config.getRetryConfig()));
-              // Set API call timeouts if provided
-              if (config.getRetryConfig().getAttemptTimeout() != null) {
-                overrideConfig.apiCallAttemptTimeout(
-                    Duration.ofMillis(config.getRetryConfig().getAttemptTimeout()));
-              }
-              if (config.getRetryConfig().getTotalTimeout() != null) {
-                overrideConfig.apiCallTimeout(
-                    Duration.ofMillis(config.getRetryConfig().getTotalTimeout()));
-              }
-            });
+            overrideConfig ->
+                AwsRetryStrategies.applyRetryConfig(overrideConfig, config.getRetryConfig()));
       }
 
       // Configure async configuration if executor service is specified
@@ -761,17 +854,24 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       }
 
       // Configure proxy if specified
-      if (config.getProxyEndpoint() != null) {
-        S3CrtHttpConfiguration httpConfig =
-            S3CrtHttpConfiguration.builder()
-                .proxyConfiguration(
-                    proxyBuilder ->
-                        proxyBuilder
-                            .scheme(config.getProxyEndpoint().getScheme())
-                            .host(config.getProxyEndpoint().getHost())
-                            .port(config.getProxyEndpoint().getPort()))
-                .build();
-        builder.httpConfiguration(httpConfig);
+      if (config.getProxyEndpoint() != null
+          || config.getUseSystemPropertyProxyValues() != null
+          || config.getUseEnvironmentVariableProxyValues() != null) {
+        S3CrtProxyConfiguration.Builder proxyBuilder = S3CrtProxyConfiguration.builder();
+        if (config.getProxyEndpoint() != null) {
+          proxyBuilder
+              .scheme(config.getProxyEndpoint().getScheme())
+              .host(config.getProxyEndpoint().getHost())
+              .port(config.getProxyEndpoint().getPort());
+        }
+        if (config.getUseSystemPropertyProxyValues() != null) {
+          proxyBuilder.useSystemPropertyValues(config.getUseSystemPropertyProxyValues());
+        }
+        if (config.getUseEnvironmentVariableProxyValues() != null) {
+          proxyBuilder.useEnvironmentVariableValues(config.getUseEnvironmentVariableProxyValues());
+        }
+        builder.httpConfiguration(
+            S3CrtHttpConfiguration.builder().proxyConfiguration(proxyBuilder.build()).build());
       }
 
       // Configure part buffer size (common for both clients)
@@ -813,6 +913,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
         client = buildS3Client(this);
       }
       S3TransferManager tm = getTransferManager();
+      ExecutorService ownedTransferManagerExecutor = null;
       if (tm == null) {
         var transferManagerBuilder = S3TransferManager.builder().s3Client(client);
 
@@ -825,7 +926,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           Integer poolSize = getTransferManagerThreadPoolSize();
 
           if (poolSize != null) {
-            transferManagerBuilder.executor(Executors.newFixedThreadPool(poolSize));
+            ownedTransferManagerExecutor = newTransferManagerExecutor(poolSize);
+            transferManagerBuilder.executor(ownedTransferManagerExecutor);
           }
         }
 
@@ -845,7 +947,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           getValidator(),
           client,
           tm,
-          getTransformerSupplier());
+          getTransformerSupplier(),
+          ownedTransferManagerExecutor);
     }
   }
 }

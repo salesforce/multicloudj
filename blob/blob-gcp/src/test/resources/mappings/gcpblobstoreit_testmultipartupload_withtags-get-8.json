@@ -1,0 +1,36 @@
+{
+  "id" : "797f096a-4d4f-414f-9ca6-96427e378520",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_withTags-GET-8",
+  "request" : {
+    "urlPath" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-withTags",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "ABPnzm6VKTYFgr3xB9MxRUDNNKhWBrCJsoubg_AEvxNldXRZ4-l8Bn8dC-gNdL0_8LB7KT0"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><ListPartsResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-withTags</Key><UploadId>ABPnzm6VKTYFgr3xB9MxRUDNNKhWBrCJsoubg_AEvxNldXRZ4-l8Bn8dC-gNdL0_8LB7KT0</UploadId><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>0</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><LastModified>2026-10-30T19:36:06.822351Z</LastModified><ETag>\"2b5c91ad399409ec9b409b66f5bb00fb\"</ETag><Size>5242880</Size></Part><Part><PartNumber>2</PartNumber><LastModified>2026-10-30T19:36:08.457503Z</LastModified><ETag>\"267c038cc2ec32ffd0ee2512ff5da5a5\"</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0",
+      "X-GUploader-UploadID" : "AFy3sg3Xevmcf1FMT05QqwJ6sOtgX_g4cbCf2-AYvZrbp2I-igRFmPZwZeDvJhLfxBYiiQiNCXOpkg",
+      "Expires" : "Fri, 30 Oct 2026 19:36:08 GMT",
+      "Date" : "Fri, 30 Oct 2026 19:36:08 GMT",
+      "Content-Type" : "text/html; charset=UTF-8"
+    }
+  },
+  "uuid" : "797f096a-4d4f-414f-9ca6-96427e378520",
+  "persistent" : true,
+  "insertionIndex" : 1581
+}

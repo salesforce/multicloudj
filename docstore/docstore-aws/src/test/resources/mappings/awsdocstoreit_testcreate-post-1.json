@@ -1,5 +1,5 @@
 {
-  "id" : "848fe587-edd3-4888-bf95-23a1750de8e0",
+  "id" : "093014ab-a7cc-4088-91d0-322e99ae6985",
   "name" : "AwsDocstoreIT_testCreate-POST-1",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"84167da1-5b13-2d3d-48bf-d83aabf6216b\"},\"pName\":{\"S\":\"LeoMap\"},\"f\":{\"N\":\"12.65999984741211\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"84167da1-5b13-2d3d-48bf-d83aabf6216b\"},\"pName\":{\"S\":\"LeoMap\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"f\":{\"N\":\"12.65999984741211\"}},\"ConditionExpression\":\"attribute_not_exists(#pk)\",\"ExpressionAttributeNames\":{\"#pk\":\"pName\"}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "KPC1P7F39C6GSI0IRS5QDEBRNFVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "39A5DMPF9I774IB9N8CLND3Q6BVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 22 Apr 2026 22:58:10 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:37 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "848fe587-edd3-4888-bf95-23a1750de8e0",
+  "uuid" : "093014ab-a7cc-4088-91d0-322e99ae6985",
   "persistent" : true,
-  "insertionIndex" : 291
+  "insertionIndex" : 314
 }

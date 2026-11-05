@@ -1,0 +1,40 @@
+{
+  "id" : "f67c0920-19b1-4cb1-af46-68271d811b5f",
+  "name" : "GcpKmsIT_testImportKeyMaterial-GET-8",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/importJobs/mcj-kms-it-byok-r2-rsaoaep3072sha256",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/importJobs/mcj-kms-it-byok-r2-rsaoaep3072sha256\",\n  \"importMethod\": 5,\n  \"createTime\": \"2026-10-18T06:15:44.508982228Z\",\n  \"generateTime\": \"2026-10-18T06:15:45.230529138Z\",\n  \"expireTime\": \"2026-10-21T06:15:44.508982228Z\",\n  \"state\": 2,\n  \"publicKey\": {\n    \"pem\": \"-----BEGIN PUBLIC KEY-----\\nMIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAxsZsPy9VlioBqvqI8xdK\\nzpAsmhPOjlqT2XidTkmCftvPejg41BIfvDA7tGbiynIWaSJUlul0s36K3WMo0KX0\\nmlYMbQ5zSihvVX6oynYQudOPOv9coZ1vn/Dcm6lHxYk/BWhHgGZRMDjNYqhCpk8/\\nPvRlwy/VKRMq1c5fSq/DY14BOp2HdPYxdtVK22Ni7A+9IDk2Ie5qaZu+yf/Lrqi8\\nnvsEGKRXjEIzz94CdNMzSiYobFKCvhTdW+nv3perVcu3GDgDi1Ad2wZ6B3fLmIfk\\nOigEO0/VOm7igZZPkhKZanj/1wFClU6yp//99Tt0lb5AH/P7FDRU5IKaUTetu3k0\\nujxpEGZV6Kz2w6SsZZoLeOH13pxaKfw8AGiOuBtQBFqFVUfuj44aNGMY/B0c6JIw\\nXC2+JxFLqVLQ4czPoYvayJjTHKu540hkP1ooh3Z7JlwkwhYXRNf03JXgDgT8gA3C\\nHWBzVk6BRwbtmhlnmNqer5wnfyJK9bfI54d5Eweqdun1AgMBAAE=\\n-----END PUBLIC KEY-----\\n\",\n    \"data\": \"LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQm9qQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FZOEFNSUlCaWdLQ0FZRUF4c1pzUHk5Vmxpb0JxdnFJOHhkSwp6cEFzbWhQT2pscVQyWGlkVGttQ2Z0dlBlamc0MUJJZnZEQTd0R2JpeW5JV2FTSlVsdWwwczM2SzNXTW8wS1gwCm1sWU1iUTV6U2lodlZYNm95bllRdWRPUE92OWNvWjF2bi9EY202bEh4WWsvQldoSGdHWlJNRGpOWXFoQ3BrOC8KUHZSbHd5L1ZLUk1xMWM1ZlNxL0RZMTRCT3AySGRQWXhkdFZLMjJOaTdBKzlJRGsySWU1cWFadSt5Zi9McnFpOApudnNFR0tSWGpFSXp6OTRDZE5NelNpWW9iRktDdmhUZFcrbnYzcGVyVmN1M0dEZ0RpMUFkMndaNkIzZkxtSWZrCk9pZ0VPMC9WT203aWdaWlBraEtaYW5qLzF3RkNsVTZ5cC8vOTlUdDBsYjVBSC9QN0ZEUlU1SUthVVRldHUzazAKdWp4cEVHWlY2S3oydzZTc1pab0xlT0gxM3B4YUtmdzhBR2lPdUJ0UUJGcUZWVWZ1ajQ0YU5HTVkvQjBjNkpJdwpYQzIrSnhGTHFWTFE0Y3pQb1l2YXlKalRIS3U1NDBoa1Axb29oM1o3Smx3a3doWVhSTmYwM0pYZ0RnVDhnQTNDCkhXQnpWazZCUndidG1obG5tTnFlcjV3bmZ5Sks5YmZJNTRkNUV3ZXFkdW4xQWdNQkFBRT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==\"\n  },\n  \"protectionLevel\": 1\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sun, 18 Oct 2026 06:15:46 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "f67c0920-19b1-4cb1-af46-68271d811b5f",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-v1-projects-substrate-sdk-gcp-poc1-locations-us-west1-keyRings-multicloudj-kms-it-importJobs-mcj-kms-it-byok-r2-rsaoaep3072sha256",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-2-v1-projects-substrate-sdk-gcp-poc1-locations-us-west1-keyRings-multicloudj-kms-it-importJobs-mcj-kms-it-byok-r2-rsaoaep3072sha256-2",
+  "insertionIndex" : 19
+}

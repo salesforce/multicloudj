@@ -1,5 +1,5 @@
 {
-  "id" : "e106258d-497f-4149-bfd4-dc02f2864f7d",
+  "id" : "b6bf1e42-c1bf-4af4-8861-73327dedb47f",
   "name" : "AwsDocstoreIT_testAtomicWrites-POST-15",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"Item\":{\"Player\":{\"S\":\"testAtomicWrites7\"},\"DocstoreRevision\":{\"S\":\"d9aee469-b9ff-1fc4-f891-0f6468e61b6b\"},\"Game\":{\"S\":\"testAtomicWrites\"},\"s\":{\"S\":\"7\"}},\"ConditionExpression\":\"attribute_not_exists(Game)\"}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"Item\":{\"Player\":{\"S\":\"testAtomicWrites6\"},\"DocstoreRevision\":{\"S\":\"c7f2e652-ab2d-cfff-ae77-2ea8dec65f68\"},\"Game\":{\"S\":\"testAtomicWrites\"},\"s\":{\"S\":\"6\"}},\"ConditionExpression\":\"attribute_not_exists(#pk)\",\"ExpressionAttributeNames\":{\"#pk\":\"Game\"}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "OBAKDQE9DKR6TV4F3DM48EJAMRVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "JH8F08RDDSAGGASJLD29SC045JVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 22 Jul 2026 23:39:35 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:46 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "e106258d-497f-4149-bfd4-dc02f2864f7d",
+  "uuid" : "b6bf1e42-c1bf-4af4-8861-73327dedb47f",
   "persistent" : true,
-  "insertionIndex" : 360
+  "insertionIndex" : 368
 }

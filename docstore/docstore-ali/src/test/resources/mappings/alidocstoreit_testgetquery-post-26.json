@@ -1,28 +1,26 @@
 {
-  "id" : "4de2f77c-c83d-4c72-9b00-2e5b8ef61908",
+  "id" : "49b50a88-0f40-4433-8191-fccc99bcfd28",
   "name" : "AliDocstoreIT_testGetQuery-POST-26",
   "request" : {
-    "url" : "/PutRow",
+    "url" : "/BatchGetRow",
     "method" : "POST",
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"op\":\"PutRow\",\"table\":\"docstore_test_2\",\"rows\":[{\"pk\":{\"Game\":{\"t\":\"PK:STRING\",\"v\":\"Zombie DMV\"},\"Player\":{\"t\":\"PK:STRING\",\"v\":\"pat\"}},\"cells\":{\"WithGlitch\":{\"t\":\"BOOLEAN\",\"v\":\"true\"},\"Score\":{\"t\":\"INTEGER\",\"v\":\"120\"},\"Time\":{\"t\":\"STRING\",\"v\":\"2024-04-01\"}},\"deleteMarker\":false}],\"condition\":\"0800\"}",
-      "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : false
+      "binaryEqualTo" : "ClwKD2RvY3N0b3JlX3Rlc3RfMhJFdQAAAAEDBAQAAABHYW1lBQ8AAAADCgAAAFpvbWJpZSBETVYKTwMEBgAAAFBsYXllcgULAAAAAwYAAABiaWxsaWUKngn2GgAwAQ=="
     } ]
   },
   "response" : {
     "status" : 200,
-    "base64Body" : "CgYKBAgBEAE=",
+    "base64Body" : "CtYBCg9kb2NzdG9yZV90ZXN0XzISwgEIARoGCgQIARAAIrUBdQAAAAEDBAQAAABHYW1lBQ8AAAADCgAAAFpvbWJpZSBETVYKTwMEBgAAAFBsYXllcgULAAAAAwYAAABiaWxsaWUKngIDBAUAAABTY29yZQUJAAAAAG8AAAAAAAAAB77LbUagAQAACicDBAQAAABUaW1lBQ8AAAADCgAAADIwMjQtMDQtMTAHvsttRqABAAAK6QMECgAAAFdpdGhHbGl0Y2gFAgAAAAIAB77LbUagAQAACt4JJQ==",
     "headers" : {
-      "x-ots-requestid" : "000657ed-c097-f612-b0de-c60b0d7a05b4",
-      "Authorization" : "OTS STS.NY3TWDAWC3sV57fGWmx8PCPqs:44QZ5HfVukMaagrQ//CvjU9t/FU=",
-      "x-ots-date" : "2026-07-31T20:08:30.341354Z",
+      "x-ots-requestid" : "00065a13-1d7b-d32a-55a0-720bbf5d9a69",
+      "Authorization" : "OTS STS.NYKRCFQWXELvmrjAHWndrQSNH:roPH4jq9cqbwKVIdVpVVDjc4yC4=",
+      "x-ots-date" : "2026-08-28T03:33:25.816574Z",
       "x-ots-contenttype" : "protocol buffer",
-      "x-ots-contentmd5" : "bofsTfsxtvymDNQpw96K/Q==",
-      "Date" : "Fri, 31 Jul 2026 20:08:30 GMT"
+      "x-ots-contentmd5" : "NqSjRZHfHu5Dmr+UiDatSw==",
+      "Date" : "Fri, 28 Aug 2026 03:33:25 GMT"
     }
   },
-  "uuid" : "4de2f77c-c83d-4c72-9b00-2e5b8ef61908",
+  "uuid" : "49b50a88-0f40-4433-8191-fccc99bcfd28",
   "persistent" : true,
-  "insertionIndex" : 27
+  "insertionIndex" : 205
 }

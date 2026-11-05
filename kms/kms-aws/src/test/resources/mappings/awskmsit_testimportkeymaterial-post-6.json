@@ -1,0 +1,32 @@
+{
+  "id" : "30f60151-1d3b-4bc4-83d5-927893881a06",
+  "name" : "AwsKmsIT_testImportKeyMaterial-POST-6",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.CreateAlias"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"AliasName\":\"alias/multicloudj-kms-it-byok\",\"TargetKeyId\":\"50ccc0bb-7a7a-44b3-bd37-09e59facc194\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "e199ddd7-aa22-4cf7-b60c-bcd57f673e5e",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Mon, 19 Oct 2026 17:45:42 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "30f60151-1d3b-4bc4-83d5-927893881a06",
+  "persistent" : true,
+  "insertionIndex" : 18
+}

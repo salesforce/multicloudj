@@ -1,7 +1,9 @@
 package com.salesforce.multicloudj.blob.aws;
 
 import com.salesforce.multicloudj.common.aws.CommonErrorCodeMapping;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
@@ -24,10 +26,19 @@ public class ErrorCodeMapping {
     map.put("NoSuchKey", ResourceNotFoundException.class);
     map.put("NoSuchBucket", InvalidArgumentException.class);
     map.put("InvalidObjectState", UnAuthorizedException.class);
+    map.put("PreconditionFailed", FailedPreconditionException.class);
+    map.put("ConditionalRequestConflict", ResourceConflictException.class);
     ERROR_MAPPING = Collections.unmodifiableMap(map);
   }
 
   static Class<? extends SubstrateSdkException> getException(String errorCode) {
     return ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
+  }
+
+  /**
+   * @return the exception class mapped to the error code, or null if the code is null or unmapped
+   */
+  static Class<? extends SubstrateSdkException> findException(String errorCode) {
+    return errorCode == null ? null : ERROR_MAPPING.get(errorCode);
   }
 }

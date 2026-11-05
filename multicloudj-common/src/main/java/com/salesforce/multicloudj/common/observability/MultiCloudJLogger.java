@@ -103,7 +103,8 @@ public class MultiCloudJLogger {
 
     Span span = startSpan(operationName, attributes, effectiveContext, hasParent);
     long startTime = System.nanoTime();
-    Map<String, String> previousMdc = snapshotMdc();
+    Map<String, String> previousMdc =
+        snapshotMdc(effectiveContext.getEffectiveCorrelationIdAttributeKey());
 
     try (Scope ignored = span.makeCurrent()) {
       setMdc(span, effectiveContext);
@@ -182,7 +183,8 @@ public class MultiCloudJLogger {
 
     Span span = startSpan(operationName, attributes, effectiveContext, hasParent);
     long startTime = System.nanoTime();
-    Map<String, String> previousMdc = snapshotMdc();
+    Map<String, String> previousMdc =
+        snapshotMdc(effectiveContext.getEffectiveCorrelationIdAttributeKey());
 
     CompletableFuture<T> future;
     try (Scope ignored = span.makeCurrent()) {
@@ -213,7 +215,8 @@ public class MultiCloudJLogger {
           // Snapshot the completing thread's MDC; whenComplete may run on a different
           // thread than the one that called traceAsyncOperation, so the snapshot taken
           // above is irrelevant here.
-          Map<String, String> completionPreviousMdc = snapshotMdc();
+          Map<String, String> completionPreviousMdc =
+              snapshotMdc(effectiveContext.getEffectiveCorrelationIdAttributeKey());
           try (Scope ignored = span.makeCurrent()) {
             setMdc(span, effectiveContext);
             try {
@@ -251,7 +254,9 @@ public class MultiCloudJLogger {
     if (attributes != null) {
       attributes.forEach(spanBuilder::setAttribute);
     }
-    spanBuilder.setAttribute(ATTR_CORRELATION_ID, effectiveContext.getCorrelationId());
+    spanBuilder.setAttribute(
+        effectiveContext.getEffectiveCorrelationIdAttributeKey(),
+        effectiveContext.getCorrelationId());
     spanBuilder.setAttribute(ATTR_SDK_SERVICE, serviceName);
     spanBuilder.setAttribute(ATTR_SDK_PROVIDER, providerId);
     // Blank (null/empty/whitespace-only) tenant and service ids are treated as absent and not
@@ -271,7 +276,8 @@ public class MultiCloudJLogger {
       String operationName,
       Function<OperationContext, T> operation) {
     long startTime = System.nanoTime();
-    Map<String, String> previousMdc = snapshotMdc();
+    Map<String, String> previousMdc =
+        snapshotMdc(effectiveContext.getEffectiveCorrelationIdAttributeKey());
     setQuietMdc(effectiveContext);
     try {
       log.debug("{} started [bucket={}]", operationName, bucket);
@@ -294,7 +300,8 @@ public class MultiCloudJLogger {
       String operationName,
       Function<OperationContext, CompletableFuture<T>> operation) {
     long startTime = System.nanoTime();
-    Map<String, String> previousMdc = snapshotMdc();
+    Map<String, String> previousMdc =
+        snapshotMdc(effectiveContext.getEffectiveCorrelationIdAttributeKey());
     setQuietMdc(effectiveContext);
     CompletableFuture<T> future;
     try {
@@ -314,7 +321,8 @@ public class MultiCloudJLogger {
         (result, throwable) -> {
           long durationMs = (System.nanoTime() - startTime) / 1_000_000;
           // Fresh snapshot for the completing thread; see traceAsyncOperation for rationale.
-          Map<String, String> completionPreviousMdc = snapshotMdc();
+          Map<String, String> completionPreviousMdc =
+              snapshotMdc(effectiveContext.getEffectiveCorrelationIdAttributeKey());
           setQuietMdc(effectiveContext);
           try {
             if (throwable != null) {
@@ -351,7 +359,9 @@ public class MultiCloudJLogger {
   private void setMdc(Span span, OperationContext effectiveContext) {
     MDC.put(MDC_TRACE_ID, span.getSpanContext().getTraceId());
     MDC.put(MDC_SPAN_ID, span.getSpanContext().getSpanId());
-    MDC.put(MDC_CORRELATION_ID, effectiveContext.getCorrelationId());
+    MDC.put(
+        effectiveContext.getEffectiveCorrelationIdAttributeKey(),
+        effectiveContext.getCorrelationId());
     MDC.put(MDC_SDK_SERVICE, serviceName);
     MDC.put(MDC_SDK_PROVIDER, providerId);
     if (StringUtils.isNotBlank(effectiveContext.getTenantId())) {
@@ -363,7 +373,9 @@ public class MultiCloudJLogger {
   }
 
   private void setQuietMdc(OperationContext effectiveContext) {
-    MDC.put(MDC_CORRELATION_ID, effectiveContext.getCorrelationId());
+    MDC.put(
+        effectiveContext.getEffectiveCorrelationIdAttributeKey(),
+        effectiveContext.getCorrelationId());
     MDC.put(MDC_SDK_SERVICE, serviceName);
     MDC.put(MDC_SDK_PROVIDER, providerId);
     if (StringUtils.isNotBlank(effectiveContext.getTenantId())) {
@@ -386,14 +398,25 @@ public class MultiCloudJLogger {
    * keys: the caller may already have, e.g. {@code correlation_id} populated from an outer
    * request context, and clobbering it would leak across the SDK call boundary.
    *
+   * <p>Snapshots the fixed SDK keys ({@code SDK_MDC_KEYS}) plus the caller's custom correlation
+   * key. Validation guarantees the custom key can never equal a fixed SDK key, so a snapshot
+   * entry can never alias another.
+   *
    * <p>Only SDK-managed keys are touched; any other MDC entries (including ones the lambda
    * itself sets) pass through unchanged.
+   *
+   * @param correlationKey the effective correlation id key for this operation
    */
-  private static Map<String, String> snapshotMdc() {
+  private static Map<String, String> snapshotMdc(String correlationKey) {
     Map<String, String> snapshot = new HashMap<>();
     for (String key : SDK_MDC_KEYS) {
       snapshot.put(key, MDC.get(key));
     }
+    // Snapshot the custom correlation key if it differs from MDC_CORRELATION_ID (which is
+    // already in SDK_MDC_KEYS). Keeping MDC_CORRELATION_ID in the fixed set is harmless: when a
+    // custom key is in use the SDK never writes correlation_id, so restoring it to its own
+    // prior value is a no-op.
+    snapshot.put(correlationKey, MDC.get(correlationKey));
     return snapshot;
   }
 

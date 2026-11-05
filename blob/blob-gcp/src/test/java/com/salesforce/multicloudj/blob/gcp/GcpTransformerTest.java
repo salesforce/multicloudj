@@ -9,7 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
+import com.google.api.core.ApiClock;
+import com.google.api.gax.retrying.ExponentialRetryAlgorithm;
 import com.google.api.gax.retrying.RetrySettings;
+import com.google.api.gax.retrying.TimedAttemptSettings;
+import com.google.cloud.ServiceOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -35,6 +39,7 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.File;
@@ -48,11 +53,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -205,6 +213,217 @@ class GcpTransformerTest {
   }
 
   @Test
+  void testToBlobInfo_withExpirationTag_stampsCustomTimeDaysFromNow() {
+    // Given the reserved lifecycle-expiration tag requests a 30-day lifetime
+    Map<String, String> tags = new HashMap<>();
+    tags.put(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "30");
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey(TEST_KEY).withTags(tags).build();
+
+    OffsetDateTime before = OffsetDateTime.now(ZoneOffset.UTC);
+
+    // When
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    OffsetDateTime after = OffsetDateTime.now(ZoneOffset.UTC);
+
+    // Then the object's custom time is stamped ~30 days out (creation time is "now" on upload) so
+    // a daysSinceCustomTime rule can expire it, and the tag itself is still persisted as prefixed
+    // metadata
+    OffsetDateTime customTime = blobInfo.getCustomTimeOffsetDateTime();
+    assertNotNull(customTime);
+    assertFalse(customTime.isBefore(before.plusDays(30)));
+    assertFalse(customTime.isAfter(after.plusDays(30)));
+    assertEquals(
+        "30",
+        blobInfo.getMetadata().get("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
+  }
+
+  @Test
+  void testToBlobInfo_withoutExpirationTag_doesNotStampCustomTime() {
+    // Given only non-reserved tags are present
+    Map<String, String> tags = new HashMap<>();
+    tags.put("environment", "production");
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey(TEST_KEY).withTags(tags).build();
+
+    // When
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    // Then no custom time marker is added
+    assertNull(blobInfo.getCustomTimeOffsetDateTime());
+  }
+
+  @Test
+  void testToBlobInfo_withNeverExpirationTag_doesNotStampCustomTime() {
+    // Given the reserved tag carries a non-numeric "never expire" sentinel
+    Map<String, String> tags = new HashMap<>();
+    tags.put(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "Never");
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey(TEST_KEY).withTags(tags).build();
+
+    // When
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    // Then no custom time marker is added, but the tag is still persisted verbatim
+    assertNull(blobInfo.getCustomTimeOffsetDateTime());
+    assertEquals(
+        "Never",
+        blobInfo.getMetadata().get("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
+  }
+
+  @Test
+  void testApplyLifecycleExpiration_stampsCustomTimeOnlyForPositiveDayCount() {
+    // Positive day count -> stamps custom time ~10 days out
+    BlobInfo.Builder withTag = BlobInfo.newBuilder(TEST_BUCKET, TEST_KEY);
+    Map<String, String> present = new HashMap<>();
+    present.put("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "10");
+    OffsetDateTime before = OffsetDateTime.now(ZoneOffset.UTC);
+    transformer.applyLifecycleExpiration(withTag, present);
+    OffsetDateTime customTime = withTag.build().getCustomTimeOffsetDateTime();
+    assertNotNull(customTime);
+    assertFalse(customTime.isBefore(before.plusDays(10)));
+    assertFalse(customTime.isAfter(OffsetDateTime.now(ZoneOffset.UTC).plusDays(10)));
+
+    // Absent -> leaves custom time untouched (null)
+    BlobInfo.Builder withoutTag = BlobInfo.newBuilder(TEST_BUCKET, TEST_KEY);
+    Map<String, String> absent = new HashMap<>();
+    absent.put("gcp-tag-environment", "production");
+    transformer.applyLifecycleExpiration(withoutTag, absent);
+    assertNull(withoutTag.build().getCustomTimeOffsetDateTime());
+
+    // Non-positive / non-numeric value -> no marker
+    BlobInfo.Builder never = BlobInfo.newBuilder(TEST_BUCKET, TEST_KEY);
+    Map<String, String> sentinel = new HashMap<>();
+    sentinel.put("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "Never");
+    transformer.applyLifecycleExpiration(never, sentinel);
+    assertNull(never.build().getCustomTimeOffsetDateTime());
+  }
+
+  @Test
+  void testToPresignTagHeaders_withTagsAndExpiration() {
+    Map<String, String> tags = new HashMap<>();
+    tags.put("environment", "production");
+    tags.put(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "10");
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key(TEST_KEY)
+            .duration(Duration.ofHours(1))
+            .tags(tags)
+            .build();
+
+    Instant before = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+    Map<String, String> headers = transformer.toPresignTagHeaders(request);
+    Instant after = Instant.now();
+
+    assertEquals(3, headers.size());
+    assertEquals("production", headers.get("x-goog-meta-gcp-tag-environment"));
+    assertEquals(
+        "10", headers.get("x-goog-meta-gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
+    Instant customTime = Instant.parse(headers.get("x-goog-custom-time"));
+    assertFalse(customTime.isBefore(before.plus(Duration.ofDays(10))));
+    assertFalse(customTime.isAfter(after.plus(Duration.ofDays(10))));
+  }
+
+  @Test
+  void testToPresignTagHeaders_withoutPositiveExpiration_omitsCustomTime() {
+    for (String value : new String[] {"Never", "0", "-5"}) {
+      PresignedUrlRequest request =
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(TEST_KEY)
+              .duration(Duration.ofHours(1))
+              .tags(Map.of(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, value))
+              .build();
+
+      Map<String, String> headers = transformer.toPresignTagHeaders(request);
+
+      assertEquals(
+          Map.of("x-goog-meta-gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, value),
+          headers);
+    }
+  }
+
+  @Test
+  void testToPresignTagHeaders_withoutTags_returnsEmpty() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key(TEST_KEY)
+            .duration(Duration.ofHours(1))
+            .build();
+
+    assertTrue(transformer.toPresignTagHeaders(request).isEmpty());
+  }
+
+  @Test
+  void testToPresignTagHeaders_rejectsTagsThatCannotBeSentAsHeaders() {
+    Map<String, String> nullKey = new HashMap<>();
+    nullKey.put(null, "x");
+    Map<String, String> nullValue = new HashMap<>();
+    nullValue.put("owner", null);
+    List<Map<String, String>> invalidTags =
+        List.of(
+            nullKey,
+            nullValue,
+            Map.of("cost center", "x"),
+            Map.of("team/owner", "x"),
+            Map.of("aws:createdBy", "x"),
+            Map.of("", "x"),
+            Map.of("owner", "张三"),
+            Map.of("note", "line1\nline2"),
+            Map.of("label", " padded"),
+            Map.of("label", "padded "),
+            Map.of("Env", "a", "env", "b"));
+
+    for (Map<String, String> tags : invalidTags) {
+      PresignedUrlRequest request =
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(TEST_KEY)
+              .duration(Duration.ofHours(1))
+              .tags(tags)
+              .build();
+      assertThrows(
+          InvalidArgumentException.class,
+          () -> transformer.toPresignTagHeaders(request),
+          "expected rejection for tags " + tags);
+    }
+  }
+
+  @Test
+  void testToPresignTagHeaders_acceptsHeaderSafeTags() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key(TEST_KEY)
+            .duration(Duration.ofHours(1))
+            .tags(Map.of("Cost_Center.v2", "R&D team = 42", "empty", ""))
+            .build();
+
+    Map<String, String> headers = transformer.toPresignTagHeaders(request);
+
+    assertEquals(
+        Map.of(
+            "x-goog-meta-gcp-tag-Cost_Center.v2", "R&D team = 42",
+            "x-goog-meta-gcp-tag-empty", ""),
+        headers);
+  }
+
+  @Test
+  void testParseExpirationDays() {
+    assertEquals(30, GcpTransformer.parseExpirationDays("30"));
+    assertEquals(10, GcpTransformer.parseExpirationDays("  10 "));
+    assertNull(GcpTransformer.parseExpirationDays(null));
+    assertNull(GcpTransformer.parseExpirationDays(""));
+    assertNull(GcpTransformer.parseExpirationDays("Never"));
+    assertNull(GcpTransformer.parseExpirationDays("true"));
+    assertNull(GcpTransformer.parseExpirationDays("0"));
+    assertNull(GcpTransformer.parseExpirationDays("-5"));
+  }
+
+  @Test
   void testToBlobInfo_WithEmptyMetadataAndTags() {
     // Given
     UploadRequest uploadRequest =
@@ -290,6 +509,54 @@ class GcpTransformerTest {
         "user-supplied",
         blobInfo.getMetadata().get(GcpTransformer.CORRELATION_ID_METADATA_KEY),
         "application's explicit sdk-logging-correlation-id metadata value must take precedence");
+  }
+
+  @Test
+  void testToBlobInfo_customCorrelationKeyUsed() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .correlationIdKey("x-custom-corr")
+            .build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        blobInfo.getMetadata().get("x-custom-corr"),
+        "custom correlation key must be used when specified");
+    assertFalse(
+        blobInfo.getMetadata().containsKey(GcpTransformer.CORRELATION_ID_METADATA_KEY),
+        "default correlation key should not be present when custom key is used");
+  }
+
+  @Test
+  void testToBlobInfo_customCorrelationKeyNotOverwritten() {
+    OperationContext ctx =
+        OperationContext.builder()
+            .correlationId("sdk-generated")
+            .correlationIdKey("x-custom-corr")
+            .build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("x-custom-corr", "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals(
+        "user-supplied",
+        blobInfo.getMetadata().get("x-custom-corr"),
+        "application's explicit custom correlation key metadata value must take precedence");
   }
 
   @Test
@@ -534,6 +801,27 @@ class GcpTransformerTest {
     Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(uploadRequest);
 
     // Then
+    assertEquals(0, options.length);
+  }
+
+  @Test
+  void testGetBlobWriteOptions_CreateIfAbsentUsesGenerationMatchZero() {
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey(TEST_KEY).withCreateIfAbsent(true).build();
+
+    Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(uploadRequest);
+
+    assertEquals(1, options.length);
+    assertEquals(Storage.BlobWriteOption.generationMatch(0L), options[0]);
+  }
+
+  @Test
+  void testGetBlobWriteOptions_CreateIfAbsentDisabledDoesNotAddPrecondition() {
+    UploadRequest uploadRequest =
+        UploadRequest.builder().withKey(TEST_KEY).withCreateIfAbsent(false).build();
+
+    Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(uploadRequest);
+
     assertEquals(0, options.length);
   }
 
@@ -2274,59 +2562,9 @@ class GcpTransformerTest {
         });
   }
 
-  @Test
-  public void testToGcpRetrySettings_InvalidMaxAttempts() {
-    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(0).build();
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> {
-          transformer.toGcpRetrySettings(retryConfig);
-        });
-  }
 
-  @Test
-  public void testToGcpRetrySettings_InvalidExponentialDelays() {
-    RetryConfig retryConfig1 =
-        RetryConfig.builder().mode(RetryConfig.Mode.EXPONENTIAL).initialDelayMillis(0).build();
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> {
-          transformer.toGcpRetrySettings(retryConfig1);
-        });
 
-    RetryConfig retryConfig2 =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .initialDelayMillis(100)
-            .maxDelayMillis(0)
-            .build();
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> {
-          transformer.toGcpRetrySettings(retryConfig2);
-        });
-  }
 
-  @Test
-  public void testToGcpRetrySettings_InvalidFixedDelay() {
-    RetryConfig retryConfig =
-        RetryConfig.builder().mode(RetryConfig.Mode.FIXED).fixedDelayMillis(0).build();
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> {
-          transformer.toGcpRetrySettings(retryConfig);
-        });
-  }
-
-  @Test
-  public void testToGcpRetrySettings_InvalidTotalTimeout() {
-    RetryConfig retryConfig = RetryConfig.builder().totalTimeout(0L).build();
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> {
-          transformer.toGcpRetrySettings(retryConfig);
-        });
-  }
 
   @Test
   public void testToGcpRetrySettings_AttemptTimeout() {
@@ -2343,13 +2581,124 @@ class GcpTransformerTest {
   }
 
   @Test
-  public void testToGcpRetrySettings_InvalidAttemptTimeout() {
-    RetryConfig retryConfig = RetryConfig.builder().attemptTimeout(0L).build();
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> {
-          transformer.toGcpRetrySettings(retryConfig);
-        });
+  public void testToGcpRetrySettings_OnlyMaxAttemptsKeepsDefaults() {
+    RetrySettings defaults = ServiceOptions.getDefaultRetrySettings();
+    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(3).build();
+
+    RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
+
+    assertEquals(
+        defaults.toBuilder().setMaxAttempts(3).setTotalTimeoutDuration(Duration.ZERO).build(),
+        settings);
+  }
+
+  @Test
+  public void testToGcpRetrySettings_OnlyAttemptTimeoutKeepsDefaults() {
+    RetrySettings defaults = ServiceOptions.getDefaultRetrySettings();
+    RetryConfig retryConfig = RetryConfig.builder().attemptTimeout(2000L).build();
+
+    RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
+
+    assertEquals(
+        defaults.toBuilder()
+            .setInitialRpcTimeoutDuration(Duration.ofMillis(2000))
+            .setRpcTimeoutMultiplier(1.0)
+            .setMaxRpcTimeoutDuration(Duration.ofMillis(2000))
+            .setTotalTimeoutDuration(Duration.ZERO)
+            .build(),
+        settings);
+  }
+
+  @Test
+  public void testToGcpRetrySettings_UnsetTotalTimeoutIsUnbounded() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .maxAttempts(10)
+            .initialDelayMillis(5000L)
+            .maxDelayMillis(60000L)
+            .build();
+
+    RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
+
+    assertEquals(Duration.ZERO, settings.getTotalTimeoutDuration());
+    assertEquals(10, settings.getMaxAttempts());
+  }
+
+  @Test
+  public void testToGcpRetrySettings_OnlyTotalTimeoutKeepsDefaults() {
+    RetrySettings defaults = ServiceOptions.getDefaultRetrySettings();
+    RetryConfig retryConfig = RetryConfig.builder().totalTimeout(10000L).build();
+
+    RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
+
+    assertEquals(
+        defaults.toBuilder().setTotalTimeoutDuration(Duration.ofMillis(10000)).build(), settings);
+  }
+
+  @Test
+  public void testToGcpRetrySettings_FixedKeepsDefaultTimeouts() {
+    RetrySettings defaults = ServiceOptions.getDefaultRetrySettings();
+    RetryConfig retryConfig =
+        RetryConfig.builder().mode(RetryConfig.Mode.FIXED).fixedDelayMillis(500L).build();
+
+    RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
+
+    assertEquals(defaults.getMaxAttempts(), settings.getMaxAttempts());
+    assertEquals(Duration.ZERO, settings.getTotalTimeoutDuration());
+    assertEquals(defaults.getInitialRpcTimeoutDuration(), settings.getInitialRpcTimeoutDuration());
+    assertEquals(defaults.getMaxRpcTimeoutDuration(), settings.getMaxRpcTimeoutDuration());
+  }
+
+  @Test
+  public void testToGcpRetrySettings_ExponentialWithoutMultiplierDefaultsToTwo() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .initialDelayMillis(100L)
+            .maxDelayMillis(5000L)
+            .build();
+
+    RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
+
+    assertEquals(2.0, settings.getRetryDelayMultiplier());
+  }
+
+  @Test
+  public void testToGcpRetrySettings_EmptyConfigUsesGcsDefaults() {
+    RetrySettings settings = transformer.toGcpRetrySettings(RetryConfig.builder().build());
+
+    assertEquals(6, settings.getMaxAttempts());
+    assertEquals(Duration.ofSeconds(1), settings.getInitialRetryDelayDuration());
+    assertEquals(2.0, settings.getRetryDelayMultiplier());
+    assertEquals(Duration.ofSeconds(32), settings.getMaxRetryDelayDuration());
+    assertEquals(Duration.ofSeconds(50), settings.getInitialRpcTimeoutDuration());
+    assertEquals(Duration.ofSeconds(50), settings.getMaxRpcTimeoutDuration());
+    assertEquals(Duration.ZERO, settings.getTotalTimeoutDuration());
+  }
+
+  @Test
+  public void testToGcpRetrySettings_UnsetTotalTimeoutStillRetriesAfterDefaultDeadline() {
+    RetrySettings settings = transformer.toGcpRetrySettings(RetryConfig.builder().build());
+    AtomicLong nanos = new AtomicLong();
+    ApiClock clock =
+        new ApiClock() {
+          @Override
+          public long nanoTime() {
+            return nanos.get();
+          }
+
+          @Override
+          public long millisTime() {
+            return TimeUnit.NANOSECONDS.toMillis(nanos.get());
+          }
+        };
+    ExponentialRetryAlgorithm algorithm = new ExponentialRetryAlgorithm(settings, clock);
+    TimedAttemptSettings nextAttempt = algorithm.createNextAttempt(algorithm.createFirstAttempt());
+
+    nanos.set(Duration.ofSeconds(60).toNanos());
+
+    assertTrue(algorithm.shouldRetry(nextAttempt));
   }
 
   @Test

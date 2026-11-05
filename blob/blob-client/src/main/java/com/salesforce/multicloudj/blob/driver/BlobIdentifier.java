@@ -6,6 +6,12 @@ import lombok.Getter;
 @Getter
 public class BlobIdentifier {
 
+  /**
+   * Attribute name under which a blob's version is reported in an {@code ItemFailure}, whose item
+   * id is the blob key.
+   */
+  public static final String VERSION_ID_ATTRIBUTE = "versionId";
+
   private final String key;
   private final String versionId;
 

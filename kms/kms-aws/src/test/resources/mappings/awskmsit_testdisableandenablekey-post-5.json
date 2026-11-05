@@ -1,0 +1,36 @@
+{
+  "id" : "4be01bca-c5c0-4012-ae18-7225995092b2",
+  "name" : "AwsKmsIT_testDisableAndEnableKey-POST-5",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.Encrypt"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"KeyId\":\"arn:aws:kms:us-west-2:654654370895:key/440e9d59-1c2d-4115-a07a-0a3f27e0c938\",\"Plaintext\":\"bXVsdGljbG91ZGota21zLWNvbmZvcm1hbmNl\",\"EncryptionContext\":{\"purpose\":\"conformance\"}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "{\"__type\":\"DisabledException\",\"message\":\"arn:aws:kms:us-west-2:654654370895:key/440e9d59-1c2d-4115-a07a-0a3f27e0c938 is disabled.\"}",
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "a3d74387-6f07-4550-ab79-1e4a7a423a93",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Mon, 19 Oct 2026 17:45:46 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "4be01bca-c5c0-4012-ae18-7225995092b2",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1--2",
+  "insertionIndex" : 26
+}

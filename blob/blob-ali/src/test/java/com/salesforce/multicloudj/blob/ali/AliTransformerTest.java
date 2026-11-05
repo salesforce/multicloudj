@@ -83,6 +83,36 @@ public class AliTransformerTest {
   }
 
   @Test
+  void testToPutObjectRequest_tagValueWithReservedCharsIsUrlEncoded() {
+    var request =
+        UploadRequest.builder().withKey("key").withTags(Map.of("Env", "a b/c=d")).build();
+
+    var actual = transformer.toPutObjectRequest(request, BinaryData.fromBytes("data".getBytes()));
+
+    assertEquals("Env=a%20b%2Fc%3Dd", actual.tagging());
+  }
+
+  @Test
+  void testToPutObjectRequest_nonAsciiTagValueIsUtf8PercentEncoded() {
+    var request = UploadRequest.builder().withKey("key").withTags(Map.of("k", "é")).build();
+
+    var actual = transformer.toPutObjectRequest(request, BinaryData.fromBytes("data".getBytes()));
+
+    assertEquals("k=%C3%A9", actual.tagging());
+  }
+
+  @Test
+  void testToPutObjectRequestWithCreateIfAbsentForbidsOverwrite() {
+    UploadRequest request =
+        UploadRequest.builder().withKey("some-key").withCreateIfAbsent(true).build();
+
+    var actual =
+        transformer.toPutObjectRequest(request, BinaryData.fromBytes("data".getBytes()));
+
+    assertEquals(Boolean.TRUE, actual.forbidOverwrite());
+  }
+
+  @Test
   void testToPutObjectRequestWithKmsKey() {
     var key = "some-key";
     var metadata = Map.of("some-key", "some-value");
@@ -213,6 +243,149 @@ public class AliTransformerTest {
   }
 
   @Test
+  void testToPutObjectRequest_customCorrelationIdKeyUsed() {
+    var ctx = OperationContext.builder()
+        .correlationId("req-abc-123")
+        .correlationIdKey("x-custom-corr")
+        .build();
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withMetadata(Map.of("user-key", "user-value"))
+        .withOperationContext(ctx)
+        .build();
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        actual.metadata().get("x-custom-corr"),
+        "custom correlation id key must be used when provided");
+    assertFalse(
+        actual.metadata().containsKey(
+            AliTransformer.CORRELATION_ID_METADATA_KEY),
+        "default key must not be present when custom key is used");
+  }
+
+  @Test
+  void testToPutObjectRequest_customKeyNotOverwrittenWhenAppSuppliesIt() {
+    var ctx = OperationContext.builder()
+        .correlationId("sdk-generated")
+        .correlationIdKey("x-custom-corr")
+        .build();
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withMetadata(Map.of("x-custom-corr", "user-supplied"))
+        .withOperationContext(ctx)
+        .build();
+    BinaryData body = BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals(
+        "user-supplied",
+        actual.metadata().get("x-custom-corr"),
+        "application's explicit metadata value must take"
+            + " precedence over the SDK's even with custom key");
+  }
+
+  private Map<String, String> putMetadataFor(
+      OperationContext ctx, Map<String, String> userMetadata) {
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withMetadata(userMetadata)
+        .withOperationContext(ctx)
+        .build();
+    return transformer
+        .toPutObjectRequest(request, BinaryData.fromBytes("data".getBytes()))
+        .metadata();
+  }
+
+  @Test
+  void testToPutObjectRequest_serviceAndTenantIdStamped() {
+    var ctx = OperationContext.builder()
+        .serviceId("svc-1")
+        .tenantId("tenant-1")
+        .correlationId("req-abc-123")
+        .build();
+
+    var metadata = putMetadataFor(ctx, Map.of("user-key", "user-value"));
+
+    assertEquals("svc-1", metadata.get("sdk-logging-service-id"));
+    assertEquals("tenant-1", metadata.get("sdk-logging-tenant-id"));
+    assertEquals("req-abc-123", metadata.get("sdk-logging-correlation-id"));
+    assertEquals("user-value", metadata.get("user-key"));
+  }
+
+  @Test
+  void testToPutObjectRequest_onlyServiceIdStampedWhenTenantIdMissing() {
+    var ctx = OperationContext.builder().serviceId("svc-1").build();
+
+    var metadata = putMetadataFor(ctx, Map.of());
+
+    assertEquals("svc-1", metadata.get("sdk-logging-service-id"));
+    assertFalse(metadata.containsKey("sdk-logging-tenant-id"));
+  }
+
+  @Test
+  void testToPutObjectRequest_onlyTenantIdStampedWhenServiceIdMissing() {
+    var ctx = OperationContext.builder().tenantId("tenant-1").build();
+
+    var metadata = putMetadataFor(ctx, Map.of());
+
+    assertEquals("tenant-1", metadata.get("sdk-logging-tenant-id"));
+    assertFalse(metadata.containsKey("sdk-logging-service-id"));
+  }
+
+  @Test
+  void testToPutObjectRequest_blankServiceAndTenantIdSkipped() {
+    var ctx = OperationContext.builder()
+        .serviceId("   ")
+        .tenantId("")
+        .build();
+
+    var metadata = putMetadataFor(ctx, Map.of("user-key", "user-value"));
+
+    assertEquals(Map.of("user-key", "user-value"), metadata);
+  }
+
+  @Test
+  void testToPutObjectRequest_userSuppliedServiceAndTenantIdNotOverwritten() {
+    var ctx = OperationContext.builder()
+        .serviceId("sdk-service")
+        .tenantId("sdk-tenant")
+        .build();
+
+    var metadata = putMetadataFor(ctx, Map.of(
+        "sdk-logging-service-id", "user-service",
+        "sdk-logging-tenant-id", "user-tenant"));
+
+    assertEquals("user-service", metadata.get("sdk-logging-service-id"));
+    assertEquals("user-tenant", metadata.get("sdk-logging-tenant-id"));
+  }
+
+  @Test
+  void testToPutObjectRequest_userSuppliedServiceIdDoesNotBlockTenantId() {
+    var ctx = OperationContext.builder()
+        .serviceId("sdk-service")
+        .tenantId("sdk-tenant")
+        .build();
+
+    var metadata = putMetadataFor(ctx, Map.of("sdk-logging-service-id", "user-service"));
+
+    assertEquals("user-service", metadata.get("sdk-logging-service-id"));
+    assertEquals("sdk-tenant", metadata.get("sdk-logging-tenant-id"));
+  }
+
+  @Test
+  void testToPutObjectRequest_serviceAndTenantIdNotInjectedWhenContextMissing() {
+    var metadata = putMetadataFor(null, Map.of("user-key", "user-value"));
+
+    assertEquals(Map.of("user-key", "user-value"), metadata);
+  }
+
+  @Test
   void testToUploadResponse() {
     UploadRequest request =
         UploadRequest.builder()
@@ -329,6 +502,202 @@ public class AliTransformerTest {
     assertEquals(BUCKET, actual.bucket());
     assertEquals("key", actual.key());
     assertEquals(metadata, actual.metadata());
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_tagValueWithReservedCharsIsUrlEncoded() {
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey("key")
+            .withTags(Map.of("Env", "a b/c=d"))
+            .build();
+
+    var actual = transformer.toInitiateMultipartUploadRequest(request);
+
+    assertEquals("Env=a%20b%2Fc%3Dd", actual.tagging());
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_tagDelimitersCannotInjectExtraTags() {
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey("key")
+            .withTags(Map.of("k&x=y", "v&z=1"))
+            .build();
+
+    var actual = transformer.toInitiateMultipartUploadRequest(request);
+
+    assertEquals("k%26x%3Dy=v%26z%3D1", actual.tagging());
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_plainTagsAreUnchanged() {
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey("key")
+            .withTags(Map.of("expiration-days", "30"))
+            .build();
+
+    var actual = transformer.toInitiateMultipartUploadRequest(request);
+
+    assertEquals("expiration-days=30", actual.tagging());
+  }
+
+  private Map<String, String> initiateMetadataFor(
+      OperationContext ctx, Map<String, String> userMetadata) {
+    var request = new MultipartUploadRequest.Builder()
+        .withKey("some-key")
+        .withMetadata(userMetadata)
+        .withOperationContext(ctx)
+        .build();
+    return transformer.toInitiateMultipartUploadRequest(request).metadata();
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_serviceTenantAndCorrelationIdStamped() {
+    var ctx = OperationContext.builder()
+        .serviceId("svc-1")
+        .tenantId("tenant-1")
+        .correlationId("req-abc-123")
+        .build();
+
+    var metadata = initiateMetadataFor(ctx, Map.of("user-key", "user-value"));
+
+    assertEquals("svc-1", metadata.get("sdk-logging-service-id"));
+    assertEquals("tenant-1", metadata.get("sdk-logging-tenant-id"));
+    assertEquals("req-abc-123", metadata.get("sdk-logging-correlation-id"));
+    assertEquals("user-value", metadata.get("user-key"));
+    assertEquals(4, metadata.size());
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_onlyServiceIdStamped() {
+    var ctx = OperationContext.builder().serviceId("svc-1").build();
+
+    var metadata = initiateMetadataFor(ctx, Map.of());
+
+    assertEquals(Map.of("sdk-logging-service-id", "svc-1"), metadata);
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_onlyTenantIdStamped() {
+    var ctx = OperationContext.builder().tenantId("tenant-1").build();
+
+    var metadata = initiateMetadataFor(ctx, Map.of());
+
+    assertEquals(Map.of("sdk-logging-tenant-id", "tenant-1"), metadata);
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_blankIdsSkipped() {
+    var ctx = OperationContext.builder()
+        .serviceId("   ")
+        .tenantId("")
+        .correlationId(" ")
+        .build();
+
+    var metadata = initiateMetadataFor(ctx, Map.of("user-key", "user-value"));
+
+    assertEquals(Map.of("user-key", "user-value"), metadata);
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_callerSuppliedKeysNotOverwritten() {
+    var ctx = OperationContext.builder()
+        .serviceId("svc-1")
+        .tenantId("tenant-1")
+        .correlationId("req-abc-123")
+        .build();
+
+    var metadata = initiateMetadataFor(ctx, Map.of(
+        "sdk-logging-service-id", "app-svc",
+        "sdk-logging-tenant-id", "app-tenant",
+        "sdk-logging-correlation-id", "app-corr"));
+
+    assertEquals("app-svc", metadata.get("sdk-logging-service-id"));
+    assertEquals("app-tenant", metadata.get("sdk-logging-tenant-id"));
+    assertEquals("app-corr", metadata.get("sdk-logging-correlation-id"));
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_oneCallerKeyDoesNotBlockOthers() {
+    var ctx = OperationContext.builder()
+        .serviceId("svc-1")
+        .tenantId("tenant-1")
+        .correlationId("req-abc-123")
+        .build();
+
+    var metadata = initiateMetadataFor(ctx, Map.of("sdk-logging-service-id", "app-svc"));
+
+    assertEquals("app-svc", metadata.get("sdk-logging-service-id"));
+    assertEquals("tenant-1", metadata.get("sdk-logging-tenant-id"));
+    assertEquals("req-abc-123", metadata.get("sdk-logging-correlation-id"));
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_nullContextLeavesMetadataUnchanged() {
+    var metadata = initiateMetadataFor(null, Map.of("user-key", "user-value"));
+
+    assertEquals(Map.of("user-key", "user-value"), metadata);
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_noContextAndNoMetadataYieldsEmptyMetadata() {
+    var request = new MultipartUploadRequest.Builder().withKey("some-key").build();
+
+    assertTrue(transformer.toInitiateMultipartUploadRequest(request).metadata().isEmpty());
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_customCorrelationIdKeyUsed() {
+    var ctx = OperationContext.builder()
+        .correlationId("req-abc-123")
+        .correlationIdKey("x-custom-corr")
+        .build();
+
+    var metadata = initiateMetadataFor(ctx, Map.of());
+
+    assertEquals(Map.of("x-custom-corr", "req-abc-123"), metadata);
+    assertFalse(metadata.containsKey("sdk-logging-correlation-id"));
+  }
+
+  @Test
+  void testToMultipartUpload_handleMetadataIsStampedMap() {
+    var ctx = OperationContext.builder().serviceId("svc-1").tenantId("tenant-1").build();
+    var request = new MultipartUploadRequest.Builder()
+        .withKey("key")
+        .withMetadata(Map.of("user-key", "user-value"))
+        .withOperationContext(ctx)
+        .build();
+
+    var actual = transformer.toMultipartUpload(mockInitiateResult(), request);
+
+    assertEquals(
+        Map.of("user-key", "user-value",
+            "sdk-logging-service-id", "svc-1",
+            "sdk-logging-tenant-id", "tenant-1"),
+        actual.getMetadata());
+  }
+
+  @Test
+  void testToMultipartUpload_nullContextHandleMetadataEqualsInput() {
+    Map<String, String> metadata = Map.of("user-key", "user-value");
+    var request = new MultipartUploadRequest.Builder()
+        .withKey("key").withMetadata(metadata).build();
+
+    var actual = transformer.toMultipartUpload(mockInitiateResult(), request);
+
+    assertEquals(metadata, actual.getMetadata());
+  }
+
+  private InitiateMultipartUploadResult mockInitiateResult() {
+    InitiateMultipartUploadResult result = mock(InitiateMultipartUploadResult.class);
+    InitiateMultipartUpload upload = mock(InitiateMultipartUpload.class);
+    doReturn(upload).when(result).initiateMultipartUpload();
+    doReturn(BUCKET).when(upload).bucket();
+    doReturn("key").when(upload).key();
+    doReturn("uploadId").when(upload).uploadId();
+    return result;
   }
 
   @Test
@@ -602,6 +971,21 @@ public class AliTransformerTest {
     assertEquals("object-1", actual.key());
     assertEquals("tag-1=tag-value-1", actual.tagging());
     assertEquals("value-1", actual.metadata().get("key-1"));
+  }
+
+  @Test
+  void testToPresignedUploadRequest_tagValueWithReservedCharsIsUrlEncoded() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .tags(Map.of("Env", "a b/c=d"))
+            .duration(Duration.ofHours(1))
+            .build();
+
+    var actual = transformer.toPresignedPutObjectRequest(request);
+
+    assertEquals("Env=a%20b%2Fc%3Dd", actual.tagging());
   }
 
   @Test
@@ -985,80 +1369,10 @@ public class AliTransformerTest {
         "Default backoff should produce a positive delay, got: " + delay.toMillis());
   }
 
-  @Test
-  void testToAliRetryerInvalidMaxAttempts() {
-    RetryConfig config = RetryConfig.builder()
-        .mode(RetryConfig.Mode.EXPONENTIAL)
-        .maxAttempts(0)
-        .initialDelayMillis(100L)
-        .maxDelayMillis(5000L)
-        .build();
 
-    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
-        () -> AliTransformer.toAliRetryer(config));
-    assertEquals("RetryConfig.maxAttempts must be greater than 0, got: 0", ex.getMessage());
-  }
 
-  @Test
-  void testToAliRetryerNegativeMaxAttempts() {
-    RetryConfig config = RetryConfig.builder()
-        .mode(RetryConfig.Mode.EXPONENTIAL)
-        .maxAttempts(-1)
-        .initialDelayMillis(100L)
-        .maxDelayMillis(5000L)
-        .build();
 
-    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
-        () -> AliTransformer.toAliRetryer(config));
-    assertEquals("RetryConfig.maxAttempts must be greater than 0, got: -1", ex.getMessage());
-  }
 
-  @Test
-  void testToAliRetryerExponentialInvalidInitialDelay() {
-    RetryConfig config = RetryConfig.builder()
-        .mode(RetryConfig.Mode.EXPONENTIAL)
-        .maxAttempts(3)
-        .initialDelayMillis(0L)
-        .maxDelayMillis(5000L)
-        .build();
-
-    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
-        () -> AliTransformer.toAliRetryer(config));
-    assertEquals(
-        "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0",
-        ex.getMessage());
-  }
-
-  @Test
-  void testToAliRetryerExponentialInvalidMaxDelay() {
-    RetryConfig config = RetryConfig.builder()
-        .mode(RetryConfig.Mode.EXPONENTIAL)
-        .maxAttempts(3)
-        .initialDelayMillis(100L)
-        .maxDelayMillis(0L)
-        .build();
-
-    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
-        () -> AliTransformer.toAliRetryer(config));
-    assertEquals(
-        "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0",
-        ex.getMessage());
-  }
-
-  @Test
-  void testToAliRetryerFixedInvalidDelay() {
-    RetryConfig config = RetryConfig.builder()
-        .mode(RetryConfig.Mode.FIXED)
-        .maxAttempts(3)
-        .fixedDelayMillis(0L)
-        .build();
-
-    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
-        () -> AliTransformer.toAliRetryer(config));
-    assertEquals(
-        "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: 0",
-        ex.getMessage());
-  }
 
   @Test
   void testToBlobMetadata_locked_populatesObjectLockInfoFromHeaders() {

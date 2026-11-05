@@ -28,7 +28,11 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.observability.MultiCloudJLogger;
 import com.salesforce.multicloudj.common.observability.OperationContext;
@@ -47,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
@@ -77,6 +82,46 @@ public class AsyncBucketClient implements AutoCloseable {
     throw blobStore.mapException(ex);
   }
 
+  private <T> T handleBatchDeleteException(Throwable ex) {
+    Throwable failure = ex;
+    while (failure instanceof CompletionException && failure.getCause() != null) {
+      failure = failure.getCause();
+    }
+    if (failure instanceof BatchOperationException) {
+      throw (BatchOperationException) failure;
+    }
+    return handleException(ex);
+  }
+
+  private <T> T handleUploadException(UploadRequest request, Throwable ex) {
+    if (!request.isCreateIfAbsent()) {
+      return handleException(ex);
+    }
+
+    Throwable failure = ex;
+    while (failure instanceof CompletionException && failure.getCause() != null) {
+      failure = failure.getCause();
+    }
+    throw mapUploadException(request, failure);
+  }
+
+  private SubstrateSdkException mapUploadException(UploadRequest request, Throwable t) {
+    SubstrateSdkException mapped = blobStore.mapException(t);
+    if (!request.isCreateIfAbsent()) {
+      return mapped;
+    }
+
+    Throwable cause = mapped.getCause() != null ? mapped.getCause() : mapped;
+    if (mapped instanceof FailedPreconditionException) {
+      return new ResourceAlreadyExistsException("Blob already exists", cause);
+    }
+    if (mapped instanceof ResourceConflictException) {
+      return new ResourceConflictException(
+          "Conditional blob upload conflicted", cause, true);
+    }
+    return mapped;
+  }
+
   /**
    * Uploads the Blob content to substrate-specific Blob storage Note: Specifying the contentLength
    * in the UploadRequest can dramatically improve upload efficiency because the substrate SDKs do
@@ -91,7 +136,7 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx ->
             uploadResponseWithCorrelationId(
                     blobStore.upload(withResolvedContext(uploadRequest, ctx), inputStream), ctx)
-                .exceptionally(this::handleException));
+                .exceptionally(ex -> handleUploadException(uploadRequest, ex)));
   }
 
   /** Uploads the Blob content to substrate-specific Blob storage */
@@ -103,7 +148,7 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx ->
             uploadResponseWithCorrelationId(
                     blobStore.upload(withResolvedContext(uploadRequest, ctx), content), ctx)
-                .exceptionally(this::handleException));
+                .exceptionally(ex -> handleUploadException(uploadRequest, ex)));
   }
 
   /** Uploads the Blob content to substrate-specific Blob storage */
@@ -115,7 +160,7 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx ->
             uploadResponseWithCorrelationId(
                     blobStore.upload(withResolvedContext(uploadRequest, ctx), file), ctx)
-                .exceptionally(this::handleException));
+                .exceptionally(ex -> handleUploadException(uploadRequest, ex)));
   }
 
   /** Uploads the Blob content to substrate-specific Blob storage */
@@ -127,7 +172,7 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx ->
             uploadResponseWithCorrelationId(
                     blobStore.upload(withResolvedContext(uploadRequest, ctx), path), ctx)
-                .exceptionally(this::handleException));
+                .exceptionally(ex -> handleUploadException(uploadRequest, ex)));
   }
 
   /** Downloads the Blob content from substrate-specific Blob storage */
@@ -208,13 +253,25 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx -> blobStore.delete(key, versionId).exceptionally(this::handleException));
   }
 
-  /** Deletes a collection of Blobs from a substrate-specific Blob storage. */
+  /**
+   * Deletes a collection of Blobs from a substrate-specific Blob storage.
+   *
+   * <p>Blobs that do not exist count as deleted. If some blobs cannot be deleted, the future
+   * completes exceptionally with a {@link BatchOperationException} whose failed item ids are the
+   * keys of those blobs; every other blob was deleted. Providers that cannot report per-object
+   * results may surface a request-level error instead.
+   */
   public CompletableFuture<Void> delete(Collection<BlobIdentifier> objects) {
     return delete(objects, null);
   }
 
   /**
    * Deletes a collection of Blobs from a substrate-specific Blob storage.
+   *
+   * <p>Blobs that do not exist count as deleted. If some blobs cannot be deleted, the future
+   * completes exceptionally with a {@link BatchOperationException} whose failed item ids are the
+   * keys of those blobs; every other blob was deleted. Providers that cannot report per-object
+   * results may surface a request-level error instead.
    *
    * @param operationContext Per-call observability context carrying the correlation ID. May be
    *     null, in which case tracing is treated as disabled.
@@ -225,7 +282,7 @@ public class AsyncBucketClient implements AutoCloseable {
         BlobSpanNames.DELETE,
         bucketAttrs(),
         operationContext,
-        ctx -> blobStore.delete(objects).exceptionally(this::handleException));
+        ctx -> blobStore.delete(objects).exceptionally(this::handleBatchDeleteException));
   }
 
   /** Copies the Blob to other bucket */
@@ -394,7 +451,19 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx -> blobStore.getTags(key).exceptionally(this::handleException));
   }
 
-  /** Sets tags on a blob */
+  /**
+   * Sets tags on a blob.
+   *
+   * <p>{@code expiration-days} is a reserved tag key. Setting it with a positive integer
+   * value marks the object as eligible for lifecycle-based expiration, where the value is
+   * the number of days from the object's creation time after which it should expire. The
+   * SDK only classifies the object; the actual deletion is performed by a bucket lifecycle
+   * rule that must be configured separately.
+   *
+   * <p>Once an object has been marked, the expiration can only be moved to a later time.
+   * Lowering the value or removing the tag does not retract an expiration that was already
+   * scheduled; only extending it to a later date takes effect.
+   */
   public CompletableFuture<Void> setTags(String key, Map<String, String> tags) {
     return multiCloudJLogger.traceAsyncOperation(
         BlobSpanNames.SET_TAGS,
@@ -403,7 +472,13 @@ public class AsyncBucketClient implements AutoCloseable {
         ctx -> blobStore.setTags(key, tags).exceptionally(this::handleException));
   }
 
-  /** Generates a presigned URL for uploading/downloading blobs */
+  /**
+   * Generates a presigned URL for uploading/downloading blobs
+   *
+   * <p>Only the URL is returned. If the request sets tags, a content type, or a checksum, the
+   * uploader may need to send headers that were signed into the URL; use {@link
+   * #presign(PresignedUrlRequest)} to obtain them.
+   */
   public CompletableFuture<URL> generatePresignedUrl(PresignedUrlRequest request) {
     return multiCloudJLogger.traceAsyncOperation(
         BlobSpanNames.GENERATE_PRESIGNED_URL,
@@ -465,13 +540,21 @@ public class AsyncBucketClient implements AutoCloseable {
                 .exceptionally(this::handleException));
   }
 
-  /** Deletes all blobs in the bucket which have keys that start with the given prefix. */
+  /**
+   * Deletes all blobs in the bucket which have keys that start with the given prefix.
+   *
+   * <p>If some blobs cannot be deleted, the future completes exceptionally with a {@link
+   * BatchOperationException} whose failed item ids are the keys of those blobs; every other
+   * matching blob was deleted. Providers that cannot report per-object results may surface a
+   * request-level error instead.
+   */
   public CompletableFuture<Void> deleteDirectory(String prefix) {
     return multiCloudJLogger.traceAsyncOperation(
         BlobSpanNames.DELETE_DIRECTORY,
         bucketAttrs(),
         null,
-        ctx -> blobStore.deleteDirectory(prefix).exceptionally(this::handleException));
+        ctx ->
+            blobStore.deleteDirectory(prefix).exceptionally(this::handleBatchDeleteException));
   }
 
   /** Closes the underlying async blob store and releases any resources. */
@@ -525,23 +608,18 @@ public class AsyncBucketClient implements AutoCloseable {
     if (r == null) {
       return null;
     }
-    return UploadResponse.builder()
-        .key(r.getKey())
-        .versionId(r.getVersionId())
-        .eTag(r.getETag())
-        .checksumValue(r.getChecksumValue())
-        .correlationId(ctx.getCorrelationId())
-        .build();
+    return r.toBuilder().correlationId(ctx.getCorrelationId()).build();
   }
 
   private static DownloadResponse withCorrelationId(DownloadResponse r, OperationContext ctx) {
     if (r == null) {
       return null;
     }
-    return DownloadResponse.builder()
-        .key(r.getKey())
+    // The nested BlobMetadata rebuild is intentional — do not "simplify" it out. A plain
+    // toBuilder().correlationId(...).build() would shallow-copy the driver's original BlobMetadata,
+    // leaving its correlationId unstamped and defeating the purpose of this rebuild.
+    return r.toBuilder()
         .metadata(withCorrelationId(r.getMetadata(), ctx))
-        .inputStream(r.getInputStream())
         .correlationId(ctx.getCorrelationId())
         .build();
   }
@@ -550,32 +628,14 @@ public class AsyncBucketClient implements AutoCloseable {
     if (m == null) {
       return null;
     }
-    return BlobMetadata.builder()
-        .key(m.getKey())
-        .versionId(m.getVersionId())
-        .eTag(m.getETag())
-        .objectSize(m.getObjectSize())
-        .metadata(m.getMetadata())
-        .lastModified(m.getLastModified())
-        .createdTime(m.getCreatedTime())
-        .md5(m.getMd5())
-        .contentType(m.getContentType())
-        .objectLockInfo(m.getObjectLockInfo())
-        .correlationId(ctx.getCorrelationId())
-        .build();
+    return m.toBuilder().correlationId(ctx.getCorrelationId()).build();
   }
 
   private static CopyResponse withCorrelationId(CopyResponse r, OperationContext ctx) {
     if (r == null) {
       return null;
     }
-    return CopyResponse.builder()
-        .key(r.getKey())
-        .versionId(r.getVersionId())
-        .eTag(r.getETag())
-        .lastModified(r.getLastModified())
-        .correlationId(ctx.getCorrelationId())
-        .build();
+    return r.toBuilder().correlationId(ctx.getCorrelationId()).build();
   }
 
   /**
@@ -585,20 +645,7 @@ public class AsyncBucketClient implements AutoCloseable {
     if (ctx == req.getOperationContext()) {
       return req;
     }
-    return UploadRequest.builder()
-        .withKey(req.getKey())
-        .withContentLength(req.getContentLength())
-        .withMetadata(req.getMetadata())
-        .withTags(req.getTags())
-        .withStorageClass(req.getStorageClass())
-        .withKmsKeyId(req.getKmsKeyId())
-        .withUseKmsManagedKey(req.isUseKmsManagedKey())
-        .withObjectLock(req.getObjectLock())
-        .withChecksumValue(req.getChecksumValue())
-        .withChecksumAlgorithm(req.getChecksumAlgorithm())
-        .withContentType(req.getContentType())
-        .withOperationContext(ctx)
-        .build();
+    return req.toBuilder().withOperationContext(ctx).build();
   }
 
   /**
@@ -610,18 +657,7 @@ public class AsyncBucketClient implements AutoCloseable {
     if (ctx == req.getOperationContext()) {
       return req;
     }
-    return new MultipartUploadRequest.Builder()
-        .withKey(req.getKey())
-        .withMetadata(req.getMetadata())
-        .withTags(req.getTags())
-        .withKmsKeyId(req.getKmsKeyId())
-        .withUseKmsManagedKey(req.isUseKmsManagedKey())
-        .withChecksumEnabled(req.isChecksumEnabled())
-        .withChecksumAlgorithm(req.getChecksumAlgorithm())
-        .withObjectLock(req.getObjectLock())
-        .withContentType(req.getContentType())
-        .withOperationContext(ctx)
-        .build();
+    return req.toBuilder().withOperationContext(ctx).build();
   }
 
   public static class Builder extends BlobClientBuilder<AsyncBucketClient, AsyncBlobStore> {
@@ -762,6 +798,17 @@ public class AsyncBucketClient implements AutoCloseable {
     @Override
     public Builder withTracingPolicy(TracingPolicy tracingPolicy) {
       super.withTracingPolicy(tracingPolicy);
+      return this;
+    }
+
+    /**
+     * Method to request gRPC transport for the storage client. Providers whose underlying SDK
+     * supports gRPC will use it instead of the default HTTP/JSON transport; providers without gRPC
+     * support ignore this setting.
+     */
+    @Override
+    public Builder withGrpcEnabled(Boolean grpcEnabled) {
+      super.withGrpcEnabled(grpcEnabled);
       return this;
     }
 

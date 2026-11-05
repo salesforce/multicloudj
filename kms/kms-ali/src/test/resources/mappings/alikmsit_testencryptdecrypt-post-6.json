@@ -1,0 +1,62 @@
+{
+  "id" : "ab7f2f03-7f94-43c7-a271-1393cba8a627",
+  "name" : "AliKmsIT_testEncryptDecrypt-POST-6",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "CreateKey"
+      }
+    },
+    "queryParameters" : {
+      "Origin" : {
+        "hasExactly" : [ {
+          "equalTo" : "Aliyun_KMS"
+        } ]
+      },
+      "ProtectionLevel" : {
+        "hasExactly" : [ {
+          "equalTo" : "SOFTWARE"
+        } ]
+      },
+      "Description" : {
+        "hasExactly" : [ {
+          "equalTo" : "multicloudj kms conformance test key: crypt"
+        } ]
+      },
+      "KeySpec" : {
+        "hasExactly" : [ {
+          "equalTo" : "Aliyun_AES_256"
+        } ]
+      },
+      "KeyUsage" : {
+        "hasExactly" : [ {
+          "equalTo" : "ENCRYPT/DECRYPT"
+        } ]
+      },
+      "DKMSInstanceId" : {
+        "hasExactly" : [ {
+          "equalTo" : "kst-shh6580b7e6n9od3n9aj0"
+        } ]
+      },
+      "Tags" : {
+        "hasExactly" : [ {
+          "equalTo" : "[{\"TagKey\":\"suite\",\"TagValue\":\"multicloudj-conformance\"}]"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"KeyMetadata\": {\n\t\t\"CreationDate\": \"2026-10-30T22:44:07Z\",\n\t\t\"Description\": \"multicloudj kms conformance test key: crypt\",\n\t\t\"KeyId\": \"key-shh6ae51db7b14so2etha\",\n\t\t\"KeySpec\": \"Aliyun_AES_256\",\n\t\t\"KeyState\": \"Enabled\",\n\t\t\"KeyUsage\": \"ENCRYPT/DECRYPT\",\n\t\t\"PrimaryKeyVersion\": \"key-shh6ae51db7b14so2etha-n212j7k2xs\",\n\t\t\"DeleteDate\": \"\",\n\t\t\"Creator\": \"1099202394511537\",\n\t\t\"Arn\": \"acs:kms:cn-shanghai:1099202394511537:key/key-shh6ae51db7b14so2etha\",\n\t\t\"Origin\": \"Aliyun_KMS\",\n\t\t\"MaterialExpireTime\": \"\",\n\t\t\"ProtectionLevel\": \"SOFTWARE\",\n\t\t\"LastRotationDate\": \"2026-10-30T22:44:07Z\",\n\t\t\"AutomaticRotation\": \"Disabled\",\n\t\t\"KeyStoreId\": \"kst-shh6580b7e6n9od3n9aj0\",\n\t\t\"DeletionProtection\": \"Disabled\",\n\t\t\"DKMSInstanceId\": \"kst-shh6580b7e6n9od3n9aj0\",\n\t\t\"PendingRotation\": \"\"\n\t},\n\t\"RequestId\": \"6addd5fa-a30e-4fab-af55-cfa1c5f86ae7\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 22:44:07 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "ab7f2f03-7f94-43c7-a271-1393cba8a627",
+  "persistent" : true,
+  "insertionIndex" : 100
+}

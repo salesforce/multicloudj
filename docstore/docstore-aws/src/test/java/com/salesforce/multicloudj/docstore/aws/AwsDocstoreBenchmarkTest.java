@@ -6,8 +6,6 @@ import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import org.junit.jupiter.api.TestInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
@@ -55,15 +53,9 @@ public class AwsDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
           "Creating AWS {} docstore with table: {}, region: {}", storeType, tableName, region);
 
       try {
-        DynamoDbClientBuilder builder =
-            DynamoDbClient.builder()
-                .region(Region.of(region))
-                .credentialsProvider(
-                    StaticCredentialsProvider.create(
-                        AwsSessionCredentials.create(
-                            requireEnv("AWS_ACCESS_KEY_ID"),
-                            requireEnv("AWS_SECRET_ACCESS_KEY"),
-                            requireEnv("AWS_SESSION_TOKEN"))));
+        // No explicit credentials: the AWS SDK default chain resolves env-var creds for
+        // local runs and the pod's SigV4 identity in keyless deployments.
+        DynamoDbClientBuilder builder = DynamoDbClient.builder().region(Region.of(region));
 
         DynamoDbClient dynamoClient = builder.build();
 

@@ -9,9 +9,16 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>pubsub</artifactId>
-        <version>0.4.5-SNAPSHOT</version>
+        <version>0.4.15-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
+
+    <properties>
+        <!-- opt in to the centralized benchmarks jar + guard (config in the root pluginManagement) -->
+        <benchmarks.jar.phase>package</benchmarks.jar.phase>
+        <!-- provider package the benchmark-jar guard asserts is present in META-INF/BenchmarkList -->
+        <benchmarks.expected.package>com.salesforce.multicloudj.pubsub.gcp.</benchmarks.expected.package>
+    </properties>
 
     <dependencies>
         <dependency>
@@ -51,7 +58,7 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-pubsub</artifactId>
-            <version>1.134.1</version>
+            <version>1.157.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.auto.service</groupId>
@@ -93,6 +100,11 @@
     </dependencies>
     <build>
         <plugins>
+            <!-- opt in to the centralized benchmarks jar (guard runs automatically because benchmarks.expected.package is set) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+            </plugin>
             <plugin>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok-maven-plugin</artifactId>

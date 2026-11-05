@@ -5,6 +5,7 @@ import static com.salesforce.multicloudj.docstore.aws.AwsCodec.encodeValue;
 
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.AwsRetryClassifier;
+import com.salesforce.multicloudj.common.aws.AwsRetryStrategies;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -226,7 +227,9 @@ public class AwsDocStore extends AbstractDocStore {
 
     // Create the KeysAndAttributes.
     KeysAndAttributes.Builder keysAndAttributes =
-        KeysAndAttributes.builder().keys(keysList).consistentRead(false);
+        KeysAndAttributes.builder()
+            .keys(keysList)
+            .consistentRead(resolveConsistentRead(gets.get(start).getReadOptions()));
     if (gets.get(start).getFieldPaths() != null && !gets.get(start).getFieldPaths().isEmpty()) {
       // Need to add the key fields if not included.
       boolean hasP = false;
@@ -490,7 +493,9 @@ public class AwsDocStore extends AbstractDocStore {
     switch (action.getKind()) {
       case ACTION_KIND_CREATE:
         // Precondition: the document doesn't already exist.
-        return "attribute_not_exists(" + collectionOptions.getPartitionKey() + ")";
+        // The key name is aliased because it may be a DynamoDB reserved word (e.g. "key").
+        expressionAttributeNames.put("#pk", collectionOptions.getPartitionKey());
+        return "attribute_not_exists(#pk)";
       case ACTION_KIND_REPLACE: // Fall through
       case ACTION_KIND_UPDATE:
         // Precondition: the revision matches, or if there is no revision, the document exists.
@@ -501,7 +506,8 @@ public class AwsDocStore extends AbstractDocStore {
                 expressionAttributeNames,
                 expressionAttributeValues);
         if (precondition == null) {
-          return "attribute_exists(" + collectionOptions.getPartitionKey() + ")";
+          expressionAttributeNames.put("#pk", collectionOptions.getPartitionKey());
+          return "attribute_exists(#pk)";
         }
         return precondition;
       case ACTION_KIND_PUT: // Fall through
@@ -635,6 +641,7 @@ public class AwsDocStore extends AbstractDocStore {
   static class Queryable {
     private String indexName;
     private Key key;
+    private boolean globalSecondaryIndex;
   }
 
   protected QueryRunner planQuery(Query query) {
@@ -654,6 +661,9 @@ public class AwsDocStore extends AbstractDocStore {
 
     // Find the best thing to query (table or index).
     Queryable queryable = getBestQueryable(query);
+
+    boolean consistentRead =
+        resolveConsistentRead(query.getConsistentRead()) && !queryable.isGlobalSecondaryIndex();
 
     // Collect keys required for pagination. If table is used, the list contains primary keys of
     // base
@@ -680,7 +690,8 @@ public class AwsDocStore extends AbstractDocStore {
                 + " Options.RunQueryFallback");
       }
 
-      ScanRequest.Builder scanRequestBuilder = ScanRequest.builder();
+      ScanRequest.Builder scanRequestBuilder =
+          ScanRequest.builder().consistentRead(consistentRead ? Boolean.TRUE : null);
       if (query.getLimit() > 0) {
         scanRequestBuilder.limit(query.getLimit());
       }
@@ -714,7 +725,8 @@ public class AwsDocStore extends AbstractDocStore {
     }
 
     // Do a query.
-    QueryRequest.Builder queryRequestBuilder = QueryRequest.builder();
+    QueryRequest.Builder queryRequestBuilder =
+        QueryRequest.builder().consistentRead(consistentRead ? Boolean.TRUE : null);
     if (query.getLimit() > 0) {
       queryRequestBuilder.limit(query.getLimit());
     }
@@ -796,7 +808,9 @@ public class AwsDocStore extends AbstractDocStore {
       if (hasFilter(query, collectionOptions.getSortKey())
           && orderingConsistent(query, collectionOptions.getSortKey())) {
         return new Queryable(
-            null, new Key(collectionOptions.getPartitionKey(), collectionOptions.getSortKey()));
+            null,
+            new Key(collectionOptions.getPartitionKey(), collectionOptions.getSortKey()),
+            false);
       }
 
       // Check local indexes. They all have the same partition key as the base table.
@@ -808,7 +822,7 @@ public class AwsDocStore extends AbstractDocStore {
           if (hasFilter(query, key.getSortKey())
               && localFieldIncluded(query, li)
               && orderingConsistent(query, key.getSortKey())) {
-            return new Queryable(li.indexName(), key);
+            return new Queryable(li.indexName(), key, false);
           }
         }
       }
@@ -827,7 +841,7 @@ public class AwsDocStore extends AbstractDocStore {
             && hasFilter(query, key.sortKey)
             && globalFieldIncluded(query, gi)
             && orderingConsistent(query, key.sortKey)) {
-          return new Queryable(gi.indexName(), key);
+          return new Queryable(gi.indexName(), key, true);
         }
       }
     }
@@ -839,7 +853,9 @@ public class AwsDocStore extends AbstractDocStore {
     if (hasEqualityFilter(query, collectionOptions.getPartitionKey())
         && orderingConsistent(query, collectionOptions.getSortKey())) {
       return new Queryable(
-          null, new Key(collectionOptions.getPartitionKey(), collectionOptions.getSortKey()));
+          null,
+          new Key(collectionOptions.getPartitionKey(), collectionOptions.getSortKey()),
+          false);
     }
 
     // No point checking local indexes: they have the same partition key as the table.
@@ -851,7 +867,7 @@ public class AwsDocStore extends AbstractDocStore {
         if (hasEqualityFilter(query, key.partitionKey)
             && globalFieldIncluded(query, gi)
             && orderingConsistent(query, key.sortKey)) {
-          return new Queryable(gi.indexName(), key);
+          return new Queryable(gi.indexName(), key, true);
         }
       }
     }
@@ -860,7 +876,7 @@ public class AwsDocStore extends AbstractDocStore {
     // TODO: return the reason why we couldn't. At a minimum, distinguish failure due to keys
     // from failure due to projection (i.e. a global index had the right partition and sort key,
     // but didn't project the necessary fields).
-    return new Queryable(null, null);
+    return new Queryable(null, null, false);
   }
 
   // localFieldsIncluded reports whether a local index supports all the selected fields
@@ -1103,7 +1119,7 @@ public class AwsDocStore extends AbstractDocStore {
       providerId("aws");
     }
 
-    private static DynamoDbClient buildDDBClient(Builder builder) {
+    static DynamoDbClient buildDDBClient(Builder builder) {
       DynamoDbClientBuilder clientBuilder =
           DynamoDbClient.builder().region(Region.of(builder.getRegion()));
 
@@ -1116,6 +1132,11 @@ public class AwsDocStore extends AbstractDocStore {
 
       if (builder.getEndpoint() != null) {
         clientBuilder.endpointOverride(builder.getEndpoint());
+      }
+
+      if (builder.getRetryConfig() != null) {
+        clientBuilder.overrideConfiguration(
+            config -> AwsRetryStrategies.applyRetryConfig(config, builder.getRetryConfig()));
       }
 
       return clientBuilder.build();

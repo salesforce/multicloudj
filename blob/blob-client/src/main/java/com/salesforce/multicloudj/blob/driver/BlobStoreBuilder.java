@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.observability.TracingPolicy;
 import com.salesforce.multicloudj.common.provider.SdkProvider;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
@@ -41,6 +42,7 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   private Boolean useEnvironmentVariableProxyValues;
   private String quotaProjectId;
   private TracingPolicy tracingPolicy;
+  private Boolean grpcEnabled;
 
   public BlobStoreBuilder<T> providerId(String providerId) {
     this.providerId = providerId;
@@ -313,8 +315,12 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
    *
    * @param retryConfig The retry configuration to use for retrying failed requests
    * @return An instance of self
+   * @throws InvalidArgumentException if the configuration has invalid values for its mode
    */
   public BlobStoreBuilder<T> withRetryConfig(RetryConfig retryConfig) {
+    if (retryConfig != null) {
+      retryConfig.validate();
+    }
     this.retryConfig = retryConfig;
     return this;
   }
@@ -372,6 +378,27 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
    */
   public BlobStoreBuilder<T> withTracingPolicy(TracingPolicy tracingPolicy) {
     this.tracingPolicy = tracingPolicy;
+    return this;
+  }
+
+  /**
+   * Method to request gRPC transport for the storage client. Providers whose underlying SDK
+   * supports gRPC will use it instead of the default HTTP/JSON transport; providers without gRPC
+   * support ignore this setting.
+   *
+   * <p>When left unset (the default), the HTTP/JSON transport is used, so existing callers see no
+   * behavior change.
+   *
+   * <p>Transport-specific note: connection knobs that only apply to the HTTP transport
+   * ({@link #withProxyEndpoint(URI)}, {@link #withMaxConnections(Integer)},
+   * {@link #withSocketTimeout(Duration)}, {@link #withIdleConnectionTimeout(Duration)}) may not
+   * apply to a gRPC storage client and can be ignored for it when gRPC is enabled.
+   *
+   * @param grpcEnabled whether to request gRPC transport for the storage client
+   * @return An instance of self
+   */
+  public BlobStoreBuilder<T> withGrpcEnabled(Boolean grpcEnabled) {
+    this.grpcEnabled = grpcEnabled;
     return this;
   }
 }

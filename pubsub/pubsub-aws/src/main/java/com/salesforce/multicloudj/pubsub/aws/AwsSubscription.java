@@ -567,6 +567,12 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
       return this;
     }
 
+    /**
+     * Sets the SQS long-poll wait for receives. An empty receive is held open for the full wait,
+     * so a {@code RetryConfig} {@code attemptTimeout} or {@code totalTimeout} that does not exceed
+     * it aborts every empty receive. When unset, the queue's {@code ReceiveMessageWaitTimeSeconds}
+     * applies.
+     */
     public Builder withWaitTimeSeconds(long waitTimeSeconds) {
       this.waitTimeSeconds = waitTimeSeconds;
       return this;
@@ -584,7 +590,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
 
     private static SqsClient buildSqsClient(Builder builder) {
       return SqsClientUtil.buildSqsClient(
-          builder.region, builder.endpoint, builder.credentialsOverrider);
+          builder.region, builder.endpoint, builder.credentialsOverrider, builder.retryConfig);
     }
 
     @Override

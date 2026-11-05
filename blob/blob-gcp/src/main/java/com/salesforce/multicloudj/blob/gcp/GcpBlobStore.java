@@ -1,11 +1,13 @@
 package com.salesforce.multicloudj.blob.gcp;
 
+import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.http.apache.v2.ApacheHttpTransport;
 import com.google.api.gax.paging.Page;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.Credentials;
 import com.google.auto.service.AutoService;
+import com.google.cloud.BatchResult;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
@@ -13,12 +15,15 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.GrpcStorageOptions;
 import com.google.cloud.storage.HttpMethod;
 import com.google.cloud.storage.HttpStorageOptions;
 import com.google.cloud.storage.MultipartUploadClient;
 import com.google.cloud.storage.MultipartUploadSettings;
+import com.google.cloud.storage.ParallelCompositeUploadBlobWriteSessionConfig.PartNamingStrategy;
 import com.google.cloud.storage.RequestBody;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageBatch;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import com.google.cloud.storage.multipartupload.model.AbortMultipartUploadRequest;
@@ -81,9 +86,11 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
@@ -125,24 +132,25 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** GCP implementation of BlobStore */
 @AutoService(AbstractBlobStore.class)
 public class GcpBlobStore extends AbstractBlobStore {
 
   private static final String OBJECT_KEY_DIRECTORY_PREFIX_REGEX = "^.*/";
-  private static final Logger logger = LoggerFactory.getLogger(GcpBlobStore.class);
 
   private final Storage storage;
+  private final Storage httpStorage;
   private final MultipartUploadClient multipartUploadClient;
   private final TransferManager transferManager;
   private final GcpTransformer transformer;
+  private final GcpAccessTokenSigner accessTokenSigner = new GcpAccessTokenSigner();
   private static final String TAG_PREFIX = "gcp-tag-";
   private static final String RESPONSE_CONTENT_DISPOSITION = "response-content-disposition";
 
@@ -155,8 +163,24 @@ public class GcpBlobStore extends AbstractBlobStore {
       Storage storage,
       MultipartUploadClient mpuClient,
       TransferManager transferManager) {
+    this(builder, storage, storage, mpuClient, transferManager);
+  }
+
+  /**
+   * @param storage the main storage client (HTTP/JSON or gRPC depending on the transport opt-in)
+   * @param httpStorage an HTTP/JSON storage client backing operations the gRPC transport does not
+   *     implement (signed URLs and batch/collection delete). When the gRPC transport is not
+   *     selected this is the same instance as {@code storage}.
+   */
+  public GcpBlobStore(
+      Builder builder,
+      Storage storage,
+      Storage httpStorage,
+      MultipartUploadClient mpuClient,
+      TransferManager transferManager) {
     super(builder);
     this.storage = storage;
+    this.httpStorage = httpStorage;
     this.multipartUploadClient = mpuClient;
     this.transferManager = transferManager;
     this.transformer = builder.transformerSupplier.get(bucket);
@@ -482,7 +506,50 @@ public class GcpBlobStore extends AbstractBlobStore {
         objects.stream()
             .map(obj -> transformer.toBlobId(bucket, obj.getKey(), obj.getVersionId()))
             .collect(Collectors.toList());
-    storage.delete(blobIds);
+    List<ItemFailure> failures = deleteBatch(blobIds);
+    if (!failures.isEmpty()) {
+      throw new BatchOperationException(failures);
+    }
+  }
+
+  /**
+   * Deletes the given blobs with batch requests and returns the per-object failures. A blob that
+   * does not exist is reported by the batch result as {@code false} and counts as deleted.
+   *
+   * <p>Batch delete is a JSON-API feature with no gRPC equivalent, so it runs on the HTTP client.
+   * The client splits the batch into multiple HTTP requests when it exceeds the per-request call
+   * limit.
+   */
+  private List<ItemFailure> deleteBatch(List<BlobId> blobIds) {
+    List<ItemFailure> failures = new ArrayList<>();
+    if (blobIds.isEmpty()) {
+      return failures;
+    }
+    StorageBatch batch = httpStorage.batch();
+    for (BlobId blobId : blobIds) {
+      batch
+          .delete(blobId)
+          .notify(
+              new BatchResult.Callback<Boolean, StorageException>() {
+                @Override
+                public void success(Boolean deleted) {}
+
+                @Override
+                public void error(StorageException e) {
+                  failures.add(
+                      new ItemFailure(
+                          blobId.getName(),
+                          mapException(e),
+                          blobId.getGeneration() == null
+                              ? null
+                              : Map.of(
+                                  BlobIdentifier.VERSION_ID_ATTRIBUTE,
+                                  String.valueOf(blobId.getGeneration()))));
+                }
+              });
+    }
+    batch.submit();
+    return failures;
   }
 
   @Override
@@ -509,6 +576,8 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> doList(
       ListBlobsRequest request) {
+    boolean includeCommonPrefixes =
+        request.isIncludeCommonPrefixes() && StringUtils.isNotEmpty(request.getDelimiter());
     List<Storage.BlobListOption> listOptions = new ArrayList<>();
     listOptions.add(Storage.BlobListOption.includeFolders(false));
     if (request.getPrefix() != null) {
@@ -518,34 +587,8 @@ public class GcpBlobStore extends AbstractBlobStore {
       listOptions.add(Storage.BlobListOption.delimiter(request.getDelimiter()));
     }
     Storage.BlobListOption[] listOptionsArray = listOptions.toArray(new Storage.BlobListOption[0]);
-    Iterable<Blob> blobs = storage.list(getBucket(), listOptionsArray).iterateAll();
-
-    return new Iterator<>() {
-      // `Iterators.filter()` retains the lazy fetching behavior of iterateAll().
-      // i.e., Subsequent page responses are only fetched when the iterator is advanced.
-      private final Iterator<Blob> blobIterator = Iterators.filter(
-          blobs.iterator(),
-          blob -> !blob.isDirectory()
-      );
-
-      @Override
-      public boolean hasNext() {
-        return blobIterator.hasNext();
-      }
-
-      @Override
-      public com.salesforce.multicloudj.blob.driver.BlobInfo next() {
-        Blob blob = blobIterator.next();
-        return com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-            .withKey(blob.getName())
-            .withObjectSize(blob.getSize())
-            .withLastModified(
-                blob.getUpdateTimeOffsetDateTime() != null
-                    ? blob.getUpdateTimeOffsetDateTime().toInstant()
-                    : null)
-            .build();
-      }
-    };
+    Page<Blob> firstPage = storage.list(getBucket(), listOptionsArray);
+    return new BlobInfoIterator(firstPage, includeCommonPrefixes);
   }
 
   /**
@@ -589,10 +632,18 @@ public class GcpBlobStore extends AbstractBlobStore {
    * over-fetch sibling keys (for example, {@code key-1} when searching for {@code key}). To avoid
    * that, this uses {@code [key, key + '\0')} bounds and still applies an exact-name filter as a
    * defensive guard.
+   *
+   * <p>GCS represents a deletion of the live object by archiving the current generation and setting
+   * its time-deleted; there is no separate delete-marker object, so the {@code includeArchived}
+   * request flag surfaces no extra entries here. The flag does, however, gate the cloud-neutral
+   * {@code archivedAt} supersession instant: only when it is set does a no-longer-current
+   * generation report the time it stopped being current. The default listing streams generations
+   * without {@code archivedAt}, preserving the backward-compatible listing contract.
    */
   @Override
   protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
     String key = request.getKey();
+    boolean includeArchived = request.isIncludeArchived();
     List<Storage.BlobListOption> listOptions = new ArrayList<>();
     listOptions.add(Storage.BlobListOption.startOffset(key));
     listOptions.add(Storage.BlobListOption.endOffset(key + "\u0000"));
@@ -612,13 +663,21 @@ public class GcpBlobStore extends AbstractBlobStore {
       @Override
       public BlobMetadata next() {
         Blob blob = blobIterator.next();
-        java.time.OffsetDateTime versionTimestamp = blob.getCreateTimeOffsetDateTime();
+        OffsetDateTime versionTimestamp = blob.getCreateTimeOffsetDateTime();
+        Instant createdTime = versionTimestamp != null ? versionTimestamp.toInstant() : null;
+        // A generation that is no longer current reports the instant it was superseded/deleted, but
+        // only the opt-in delete-history view derives archivedAt; the default listing omits it.
+        OffsetDateTime deletedTimestamp = blob.getDeleteTimeOffsetDateTime();
+        Instant archivedAt =
+            (includeArchived && deletedTimestamp != null) ? deletedTimestamp.toInstant() : null;
         return BlobMetadata.builder()
             .key(blob.getName())
             .versionId(blob.getGeneration() != null ? blob.getGeneration().toString() : null)
             .eTag(blob.getEtag())
             .objectSize(blob.getSize() != null ? blob.getSize() : 0L)
-            .lastModified(versionTimestamp != null ? versionTimestamp.toInstant() : null)
+            .lastModified(createdTime)
+            .createdTime(createdTime)
+            .archivedAt(archivedAt)
             .build();
       }
     };
@@ -745,37 +804,78 @@ public class GcpBlobStore extends AbstractBlobStore {
     CompleteMultipartUploadResponse response =
         multipartUploadClient.completeMultipartUpload(completeRequest);
 
-    applyMultipartLegalHold(mpu);
+    // Tags are written after completion so they are stored exactly as given and the
+    // lifecycle-expiration custom time is anchored to the object's creation time.
+    // The object is already committed, so the legal hold is applied even if the tag write fails.
+    // If both fail, the legal hold failure is thrown with the tag failure attached as suppressed.
+    boolean hasTags = mpu.getTags() != null && !mpu.getTags().isEmpty();
+    ObjectLockConfiguration lockConfig = mpu.getObjectLock();
+    boolean hasLegalHold = lockConfig != null && lockConfig.isLegalHold();
+    if (!hasTags && !hasLegalHold) {
+      return new MultipartUploadResponse(response.etag(), response.crc32c());
+    }
+
+    Blob completed = getCompletedMultipartBlob(mpu, response);
+    RuntimeException tagFailure = null;
+    try {
+      if (hasTags) {
+        storage.update(
+            toTagUpdate(completed, mpu.getTags()), Storage.BlobTargetOption.generationMatch());
+      }
+    } catch (RuntimeException e) {
+      tagFailure = e;
+    }
+    try {
+      if (hasLegalHold) {
+        applyMultipartLegalHold(completed, lockConfig);
+      }
+    } catch (RuntimeException e) {
+      if (tagFailure != null) {
+        e.addSuppressed(tagFailure);
+      }
+      throw e;
+    }
+    if (tagFailure != null) {
+      throw tagFailure;
+    }
 
     return new MultipartUploadResponse(response.etag(), response.crc32c());
   }
 
-  private void applyMultipartLegalHold(MultipartUpload mpu) {
-    ObjectLockConfiguration lockConfig = mpu.getObjectLock();
-    if (lockConfig == null || !lockConfig.isLegalHold()) {
-      return;
+  /**
+   * Reads the object produced by a completed multipart upload. The completion response does not
+   * expose the object generation, so the latest generation is read and its CRC32C is compared with
+   * the one returned by completion. A mismatch means another writer replaced the key after
+   * completion, and that object must not receive this upload's tags, expiration, or legal hold.
+   * Updates made with the returned blob use {@code generationMatch} to reject a replacement that
+   * happens after this read.
+   */
+  private Blob getCompletedMultipartBlob(
+      MultipartUpload mpu, CompleteMultipartUploadResponse response) {
+    Blob blob = getRequiredBlob(transformer.toBlobId(bucket, mpu.getKey(), null));
+    if (response.crc32c() != null && !response.crc32c().equals(blob.getCrc32c())) {
+      throw new FailedPreconditionException(
+          "Object "
+              + bucket
+              + "/"
+              + mpu.getKey()
+              + " was replaced after multipart upload "
+              + mpu.getId()
+              + " completed; its tags and legal hold were not applied");
     }
-    try {
-      Blob blob = getRequiredBlob(transformer.toBlobId(bucket, mpu.getKey(), null));
-      BlobInfo.Builder builder = blob.toBuilder();
-      if (Boolean.TRUE.equals(lockConfig.getUseEventBasedHold())) {
-        builder.setEventBasedHold(true);
-        builder.setTemporaryHold(false);
-      } else {
-        builder.setTemporaryHold(true);
-        builder.setEventBasedHold(false);
-      }
-      storage.update(builder.build());
-    } catch (RuntimeException e) {
-      // Multipart completion has already succeeded, so legal hold application is best-effort.
-      logger.warn(
-          "Multipart upload completed but legal hold application failed."
-              + " bucket={}, key={}, uploadId={}",
-          bucket,
-          mpu.getKey(),
-          mpu.getId(),
-          e);
+    return blob;
+  }
+
+  private void applyMultipartLegalHold(Blob blob, ObjectLockConfiguration lockConfig) {
+    BlobInfo.Builder builder = blob.toBuilder();
+    if (Boolean.TRUE.equals(lockConfig.getUseEventBasedHold())) {
+      builder.setEventBasedHold(true);
+      builder.setTemporaryHold(false);
+    } else {
+      builder.setTemporaryHold(true);
+      builder.setEventBasedHold(false);
     }
+    storage.update(builder.build(), Storage.BlobTargetOption.generationMatch());
   }
 
   @Override
@@ -924,7 +1024,10 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected void doSetTags(String key, Map<String, String> tags) {
     Blob blob = getRequiredBlob(transformer.toBlobId(key, null));
+    storage.update(toTagUpdate(blob, tags));
+  }
 
+  private BlobInfo toTagUpdate(Blob blob, Map<String, String> tags) {
     // Copy all existing metadata
     Map<String, String> metadata =
         blob.getMetadata() != null ? new HashMap<>(blob.getMetadata()) : new HashMap<>();
@@ -943,8 +1046,33 @@ public class GcpBlobStore extends AbstractBlobStore {
       tags.forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
     }
 
-    Blob updatedBlob = blob.toBuilder().setMetadata(metadata).build();
-    storage.update(updatedBlob);
+    Blob.Builder builder = blob.toBuilder().setMetadata(metadata);
+
+    // setTags replaces the full tag set, so reconcile the lifecycle-expiration marker when the
+    // reserved tag now carries a positive day count. The tag value is the number of days the object
+    // should live measured from its creation time, so the custom time anchors to creation and the
+    // daysSinceCustomTime bucket rule expires the object that many days after it was created.
+    // The Cloud Storage custom time can only be moved to a later point in time once set: it cannot
+    // be unset or brought earlier without rewriting the object. We therefore only stamp when this
+    // extends the eligibility date, and we never attempt to clear it. Consequently removing the
+    // reserved tag does not retract an expiration that was already scheduled.
+    Integer expirationDays =
+        tags != null
+            ? GcpTransformer.parseExpirationDays(
+                tags.get(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY))
+            : null;
+    if (expirationDays != null) {
+      OffsetDateTime creationTime = blob.getCreateTimeOffsetDateTime();
+      OffsetDateTime anchor =
+          creationTime != null ? creationTime : OffsetDateTime.now(ZoneOffset.UTC);
+      OffsetDateTime expiry = anchor.plusDays(expirationDays);
+      OffsetDateTime existing = blob.getCustomTimeOffsetDateTime();
+      if (existing == null || expiry.isAfter(existing)) {
+        builder.setCustomTimeOffsetDateTime(expiry);
+      }
+    }
+
+    return builder.build();
   }
 
   @Override
@@ -975,6 +1103,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     options.add(Storage.SignUrlOption.withV4Signature());
 
     if (request.getType() == PresignedOperation.UPLOAD) {
+      extHeaders.putAll(transformer.toPresignTagHeaders(request));
       if (request.getContentType() != null) {
         options.add(Storage.SignUrlOption.withContentType());
         signedHeaders.put("Content-Type", request.getContentType());
@@ -1011,8 +1140,11 @@ public class GcpBlobStore extends AbstractBlobStore {
       queryParams.put(RESPONSE_CONTENT_DISPOSITION, request.getContentDisposition());
       options.add(Storage.SignUrlOption.withQueryParams(queryParams));
     }
+    accessTokenSigner.signerFor(httpStorage.getOptions())
+        .ifPresent(signer -> options.add(Storage.SignUrlOption.signWith(signer)));
 
-    URL url = storage.signUrl(
+    // Signed URLs are an HTTP/JSON feature with no gRPC equivalent, so they run on the HTTP client.
+    URL url = httpStorage.signUrl(
         blobInfo,
         request.getDuration().toMillis(),
         TimeUnit.MILLISECONDS,
@@ -1083,7 +1215,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       // BlobInfo, so failures returned by the TransferManager can be attributed back
       // to the originating file.
       final Map<String, Path> keyToSource = new ConcurrentHashMap<>();
-      ParallelUploadConfig uploadConfig =
+      ParallelUploadConfig.Builder configBuilder =
           ParallelUploadConfig.newBuilder()
               .setBucketName(getBucket())
               .setUploadBlobInfoFactory(
@@ -1092,8 +1224,18 @@ public class GcpBlobStore extends AbstractBlobStore {
                       prefix,
                       metadata,
                       keyToSource,
-                      directoryUploadRequest.getObjectLock()))
-              .build();
+                      directoryUploadRequest.getObjectLock()));
+
+      // GCS CMEK is expressed on each write via BlobWriteOption.kmsKeyName. BlobInfo.kmsKeyName is
+      // read-back-only, so the KMS key must be threaded through ParallelUploadConfig rather than
+      // the UploadBlobInfoFactory.
+      String kmsKeyId = directoryUploadRequest.getKmsKeyId();
+      if (kmsKeyId != null && !kmsKeyId.isEmpty()) {
+        configBuilder.setWriteOptsPerRequest(
+            List.of(Storage.BlobWriteOption.kmsKeyName(kmsKeyId)));
+      }
+
+      ParallelUploadConfig uploadConfig = configBuilder.build();
 
       UploadJob job = transferManager.uploadFiles(filePaths, uploadConfig);
       return DirectoryUploadResponse.builder()
@@ -1137,6 +1279,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       if (!metadata.isEmpty()) {
         b.setMetadata(metadata);
       }
+      transformer.applyLifecycleExpiration(b, metadata);
       return b.build();
     };
   }
@@ -1246,43 +1389,28 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected void doDeleteDirectory(String prefix) {
-    try {
-      // List all blobs with the given prefix and delete them in batches
-      Storage.BlobListOption[] options =
-          prefix != null
-              ? new Storage.BlobListOption[] {Storage.BlobListOption.prefix(prefix)}
-              : new Storage.BlobListOption[0];
+    // List all blobs with the given prefix and delete them in batches
+    Storage.BlobListOption[] options =
+        prefix != null
+            ? new Storage.BlobListOption[] {Storage.BlobListOption.prefix(prefix)}
+            : new Storage.BlobListOption[0];
 
-      List<Blob> blobs = new ArrayList<>();
-      for (Blob blob : storage.list(getBucket(), options).getValues()) {
-        blobs.add(blob);
+    List<ItemFailure> failures = new ArrayList<>();
+    // Delete while listing to bound memory; later pages resume after the last listed name,
+    // so deleting earlier objects does not skip any.
+    List<BlobId> batch = new ArrayList<>(MAX_OBJECTS_PER_BATCH_DELETE);
+    for (Blob blob : storage.list(getBucket(), options).iterateAll()) {
+      batch.add(BlobId.of(getBucket(), blob.getName()));
+      if (batch.size() == MAX_OBJECTS_PER_BATCH_DELETE) {
+        failures.addAll(deleteBatch(batch));
+        batch = new ArrayList<>(MAX_OBJECTS_PER_BATCH_DELETE);
       }
-
-      // Convert GCP Blob objects to DriverBlobInfo objects for partitioning
-      var blobInfos = new ArrayList<com.salesforce.multicloudj.blob.driver.BlobInfo>();
-      for (Blob blob : blobs) {
-        blobInfos.add(
-            com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-                .withKey(blob.getName())
-                .withObjectSize(blob.getSize())
-                .build());
-      }
-
-      // Partition the blobs into smaller chunks for batch deletion
-      var partitionedBlobLists = transformer.partitionList(blobInfos, MAX_OBJECTS_PER_BATCH_DELETE);
-
-      // Delete each partition
-      for (var blobList : partitionedBlobLists) {
-        List<BlobId> blobIds =
-            blobList.stream()
-                .map(blobInfo -> BlobId.of(getBucket(), blobInfo.getKey()))
-                .collect(Collectors.toList());
-
-        storage.delete(blobIds);
-      }
-
-    } catch (Exception e) {
-      throw new SubstrateSdkException("Failed to delete directory", e);
+    }
+    if (!batch.isEmpty()) {
+      failures.addAll(deleteBatch(batch));
+    }
+    if (!failures.isEmpty()) {
+      throw new BatchOperationException(failures);
     }
   }
 
@@ -1381,8 +1509,10 @@ public class GcpBlobStore extends AbstractBlobStore {
               ? currentRetention.getRetainUntilTime().toInstant()
               : null;
       if (currentRetainUntil != null && retainUntilDate.isBefore(currentRetainUntil)) {
-        // Shortening retention requires bypass header
-        storage.update(updatedBlobInfo, Storage.BlobTargetOption.overrideUnlockedRetention(true));
+        // Shortening retention requires bypass header. overrideUnlockedRetention is an
+        // HTTP/JSON-only option with no gRPC equivalent, so this update runs on the HTTP client.
+        httpStorage.update(
+            updatedBlobInfo, Storage.BlobTargetOption.overrideUnlockedRetention(true));
       } else {
         // Increasing retention doesn't need bypass header
         storage.update(updatedBlobInfo);
@@ -1431,7 +1561,10 @@ public class GcpBlobStore extends AbstractBlobStore {
     // Storage.update(BlobInfo) is a field-level patch: only the retention field we set is written.
     boolean bypass = Boolean.TRUE.equals(config.getBypassGovernanceRetention());
     if (bypass) {
-      storage.update(updatedBlobInfo, Storage.BlobTargetOption.overrideUnlockedRetention(true));
+      // overrideUnlockedRetention is an HTTP/JSON-only option with no gRPC equivalent, so this
+      // update runs on the HTTP client.
+      httpStorage.update(
+          updatedBlobInfo, Storage.BlobTargetOption.overrideUnlockedRetention(true));
     } else {
       storage.update(updatedBlobInfo);
     }
@@ -1499,8 +1632,17 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   public SubstrateSdkException mapException(Throwable t) {
+    // google-http-client reports non-2xx responses as the checked HttpResponseException, which
+    // arrives wrapped in a generic SubstrateSdkException. Only the generic type is classified by
+    // the response status; specific subtypes are already classified and pass through unchanged.
+    HttpResponseException httpResponseException =
+        ExceptionUtils.throwableOfType(t, HttpResponseException.class);
+    Throwable source = t;
     Class<? extends SubstrateSdkException> exceptionClass;
-    if (t instanceof ApiException) {
+    if (t.getClass() == SubstrateSdkException.class && httpResponseException != null) {
+      exceptionClass = CommonErrorCodeMapping.getException(httpResponseException.getStatusCode());
+      source = httpResponseException;
+    } else if (t instanceof ApiException) {
       exceptionClass = CommonErrorCodeMapping.getException((ApiException) t);
     } else if (t instanceof StorageException) {
       exceptionClass = CommonErrorCodeMapping.getException(((StorageException) t).getCode());
@@ -1509,7 +1651,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     } else {
       exceptionClass = UnknownException.class;
     }
-    return ExceptionHandler.build(exceptionClass, t, GcpRetryClassifier.classify(t));
+    return ExceptionHandler.build(exceptionClass, source, GcpRetryClassifier.classify(source));
   }
 
   /** Closes the underlying GCP Storage clients and releases any resources. */
@@ -1521,6 +1663,12 @@ public class GcpBlobStore extends AbstractBlobStore {
       }
       if (storage != null) {
         storage.close();
+      }
+      // When the gRPC transport is selected, httpStorage is a distinct client backing the
+      // operations gRPC does not implement; close it too. Otherwise it is the same instance as
+      // storage (already closed above).
+      if (httpStorage != null && httpStorage != storage) {
+        httpStorage.close();
       }
     } catch (Exception e) {
       throw new SubstrateSdkException("Failed to close GCP storage clients", e);
@@ -1639,11 +1787,55 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     /** Helper function for generating the Storage client */
     private static Storage buildStorage(Builder builder) {
+      return buildStorageOptions(builder).getService();
+    }
+
+    /**
+     * Builds the {@link StorageOptions} for the main storage client, selecting the gRPC or
+     * HTTP/JSON transport based on {@link BlobStoreBuilder#getGrpcEnabled()}. Package-private so
+     * unit tests can assert transport selection without resolving credentials or opening a client.
+     */
+    static StorageOptions buildStorageOptions(Builder builder) {
+      if (Boolean.TRUE.equals(builder.getGrpcEnabled())) {
+        return buildGrpcStorageOptions(builder);
+      }
+      return buildHttpStorageOptions(builder);
+    }
+
+    /**
+     * Builds a dedicated HTTP/JSON {@link Storage} client. Used to back operations the gRPC
+     * transport does not implement (signed URLs and batch/collection delete) when the gRPC
+     * transport is selected for the main client.
+     */
+    private static Storage buildHttpStorage(Builder builder) {
+      return buildHttpStorageOptions(builder).getService();
+    }
+
+    /** Builds HTTP/JSON transport StorageOptions for the main storage client. */
+    private static StorageOptions buildHttpStorageOptions(Builder builder) {
       StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder();
       if (shouldConfigureHttpClient(builder)) {
         storageOptionsBuilder.setTransportOptions(buildTransportOptions(builder));
       }
+      applyCommonStorageOptions(builder, storageOptionsBuilder);
+      return storageOptionsBuilder.build();
+    }
 
+    /**
+     * Builds gRPC transport StorageOptions for the main storage client. The Apache-HTTP connection
+     * knobs (proxy endpoint, max connections, socket timeout, idle-connection timeout) configure
+     * the HTTP/JSON transport only and do not apply to the gRPC channel, so they are intentionally
+     * not wired here; see {@link BlobStoreBuilder#withGrpcEnabled(Boolean)}.
+     */
+    private static StorageOptions buildGrpcStorageOptions(Builder builder) {
+      GrpcStorageOptions.Builder storageOptionsBuilder = StorageOptions.grpc();
+      applyCommonStorageOptions(builder, storageOptionsBuilder);
+      return storageOptionsBuilder.build();
+    }
+
+    /** Applies endpoint, credentials, and retry settings shared by both transports. */
+    private static void applyCommonStorageOptions(
+        Builder builder, StorageOptions.Builder storageOptionsBuilder) {
       String endpoint = normalizeEndpoint(builder.getEndpoint());
       if (endpoint != null) {
         storageOptionsBuilder.setHost(endpoint);
@@ -1660,11 +1852,14 @@ public class GcpBlobStore extends AbstractBlobStore {
         storageOptionsBuilder.setRetrySettings(
             transformer.toGcpRetrySettings(builder.getRetryConfig()));
       }
-
-      return storageOptionsBuilder.build().getService();
     }
 
-    /** Helper function for generating the MultipartUpload client */
+    /**
+     * Helper function for generating the MultipartUpload client. This client always uses the
+     * HTTP/JSON transport because {@link MultipartUploadSettings} is constructed from {@link
+     * HttpStorageOptions} in this SDK version; the multipart XML API has no gRPC transport, so the
+     * {@link BlobStoreBuilder#withGrpcEnabled(Boolean)} toggle does not affect it.
+     */
     private static MultipartUploadClient buildMultipartUploadClient(Builder builder) {
       HttpStorageOptions.Builder storageOptionsBuilder = HttpStorageOptions.http();
       if (shouldConfigureHttpClient(builder)) {
@@ -1711,6 +1906,11 @@ public class GcpBlobStore extends AbstractBlobStore {
       if (options == null) {
         return null;
       }
+      return buildTransferManagerConfig(builder, options).getService();
+    }
+
+    static TransferManagerConfig buildTransferManagerConfig(
+        Builder builder, StorageOptions options) {
       TransferManagerConfig.Builder configBuilder =
           TransferManagerConfig.newBuilder().setStorageOptions(options);
 
@@ -1740,11 +1940,23 @@ public class GcpBlobStore extends AbstractBlobStore {
           Objects.requireNonNullElse(builder.getParallelDownloadsEnabled(), Boolean.TRUE));
 
       // Map parallelUploadsEnabled -> setAllowParallelCompositeUpload.
+      // Known limitation: parallel composite upload builds each part from the destination
+      // BlobInfo, so parts inherit the retention and holds set by a directory upload with object
+      // lock. GCS then rejects deleting those parts during cleanup, leaving them behind and
+      // reporting the file as failed even though the composed object was created. The
+      // TransferManager API offers no way to strip these fields from parts
+      // (https://github.com/googleapis/google-cloud-java/issues/14892).
       if (builder.getParallelUploadsEnabled() != null) {
         configBuilder.setAllowParallelCompositeUpload(builder.getParallelUploadsEnabled());
       }
 
-      return configBuilder.build().getService();
+      // The GCS default names parallel composite upload parts at the bucket root, outside the
+      // destination key. Naming them after the destination object keeps part creation, compose
+      // and cleanup within any credential scope that covers the destination key's prefix.
+      configBuilder.setParallelCompositeUploadPartNamingStrategy(
+          PartNamingStrategy.useObjectNameAsPrefix());
+
+      return configBuilder.build();
     }
 
     private static CloseableHttpClient buildHttpClient(Builder builder) {
@@ -1794,13 +2006,18 @@ public class GcpBlobStore extends AbstractBlobStore {
       if (storage == null) {
         storage = buildStorage(this);
       }
+      // Operations the gRPC transport does not implement (signed URLs, batch/collection delete)
+      // run on an HTTP/JSON client. When gRPC is not enabled the main client already uses
+      // HTTP/JSON, so reuse it instead of opening a second client.
+      Storage httpStorage =
+          Boolean.TRUE.equals(getGrpcEnabled()) ? buildHttpStorage(this) : storage;
       if (mpuClient == null) {
         mpuClient = buildMultipartUploadClient(this);
       }
       if (transferManager == null) {
         transferManager = buildTransferManager(this, storage);
       }
-      return new GcpBlobStore(this, storage, mpuClient, transferManager);
+      return new GcpBlobStore(this, storage, httpStorage, mpuClient, transferManager);
     }
   }
 }

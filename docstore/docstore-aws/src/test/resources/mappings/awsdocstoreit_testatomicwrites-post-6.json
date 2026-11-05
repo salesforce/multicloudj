@@ -1,5 +1,5 @@
 {
-  "id" : "ead6c51a-d985-40e7-8746-47b08c3f956b",
+  "id" : "245bfc51-eb82-468a-a521-3199583057b9",
   "name" : "AwsDocstoreIT_testAtomicWrites-POST-6",
   "request" : {
     "url" : "/",
@@ -17,16 +17,16 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\"Responses\":{\"docstore-test-2\":[{\"DocstoreRevision\":{\"S\":\"fb245ec8-5eeb-5909-cd1f-a1ca5f8959d0\"},\"s\":{\"S\":\"88\"},\"Game\":{\"S\":\"testAtomicWrites\"},\"Player\":{\"S\":\"testAtomicWrites8\"}}]},\"UnprocessedKeys\":{}}",
+    "body" : "{\"Responses\":{\"docstore-test-2\":[{\"s\":{\"S\":\"88\"},\"Player\":{\"S\":\"testAtomicWrites8\"},\"DocstoreRevision\":{\"S\":\"fb245ec8-5eeb-5909-cd1f-a1ca5f8959d0\"},\"Game\":{\"S\":\"testAtomicWrites\"}}]},\"UnprocessedKeys\":{}}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-requestid" : "47E6815S3D5UAAAB66NGQ4RBAJVV4KQNSO5AEMVJF66Q9ASUAAJG",
-      "x-amz-crc32" : "2045949287",
-      "Date" : "Wed, 22 Jul 2026 23:39:37 GMT",
+      "x-amzn-requestid" : "MLTL7ML9K033EP62VDJI4JAUENVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "3431198744",
+      "Date" : "Fri, 23 Oct 2026 23:18:47 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "ead6c51a-d985-40e7-8746-47b08c3f956b",
+  "uuid" : "245bfc51-eb82-468a-a521-3199583057b9",
   "persistent" : true,
-  "insertionIndex" : 351
+  "insertionIndex" : 359
 }

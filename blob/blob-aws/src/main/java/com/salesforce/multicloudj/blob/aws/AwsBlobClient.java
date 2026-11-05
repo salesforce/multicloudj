@@ -4,8 +4,8 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobClient;
 import com.salesforce.multicloudj.blob.driver.BucketInfo;
 import com.salesforce.multicloudj.blob.driver.ListBucketsResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
+import com.salesforce.multicloudj.common.aws.AwsRetryStrategies;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
-import java.time.Duration;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
@@ -111,20 +111,8 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> implements 
           ApacheHttpClient.builder().proxyConfiguration(proxyConfigBuilder.build()).build());
     }
     if (builder.getRetryConfig() != null) {
-      // Create a temporary transformer instance for retry strategy conversion
-      AwsTransformer transformer = new AwsTransformer(null);
       b.overrideConfiguration(
-          config -> {
-            config.retryStrategy(transformer.toAwsRetryStrategy(builder.getRetryConfig()));
-            // Set API call timeouts if provided
-            if (builder.getRetryConfig().getAttemptTimeout() != null) {
-              config.apiCallAttemptTimeout(
-                  Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout()));
-            }
-            if (builder.getRetryConfig().getTotalTimeout() != null) {
-              config.apiCallTimeout(Duration.ofMillis(builder.getRetryConfig().getTotalTimeout()));
-            }
-          });
+          config -> AwsRetryStrategies.applyRetryConfig(config, builder.getRetryConfig()));
     }
 
     return b.build();

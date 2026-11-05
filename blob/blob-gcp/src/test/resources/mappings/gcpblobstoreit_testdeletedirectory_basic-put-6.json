@@ -1,5 +1,5 @@
 {
-  "id" : "321ae592-922e-46f4-bc95-b2ae9ccaaed9",
+  "id" : "e5d502de-6c82-445b-a83d-7a98f02bae7a",
   "name" : "GcpBlobStoreIT_testDeleteDirectory_basic-PUT-6",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
@@ -22,7 +22,7 @@
       },
       "upload_id" : {
         "hasExactly" : [ {
-          "equalTo" : "AAVLpEgu1M1PTP0BLt6sVLiGuWI4l0q_bB3vUnQzdPBc7FxsrHZHAzxl7a-f2f6W3nKxlS_suFaAw3j2Avb00vtUs6ges86xMt4Pdzq1pFuEFQ"
+          "equalTo" : "AFy3sg0Wtv-BCf7ffcN1cFh6QC8wMhY4bCghq3ZEt60ohQgQUFR9k0GesINBKCA1b14oAQGnsYX8ktOZH1c3gIqRMEGPSXZ8ACpPvT-d4cnLCA"
         } ]
       }
     },
@@ -33,21 +33,22 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/directory/delete-basic-v1/subdir/delete2.txt/1779894123504612\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fdelete-basic-v1%2Fsubdir%2Fdelete2.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fdelete-basic-v1%2Fsubdir%2Fdelete2.txt?generation=1779894123504612&alt=media\",\n  \"name\": \"conformance-tests/directory/delete-basic-v1/subdir/delete2.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1779894123504612\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"15\",\n  \"md5Hash\": \"Y3rb0yT5MF1n/dYACn1dvw==\",\n  \"crc32c\": \"yrc30w==\",\n  \"etag\": \"COTH4Kfe2ZQDEAE=\",\n  \"timeCreated\": \"2026-05-27T15:02:03.566Z\",\n  \"updated\": \"2026-05-27T15:02:03.566Z\",\n  \"timeStorageClassUpdated\": \"2026-05-27T15:02:03.566Z\",\n  \"timeFinalized\": \"2026-05-27T15:02:03.566Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/directory/delete-basic-v1/subdir/delete2.txt/1793818706433732\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fdelete-basic-v1%2Fsubdir%2Fdelete2.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fdelete-basic-v1%2Fsubdir%2Fdelete2.txt?generation=1793818706433732&alt=media\",\n  \"name\": \"conformance-tests/directory/delete-basic-v1/subdir/delete2.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1793818706433732\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"15\",\n  \"md5Hash\": \"Y3rb0yT5MF1n/dYACn1dvw==\",\n  \"crc32c\": \"yrc30w==\",\n  \"etag\": \"CMStp7b/7pcDEAE=\",\n  \"timeCreated\": \"2026-11-04T18:58:26.490Z\",\n  \"updated\": \"2026-11-04T18:58:26.490Z\",\n  \"timeStorageClassUpdated\": \"2026-11-04T18:58:26.490Z\",\n  \"timeFinalized\": \"2026-11-04T18:58:26.490Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "COTH4Kfe2ZQDEAE=",
-      "X-GUploader-UploadID" : "AAVLpEgu1M1PTP0BLt6sVLiGuWI4l0q_bB3vUnQzdPBc7FxsrHZHAzxl7a-f2f6W3nKxlS_suFaAw3j2Avb00vtUs6ges86xMt4Pdzq1pFuEFQ",
+      "ETag" : "CMStp7b/7pcDEAE=",
+      "X-GUploader-UploadID" : "AFy3sg0Wtv-BCf7ffcN1cFh6QC8wMhY4bCghq3ZEt60ohQgQUFR9k0GesINBKCA1b14oAQGnsYX8ktOZH1c3gIqRMEGPSXZ8ACpPvT-d4cnLCA",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Wed, 27 May 2026 15:02:03 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a1a7ed424c",
+      "Date" : "Wed, 04 Nov 2026 18:58:26 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "321ae592-922e-46f4-bc95-b2ae9ccaaed9",
+  "uuid" : "e5d502de-6c82-445b-a83d-7a98f02bae7a",
   "persistent" : true,
-  "insertionIndex" : 1421
+  "insertionIndex" : 1520
 }

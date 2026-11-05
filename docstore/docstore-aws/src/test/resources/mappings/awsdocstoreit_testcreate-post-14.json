@@ -1,5 +1,5 @@
 {
-  "id" : "0d1693da-1cbc-45d1-88ce-7d7475e345ce",
+  "id" : "4e484cbb-6fe2-4831-85a0-9a90bd562313",
   "name" : "AwsDocstoreIT_testCreate-POST-14",
   "request" : {
     "url" : "/",
@@ -20,13 +20,13 @@
     "body" : "{\"Count\":6,\"Items\":[{\"i\":{\"N\":\"95\"},\"bytes\":{\"B\":\"cmVwbGFjZWRTdHJpbmc=\"},\"b\":{\"BOOL\":false},\"s\":{\"S\":\"replacedString\"},\"f\":{\"N\":\"34.560001373291016\"},\"pName\":{\"S\":\"JohnReplace\"}},{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"originalString\"},\"f\":{\"N\":\"12.65999984741211\"},\"bytes\":{\"B\":\"b3JpZ2luYWxTdHJpbmc=\"},\"i\":{\"N\":\"121\"},\"DocstoreRevision\":{\"S\":\"0203716a-a8e7-1be0-0d23-f26d34fff49a\"},\"pName\":{\"S\":\"LeoReplace\"}},{\"i\":{\"N\":\"95\"},\"b\":{\"BOOL\":false},\"s\":{\"S\":\"replacedString\"},\"f\":{\"N\":\"0\"},\"pName\":{\"S\":\"DavidReplace\"}},{\"i\":{\"N\":\"999\"},\"bytes\":{\"B\":\"b3JpZ2luYWxTdHJpbmc=\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"originalString\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"EdwardReplace\"}},{\"s\":{\"S\":\"replacedString\"},\"f\":{\"N\":\"34.560001373291016\"},\"DocstoreRevision\":{\"S\":\"dae29fb9-a071-4047-a796-109521072800\"},\"pName\":{\"S\":\"KingReplace\"}},{\"b\":{\"BOOL\":false},\"s\":{\"S\":\"replacedString\"},\"f\":{\"N\":\"34.560001373291016\"},\"bytes\":{\"B\":\"cmVwbGFjZWRTdHJpbmc=\"},\"i\":{\"N\":\"99\"},\"DocstoreRevision\":{\"S\":\"8cb3b0ae-e4dc-5813-97ae-5dbba2967c39\"},\"pName\":{\"S\":\"TaylorReplace\"}}],\"ScannedCount\":6}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "B52G3LK3BE966DP9M2S6TM8RR3VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-RequestId" : "GSUKFRT3FGSRIKVCM4B76A4JNRVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "1146948769",
-      "Date" : "Wed, 22 Apr 2026 22:58:08 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:34 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "0d1693da-1cbc-45d1-88ce-7d7475e345ce",
+  "uuid" : "4e484cbb-6fe2-4831-85a0-9a90bd562313",
   "persistent" : true,
-  "insertionIndex" : 304
+  "insertionIndex" : 327
 }

@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.registry;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.examples.AppConfig;
 import com.salesforce.multicloudj.registry.client.ContainerRegistryClient;
 import com.salesforce.multicloudj.registry.model.Image;
 import com.salesforce.multicloudj.registry.model.Layer;
@@ -19,44 +20,44 @@ import org.slf4j.LoggerFactory;
  * Main class demonstrating Container Registry operations across different cloud providers. This
  * example shows how to use the multicloudj library to pull images from cloud container registries.
  *
- * <p>Usage: java -jar registry-example.jar [provider] - provider: Cloud provider (gcp, aws) -
- * defaults to "gcp"
- *
- * <p>Examples: java -jar registry-example.jar java -jar registry-example.jar gcp java -jar
- * registry-example.jar aws
+ * <p>Usage: {@code java -cp examples/target/multicloudj-examples-<version>.jar
+ * com.salesforce.multicloudj.registry.Main [provider-id]}. The provider id defaults to the global
+ * {@code provider} and the region comes from the global {@code region}. Endpoint, repository and
+ * tag come from the {@code registry.*} keys in {@code examples.properties}.
  */
 public class Main {
   private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
-  // Constants
-  private static final String DEFAULT_PROVIDER = "gcp";
-  private static final String REGISTRY_ENDPOINT = "https://your-registry-endpoint";
-  private static final String REPOSITORY = "your-repository";
-  private static final String TAG = "latest";
-  private static final String REGION = "your-region";
-
   // Demo settings
   private static final BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
 
-  // Runtime configuration
+  // Runtime configuration, resolved from examples.properties
   private final String provider;
+  private final String registryEndpoint;
+  private final String repository;
+  private final String tag;
+  private final String region;
 
-  /** Constructor that accepts provider configuration. */
+  /** Constructor that accepts provider configuration; other values come from configuration. */
   public Main(String provider) {
     this.provider = provider;
+    this.registryEndpoint = AppConfig.get("registry.endpoint");
+    this.repository = AppConfig.get("registry.repository");
+    this.tag = AppConfig.get("registry.tag");
+    this.region = AppConfig.get("region");
   }
 
   public static void main(String[] args) {
     // Parse command line arguments
     String provider = parseProvider(args);
+    Main main = new Main(provider);
 
     // Display welcome banner
     printWelcomeBanner();
 
     // Display configuration
-    printConfiguration(provider);
+    main.printConfiguration();
 
-    Main main = new Main(provider);
     main.runDemo();
 
     // Display completion banner
@@ -72,86 +73,77 @@ public class Main {
 
   /** Print a welcome banner for the demo. */
   private static void printWelcomeBanner() {
-    System.out.println();
-    System.out.println(
-        "╔══════════════════════════════════════════════════════════════════════════════╗");
-    System.out.println(
-        "║           🚀 MultiCloudJ Container Registry Demo 🚀                        ║");
-    System.out.println(
-        "║             Cross-Cloud Container Registry Operations                       ║");
-    System.out.println(
-        "╚══════════════════════════════════════════════════════════════════════════════╝");
-    System.out.println();
+    logger.info("");
+    logger.info("╔══════════════════════════════════════════════════════════════════════════════╗");
+    logger.info("║           🚀 MultiCloudJ Container Registry Demo 🚀                        ║");
+    logger.info("║             Cross-Cloud Container Registry Operations                       ║");
+    logger.info("╚══════════════════════════════════════════════════════════════════════════════╝");
+    logger.info("");
   }
 
   /** Print the configuration being used. */
-  private static void printConfiguration(String provider) {
-    System.out.println("📋 Configuration:");
-    System.out.println("   Provider:   " + provider);
-    System.out.println("   Endpoint:   " + REGISTRY_ENDPOINT);
-    System.out.println("   Repository: " + REPOSITORY);
-    System.out.println("   Tag:        " + TAG);
-    System.out.println();
+  private void printConfiguration() {
+    logger.info("📋 Configuration:");
+    logger.info("   Provider:   {}", provider);
+    logger.info("   Endpoint:   {}", registryEndpoint);
+    logger.info("   Repository: {}", repository);
+    logger.info("   Tag:        {}", tag);
+    logger.info("");
     waitForEnter("Press Enter to start the demo...");
   }
 
   /** Print a completion banner. */
   private static void printCompletionBanner() {
-    System.out.println();
-    System.out.println(
-        "╔══════════════════════════════════════════════════════════════════════════════╗");
-    System.out.println(
-        "║                    ✅ Demo Completed Successfully! ✅                       ║");
-    System.out.println(
-        "║                    Thanks for trying MultiCloudJ!                          ║");
-    System.out.println(
-        "╚══════════════════════════════════════════════════════════════════════════════╝");
-    System.out.println();
+    logger.info("");
+    logger.info("╔══════════════════════════════════════════════════════════════════════════════╗");
+    logger.info("║                    ✅ Demo Completed Successfully! ✅                       ║");
+    logger.info("║                    Thanks for trying MultiCloudJ!                          ║");
+    logger.info("╚══════════════════════════════════════════════════════════════════════════════╝");
+    logger.info("");
     waitForEnter("Press Enter to exit...");
   }
 
-  /** Parse provider from command line arguments. Defaults to DEFAULT_PROVIDER if not specified. */
+  /** Parse provider from command line arguments, falling back to configuration. */
   private static String parseProvider(String[] args) {
     if (args.length > 0 && args[0] != null && !args[0].trim().isEmpty()) {
       return args[0].trim();
     }
-    return DEFAULT_PROVIDER;
+    // Never hardcode the provider id; resolve it from configuration (see examples.properties)
+    return AppConfig.provider();
   }
 
   /** Wait for user to press Enter key. */
   private static void waitForEnter(String message) {
-    System.out.print(message);
+    logger.info(message);
     try {
       reader.readLine();
     } catch (IOException e) {
-      System.out.println("(Continuing automatically...)");
+      logger.info("(Continuing automatically...)");
     }
   }
 
   /** Display a success message with emoji. */
   private static void showSuccess(String message) {
-    System.out.println("✅ " + message);
+    logger.info("✅ {}", message);
   }
 
   /** Display an info message with emoji. */
   private static void showInfo(String message) {
-    System.out.println("ℹ️  " + message);
+    logger.info("ℹ️  {}", message);
   }
 
   /** Display an error message with emoji. */
   private static void showError(String message) {
-    System.out.println("❌ " + message);
+    logger.error("❌ {}", message);
   }
 
   /** Display a section header. */
   private static void showSectionHeader(String title) {
-    System.out.println();
-    System.out.println(
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    System.out.println("📚 " + title);
-    System.out.println(
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    System.out.println();
+    logger.info("");
+    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    logger.info("📚 {}", title);
+    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    logger.info("");
   }
 
   /** Display a section header with pause for major transitions. */
@@ -163,8 +155,8 @@ public class Main {
   /** Initialize the ContainerRegistryClient with appropriate configuration. */
   private ContainerRegistryClient initializeClient() {
     return ContainerRegistryClient.builder(provider)
-        .withRegistryEndpoint(REGISTRY_ENDPOINT)
-        .withRegion(REGION)
+        .withRegistryEndpoint(registryEndpoint)
+        .withRegion(region)
         .build();
   }
 
@@ -190,7 +182,7 @@ public class Main {
   private void demonstratePullImage() {
     showSectionHeaderWithPause("Pull Image by Tag");
 
-    String imageRef = REPOSITORY + ":" + TAG;
+    String imageRef = repository + ":" + tag;
     showInfo("Pulling image: " + imageRef);
 
     try (ContainerRegistryClient client = initializeClient()) {
@@ -229,7 +221,7 @@ public class Main {
   private void demonstratePullByDigest() {
     showSectionHeaderWithPause("Pull Image by Digest");
 
-    String imageRef = REPOSITORY + ":" + TAG;
+    String imageRef = repository + ":" + tag;
     showInfo("First, pulling by tag to obtain digest: " + imageRef);
 
     try (ContainerRegistryClient client = initializeClient()) {
@@ -238,7 +230,7 @@ public class Main {
       showSuccess("Obtained digest: " + digest);
 
       // Now pull the same image by its digest
-      String digestRef = REPOSITORY + "@" + digest;
+      String digestRef = repository + "@" + digest;
       showInfo("Pulling by digest: " + digestRef);
       Image imageByDigest = client.pull(digestRef);
 
@@ -277,7 +269,7 @@ public class Main {
   private void demonstratePlatformSelection() {
     showSectionHeaderWithPause("Platform Selection (Multi-Arch)");
 
-    String imageRef = REPOSITORY + ":" + TAG;
+    String imageRef = repository + ":" + tag;
 
     // Default platform (linux/amd64)
     showInfo("Pulling with default platform (linux/amd64)...");
@@ -297,8 +289,8 @@ public class Main {
 
     try (ContainerRegistryClient client =
         ContainerRegistryClient.builder(provider)
-            .withRegistryEndpoint(REGISTRY_ENDPOINT)
-            .withRegion(REGION)
+            .withRegistryEndpoint(registryEndpoint)
+            .withRegion(region)
             .withPlatform(arm64)
             .build()) {
 
@@ -324,7 +316,7 @@ public class Main {
   private void demonstrateExtractFilesystem() {
     showSectionHeaderWithPause("Extract Image Filesystem");
 
-    String imageRef = REPOSITORY + ":" + TAG;
+    String imageRef = repository + ":" + tag;
     showInfo("Pulling image and extracting filesystem: " + imageRef);
 
     try (ContainerRegistryClient client = initializeClient()) {
@@ -359,7 +351,7 @@ public class Main {
     // Case 1: Pull a non-existent tag → ResourceNotFoundException
     showInfo("Pulling a non-existent tag (expect ResourceNotFoundException)...");
     try (ContainerRegistryClient client = initializeClient()) {
-      client.pull(REPOSITORY + ":non-existent-tag-that-does-not-exist");
+      client.pull(repository + ":non-existent-tag-that-does-not-exist");
       showError("Expected ResourceNotFoundException was not thrown");
     } catch (ResourceNotFoundException e) {
       showSuccess("Correctly caught ResourceNotFoundException: " + truncate(e.getMessage(), 100));

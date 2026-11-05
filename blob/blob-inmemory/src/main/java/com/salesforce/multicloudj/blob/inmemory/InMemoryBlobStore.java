@@ -16,6 +16,7 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -37,6 +38,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -108,6 +110,25 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       new ConcurrentHashMap<>();
   // Track bucket metadata - key is bucket name
   static final Map<String, BucketMetadata> BUCKETS = new ConcurrentHashMap<>();
+  // Persisted delete markers per key - key is "bucket:key", value is the ordered history of markers
+  private static final Map<String, List<DeleteMarker>> DELETE_MARKERS = new ConcurrentHashMap<>();
+
+  /**
+   * Monotonic clock source shared across all instances. Version and delete-marker creation times
+   * must be strictly increasing so a version listing has a total, deterministic order even when
+   * operations happen within the same wall-clock millisecond. Each call returns an instant strictly
+   * greater than the previous one while still tracking real time when it advances.
+   */
+  private static final java.util.concurrent.atomic.AtomicReference<Instant> CLOCK =
+      new java.util.concurrent.atomic.AtomicReference<>(Instant.EPOCH);
+
+  private static Instant nextInstant() {
+    return CLOCK.updateAndGet(
+        previous -> {
+          Instant now = Instant.now();
+          return now.isAfter(previous) ? now : previous.plusNanos(1);
+        });
+  }
 
   public InMemoryBlobStore() {
     this(new Builder());
@@ -153,15 +174,18 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   /**
    * Returns a mutable copy of the supplied metadata with the operation context's correlation id,
    * service id and tenant id stamped onto it. Each key is skipped when the context is absent, when
-   * that context value is blank, or when the caller has already supplied the same key.
+   * that context value is blank, or when the caller has already supplied the same key. The
+   * correlation id is stamped under the caller-customizable key resolved from the context; the
+   * service id and tenant id keys are fixed.
    */
   private static Map<String, String> stampContextMetadata(
       Map<String, String> source, OperationContext operationContext) {
     Map<String, String> metadata = source != null ? new HashMap<>(source) : new HashMap<>();
     if (operationContext != null) {
+      String correlationIdKey = operationContext.getEffectiveCorrelationIdMetadataKey();
       if (StringUtils.isNotBlank(operationContext.getCorrelationId())
-          && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-        metadata.put(CORRELATION_ID_METADATA_KEY, operationContext.getCorrelationId());
+          && !metadata.containsKey(correlationIdKey)) {
+        metadata.put(correlationIdKey, operationContext.getCorrelationId());
       }
       if (StringUtils.isNotBlank(operationContext.getServiceId())
           && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {
@@ -186,33 +210,40 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
     // Copy the application-supplied metadata and stamp the SDK's correlation id, service id and
     // tenant id on it so the values persist with the stored blob alongside the user's metadata.
-    Map<String, String> metadata = stampContextMetadata(uploadRequest.getMetadata(),
-        uploadRequest.getOperationContext());
+    Map<String, String> metadata =
+        stampContextMetadata(uploadRequest.getMetadata(), uploadRequest.getOperationContext());
 
     StoredBlob blob =
         new StoredBlob(
-            content, etag, versionId, Instant.now(), metadata, uploadRequest.getContentType());
+            content, etag, versionId, nextInstant(), metadata, uploadRequest.getContentType());
 
-    STORAGE.put(versionedKey, blob);
-    LATEST_VERSIONS.put(baseKey, versionId);
+    LATEST_VERSIONS.compute(
+        baseKey,
+        (ignored, currentVersion) -> {
+          if (uploadRequest.isCreateIfAbsent() && currentVersion != null) {
+            throw new ResourceAlreadyExistsException("Blob already exists");
+          }
 
-    // Store tags if provided
-    if (uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
-      TAGS.put(versionedKey, new HashMap<>(uploadRequest.getTags()));
-    }
+          STORAGE.put(versionedKey, blob);
 
-    // Store object lock configuration if provided
-    if (uploadRequest.getObjectLock() != null) {
-      ObjectLockConfiguration lockConfig = uploadRequest.getObjectLock();
-      OBJECT_LOCKS.put(
-          versionedKey,
-          ObjectLockInfo.builder()
-              .mode(lockConfig.getMode())
-              .retainUntilDate(lockConfig.getRetainUntilDate())
-              .legalHold(lockConfig.isLegalHold())
-              .useEventBasedHold(lockConfig.getUseEventBasedHold())
-              .build());
-    }
+          if (uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
+            TAGS.put(versionedKey, new HashMap<>(uploadRequest.getTags()));
+          }
+
+          if (uploadRequest.getObjectLock() != null) {
+            ObjectLockConfiguration lockConfig = uploadRequest.getObjectLock();
+            OBJECT_LOCKS.put(
+                versionedKey,
+                ObjectLockInfo.builder()
+                    .mode(lockConfig.getMode())
+                    .retainUntilDate(lockConfig.getRetainUntilDate())
+                    .legalHold(lockConfig.isLegalHold())
+                    .useEventBasedHold(lockConfig.getUseEventBasedHold())
+                    .build());
+          }
+
+          return versionId;
+        });
 
     return UploadResponse.builder()
         .key(uploadRequest.getKey())
@@ -419,13 +450,29 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       TAGS.remove(versionedKey);
       OBJECT_LOCKS.remove(versionedKey);
 
+      // A version-specific delete can also target a delete marker; remove it from the history so
+      // callers can clean up markers surfaced by listBlobVersions.
+      List<DeleteMarker> markers = DELETE_MARKERS.get(baseKey);
+      if (markers != null) {
+        markers.removeIf(marker -> versionId.equals(marker.getVersionId()));
+        if (markers.isEmpty()) {
+          DELETE_MARKERS.remove(baseKey);
+        }
+      }
+
       // If deleting the latest version, clear the latest version tracker
       String latestVersion = LATEST_VERSIONS.get(baseKey);
       if (versionId.equals(latestVersion)) {
         LATEST_VERSIONS.remove(baseKey);
       }
     } else {
-      // Simulate a delete marker: remove from LATEST_VERSIONS but keep data in STORAGE
+      // Unqualified delete: record a delete marker that becomes the newest entry for this key and
+      // clear the current-version tracker so the object reads as absent. Prior content versions are
+      // retained in STORAGE and remain listable.
+      String markerVersionId = UUID.randomUUID().toString();
+      DELETE_MARKERS
+          .computeIfAbsent(baseKey, ignored -> new java.util.concurrent.CopyOnWriteArrayList<>())
+          .add(new DeleteMarker(markerVersionId, nextInstant()));
       LATEST_VERSIONS.remove(baseKey);
     }
   }
@@ -474,7 +521,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
             sourceBlob.getData().clone(),
             sourceBlob.getEtag(),
             newVersionId,
-            Instant.now(),
+            nextInstant(),
             sourceBlob.getMetadata(),
             sourceBlob.getContentType());
 
@@ -522,7 +569,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
             sourceBlob.getData().clone(),
             sourceBlob.getEtag(),
             newVersionId,
-            Instant.now(),
+            nextInstant(),
             sourceBlob.getMetadata(),
             sourceBlob.getContentType());
 
@@ -573,6 +620,95 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .build();
   }
 
+  /**
+   * Lists every version of an exact key on a single newest-first timeline. By default only content
+   * versions are returned and no {@code archivedAt} supersession instant is derived, matching the
+   * backward-compatible contract. When {@code includeArchived} is set the timeline also includes
+   * delete markers and each entry reports the cloud-neutral {@code archivedAt} it stopped being
+   * current, which may be the creation time of a superseding delete marker.
+   */
+  @Override
+  protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
+    validateBucketExists();
+    boolean includeArchived = request.isIncludeArchived();
+    String key = request.getKey();
+    String baseKey = getStorageKey(key);
+    String versionPrefix = baseKey + ":";
+
+    List<TimelineEntry> entries = new ArrayList<>();
+    for (Map.Entry<String, StoredBlob> stored : STORAGE.entrySet()) {
+      String storageKey = stored.getKey();
+      if (!storageKey.startsWith(versionPrefix)) {
+        continue;
+      }
+      // Exact-key guard: keys may contain ':', so require the remainder to be a bare versionId
+      // (UUIDs contain no ':'). This excludes sibling keys such as "key:child".
+      String remainder = storageKey.substring(versionPrefix.length());
+      if (remainder.indexOf(':') >= 0) {
+        continue;
+      }
+      StoredBlob blob = stored.getValue();
+      entries.add(new TimelineEntry(blob.getLastModified(), false, blob.getVersionId(), blob));
+    }
+
+    // Delete markers only participate in the opt-in delete-history view; the default listing
+    // streams content versions and never derives archivedAt from a marker.
+    if (includeArchived) {
+      List<DeleteMarker> markers = DELETE_MARKERS.get(baseKey);
+      if (markers != null) {
+        for (DeleteMarker marker : markers) {
+          entries.add(
+              new TimelineEntry(marker.getCreatedTime(), true, marker.getVersionId(), null));
+        }
+      }
+    }
+
+    // Newest-first so each entry's supersession time is its immediate predecessor's creation time.
+    entries.sort(Comparator.comparing((TimelineEntry entry) -> entry.createdTime).reversed());
+
+    List<BlobMetadata> result = new ArrayList<>(entries.size());
+    for (int i = 0; i < entries.size(); i++) {
+      TimelineEntry entry = entries.get(i);
+      // archivedAt only exists to serve the opt-in delete-history view; the default listing streams
+      // content versions without deriving a supersession instant.
+      Instant archivedAt =
+          includeArchived && i > 0 ? entries.get(i - 1).createdTime : null;
+      if (entry.deleteMarker) {
+        // Delete-marker entries only enter the timeline when the caller opted into the
+        // delete-history view, so reaching here already implies includeArchived is set.
+        result.add(
+            BlobMetadata.builder()
+                .key(key)
+                .versionId(entry.versionId)
+                .archived(true)
+                .lastModified(entry.createdTime)
+                .createdTime(entry.createdTime)
+                .archivedAt(archivedAt)
+                .build());
+      } else {
+        StoredBlob blob = entry.blob;
+        String versionedKey = versionPrefix + blob.getVersionId();
+        // Checksum is intentionally omitted here: it is not part of the version-listing contract,
+        // and computing it is O(size) per version, which turns listing into O(versions x size).
+        // Callers that need a checksum fetch it via getMetadata/download for a specific version.
+        result.add(
+            BlobMetadata.builder()
+                .key(key)
+                .versionId(blob.getVersionId())
+                .eTag(blob.getEtag())
+                .objectSize((long) blob.getData().length)
+                .metadata(blob.getMetadata())
+                .lastModified(blob.getLastModified())
+                .createdTime(blob.getLastModified())
+                .contentType(blob.getContentType())
+                .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
+                .archivedAt(archivedAt)
+                .build());
+      }
+    }
+    return result.iterator();
+  }
+
   private Checksum toDriverChecksum(byte[] data) {
     return Checksum.builder()
         .algorithm(ChecksumMethod.CRC32C)
@@ -585,45 +721,49 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     validateBucketExists();
     String prefix = request.getPrefix() != null ? request.getPrefix() : "";
     String delimiter = request.getDelimiter();
+    TreeMap<String, StoredBlob> matchingBlobs = new TreeMap<>();
+    for (Map.Entry<String, String> entry : LATEST_VERSIONS.entrySet()) {
+      if (!entry.getKey().startsWith(bucket + ":")) {
+        continue;
+      }
+      String key = entry.getKey().substring((bucket + ":").length());
+      if (!key.startsWith(prefix)) {
+        continue;
+      }
+      StoredBlob blob = STORAGE.get(entry.getKey() + ":" + entry.getValue());
+      if (blob != null) {
+        matchingBlobs.put(key, blob);
+      }
+    }
 
-    // List only latest versions
-    List<BlobInfo> blobs =
-        LATEST_VERSIONS.entrySet().stream()
-            .filter(entry -> entry.getKey().startsWith(bucket + ":"))
-            .filter(
-                entry -> {
-                  String key = entry.getKey().substring((bucket + ":").length());
-                  if (!key.startsWith(prefix)) {
-                    return false;
-                  }
-                  // If delimiter is specified, filter out keys containing the delimiter after the
-                  // prefix
-                  if (delimiter != null && !delimiter.isEmpty()) {
-                    String keyAfterPrefix = key.substring(prefix.length());
-                    return !keyAfterPrefix.contains(delimiter);
-                  }
-                  return true;
-                })
-            .map(
-                entry -> {
-                  String key = entry.getKey().substring((bucket + ":").length());
-                  String versionId = entry.getValue();
-                  String versionedKey = entry.getKey() + ":" + versionId;
-                  StoredBlob blob = STORAGE.get(versionedKey);
-                  if (blob == null) {
-                    return null;
-                  }
-                  return new BlobInfo.Builder()
-                      .withKey(key)
-                      .withObjectSize((long) blob.getData().length)
-                      .withLastModified(blob.getLastModified())
-                      .build();
-                })
-            .filter(blobInfo -> blobInfo != null)
-            .sorted(Comparator.comparing(BlobInfo::getKey))
-            .collect(Collectors.toList());
-
-    return blobs.iterator();
+    List<BlobInfo> entries = new ArrayList<>();
+    Set<String> commonPrefixes = new HashSet<>();
+    boolean includeCommonPrefixes =
+        request.isIncludeCommonPrefixes() && StringUtils.isNotEmpty(delimiter);
+    for (Map.Entry<String, StoredBlob> entry : matchingBlobs.entrySet()) {
+      String key = entry.getKey();
+      String keyAfterPrefix = key.substring(prefix.length());
+      int delimiterIndex =
+          StringUtils.isNotEmpty(delimiter) ? keyAfterPrefix.indexOf(delimiter) : -1;
+      if (delimiterIndex < 0) {
+        StoredBlob blob = entry.getValue();
+        entries.add(new BlobInfo.Builder()
+            .withKey(key)
+            .withObjectSize((long) blob.getData().length)
+            .withLastModified(blob.getLastModified())
+            .build());
+      }
+      if (delimiterIndex >= 0) {
+        commonPrefixes.add(
+            prefix + keyAfterPrefix.substring(0, delimiterIndex + delimiter.length()));
+      }
+    }
+    if (includeCommonPrefixes) {
+      commonPrefixes.forEach(
+          commonPrefix -> entries.add(new BlobInfo.Builder()
+              .withKey(commonPrefix).withCommonPrefix(true).build()));
+    }
+    return entries.iterator();
   }
 
   @Override
@@ -824,11 +964,15 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       String versionedKey = baseKey + ":" + versionId;
       StoredBlob blob =
           new StoredBlob(
-              finalData, etag, versionId, Instant.now(), state.getMetadata(),
+              finalData, etag, versionId, nextInstant(), state.getMetadata(),
               state.getContentType());
 
       STORAGE.put(versionedKey, blob);
       LATEST_VERSIONS.put(baseKey, versionId);
+
+      if (mpu.getTags() != null && !mpu.getTags().isEmpty()) {
+        TAGS.put(versionedKey, new HashMap<>(mpu.getTags()));
+      }
 
       // Store object lock configuration if provided on the multipart upload
       if (mpu.getObjectLock() != null) {
@@ -920,6 +1064,13 @@ public class InMemoryBlobStore extends AbstractBlobStore {
           String algo = request.getChecksumAlgorithm() != null
               ? request.getChecksumAlgorithm().name() : "CRC32C";
           signedHeaders.put("x-checksum", algo + "=" + request.getChecksumValue());
+        }
+        if (request.getTags() != null && !request.getTags().isEmpty()) {
+          signedHeaders.put(
+              "x-inmemory-tagging",
+              new TreeMap<>(request.getTags()).entrySet().stream()
+                  .map(e -> e.getKey() + "=" + e.getValue())
+                  .collect(Collectors.joining("&")));
         }
       }
       return PresignedUrlResponse.builder()
@@ -1265,6 +1416,37 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
   }
 
+  /** A persisted delete marker: its own version id and the instant it was created. */
+  @Getter
+  private static class DeleteMarker {
+    private final String versionId;
+    private final Instant createdTime;
+
+    DeleteMarker(String versionId, Instant createdTime) {
+      this.versionId = versionId;
+      this.createdTime = createdTime;
+    }
+  }
+
+  /**
+   * A single point on a key's version timeline used only while resolving {@code
+   * doListBlobVersions}. Holds a content version's stored blob, or a delete marker when {@code
+   * deleteMarker} is set (in which case {@code blob} is {@code null}).
+   */
+  private static final class TimelineEntry {
+    private final Instant createdTime;
+    private final boolean deleteMarker;
+    private final String versionId;
+    private final StoredBlob blob;
+
+    TimelineEntry(Instant createdTime, boolean deleteMarker, String versionId, StoredBlob blob) {
+      this.createdTime = createdTime;
+      this.deleteMarker = deleteMarker;
+      this.versionId = versionId;
+      this.blob = blob;
+    }
+  }
+
   @Getter
   private static class StoredBlob {
     private final byte[] data;
@@ -1373,5 +1555,6 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     OBJECT_LOCKS.clear();
     MULTIPART_UPLOADS.clear();
     BUCKETS.clear();
+    DELETE_MARKERS.clear();
   }
 }

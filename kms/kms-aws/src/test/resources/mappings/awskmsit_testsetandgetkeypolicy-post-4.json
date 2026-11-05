@@ -1,0 +1,32 @@
+{
+  "id" : "83258689-75ed-4f51-a28d-3bf9f30d08fa",
+  "name" : "AwsKmsIT_testSetAndGetKeyPolicy-POST-4",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.PutKeyPolicy"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"KeyId\":\"arn:aws:kms:us-west-2:654654370895:key/638b1505-dac8-4b98-aca3-7c43c58608b1\",\"PolicyName\":\"default\",\"Policy\":\"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Sid\\\":\\\"Grant0Part0\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":{\\\"AWS\\\":[\\\"arn:aws:iam::654654370895:root\\\"]},\\\"Action\\\":[\\\"kms:DescribeKey\\\",\\\"kms:Create*\\\",\\\"kms:Describe*\\\",\\\"kms:Enable*\\\",\\\"kms:List*\\\",\\\"kms:Put*\\\",\\\"kms:Update*\\\",\\\"kms:Revoke*\\\",\\\"kms:Disable*\\\",\\\"kms:Get*\\\",\\\"kms:Delete*\\\",\\\"kms:TagResource\\\",\\\"kms:UntagResource\\\",\\\"kms:ScheduleKeyDeletion\\\",\\\"kms:CancelKeyDeletion\\\",\\\"kms:RotateKeyOnDemand\\\"],\\\"Resource\\\":\\\"*\\\"},{\\\"Sid\\\":\\\"Grant1Part0\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":{\\\"AWS\\\":[\\\"arn:aws:iam::654654370895:role/chameleon-jcloud-test\\\"]},\\\"Action\\\":[\\\"kms:Encrypt\\\",\\\"kms:Decrypt\\\"],\\\"Resource\\\":\\\"*\\\"}]}\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "c381fd75-a038-4dfd-b8cf-02e550c4fbfb",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Wed, 28 Oct 2026 07:04:35 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "83258689-75ed-4f51-a28d-3bf9f30d08fa",
+  "persistent" : true,
+  "insertionIndex" : 55
+}

@@ -1,5 +1,176 @@
 # Changelog
 
+## [0.4.14](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.13...multicloudj-v0.4.14) (2026-11-05)
+
+
+### Blob Store
+
+* apply client endpoint override to AWS S3Presigner and omit empty tagging ([#732](https://github.com/salesforce/multicloudj/issues/732)) ([de6bcc0](https://github.com/salesforce/multicloudj/commit/de6bcc0338b507f098f0f2b701a6715b1be96f33))
+* delete objects from every listing page in GCP deleteDirectory ([#734](https://github.com/salesforce/multicloudj/issues/734)) ([20a7746](https://github.com/salesforce/multicloudj/commit/20a774689bca732045dbf80ca07af9ef1fa0543b))
+* report per-object failures in batch delete for AWS and GCP ([#738](https://github.com/salesforce/multicloudj/issues/738)) ([8f3db4c](https://github.com/salesforce/multicloudj/commit/8f3db4c0f68da23d71c75c83c416b6580b472b7c))
+* URL-encode tag keys and values in the Ali x-oss-tagging header ([#726](https://github.com/salesforce/multicloudj/issues/726)) ([e788246](https://github.com/salesforce/multicloudj/commit/e7882467009f99ee17e576ddd8de8e2792bf0fce))
+
+## [0.4.13](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.12...multicloudj-v0.4.13) (2026-11-02)
+
+
+### Bug Fixes
+
+* **pubsub:** use a fair lock in AbstractSubscription.receive() ([#715](https://github.com/salesforce/multicloudj/issues/715)) ([965a5d1](https://github.com/salesforce/multicloudj/commit/965a5d19ce7b7799bdc40b7fc625734bae2fbc65))
+
+
+### Blob Store
+
+* name GCP parallel composite upload parts under the destination object ([#724](https://github.com/salesforce/multicloudj/issues/724)) ([4ad821d](https://github.com/salesforce/multicloudj/commit/4ad821d72cd7aa4eb3cbf035f1280924395736f9))
+* persist tags and lifecycle custom time on GCP multipart upload ([#694](https://github.com/salesforce/multicloudj/issues/694)) ([a46cf58](https://github.com/salesforce/multicloudj/commit/a46cf583adef9ac8529b0ca82744622fb0c129d2))
+* sign tags and lifecycle custom time into GCP presigned upload URLs ([#688](https://github.com/salesforce/multicloudj/issues/688)) ([f32e89b](https://github.com/salesforce/multicloudj/commit/f32e89bc5844e1a949a5bd090e60e3c1bc82507e))
+
+
+### Document Store
+
+* alias the partition key in AWS create and replace preconditions ([#696](https://github.com/salesforce/multicloudj/issues/696)) ([31e1082](https://github.com/salesforce/multicloudj/commit/31e1082d63856844a8b9f7dfecc373cb2181568b))
+* support RetryConfig for AWS, GCP and Ali ([#710](https://github.com/salesforce/multicloudj/issues/710)) ([2bb09af](https://github.com/salesforce/multicloudj/commit/2bb09af2b4690683167f76dab98011930ed5a87c))
+
+
+### KMS
+
+* add cloud-agnostic KMS interface with AWS, GCP and Alibaba providers ([#687](https://github.com/salesforce/multicloudj/issues/687)) ([2891999](https://github.com/salesforce/multicloudj/commit/28919994dd507faae032abf0b32649e3add9ae39))
+* fix Alibaba client runtime dependencies and key-policy error mapping ([#716](https://github.com/salesforce/multicloudj/issues/716)) ([b1f323d](https://github.com/salesforce/multicloudj/commit/b1f323d1639407a9f5a49cfa50d649a26343a33d))
+
+## [0.4.12](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.11...multicloudj-v0.4.12) (2026-10-21)
+
+
+### Blob Store
+
+* apply proxy system-property and env-var flags to the AWS CRT client ([#692](https://github.com/salesforce/multicloudj/issues/692)) ([5e8973f](https://github.com/salesforce/multicloudj/commit/5e8973f11276f017bfdbe726b5a790c57c270429))
+* preserve GCS retry defaults for unset GCP RetryConfig fields ([#677](https://github.com/salesforce/multicloudj/issues/677)) ([16c4932](https://github.com/salesforce/multicloudj/commit/16c493249fc6630d1b39009a73586950ea27b838))
+* stamp serviceId and tenantId on Ali single-object upload and multipart initiate ([#690](https://github.com/salesforce/multicloudj/issues/690)) ([08439c7](https://github.com/salesforce/multicloudj/commit/08439c7e374c76a4c59fd7381d86731ebd58fc47))
+
+
+### Document Store
+
+* support per-call read consistency ([#689](https://github.com/salesforce/multicloudj/issues/689)) ([b9af7ee](https://github.com/salesforce/multicloudj/commit/b9af7ee40cbf83ccec20f3d94147df8cf314a911))
+
+
+### PubSub
+
+* add configurable RetryConfig for topics and subscriptions ([#668](https://github.com/salesforce/multicloudj/issues/668)) ([45e476d](https://github.com/salesforce/multicloudj/commit/45e476da629411981a7f6249a62fb283a9c99969))
+* remove Ali socket timeout override for long-poll subscriptions ([#691](https://github.com/salesforce/multicloudj/issues/691)) ([2ca4d5a](https://github.com/salesforce/multicloudj/commit/2ca4d5ab261749d1d3a4585f33e4f49c21c31648))
+
+## [0.4.11](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.10...multicloudj-v0.4.11) (2026-10-14)
+
+
+### STS
+
+* address retry configuration review feedback ([#680](https://github.com/salesforce/multicloudj/issues/680)) ([ade03df](https://github.com/salesforce/multicloudj/commit/ade03dff9906d8939c8352435f5da7315f6aa3fd))
+
+## [0.4.10](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.9...multicloudj-v0.4.10) (2026-10-13)
+
+
+### Blob Store
+
+* fix AWS async stream-upload thread leak with a store-owned executor ([#663](https://github.com/salesforce/multicloudj/issues/663)) ([663be99](https://github.com/salesforce/multicloudj/commit/663be990a29bb897d02d5d22f18b413b58253dd8))
+* shut down the AWS async transfer-manager thread pool on close ([#670](https://github.com/salesforce/multicloudj/issues/670)) ([c146a98](https://github.com/salesforce/multicloudj/commit/c146a9847bdf409f1499bd35bd506e42d2ac52d2))
+
+
+### Document Store
+
+* configure consistent reads through collection options ([#675](https://github.com/salesforce/multicloudj/issues/675)) ([5c9b5ca](https://github.com/salesforce/multicloudj/commit/5c9b5ca6491acf35fa14e33d91df483d4a5cb1dc))
+
+
+### STS
+
+* add retry configuration support for sts interface ([#672](https://github.com/salesforce/multicloudj/issues/672)) ([8d76a44](https://github.com/salesforce/multicloudj/commit/8d76a440d4cc5557b3e01032af145c5ccbde7bff))
+
+## [0.4.9](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.8...multicloudj-v0.4.9) (2026-10-08)
+
+
+### Blob Store
+
+* fix aws sync directory delete operations to return the nested delete futures  ([#664](https://github.com/salesforce/multicloudj/issues/664)) ([fd76e9b](https://github.com/salesforce/multicloudj/commit/fd76e9b7d9fb8ef5f7ef579de0c564522a64d0d8))
+* support GCP presigned URLs with access-token-only (session) credentials and email scope in gcpsts ([#660](https://github.com/salesforce/multicloudj/issues/660)) ([9ce278c](https://github.com/salesforce/multicloudj/commit/9ce278cf70fd7ed6f396fb84565e5d3b8a434759))
+
+## [0.4.8](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.7...multicloudj-v0.4.8) (2026-10-01)
+
+
+### Bug Fixes
+
+* **pubsub:** resolve receive() lost-wakeup deadlock in AbstractSubscription prefetch ([#650](https://github.com/salesforce/multicloudj/issues/650)) ([6c5b1cb](https://github.com/salesforce/multicloudj/commit/6c5b1cbf8d71512c5e2d764eec8545318aefe03e))
+
+
+### Document Store
+
+* fix FirestoreClient leak and teardown-tracking gaps in benchmark harness ([#655](https://github.com/salesforce/multicloudj/issues/655)) ([05efd7d](https://github.com/salesforce/multicloudj/commit/05efd7dd4c7d527a9270fe4e397343a290d6a7bf))
+* nested object leaks into sibling Map field during encoding in AWS ([#649](https://github.com/salesforce/multicloudj/issues/649)) ([971f91c](https://github.com/salesforce/multicloudj/commit/971f91cf7e062211110c8652896c71e0ca586fcd))
+
+
+### PubSub
+
+* add pubsub-ali SMQ topic publisher and topic-delivery envelope unwrap ([#641](https://github.com/salesforce/multicloudj/issues/641)) ([8e3b73f](https://github.com/salesforce/multicloudj/commit/8e3b73fd5e085aa59dc1f7299b99a5be30048038))
+* complete batch futures when the handler throws an Error ([#653](https://github.com/salesforce/multicloudj/issues/653)) ([010b8bf](https://github.com/salesforce/multicloudj/commit/010b8bfb1cc120dc976c3b588d22801b62744993))
+
+## [0.4.7](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.6...multicloudj-v0.4.7) (2026-09-23)
+
+
+### Document Store
+
+* resolve AWS DynamoDB credentials via the default chain in benchmark harness ([#642](https://github.com/salesforce/multicloudj/issues/642)) ([75ecbf3](https://github.com/salesforce/multicloudj/commit/75ecbf3d606bcb780cd4ad1ca238f0805c52ab48))
+
+
+### PubSub
+
+* add pubsub-ali SMQ message metadata and configurable body base64 encoding ([#627](https://github.com/salesforce/multicloudj/issues/627)) ([845da0a](https://github.com/salesforce/multicloudj/commit/845da0aca3926c72a05c730b38327149f5ae4739))
+
+## [0.4.6](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.5...multicloudj-v0.4.6) (2026-09-11)
+
+
+### Blob Store
+
+* add atomic create-if-absent uploads ([#610](https://github.com/salesforce/multicloudj/issues/610)) ([5ef3d35](https://github.com/salesforce/multicloudj/commit/5ef3d3512a9da105f1e4e0ae48c6b83a40a837b3))
+
+
+### STS
+
+* add STS verifier for AWS, GCP, and Alibaba ([#613](https://github.com/salesforce/multicloudj/issues/613)) ([04158bb](https://github.com/salesforce/multicloudj/commit/04158bb5be64399cf0453f04e521f68b673e56aa))
+* cover AWS/Ali STS host regex accept and spoof-reject cases ([#622](https://github.com/salesforce/multicloudj/issues/622)) ([f5722c4](https://github.com/salesforce/multicloudj/commit/f5722c454a7a84dab4e55858eec6d71be8c8fb93))
+* pin STS verifier replay to trusted https endpoints ([#620](https://github.com/salesforce/multicloudj/issues/620)) ([06b33ab](https://github.com/salesforce/multicloudj/commit/06b33abae05e22b16ec76c606c04e50aa97d563d))
+
+
+### PubSub
+
+* add pubsub-ali module foundation for Alibaba SMQ ([#609](https://github.com/salesforce/multicloudj/issues/609)) ([46a628a](https://github.com/salesforce/multicloudj/commit/46a628af12e348fd670921bb0c8e4a6b6fcdc4ae))
+* implement pubsub-ali SMQ queue publish/subscribe ([#615](https://github.com/salesforce/multicloudj/issues/615)) ([1dde1e2](https://github.com/salesforce/multicloudj/commit/1dde1e2fea9dd7e9394a522621826d732631608e))
+
+## [0.4.5](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.4...multicloudj-v0.4.5) (2026-09-02)
+
+
+### Blob Store
+
+* add SSE-KMS support to directory upload ([#598](https://github.com/salesforce/multicloudj/issues/598)) ([9d152e2](https://github.com/salesforce/multicloudj/commit/9d152e2f288cc2a24446b3640cd4be31733e18d3))
+* wire SSE-KMS into Alibaba (OSS) async directory upload ([#603](https://github.com/salesforce/multicloudj/issues/603)) ([ef7366b](https://github.com/salesforce/multicloudj/commit/ef7366b71509f6924e1be07bcbcb6110eccf39db))
+
+
+### Document Store
+
+* fix - combination of Lists and Maps in the document getting intermingled in the firestore ([#596](https://github.com/salesforce/multicloudj/issues/596)) ([e4a677e](https://github.com/salesforce/multicloudj/commit/e4a677ed285c2d23326647a975e56d7f9a6984b9))
+* fix docstore-ali secondary-index GetRange query correctness and harden the query path ([#605](https://github.com/salesforce/multicloudj/issues/605)) ([7c53f93](https://github.com/salesforce/multicloudj/commit/7c53f9302eacc9547571fc49c786ee4c724a90e9))
+* harden Ali canonicalizer with exact-tag wire parser and shaded-free tests ([#601](https://github.com/salesforce/multicloudj/issues/601)) ([ea89f22](https://github.com/salesforce/multicloudj/commit/ea89f22c377366c0cd72c28ac10cd4329bc2b97d))
+* remove compile-time shaded protobuf dep from Ali canonicalizer ([#599](https://github.com/salesforce/multicloudj/issues/599)) ([46e448e](https://github.com/salesforce/multicloudj/commit/46e448e5246a6ad0654a9d3ce1c81941398cb22b))
+
+
+### STS
+
+* add JMH benchmark suite ([#588](https://github.com/salesforce/multicloudj/issues/588)) ([9771239](https://github.com/salesforce/multicloudj/commit/977123928ba694486e6c65fc925cb826ab628c41))
+
+
+### IAM
+
+* add JMH benchmark suite ([#589](https://github.com/salesforce/multicloudj/issues/589)) ([fccfb07](https://github.com/salesforce/multicloudj/commit/fccfb07720d7bd180d433f38b0bfcf6d5654b613))
+
+
+### DB Backup Restore
+
+* add JMH benchmark suite ([#591](https://github.com/salesforce/multicloudj/issues/591)) ([2ab9926](https://github.com/salesforce/multicloudj/commit/2ab992648aec508007edd5fac978634418856d70))
+
 ## [0.4.4](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.3...multicloudj-v0.4.4) (2026-08-01)
 
 

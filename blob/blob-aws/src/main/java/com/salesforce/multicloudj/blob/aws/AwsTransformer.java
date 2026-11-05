@@ -34,18 +34,20 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
-import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -54,18 +56,18 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.awscore.presigner.PresignedRequest;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.http.ContentStreamProvider;
-import software.amazon.awssdk.retries.StandardRetryStrategy;
-import software.amazon.awssdk.retries.api.BackoffStrategy;
-import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
 import software.amazon.awssdk.services.s3.model.ChecksumMode;
@@ -80,6 +82,7 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.GetBucketVersioningRequest;
 import software.amazon.awssdk.services.s3.model.GetBucketVersioningResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldRequest;
@@ -105,6 +108,8 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRetentionRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
+import software.amazon.awssdk.services.s3.model.S3Error;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.services.s3.model.StorageClass;
@@ -139,6 +144,20 @@ public class AwsTransformer {
    * surfacing as {@code x-amz-meta-sdk-logging-tenant-id} in S3.
    */
   public static final String TENANT_ID_METADATA_KEY = SdkLoggingMetadataKeys.TENANT_ID;
+
+  /**
+   * Per-object error codes of a multi-object delete that mean the key or version is already gone.
+   */
+  private static final Set<String> ALREADY_ABSENT_DELETE_ERROR_CODES =
+      Set.of("NoSuchKey", "NoSuchVersion");
+
+  /**
+   * Per-object error codes of a multi-object delete that S3 documents as transient. They are
+   * reported as retryable even when the error code mapping classifies them as a type that is not
+   * retryable by default, or does not classify them at all.
+   */
+  private static final Set<String> TRANSIENT_DELETE_ERROR_CODES =
+      Set.of("InternalError", "SlowDown", "ServiceUnavailable");
 
   /** Default MIME type used for the request body when the caller does not provide one. */
   private static final String OCTET_STREAM_MIME = "application/octet-stream";
@@ -209,11 +228,12 @@ public class AwsTransformer {
     return builder.build();
   }
 
-  public AsyncRequestBody toAsyncRequestBody(UploadRequest uploadRequest, InputStream inputStream) {
+  /** {@code executor} runs the blocking stream reads; the caller owns its lifecycle. */
+  public AsyncRequestBody toAsyncRequestBody(
+      UploadRequest uploadRequest, InputStream inputStream, ExecutorService executor) {
     Long contentLength =
         uploadRequest.getContentLength() > 0 ? uploadRequest.getContentLength() : null;
-    return AsyncRequestBody.fromInputStream(
-        inputStream, contentLength, Executors.newSingleThreadExecutor());
+    return AsyncRequestBody.fromInputStream(inputStream, contentLength, executor);
   }
 
   /**
@@ -234,15 +254,17 @@ public class AwsTransformer {
    * Returns a mutable copy of {@code appMetadata} with the SDK's correlation id, service id and
    * tenant id stamped from {@code ctx}. Each key is skipped when {@code ctx} is null, when that
    * context value is blank, or when the app has already supplied the same key — the caller's
-   * metadata always wins.
+   * metadata always wins. The correlation id is stamped under the caller-customizable key resolved
+   * from {@code ctx}; the service id and tenant id keys are fixed.
    */
   private Map<String, String> stampContextMetadata(
       Map<String, String> appMetadata, OperationContext ctx) {
     Map<String, String> metadata = new HashMap<>(appMetadata);
     if (ctx != null) {
+      String correlationIdKey = ctx.getEffectiveCorrelationIdMetadataKey();
       if (StringUtils.isNotBlank(ctx.getCorrelationId())
-          && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-        metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
+          && !metadata.containsKey(correlationIdKey)) {
+        metadata.put(correlationIdKey, ctx.getCorrelationId());
       }
       if (StringUtils.isNotBlank(ctx.getServiceId())
           && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {
@@ -257,11 +279,6 @@ public class AwsTransformer {
   }
 
   public PutObjectRequest toRequest(UploadRequest request) {
-    List<Tag> tags =
-        request.getTags().entrySet().stream()
-            .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
-            .collect(Collectors.toList());
-
     // Copy the application-supplied metadata and stamp the SDK's correlation id, service id and
     // tenant id onto the stored object so they persist in S3 alongside the user's metadata and can
     // be traced from the object's S3 access/audit logs. Each key is skipped when the request
@@ -274,8 +291,22 @@ public class AwsTransformer {
         PutObjectRequest.builder()
             .bucket(getBucket())
             .key(request.getKey())
-            .metadata(metadata)
-            .tagging(Tagging.builder().tagSet(tags).build());
+            .metadata(metadata);
+
+    // Only set tagging when tags are present. An empty Tagging still emits an x-amz-tagging
+    // header, which the presigner then signs; clients uploading through the presigned URL do not
+    // send that header, so S3-compatible stores reject the PUT with HTTP 400.
+    if (request.getTags() != null && !request.getTags().isEmpty()) {
+      List<Tag> tags =
+          request.getTags().entrySet().stream()
+              .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
+              .collect(Collectors.toList());
+      builder.tagging(Tagging.builder().tagSet(tags).build());
+    }
+
+    if (request.isCreateIfAbsent()) {
+      builder.ifNoneMatch("*");
+    }
 
     if (StringUtils.isNotEmpty(request.getKmsKeyId())) {
       builder.serverSideEncryption(ServerSideEncryption.AWS_KMS).ssekmsKeyId(request.getKmsKeyId());
@@ -532,6 +563,58 @@ public class AwsTransformer {
         .bucket(getBucket())
         .delete(Delete.builder().objects(objectIds).build())
         .build();
+  }
+
+  /**
+   * Extracts the per-object failures of a multi-object delete. S3 reports a missing key or version
+   * as a per-object error even though the object is already gone, so those are not failures. Each
+   * failure carries an exception classified from the error code; an error whose code is missing or
+   * unmapped is a plain, non-retryable {@link SubstrateSdkException}.
+   *
+   * @throws IllegalStateException if an error names no key, because the failed object cannot be
+   *     identified and must not be dropped silently
+   */
+  public List<ItemFailure> toBatchDeleteFailures(DeleteObjectsResponse response) {
+    List<ItemFailure> failures = new ArrayList<>();
+    for (S3Error error : response.errors()) {
+      String code = error.code();
+      if (code != null && ALREADY_ABSENT_DELETE_ERROR_CODES.contains(code)) {
+        continue;
+      }
+      if (error.key() == null) {
+        throw new IllegalStateException(
+            "Multi-object delete reported an error without a key: code="
+                + code
+                + ", message="
+                + error.message());
+      }
+      Map<String, String> attributes =
+          error.versionId() == null
+              ? null
+              : Map.of(BlobIdentifier.VERSION_ID_ATTRIBUTE, error.versionId());
+      failures.add(new ItemFailure(error.key(), toBatchDeleteItemException(error), attributes));
+    }
+    return failures;
+  }
+
+  private static SubstrateSdkException toBatchDeleteItemException(S3Error error) {
+    String code = error.code();
+    AwsServiceException cause =
+        S3Exception.builder()
+            .message(error.message())
+            .awsErrorDetails(
+                AwsErrorDetails.builder()
+                    .errorCode(code)
+                    .errorMessage(error.message())
+                    .build())
+            .build();
+    boolean transientCode = code != null && TRANSIENT_DELETE_ERROR_CODES.contains(code);
+    Class<? extends SubstrateSdkException> mapped = ErrorCodeMapping.findException(code);
+    if (mapped == null && !transientCode) {
+      return new SubstrateSdkException(error.message(), cause);
+    }
+    return ExceptionHandler.build(
+        mapped != null ? mapped : UnknownException.class, cause, transientCode ? true : null);
   }
 
   public CopyObjectRequest toRequest(CopyRequest request) {
@@ -922,11 +1005,14 @@ public class AwsTransformer {
 
     boolean hasTags = request.getTags() != null && !request.getTags().isEmpty();
     boolean hasObjectLock = request.getObjectLock() != null;
+    boolean hasKmsKeyId = StringUtils.isNotEmpty(request.getKmsKeyId());
+    boolean useKmsManagedKey = request.isUseKmsManagedKey();
+    boolean hasKms = hasKmsKeyId || useKmsManagedKey;
     boolean transferStatusLoggingEnabled =
         request.isTransferStatusLoggingEnabled() && totalBytesTransferred != null;
     boolean countRequested = totalBytesRequested != null;
 
-    if (!hasTags && !hasObjectLock && !transferStatusLoggingEnabled && !countRequested) {
+    if (!hasTags && !hasObjectLock && !hasKms && !transferStatusLoggingEnabled && !countRequested) {
       return builder.build();
     }
 
@@ -937,11 +1023,12 @@ public class AwsTransformer {
               .collect(Collectors.toList())
             : null;
     ObjectLockConfiguration lockConfig = request.getObjectLock();
+    String kmsKeyId = request.getKmsKeyId();
     S3LoggingTransferListener transferListener =
         transferStatusLoggingEnabled
             ? S3LoggingTransferListener.create(totalBytesTransferred)
             : null;
-    // Merge tags / object lock into the existing PutObjectRequest per file;
+    // Merge tags / object lock / SSE-KMS into the existing PutObjectRequest per file;
     // putObjectRequest(Consumer) would replace it and drop bucket/key.
     // S3 Transfer Manager doesn't expose a directory-listing filter for uploads, so this
     // per-file hook is also where we stat each source's planned size into
@@ -950,7 +1037,7 @@ public class AwsTransformer {
     // over-count; the same trade-off applies as the download filter above.
     builder.uploadFileRequestTransformer(
         fileRequestBuilder -> {
-          if (hasTags || hasObjectLock) {
+          if (hasTags || hasObjectLock || hasKms) {
             PutObjectRequest existing = fileRequestBuilder.build().putObjectRequest();
             PutObjectRequest.Builder putBuilder = existing.toBuilder();
             if (hasTags) {
@@ -958,6 +1045,13 @@ public class AwsTransformer {
             }
             if (hasObjectLock) {
               applyObjectLockToPutObjectBuilder(putBuilder, lockConfig);
+            }
+            if (hasKmsKeyId) {
+              putBuilder
+                  .serverSideEncryption(ServerSideEncryption.AWS_KMS)
+                  .ssekmsKeyId(kmsKeyId);
+            } else if (useKmsManagedKey) {
+              putBuilder.serverSideEncryption(ServerSideEncryption.AWS_KMS);
             }
             fileRequestBuilder.putObjectRequest(putBuilder.build());
           }
@@ -1081,64 +1175,6 @@ public class AwsTransformer {
       checksumValue = response.checksumCRC32C();
     }
     return new MultipartUploadResponse(response.eTag(), checksumValue);
-  }
-
-  /**
-   * Converts MultiCloudJ RetryConfig to AWS SDK RetryStrategy
-   *
-   * @param retryConfig The retry configuration to convert
-   * @return AWS SDK RetryStrategy
-   * @throws InvalidArgumentException if retryConfig is null or has invalid values
-   */
-  public RetryStrategy toAwsRetryStrategy(RetryConfig retryConfig) {
-    if (retryConfig == null) {
-      throw new InvalidArgumentException("RetryConfig cannot be null");
-    }
-    if (retryConfig.getMaxAttempts() != null && retryConfig.getMaxAttempts() <= 0) {
-      throw new InvalidArgumentException(
-          "RetryConfig.maxAttempts must be greater than 0, got: " + retryConfig.getMaxAttempts());
-    }
-
-    StandardRetryStrategy.Builder strategyBuilder = StandardRetryStrategy.builder();
-
-    // Only set maxAttempts if provided, otherwise use AWS SDK default
-    if (retryConfig.getMaxAttempts() != null) {
-      strategyBuilder.maxAttempts(retryConfig.getMaxAttempts());
-    }
-
-    // If mode is not set, use AWS SDK's default backoff strategy
-    if (retryConfig.getMode() == null) {
-      return strategyBuilder.build();
-    }
-
-    // Configure backoff strategy based on mode
-    if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
-      if (retryConfig.getInitialDelayMillis() <= 0) {
-        throw new InvalidArgumentException(
-            "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
-                + retryConfig.getInitialDelayMillis());
-      }
-      if (retryConfig.getMaxDelayMillis() <= 0) {
-        throw new InvalidArgumentException(
-            "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
-                + retryConfig.getMaxDelayMillis());
-      }
-      strategyBuilder.backoffStrategy(
-          BackoffStrategy.exponentialDelay(
-              Duration.ofMillis(retryConfig.getInitialDelayMillis()),
-              Duration.ofMillis(retryConfig.getMaxDelayMillis())));
-      return strategyBuilder.build();
-    }
-
-    // FIXED mode
-    if (retryConfig.getFixedDelayMillis() <= 0) {
-      throw new InvalidArgumentException(
-          "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: "
-              + retryConfig.getFixedDelayMillis());
-    }
-    strategyBuilder.backoffStrategy(
-        BackoffStrategy.fixedDelay(Duration.ofMillis(retryConfig.getFixedDelayMillis())));
-    return strategyBuilder.build();
   }
 
   /**

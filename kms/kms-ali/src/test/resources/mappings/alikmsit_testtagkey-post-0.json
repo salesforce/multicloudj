@@ -1,0 +1,37 @@
+{
+  "id" : "0353c2bc-d61c-4742-a6ea-824e003837cb",
+  "name" : "AliKmsIT_testTagKey-POST-0",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "ScheduleKeyDeletion"
+      }
+    },
+    "queryParameters" : {
+      "PendingWindowInDays" : {
+        "hasExactly" : [ {
+          "equalTo" : "7"
+        } ]
+      },
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae51dce9kvhf4ownh"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"RequestId\": \"faee7920-ccb3-4575-824a-3005c3293322\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 22:44:34 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "0353c2bc-d61c-4742-a6ea-824e003837cb",
+  "persistent" : true,
+  "insertionIndex" : 127
+}

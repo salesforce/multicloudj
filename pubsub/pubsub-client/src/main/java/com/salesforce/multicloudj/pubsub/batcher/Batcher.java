@@ -254,6 +254,17 @@ public class Batcher<T> {
     return batch.isEmpty() ? null : batch;
   }
 
+  /** Completes every future in the batch: exceptionally if the handler failed, else normally. */
+  private void completeBatch(List<Item<T>> batch, Throwable processingError) {
+    for (Item<T> item : batch) {
+      if (processingError != null) {
+        item.future.completeExceptionally(processingError);
+      } else {
+        item.future.complete(null);
+      }
+    }
+  }
+
   /** Processes batches in a handler thread */
   private void processHandler(List<Item<T>> initialBatch) {
     List<Item<T>> batch = initialBatch;
@@ -266,22 +277,16 @@ public class Batcher<T> {
           items.add(item.batchItem);
         }
 
-        // Process the batch
-        RuntimeException processingError = null;
+        // Catch Throwable so a handler Error (e.g. NoClassDefFoundError) still
+        // completes the item futures; otherwise callers block forever.
+        Throwable processingError = null;
         try {
           handler.apply(items);
-        } catch (RuntimeException e) {
+        } catch (Throwable e) {
           processingError = e;
         }
 
-        // Complete all futures in the batch
-        for (Item<T> item : batch) {
-          if (processingError != null) {
-            item.future.completeExceptionally(processingError);
-          } else {
-            item.future.complete(null);
-          }
-        }
+        completeBatch(batch, processingError);
 
         // Check for more work
         lock.lock();
@@ -294,10 +299,10 @@ public class Batcher<T> {
           lock.unlock();
         }
       }
-    } catch (RuntimeException e) {
+    } catch (Throwable e) {
       lock.lock();
       try {
-        // When a handler thread fails with an unexpected exception,
+        // When a handler thread fails with an unexpected throwable,
         // fail all pending items and exit.
         for (Item<T> item : pending) {
           item.future.completeExceptionally(e);

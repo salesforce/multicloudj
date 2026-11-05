@@ -1,5 +1,5 @@
 {
-  "id" : "cb6cedba-25ef-450f-be90-70e1cc006117",
+  "id" : "aabe3871-4b55-4cfe-9b71-c1f8a8113c9d",
   "name" : "AwsDocstoreIT_testPut-POST-22",
   "request" : {
     "url" : "/",
@@ -17,16 +17,16 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\"Table\":{\"AttributeDefinitions\":[{\"AttributeName\":\"pName\",\"AttributeType\":\"S\"}],\"CreationDateTime\":1.739250359602E9,\"DeletionProtectionEnabled\":false,\"ItemCount\":5,\"KeySchema\":[{\"AttributeName\":\"pName\",\"KeyType\":\"HASH\"}],\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5},\"TableArn\":\"arn:aws:dynamodb:us-west-2:654654370895:table/docstore-test-1\",\"TableId\":\"a64f5fc6-5267-4059-b0bf-e10cc9fcf628\",\"TableName\":\"docstore-test-1\",\"TableSizeBytes\":543,\"TableStatus\":\"ACTIVE\",\"WarmThroughput\":{\"ReadUnitsPerSecond\":5,\"Status\":\"ACTIVE\",\"WriteUnitsPerSecond\":5}}}",
+    "body" : "{\"Table\":{\"AttributeDefinitions\":[{\"AttributeName\":\"pName\",\"AttributeType\":\"S\"}],\"CreationDateTime\":1.739250359602E9,\"DeletionProtectionEnabled\":false,\"ItemCount\":0,\"KeySchema\":[{\"AttributeName\":\"pName\",\"KeyType\":\"HASH\"}],\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5},\"TableArn\":\"arn:aws:dynamodb:us-west-2:654654370895:table/docstore-test-1\",\"TableId\":\"a64f5fc6-5267-4059-b0bf-e10cc9fcf628\",\"TableName\":\"docstore-test-1\",\"TableSizeBytes\":0,\"TableStatus\":\"ACTIVE\",\"WarmThroughput\":{\"ReadUnitsPerSecond\":5,\"Status\":\"ACTIVE\",\"WriteUnitsPerSecond\":5}}}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "GT2C5OG1F5IOJM2CHTJHHFVP47VV4KQNSO5AEMVJF66Q9ASUAAJG",
-      "x-amz-crc32" : "2227032207",
-      "Date" : "Wed, 22 Apr 2026 22:57:57 GMT",
+      "x-amzn-RequestId" : "3UJ3FN3PLJF6I2AV899436JUOFVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "1512694266",
+      "Date" : "Fri, 23 Oct 2026 23:18:21 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "cb6cedba-25ef-450f-be90-70e1cc006117",
+  "uuid" : "aabe3871-4b55-4cfe-9b71-c1f8a8113c9d",
   "persistent" : true,
-  "insertionIndex" : 266
+  "insertionIndex" : 289
 }

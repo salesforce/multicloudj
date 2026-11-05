@@ -88,6 +88,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -747,6 +748,44 @@ public class AliAsyncBlobStoreTest {
   }
 
   @Test
+  void testInitiateMultipartUpload_withOperationContext_stampsMetadata() throws Exception {
+    InitiateMultipartUpload upload = mock(InitiateMultipartUpload.class);
+    when(upload.bucket()).thenReturn(BUCKET);
+    when(upload.key()).thenReturn("mpu-key");
+    when(upload.uploadId()).thenReturn("upload-id-123");
+    InitiateMultipartUploadResult mockResult = mock(InitiateMultipartUploadResult.class);
+    when(mockResult.initiateMultipartUpload()).thenReturn(upload);
+    when(mockAsyncClient.initiateMultipartUploadAsync(
+        any(InitiateMultipartUploadRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+    OperationContext ctx = OperationContext.builder()
+        .serviceId("svc-1")
+        .tenantId("tenant-1")
+        .correlationId("corr-1")
+        .build();
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("mpu-key")
+        .withMetadata(Map.of("key-1", "value-1"))
+        .withOperationContext(ctx)
+        .build();
+
+    MultipartUpload mpu = store.initiateMultipartUpload(request).get();
+
+    ArgumentCaptor<InitiateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(InitiateMultipartUploadRequest.class);
+    verify(mockAsyncClient).initiateMultipartUploadAsync(
+        captor.capture(), any(OperationOptions.class));
+    Map<String, String> expected = Map.of(
+        "key-1", "value-1",
+        "sdk-logging-service-id", "svc-1",
+        "sdk-logging-tenant-id", "tenant-1",
+        "sdk-logging-correlation-id", "corr-1");
+    assertEquals(expected, captor.getValue().metadata());
+    assertEquals(expected, mpu.getMetadata());
+  }
+
+  @Test
   void testUploadMultipartPart() throws Exception {
     UploadPartResult mockResult = mock(UploadPartResult.class);
     when(mockResult.eTag()).thenReturn("\"part-etag-1\"");
@@ -1143,6 +1182,153 @@ public class AliAsyncBlobStoreTest {
     assertNotNull(response);
     assertNotNull(response.getFailedTransfers());
     assertEquals(0, response.getFailedTransfers().size());
+  }
+
+  @Test
+  void testUploadDirectoryPropagatesExplicitKmsKeyId(@TempDir Path tempDir) throws Exception {
+    // One top-level file and one nested under a subdirectory so includeSubFolders(true) is
+    // genuinely exercised — this also pins the per-file key/prefix computation for nested paths.
+    Files.writeString(tempDir.resolve("file1.txt"), "content1");
+    Files.createDirectories(tempDir.resolve("subdir"));
+    Files.writeString(tempDir.resolve("subdir").resolve("file2.txt"), "content2");
+
+    PutObjectResult mockResult = mock(PutObjectResult.class);
+    when(mockResult.versionId()).thenReturn(null);
+    when(mockResult.eTag()).thenReturn("\"etag\"");
+    when(mockAsyncClient.putObjectAsync(
+        any(PutObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    String kmsKeyId = "acs:kms:cn-shanghai:1099202394511537:key/test-key";
+    DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("kms-prefix")
+        .includeSubFolders(true)
+        .kmsKeyId(kmsKeyId)
+        .build();
+    store.uploadDirectory(request).get();
+
+    // Every per-file PutObjectRequest (top-level and nested) must carry SSE-KMS with the explicit
+    // key id, and the object keys must preserve the prefix + relative (sub)path.
+    ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
+    verify(mockAsyncClient, times(2))
+        .putObjectAsync(captor.capture(), any(OperationOptions.class));
+    List<String> keys = new ArrayList<>();
+    for (PutObjectRequest req : captor.getAllValues()) {
+      assertEquals("KMS", req.serverSideEncryption(),
+          "each per-file upload must set SSE-KMS");
+      assertEquals(kmsKeyId, req.serverSideEncryptionKeyId(),
+          "each per-file upload must carry the explicit KMS key id");
+      keys.add(req.key());
+    }
+    assertTrue(keys.contains("kms-prefix/file1.txt"),
+        "top-level file key must be prefix + name; got " + keys);
+    assertTrue(keys.contains("kms-prefix/subdir/file2.txt"),
+        "nested file key must preserve the subdirectory path; got " + keys);
+  }
+
+  @Test
+  void testUploadDirectoryPropagatesUseKmsManagedKey(@TempDir Path tempDir) throws Exception {
+    Files.writeString(tempDir.resolve("file1.txt"), "content1");
+    Files.createDirectories(tempDir.resolve("subdir"));
+    Files.writeString(tempDir.resolve("subdir").resolve("file2.txt"), "content2");
+
+    PutObjectResult mockResult = mock(PutObjectResult.class);
+    when(mockResult.versionId()).thenReturn(null);
+    when(mockResult.eTag()).thenReturn("\"etag\"");
+    when(mockAsyncClient.putObjectAsync(
+        any(PutObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("kms-managed-prefix")
+        .includeSubFolders(true)
+        .useKmsManagedKey(true)
+        .build();
+    store.uploadDirectory(request).get();
+
+    // useKmsManagedKey with no explicit key -> SSE-KMS header, but no key id (managed CMK).
+    ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
+    verify(mockAsyncClient, times(2))
+        .putObjectAsync(captor.capture(), any(OperationOptions.class));
+    for (PutObjectRequest req : captor.getAllValues()) {
+      assertEquals("KMS", req.serverSideEncryption(),
+          "useKmsManagedKey must set SSE-KMS");
+      assertNull(req.serverSideEncryptionKeyId(),
+          "managed-key upload must not carry an explicit key id");
+    }
+  }
+
+  @Test
+  void testUploadDirectoryExplicitKmsKeyWinsOverManagedKey(@TempDir Path tempDir) throws Exception {
+    // Both kmsKeyId AND useKmsManagedKey(true) are set. The explicit key must win: every per-file
+    // upload must carry SSE-KMS with the explicit key id (not a managed CMK). This pins the
+    // precedence at the directory-request propagation level — a regression that dropped kmsKeyId
+    // when the managed flag is set would silently lose the caller's key, and is caught by neither
+    // the mutually-exclusive cases above nor the transformer test.
+    Files.writeString(tempDir.resolve("file1.txt"), "content1");
+    Files.createDirectories(tempDir.resolve("subdir"));
+    Files.writeString(tempDir.resolve("subdir").resolve("file2.txt"), "content2");
+
+    PutObjectResult mockResult = mock(PutObjectResult.class);
+    when(mockResult.versionId()).thenReturn(null);
+    when(mockResult.eTag()).thenReturn("\"etag\"");
+    when(mockAsyncClient.putObjectAsync(
+        any(PutObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    String kmsKeyId = "acs:kms:cn-shanghai:1099202394511537:key/test-key";
+    DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("kms-both-prefix")
+        .includeSubFolders(true)
+        .kmsKeyId(kmsKeyId)
+        .useKmsManagedKey(true)
+        .build();
+    store.uploadDirectory(request).get();
+
+    ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
+    verify(mockAsyncClient, times(2))
+        .putObjectAsync(captor.capture(), any(OperationOptions.class));
+    for (PutObjectRequest req : captor.getAllValues()) {
+      assertEquals("KMS", req.serverSideEncryption(),
+          "SSE-KMS must be set when both KMS options are provided");
+      assertEquals(kmsKeyId, req.serverSideEncryptionKeyId(),
+          "explicit kmsKeyId must win over useKmsManagedKey");
+    }
+  }
+
+  @Test
+  void testUploadDirectoryWithoutKmsLeavesEncryptionUnset(@TempDir Path tempDir) throws Exception {
+    Files.writeString(tempDir.resolve("file1.txt"), "content1");
+    Files.createDirectories(tempDir.resolve("subdir"));
+    Files.writeString(tempDir.resolve("subdir").resolve("file2.txt"), "content2");
+
+    PutObjectResult mockResult = mock(PutObjectResult.class);
+    when(mockResult.versionId()).thenReturn(null);
+    when(mockResult.eTag()).thenReturn("\"etag\"");
+    when(mockAsyncClient.putObjectAsync(
+        any(PutObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("no-kms-prefix")
+        .includeSubFolders(true)
+        .build();
+    store.uploadDirectory(request).get();
+
+    // Neither kmsKeyId nor useKmsManagedKey -> no SSE-KMS header on any per-file upload.
+    ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
+    verify(mockAsyncClient, times(2))
+        .putObjectAsync(captor.capture(), any(OperationOptions.class));
+    for (PutObjectRequest req : captor.getAllValues()) {
+      assertNull(req.serverSideEncryption(),
+          "no KMS requested -> SSE must be left unset");
+      assertNull(req.serverSideEncryptionKeyId(),
+          "no KMS requested -> key id must be left unset");
+    }
   }
 
   @Test

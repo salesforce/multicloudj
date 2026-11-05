@@ -1,0 +1,47 @@
+{
+  "id" : "412696dc-3838-4ddc-aa5c-6afa7c12480d",
+  "name" : "AliBlobStoreIT_testInitiateMultipartUpload_withServiceAndTenantId_stampsObjectMetadata-POST-2",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart/observabilityMetadata",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "7FFCD4A2FE9B4E2D92F95E0E4C96D0AA"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>2B5C91AD399409EC9B409B66F5BB00FB</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CompleteMultipartUploadResult>\n  <EncodingType>url</EncodingType>\n  <Location>https://chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com/conformance-tests/multipart/observabilityMetadata</Location>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests%2Fmultipart%2FobservabilityMetadata</Key>\n  <ETag>\"E00BEA22A07DB22215B2A4D889CB4C8A-1\"</ETag>\n</CompleteMultipartUploadResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6AD7D1B326AA8C3535C8E3BB",
+      "x-oss-server-time" : "60",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "14920568100270865136",
+      "ETag" : "\"E00BEA22A07DB22215B2A4D889CB4C8A-1\"",
+      "Date" : "Tue, 20 Oct 2026 20:40:19 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "412696dc-3838-4ddc-aa5c-6afa7c12480d",
+  "persistent" : true,
+  "insertionIndex" : 788
+}

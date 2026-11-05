@@ -1,5 +1,5 @@
 {
-  "id" : "ecba4eff-3eda-4479-8233-e25bddda02e1",
+  "id" : "fbef4221-3455-4843-88d2-a36fa6568320",
   "name" : "AwsDocstoreIT_testPut-POST-16",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"DavidMap\"}}}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"PumaMap\"}}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "FO405RAQKK0H1I54SBOJEG9SMRVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "8K9ET3A6K137J431R0OGE4IQORVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 22 Apr 2026 22:57:57 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:22 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "ecba4eff-3eda-4479-8233-e25bddda02e1",
+  "uuid" : "fbef4221-3455-4843-88d2-a36fa6568320",
   "persistent" : true,
-  "insertionIndex" : 260
+  "insertionIndex" : 283
 }

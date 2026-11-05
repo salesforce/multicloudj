@@ -1,5 +1,5 @@
 {
-  "id" : "f2c4adcd-ae36-40fb-86d8-f8b83fd83bb7",
+  "id" : "cda6071a-8ce4-46f0-9c7a-cc903adbf22d",
   "name" : "AwsDocstoreIT_testPut-POST-15",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"SharkMap\"}},\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"98cf5a0c-d567-51a1-e95a-c678666fe6f5\"}}}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"PrincePlayer\"}}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "DUVM9GU07OUHL970ILC3O7MMP7VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "9U9BO5E2AIMM96SKJ28A9V9AIRVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 22 Apr 2026 22:57:57 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:22 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "f2c4adcd-ae36-40fb-86d8-f8b83fd83bb7",
+  "uuid" : "cda6071a-8ce4-46f0-9c7a-cc903adbf22d",
   "persistent" : true,
-  "insertionIndex" : 259
+  "insertionIndex" : 282
 }

@@ -1,0 +1,37 @@
+{
+  "id" : "7df6ac9e-04e7-42a6-9095-5ecb7e5a8b9f",
+  "name" : "AliKmsIT_testSetAndGetKeyPolicy-POST-5",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "CreateAlias"
+      }
+    },
+    "queryParameters" : {
+      "AliasName" : {
+        "hasExactly" : [ {
+          "equalTo" : "alias/multicloudj-15-policy"
+        } ]
+      },
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae51da1sszahe05dh"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"RequestId\": \"65b6e894-becf-40a4-9de6-2182f7ef95ff\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 22:43:46 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "7df6ac9e-04e7-42a6-9095-5ecb7e5a8b9f",
+  "persistent" : true,
+  "insertionIndex" : 69
+}

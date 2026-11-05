@@ -30,10 +30,13 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
+import com.salesforce.multicloudj.common.aws.AwsRetryStrategies;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import java.io.File;
@@ -41,7 +44,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
@@ -329,7 +331,12 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
    */
   @Override
   protected void doDelete(Collection<BlobIdentifier> objects) {
-    s3Client.deleteObjects(transformer.toDeleteRequests(objects));
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(
+            s3Client.deleteObjects(transformer.toDeleteRequests(objects)));
+    if (!failures.isEmpty()) {
+      throw new BatchOperationException(failures);
+    }
   }
 
   /**
@@ -408,11 +415,13 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
   /**
    * Lists versions for a single key using S3's paginated {@code ListObjectVersions} API.
    *
-   * <p>This implementation is streaming/lazy: it walks paginator pages on demand and does not
-   * materialize all pages up front. Only versions for the requested key are returned.
+   * <p>Only entries for the requested key are returned. When {@code includeArchived} is set on the
+   * request, delete-marker entries are merged with content versions on a single timeline; otherwise
+   * only content versions are returned.
    */
   protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
-    return new BlobMetadataIterator(s3Client, getBucket(), request.getKey());
+    return new BlobMetadataIterator(
+        s3Client, getBucket(), request.getKey(), request.isIncludeArchived());
   }
 
   /**
@@ -538,12 +547,15 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
    * @return Returns an S3Presigner for the current credentials
    */
   protected S3Presigner getPresigner() {
-    return S3Presigner.builder()
+    S3Presigner.Builder builder = S3Presigner.builder()
         .credentialsProvider(s3Client.serviceClientConfiguration().credentialsProvider())
         .region(Region.of(getRegion()))
         .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
-        .s3Client(s3Client)
-        .build();
+        .s3Client(s3Client);
+    // The presigner does not inherit the client's endpoint; without this, URLs for custom
+    // endpoints are signed against s3.amazonaws.com.
+    s3Client.serviceClientConfiguration().endpointOverride().ifPresent(builder::endpointOverride);
+    return builder.build();
   }
 
   /**
@@ -757,21 +769,8 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
         b.httpClient(generateHttpClient(builder));
       }
       if (builder.getRetryConfig() != null) {
-        // Create a temporary transformer instance for retry strategy conversion
-        AwsTransformer transformer = builder.getTransformerSupplier().get(builder.getBucket());
         b.overrideConfiguration(
-            config -> {
-              config.retryStrategy(transformer.toAwsRetryStrategy(builder.getRetryConfig()));
-              // Set API call timeouts if provided
-              if (builder.getRetryConfig().getAttemptTimeout() != null) {
-                config.apiCallAttemptTimeout(
-                    Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout()));
-              }
-              if (builder.getRetryConfig().getTotalTimeout() != null) {
-                config.apiCallTimeout(
-                    Duration.ofMillis(builder.getRetryConfig().getTotalTimeout()));
-              }
-            });
+            config -> AwsRetryStrategies.applyRetryConfig(config, builder.getRetryConfig()));
       }
 
       return b.build();

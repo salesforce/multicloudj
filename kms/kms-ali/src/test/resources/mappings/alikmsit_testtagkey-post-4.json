@@ -1,0 +1,37 @@
+{
+  "id" : "b824d853-4677-4d17-8367-7d6bab4d53ce",
+  "name" : "AliKmsIT_testTagKey-POST-4",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "CreateAlias"
+      }
+    },
+    "queryParameters" : {
+      "AliasName" : {
+        "hasExactly" : [ {
+          "equalTo" : "alias/multicloudj-15-tag"
+        } ]
+      },
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae51dce9kvhf4ownh"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"RequestId\": \"dcd42e80-378d-45ac-8b66-4b37c9390ad5\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 22:44:31 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "b824d853-4677-4d17-8367-7d6bab4d53ce",
+  "persistent" : true,
+  "insertionIndex" : 131
+}

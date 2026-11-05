@@ -1,0 +1,62 @@
+{
+  "id" : "0bc68ae8-91c3-45e5-b6c3-38f8ac7521be",
+  "name" : "GcpKmsIT_testCreateKeyWithPolicy-GET-1",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-create-policy-r2/cryptoKeyVersions",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "6"
+      }
+    },
+    "queryParameters" : {
+      "filter" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "view" : {
+        "hasExactly" : [ {
+          "equalTo" : "0"
+        } ]
+      },
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      },
+      "orderBy" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "pageSize" : {
+        "hasExactly" : [ {
+          "equalTo" : "0"
+        } ]
+      },
+      "pageToken" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"cryptoKeyVersions\": [\n    {\n      \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-create-policy-r2/cryptoKeyVersions/1\",\n      \"state\": 1,\n      \"createTime\": \"2026-10-26T21:15:48.531259269Z\",\n      \"protectionLevel\": 1,\n      \"algorithm\": 1,\n      \"generateTime\": \"2026-10-26T21:15:48.531259269Z\"\n    }\n  ],\n  \"totalSize\": 1\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Mon, 26 Oct 2026 21:15:51 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "0bc68ae8-91c3-45e5-b6c3-38f8ac7521be",
+  "persistent" : true,
+  "insertionIndex" : 52
+}

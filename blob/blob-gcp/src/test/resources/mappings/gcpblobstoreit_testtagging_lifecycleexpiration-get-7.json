@@ -1,0 +1,42 @@
+{
+  "id" : "c74482b4-308b-40b8-b8d0-3fb8918c268e",
+  "name" : "GcpBlobStoreIT_testTagging_lifecycleExpiration-GET-7",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-lifecycle-expiration",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-lifecycle-expiration/1789437491486868\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-lifecycle-expiration\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-lifecycle-expiration?generation=1789437491486868&alt=media\",\n  \"name\": \"conformance-tests/blob-for-lifecycle-expiration\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1789437491486868\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"30\",\n  \"md5Hash\": \"VPzU2wcWUmiVgz0NONvvJA==\",\n  \"crc32c\": \"83HVUw==\",\n  \"etag\": \"CJTBnJC+75YDEAE=\",\n  \"timeCreated\": \"2026-09-15T01:58:11.533Z\",\n  \"updated\": \"2026-09-15T01:58:11.533Z\",\n  \"timeStorageClassUpdated\": \"2026-09-15T01:58:11.533Z\",\n  \"timeFinalized\": \"2026-09-15T01:58:11.533Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CJTBnJC+75YDEAE=",
+      "X-GUploader-UploadID" : "AJjja9a8argIAaTtqOMRstjbXCBfdRQRzI2XmKf-8ddXVWfA3og8u8lnttpVkG3aFNgu_T3hB_vdew",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Tue, 15 Sep 2026 01:58:11 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a0a2c93a51",
+      "Date" : "Tue, 15 Sep 2026 01:58:11 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "c74482b4-308b-40b8-b8d0-3fb8918c268e",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-lifecycle-expiration",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-lifecycle-expiration-2",
+  "insertionIndex" : 1519
+}

@@ -1,5 +1,5 @@
 {
-  "id" : "a3559f8f-7358-467f-974e-e5ee219b7e09",
+  "id" : "eaa9d58b-e79f-467e-b8ad-11d8bd043355",
   "name" : "AwsDocstoreIT_testDelete-POST-0",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"pName\":{\"S\":\"ClarkMapDelete\"},\"f\":{\"N\":\"12.65999984741211\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"i\":{\"N\":\"121\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"pName\":{\"S\":\"ClarkMapDelete\"},\"f\":{\"N\":\"12.65999984741211\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"i\":{\"N\":\"121\"}},\"ConditionExpression\":\"attribute_not_exists(#pk)\",\"ExpressionAttributeNames\":{\"#pk\":\"pName\"}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "JA008DPFQQKE1J7TMLNQ4JTUNVVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "FRHM85VO6RRBJHE9KO41C9VL6JVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 22 Apr 2026 22:58:17 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:44 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "a3559f8f-7358-467f-974e-e5ee219b7e09",
+  "uuid" : "eaa9d58b-e79f-467e-b8ad-11d8bd043355",
   "persistent" : true,
-  "insertionIndex" : 307
+  "insertionIndex" : 330
 }

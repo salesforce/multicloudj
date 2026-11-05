@@ -1,10 +1,13 @@
 package com.salesforce.multicloudj.docstore.client;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.ActionList;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import com.salesforce.multicloudj.docstore.driver.Document;
+import com.salesforce.multicloudj.docstore.driver.ReadOptions;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
 import java.util.List;
@@ -132,6 +135,22 @@ public class DocStoreClient {
     }
 
     /**
+     * Sets the retry configuration applied to requests made to the provider.
+     *
+     * <p>If not set, the provider SDK's default retry behavior is used. When set, each provider
+     * maps the fields onto its native SDK's retry settings with the semantics documented on {@link
+     * RetryConfig}; a field the provider's SDK has no equivalent for is not applied.
+     *
+     * @param retryConfig The retry configuration
+     * @return This builder instance
+     * @throws InvalidArgumentException if the configuration is invalid
+     */
+    public DocStoreClientBuilder withRetryConfig(RetryConfig retryConfig) {
+      this.docStoreBuilder.withRetryConfig(retryConfig);
+      return this;
+    }
+
+    /**
      * Builds and returns an instance of DocStoreClient.
      *
      * @return An instance of DocStoreClient.
@@ -195,6 +214,17 @@ public class DocStoreClient {
   }
 
   /**
+   * Retrieves a document by key with per-call read options.
+   *
+   * @param document document with a valid key; receives the result
+   * @param readOptions per-read options; null or unset values inherit the client setting
+   * @param fieldPath optional fields to retrieve
+   */
+  public void get(Document document, ReadOptions readOptions, String... fieldPath) {
+    docStore.getActions().get(document, fieldPath).withReadOptions(readOptions).run();
+  }
+
+  /**
    * Updates specific fields of an existing document in the document store. This operation is not
    * yet supported and will throw an UnSupportedOperationException.
    *
@@ -214,11 +244,21 @@ public class DocStoreClient {
    *     stored in these documents
    */
   public void batchGet(List<Document> documents) {
+    batchGet(documents, null);
+  }
+
+  /**
+   * Retrieves documents by key with options shared by this batch only.
+   *
+   * @param documents documents with valid keys; receive the results
+   * @param readOptions per-read options; null or unset values inherit the client setting
+   */
+  public void batchGet(List<Document> documents, ReadOptions readOptions) {
     ActionList actionList = docStore.getActions();
     for (Document document : documents) {
       actionList.get(document);
     }
-    actionList.run();
+    actionList.withReadOptions(readOptions).run();
   }
 
   /**

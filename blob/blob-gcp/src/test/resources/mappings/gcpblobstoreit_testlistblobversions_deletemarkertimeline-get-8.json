@@ -1,0 +1,56 @@
+{
+  "id" : "2f6dd683-26a9-422a-aa40-28e788faf825",
+  "name" : "GcpBlobStoreIT_testListBlobVersions_deleteMarkerTimeline-GET-8",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "4"
+      }
+    },
+    "queryParameters" : {
+      "endOffset" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/list-object-versions/delete-marker-timeline-blob\u0000"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      },
+      "startOffset" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/list-object-versions/delete-marker-timeline-blob"
+        } ]
+      },
+      "versions" : {
+        "hasExactly" : [ {
+          "equalTo" : "true"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/list-object-versions/delete-marker-timeline-blob/1793818678562071\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Flist-object-versions%2Fdelete-marker-timeline-blob\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Flist-object-versions%2Fdelete-marker-timeline-blob?generation=1793818678562071&alt=media\",\n      \"name\": \"conformance-tests/list-object-versions/delete-marker-timeline-blob\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n      \"generation\": \"1793818678562071\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"9\",\n      \"md5Hash\": \"+9F93vJ26hUlLkubkXWCZw==\",\n      \"crc32c\": \"zQar2A==\",\n      \"etag\": \"CJeagqn/7pcDEAE=\",\n      \"timeCreated\": \"2026-11-04T18:57:58.608Z\",\n      \"updated\": \"2026-11-04T18:57:58.608Z\",\n      \"timeDeleted\": \"2026-11-04T18:57:59.248Z\",\n      \"timeStorageClassUpdated\": \"2026-11-04T18:57:58.608Z\",\n      \"timeFinalized\": \"2026-11-04T18:57:58.608Z\"\n    },\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/list-object-versions/delete-marker-timeline-blob/1793818679805579\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Flist-object-versions%2Fdelete-marker-timeline-blob\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Flist-object-versions%2Fdelete-marker-timeline-blob?generation=1793818679805579&alt=media\",\n      \"name\": \"conformance-tests/list-object-versions/delete-marker-timeline-blob\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n      \"generation\": \"1793818679805579\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"9\",\n      \"md5Hash\": \"8SWyLPJXwux1DHpZfhHJJA==\",\n      \"crc32c\": \"3lZYLA==\",\n      \"etag\": \"CIuNzqn/7pcDEAE=\",\n      \"timeCreated\": \"2026-11-04T18:57:59.852Z\",\n      \"updated\": \"2026-11-04T18:57:59.852Z\",\n      \"timeStorageClassUpdated\": \"2026-11-04T18:57:59.852Z\",\n      \"timeFinalized\": \"2026-11-04T18:57:59.852Z\"\n    }\n  ]\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AFy3sg1D7dVd47G1_8o9UYZ5Hny1Bx4fE8mXqNt1pj3c5mGkRlBxDeWHnt5nBj0k0pQJOG5MAiO5PQ",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Wed, 04 Nov 2026 18:58:00 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a1a7ecdb48",
+      "Date" : "Wed, 04 Nov 2026 18:58:00 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "2f6dd683-26a9-422a-aa40-28e788faf825",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-2",
+  "insertionIndex" : 1415
+}

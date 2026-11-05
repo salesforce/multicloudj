@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -83,6 +84,27 @@ public class AbstractTopicTest {
     TestableAbstractTopic builtTopic = builder.withTopicName(TOPIC_NAME).withRegion(REGION).build();
 
     assertEquals("my-provider", builtTopic.getProviderId());
+  }
+
+  @Test
+  void testWithRetryConfigStoresValidConfig() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(3)
+            .fixedDelayMillis(100)
+            .build();
+    TestableAbstractTopic.Builder builder = new TestableAbstractTopic.Builder();
+    builder.withRetryConfig(retryConfig);
+    assertSame(retryConfig, builder.retryConfig);
+  }
+
+  @Test
+  void testWithRetryConfigRejectsInvalidConfig() {
+    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(0).build();
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> new TestableAbstractTopic.Builder().withRetryConfig(retryConfig));
   }
 
   @Test

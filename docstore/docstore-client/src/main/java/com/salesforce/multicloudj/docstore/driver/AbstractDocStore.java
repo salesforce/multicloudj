@@ -1,7 +1,9 @@
 package com.salesforce.multicloudj.docstore.driver;
 
 import com.google.common.base.Strings;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.provider.Provider;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
 import java.util.ArrayList;
@@ -92,6 +94,19 @@ public abstract class AbstractDocStore implements Provider, Collection, AutoClos
 
   public ActionList getActions() {
     return new ActionList(this);
+  }
+
+  /** Resolves a per-read override against this client's configured consistency. */
+  protected boolean resolveConsistentRead(ReadOptions options) {
+    return resolveConsistentRead(options == null ? null : options.getConsistentRead());
+  }
+
+  /** Resolves a nullable consistency override against the client configuration. */
+  protected boolean resolveConsistentRead(Boolean consistentRead) {
+    if (consistentRead != null) {
+      return consistentRead;
+    }
+    return collectionOptions != null && collectionOptions.isConsistentRead();
   }
 
   public void checkClosed() {
@@ -213,6 +228,9 @@ public abstract class AbstractDocStore implements Provider, Collection, AutoClos
      */
     @Getter private CollectionOptions collectionOptions = null;
 
+    /** -- GETTER -- Gets the RetryConfig. */
+    @Getter private RetryConfig retryConfig = null;
+
     @Override
     public T providerId(String providerId) {
       this.providerId = providerId;
@@ -287,6 +305,21 @@ public abstract class AbstractDocStore implements Provider, Collection, AutoClos
      */
     public T withCollectionOptions(CollectionOptions collectionOptions) {
       this.collectionOptions = collectionOptions;
+      return self();
+    }
+
+    /**
+     * Method to supply the retry configuration applied to the native client the provider builds.
+     *
+     * @param retryConfig The retry configuration, or null to keep the provider SDK defaults
+     * @return An instance of self
+     * @throws InvalidArgumentException if the configuration is invalid
+     */
+    public T withRetryConfig(RetryConfig retryConfig) {
+      if (retryConfig != null) {
+        retryConfig.validate();
+      }
+      this.retryConfig = retryConfig;
       return self();
     }
 

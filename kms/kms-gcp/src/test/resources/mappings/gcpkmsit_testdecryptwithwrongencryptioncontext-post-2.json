@@ -1,0 +1,42 @@
+{
+  "id" : "e39878fa-614d-4885-8d49-9e1b4d4f39b0",
+  "name" : "GcpKmsIT_testDecryptWithWrongEncryptionContext-POST-2",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-crypt-ctx-r2:decrypt",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"ciphertext\":\"CiQAXAydMyyDzWPM4qiLHwdiFDpFsAVLJAsPpYK9Y+bPsUTxEEISRAAt/NqVbFlKkwXD9hrP7lO96EBjATaroT8jX0PWN1WNS7saXaBAjTGt3JTRSZ3H4s6Q04p5UYN8ngxm+t/6enrlNgGi\",\"additionalAuthenticatedData\":\"eyJwdXJwb3NlIjoic29tZXRoaW5nLWVsc2UifQ==\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Decryption failed.\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sun, 18 Oct 2026 06:16:03 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "e39878fa-614d-4885-8d49-9e1b4d4f39b0",
+  "persistent" : true,
+  "insertionIndex" : 42
+}

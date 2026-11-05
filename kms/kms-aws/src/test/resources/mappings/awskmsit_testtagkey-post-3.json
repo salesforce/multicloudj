@@ -1,0 +1,32 @@
+{
+  "id" : "d95e9e54-2ef1-415b-8780-5d69a7067ea3",
+  "name" : "AwsKmsIT_testTagKey-POST-3",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.TagResource"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"KeyId\":\"arn:aws:kms:us-west-2:654654370895:key/c3ce0bbc-4da7-49b4-a11f-60902e34dbc2\",\"Tags\":[{\"TagKey\":\"env\",\"TagValue\":\"conformance\"}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "dd856d42-cc22-4a60-bbf9-16b8514e0555",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Mon, 19 Oct 2026 17:46:00 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "d95e9e54-2ef1-415b-8780-5d69a7067ea3",
+  "persistent" : true,
+  "insertionIndex" : 60
+}

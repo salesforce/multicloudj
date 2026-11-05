@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.iam;
 
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
+import com.salesforce.multicloudj.examples.AppConfig;
 import com.salesforce.multicloudj.iam.client.IamClient;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
@@ -23,44 +24,46 @@ import org.slf4j.LoggerFactory;
  * Main class demonstrating IAM operations across different cloud providers. This example shows how
  * to use the multicloudj library for identity and access management operations.
  *
- * <p>Usage: java -jar iam-example.jar [provider] - provider: Cloud provider (gcp, aws, ali) -
- * defaults to "gcp"
- *
- * <p>Examples: java -jar iam-example.jar java -jar iam-example.jar aws java -jar iam-example.jar
- * gcp
+ * <p>Usage: {@code java -cp examples/target/multicloudj-examples-<version>.jar
+ * com.salesforce.multicloudj.iam.Main [provider-id]}. The provider id defaults to the global {@code
+ * provider} and the region comes from the global {@code region}. Tenant, service account and
+ * policy values come from the {@code iam.*} keys in {@code examples.properties}.
  */
 public class Main {
   private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
-  // Constants
-  private static final String DEFAULT_PROVIDER = "gcp";
-  private static final String REGION = "us-central-1";
-  private static final String TENANT_ID = "projects/substrate-sdk-gcp-poc1";
-  private static final String SERVICE_ACCOUNT =
-      "serviceAccount:multicloudjexample@substrate-sdk-gcp-poc1.iam.gserviceaccount.com";
-
   // Demo settings
   private static final BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
 
-  // Runtime configuration
+  // Runtime configuration, resolved from examples.properties
   private final String provider;
+  private final String region;
+  private final String tenantId;
+  private final String serviceAccount;
+  private final String storageResource;
+  private final String policyRoleName;
 
-  /** Constructor that accepts provider configuration. */
+  /** Constructor that accepts provider configuration; other values come from configuration. */
   public Main(String provider) {
     this.provider = provider;
+    this.region = AppConfig.get("region");
+    this.tenantId = AppConfig.get("iam.tenant.id");
+    this.serviceAccount = AppConfig.get("iam.service.account");
+    this.storageResource = AppConfig.get("iam.storage.resource");
+    this.policyRoleName = AppConfig.get("iam.policy.role.name");
   }
 
   public static void main(String[] args) {
     // Parse command line arguments
     String provider = parseProvider(args);
+    Main main = new Main(provider);
 
     // Display welcome banner
     printWelcomeBanner();
 
     // Display configuration
-    printConfiguration(provider);
+    main.printConfiguration();
 
-    Main main = new Main(provider);
     main.runDemo();
 
     // Display completion banner
@@ -76,98 +79,87 @@ public class Main {
 
   /** Print a welcome banner for the demo. */
   private static void printWelcomeBanner() {
-    System.out.println();
-    System.out.println(
-        "╔══════════════════════════════════════════════════════════════════════════════╗");
-    System.out.println(
-        "║                    🚀 MultiCloudJ IAM Demo 🚀                                 ║");
-    System.out.println(
-        "║                 Cross-Cloud Identity & Access Management                     ║");
-    System.out.println(
-        "╚══════════════════════════════════════════════════════════════════════════════╝");
-    System.out.println();
+    logger.info("");
+    logger.info("╔══════════════════════════════════════════════════════════════════════════════╗");
+    logger.info("║                    🚀 MultiCloudJ IAM Demo 🚀                                 ║");
+    logger.info("║                 Cross-Cloud Identity & Access Management                     ║");
+    logger.info("╚══════════════════════════════════════════════════════════════════════════════╝");
+    logger.info("");
   }
 
   /** Print the configuration being used. */
-  private static void printConfiguration(String provider) {
-    System.out.println("📋 Configuration:");
-    System.out.println("   Provider: " + provider);
-    System.out.println("   Region: " + REGION);
-    System.out.println("   Tenant ID: " + TENANT_ID);
-    System.out.println("   Service Account: " + SERVICE_ACCOUNT);
-    System.out.println();
+  private void printConfiguration() {
+    logger.info("📋 Configuration:");
+    logger.info("   Provider: {}", provider);
+    logger.info("   Region: {}", region);
+    logger.info("   Tenant ID: {}", tenantId);
+    logger.info("   Service Account: {}", serviceAccount);
+    logger.info("");
     waitForEnter("Press Enter to start the demo...");
   }
 
   /** Print a completion banner. */
   private static void printCompletionBanner() {
-    System.out.println();
-    System.out.println(
-        "╔══════════════════════════════════════════════════════════════════════════════╗");
-    System.out.println(
-        "║                    ✅ Demo Completed Successfully! ✅                       ║");
-    System.out.println(
-        "║                    Thanks for trying MultiCloudJ!                          ║");
-    System.out.println(
-        "╚══════════════════════════════════════════════════════════════════════════════╝");
-    System.out.println();
+    logger.info("");
+    logger.info("╔══════════════════════════════════════════════════════════════════════════════╗");
+    logger.info("║                    ✅ Demo Completed Successfully! ✅                       ║");
+    logger.info("║                    Thanks for trying MultiCloudJ!                          ║");
+    logger.info("╚══════════════════════════════════════════════════════════════════════════════╝");
+    logger.info("");
     waitForEnter("Press Enter to exit...");
   }
 
-  /** Parse provider from command line arguments. Defaults to DEFAULT_PROVIDER if not specified. */
+  /** Parse provider from command line arguments, falling back to configuration. */
   private static String parseProvider(String[] args) {
     if (args.length > 0 && args[0] != null && !args[0].trim().isEmpty()) {
       return args[0].trim();
     }
-    return DEFAULT_PROVIDER;
+    // Never hardcode the provider id; resolve it from configuration (see examples.properties)
+    return AppConfig.provider();
   }
 
   /** Wait for user to press Enter key. */
   private static void waitForEnter(String message) {
-    System.out.print(message);
+    logger.info(message);
     try {
       reader.readLine();
     } catch (IOException e) {
       // If there's an error reading input, just continue
-      System.out.println("(Continuing automatically...)");
+      logger.info("(Continuing automatically...)");
     }
   }
 
   /** Display a success message with emoji. */
   private static void showSuccess(String message) {
-    System.out.println("✅ " + message);
+    logger.info("✅ {}", message);
   }
 
   /** Display an info message with emoji. */
   private static void showInfo(String message) {
-    System.out.println("ℹ️  " + message);
+    logger.info("ℹ️  {}", message);
   }
 
   /** Display an error message with emoji. */
   private static void showError(String message) {
-    System.out.println("❌ " + message);
+    logger.error("❌ {}", message);
   }
 
   /** Display a section header. */
   private static void showSectionHeader(String title) {
-    System.out.println();
-    System.out.println(
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    System.out.println("📚 " + title);
-    System.out.println(
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    System.out.println();
+    logger.info("");
+    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    logger.info("📚 {}", title);
+    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    logger.info("");
   }
 
   /** Display a section header with pause for major transitions. */
   private static void showSectionHeaderWithPause(String title) {
-    System.out.println();
-    System.out.println(
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    System.out.println("📚 " + title);
-    System.out.println(
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    System.out.println();
+    logger.info("");
+    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    logger.info("📚 {}", title);
+    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    logger.info("");
     waitForEnter("Press Enter to start this section...");
   }
 
@@ -267,7 +259,7 @@ public class Main {
     try {
       List<String> policies = listAttachedPolicies();
       showSuccess("Found " + policies.size() + " attached policies");
-      policies.forEach(policy -> System.out.println("   - " + policy));
+      policies.forEach(policy -> logger.info("   - {}", policy));
     } catch (Exception e) {
       showError("Failed to list policies: " + e.getMessage());
     }
@@ -290,7 +282,7 @@ public class Main {
     try {
       List<String> remainingPolicies = listAttachedPolicies();
       showSuccess("Policy removal verified - " + remainingPolicies.size() + " policies remaining");
-      remainingPolicies.forEach(policy -> System.out.println("   - " + policy));
+      remainingPolicies.forEach(policy -> logger.info("   - {}", policy));
     } catch (Exception e) {
       showError("Failed to verify policy removal: " + e.getMessage());
     }
@@ -340,22 +332,24 @@ public class Main {
 
   /** Initialize the IAM client with appropriate configuration. */
   private IamClient initializeClient() {
-    return IamClient.builder(provider).withRegion(REGION).build();
+    return IamClient.builder(provider)
+        .withRegion(region)
+        .build();
   }
 
   /** Create a new identity with trust configuration. */
   private String createIdentity(String identityName) throws Exception {
     try (IamClient iamClient = initializeClient()) {
       TrustConfiguration trustConfig =
-          TrustConfiguration.builder().addTrustedPrincipal(SERVICE_ACCOUNT).build();
+          TrustConfiguration.builder().addTrustedPrincipal(serviceAccount).build();
 
       CreateOptions options = CreateOptions.builder().build();
 
       return iamClient.createIdentity(
           identityName,
           "Demo IAM Identity for testing",
-          TENANT_ID,
-          REGION,
+          tenantId,
+          region,
           Optional.of(trustConfig),
           Optional.of(options));
     }
@@ -364,21 +358,20 @@ public class Main {
   /** Retrieve identity details. */
   private String getIdentity(String identityName) throws Exception {
     try (IamClient iamClient = initializeClient()) {
-      return iamClient.getIdentity(identityName, TENANT_ID, REGION);
+      return iamClient.getIdentity(identityName, tenantId, region);
     }
   }
 
   /** Delete an identity. */
   private void deleteIdentity(String identityName) throws Exception {
     try (IamClient iamClient = initializeClient()) {
-      iamClient.deleteIdentity(identityName, TENANT_ID, REGION);
+      iamClient.deleteIdentity(identityName, tenantId, region);
     }
   }
 
   /**
-   * Attach a storage policy using substrate-neutral actions. These actions will be translated to
-   * cloud-specific formats: - AWS: storage:GetObject → s3:GetObject, storage:* → s3:* - GCP:
-   * storage:GetObject → roles/storage.objectViewer, storage:* → roles/storage.admin
+   * Attach a storage policy using substrate-neutral actions. Each provider translates these
+   * actions into its native permissions or roles.
    */
   private void attachStoragePolicy() throws Exception {
     try (IamClient iamClient = initializeClient()) {
@@ -392,7 +385,7 @@ public class Main {
                       .effect(Effect.ALLOW)
                       .action(StorageActions.GET_OBJECT)
                       .action(StorageActions.LIST_BUCKET)
-                      .resource("storage://demo-bucket/*")
+                      .resource(storageResource)
                       .build())
               .statement(
                   Statement.builder()
@@ -400,23 +393,23 @@ public class Main {
                       .effect(Effect.ALLOW)
                       .action(StorageActions.PUT_OBJECT)
                       .action(StorageActions.DELETE_OBJECT)
-                      .resource("storage://demo-bucket/*")
+                      .resource(storageResource)
                       .build())
               .statement(
                   Statement.builder()
                       .sid("StorageFullAccess")
                       .effect(Effect.ALLOW)
                       .action(StorageActions.ALL)
-                      .resource("storage://demo-bucket/*")
+                      .resource(storageResource)
                       .build())
               .build();
 
       iamClient.attachInlinePolicy(
           AttachInlinePolicyRequest.builder()
               .policyDocument(policyDocument)
-              .tenantId(TENANT_ID)
-              .region(REGION)
-              .identityName(SERVICE_ACCOUNT)
+              .tenantId(tenantId)
+              .region(region)
+              .identityName(serviceAccount)
               .build());
     }
   }
@@ -426,11 +419,11 @@ public class Main {
     try (IamClient iamClient = initializeClient()) {
       GetInlinePolicyDetailsRequest request =
           GetInlinePolicyDetailsRequest.builder()
-              .identityName(SERVICE_ACCOUNT)
+              .identityName(serviceAccount)
               .policyName("storage-policy")
-              .roleName("roles/storage.objectViewer")
-              .tenantId(TENANT_ID)
-              .region(REGION)
+              .roleName(policyRoleName)
+              .tenantId(tenantId)
+              .region(region)
               .build();
 
       return iamClient.getInlinePolicyDetails(request);
@@ -442,9 +435,9 @@ public class Main {
     try (IamClient iamClient = initializeClient()) {
       GetAttachedPoliciesRequest request =
           GetAttachedPoliciesRequest.builder()
-              .identityName(SERVICE_ACCOUNT)
-              .tenantId(TENANT_ID)
-              .region(REGION)
+              .identityName(serviceAccount)
+              .tenantId(tenantId)
+              .region(region)
               .build();
 
       return iamClient.getAttachedPolicies(request);
@@ -454,7 +447,7 @@ public class Main {
   /** Remove a policy from an identity. */
   private void removePolicy(String policyName) throws Exception {
     try (IamClient iamClient = initializeClient()) {
-      iamClient.removePolicy(SERVICE_ACCOUNT, policyName, TENANT_ID, REGION);
+      iamClient.removePolicy(serviceAccount, policyName, tenantId, region);
     }
   }
 }

@@ -8,11 +8,13 @@ import com.salesforce.multicloudj.blob.client.AbstractBlobStoreIT;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.common.ali.AliConstants;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.net.ssl.SSLContext;
@@ -24,6 +26,8 @@ import org.apache.hc.client5.http.ssl.HostnameVerificationPolicy;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.apache.hc.core5.http.HttpHost;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
@@ -38,11 +42,17 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
    * recording match header to disambiguate copy-PUT vs upload-PUT to the same key.
    */
   private static final String OSS_COPY_SOURCE_HEADER = "x-oss-copy-source";
+  private static final String OSS_FORBID_OVERWRITE_HEADER = "x-oss-forbid-overwrite";
 
   @Override
   protected Harness createHarness() {
     return new HarnessImpl();
   }
+
+  @Override
+  @Test
+  @Disabled("OSS fixtures are recorded on dedicated machines; enable once recorded")
+  public void testPresignV2_tagsBinding() {}
 
   public static class HarnessImpl implements Harness {
     int port = ThreadLocalRandom.current().nextInt(2000, 20000);
@@ -194,11 +204,18 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
     }
 
     @Override
-    public java.util.List<String> getRecordingCaptureHeaders() {
-      // OSS_COPY_SOURCE_HEADER disambiguates copy-PUT vs upload-PUT to the same key, and
-      // distinguishes multiple copies to the same key by their differing source value. Inert
-      // for non-copy requests (header absent -> no matcher added).
-      return java.util.List.of("Host", OSS_COPY_SOURCE_HEADER);
+    public List<String> getRecordingCaptureHeaders() {
+      // The copy-source header disambiguates copy PUTs, while the overwrite header verifies the
+      // atomic create-if-absent condition on uploads. The metadata headers pin the service, tenant
+      // and correlation ids stamped on uploads so replay fails if they are no longer sent. Absent
+      // headers add no matcher.
+      return List.of(
+          "Host",
+          OSS_COPY_SOURCE_HEADER,
+          OSS_FORBID_OVERWRITE_HEADER,
+          getMetadataHeader(SdkLoggingMetadataKeys.SERVICE_ID),
+          getMetadataHeader(SdkLoggingMetadataKeys.TENANT_ID),
+          getMetadataHeader(SdkLoggingMetadataKeys.CORRELATION_ID));
     }
 
     @Override

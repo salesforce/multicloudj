@@ -52,7 +52,7 @@ public class BlobInfoIterator implements Iterator<BlobInfo> {
 
     nextContinuationToken = response.nextContinuationToken();
 
-    return response.contents().stream()
+    List<BlobInfo> blobs = response.contents().stream()
         .map(
             s3Obj ->
                 new BlobInfo.Builder()
@@ -61,6 +61,24 @@ public class BlobInfoIterator implements Iterator<BlobInfo> {
                     .withLastModified(s3Obj.lastModified())
                     .build())
         .collect(toList());
+    if (!includesCommonPrefixes()) {
+      return blobs;
+    }
+
+    response.commonPrefixes().forEach(
+        prefix ->
+            blobs.add(
+                new BlobInfo.Builder()
+                    .withKey(prefix.prefix())
+                    .withCommonPrefix(true)
+                    .build()));
+    return blobs;
+  }
+
+  private boolean includesCommonPrefixes() {
+    return listRequest != null
+        && listRequest.isIncludeCommonPrefixes()
+        && StringUtils.isNotEmpty(listRequest.getDelimiter());
   }
 
   @Override
@@ -69,10 +87,12 @@ public class BlobInfoIterator implements Iterator<BlobInfo> {
       return true;
     }
 
-    if (nextContinuationToken != null) {
+    while (nextContinuationToken != null) {
       currentBatch = nextBatch();
       currentIndex = 0;
-      return !currentBatch.isEmpty();
+      if (!currentBatch.isEmpty()) {
+        return true;
+      }
     }
 
     return false;

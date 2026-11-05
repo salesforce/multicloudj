@@ -303,6 +303,19 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
   }
 
   /**
+   * Method to request gRPC transport for the storage client. Providers whose underlying SDK
+   * supports gRPC will use it instead of the default HTTP/JSON transport; providers without gRPC
+   * support ignore this setting.
+   *
+   * @param grpcEnabled whether to request gRPC transport for the storage client
+   * @return An instance of self
+   */
+  public BlobClientBuilder<C, S> withGrpcEnabled(Boolean grpcEnabled) {
+    this.storeBuilder.withGrpcEnabled(grpcEnabled);
+    return this;
+  }
+
+  /**
    * Builds and returns an instance of the target client implementation.
    *
    * @return A fully constructed client implementation.

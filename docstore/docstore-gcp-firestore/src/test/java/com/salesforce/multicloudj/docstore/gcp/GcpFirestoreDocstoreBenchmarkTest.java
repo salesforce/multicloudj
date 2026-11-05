@@ -56,10 +56,11 @@ public class GcpFirestoreDocstoreBenchmarkTest extends AbstractDocstoreBenchmark
           collectionName);
 
       try {
-        FirestoreClient client = FirestoreClient.create();
+        // Reuse one client for both stores; per-store creation leaked the untracked second one.
         if (firestoreClient == null) {
-          firestoreClient = client;
+          firestoreClient = FirestoreClient.create();
         }
+        FirestoreClient client = firestoreClient;
 
         CollectionOptions.CollectionOptionsBuilder optionsBuilder =
             new CollectionOptions.CollectionOptionsBuilder()
@@ -105,8 +106,11 @@ public class GcpFirestoreDocstoreBenchmarkTest extends AbstractDocstoreBenchmark
     }
 
     private String getCollectionPath(String projectId, String collectionName) {
+      // A project can hold several named Firestore databases, so the target is configurable.
+      String database =
+          System.getenv().getOrDefault("DOCSTORE_BENCHMARK_GCP_DATABASE", "(default)");
       return String.format(
-          "projects/%s/databases/(default)/documents/%s", projectId, collectionName);
+          "projects/%s/databases/%s/documents/%s", projectId, database, collectionName);
     }
 
     @Override

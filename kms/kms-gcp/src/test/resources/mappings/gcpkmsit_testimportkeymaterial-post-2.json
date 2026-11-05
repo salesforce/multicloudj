@@ -1,0 +1,42 @@
+{
+  "id" : "3b52409a-09e4-4b11-a78b-bc9a074fb03f",
+  "name" : "GcpKmsIT_testImportKeyMaterial-POST-2",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-byok-r2/cryptoKeyVersions/1:encrypt",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"plaintext\":\"bXVsdGljbG91ZGota21zLWNvbmZvcm1hbmNl\",\"additionalAuthenticatedData\":\"eyJwdXJwb3NlIjoiY29uZm9ybWFuY2UifQ==\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-byok-r2/cryptoKeyVersions/1\",\n  \"ciphertext\": \"CiQAbEGE/9U4El9aRQp1aKeGDJgveOcACjc6Rg/S7J9k6sbRDLcSRAAAAAAAuu+BmiwClZRzp6MHh7tjiRj3c7hbULmCDMcjK+ei46ciaSn1DgOrbb5CqzkcOoiLJX4xDUpuJNMXIQSuIr9f\",\n  \"ciphertextCrc32c\": \"3750773281\",\n  \"protectionLevel\": 1\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sun, 18 Oct 2026 06:15:50 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "3b52409a-09e4-4b11-a78b-bc9a074fb03f",
+  "persistent" : true,
+  "insertionIndex" : 13
+}

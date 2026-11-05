@@ -1,0 +1,37 @@
+{
+  "id" : "4f8e81cb-0546-411d-b5d9-a78b5e140940",
+  "name" : "AliKmsIT_testImportKeyMaterial-POST-6",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "CreateAlias"
+      }
+    },
+    "queryParameters" : {
+      "AliasName" : {
+        "hasExactly" : [ {
+          "equalTo" : "alias/multicloudj-15-byok"
+        } ]
+      },
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae51da8m22l10lmdk"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"RequestId\": \"1e5a4a7a-c825-4823-9d0b-d6f07e96740c\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 22:43:53 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "4f8e81cb-0546-411d-b5d9-a78b5e140940",
+  "persistent" : true,
+  "insertionIndex" : 81
+}

@@ -8,6 +8,7 @@ public class CollectionOptions {
   private final String partitionKey;
   private final String sortKey;
   private final boolean allowScans;
+  private final boolean consistentRead;
   private final String revisionField;
   private final int maxOutstandingActionRPCs;
 
@@ -16,6 +17,7 @@ public class CollectionOptions {
     this.partitionKey = builder.partitionKey;
     this.sortKey = builder.sortKey;
     this.allowScans = builder.allowScans;
+    this.consistentRead = builder.consistentRead;
     this.revisionField = builder.revisionField;
     this.maxOutstandingActionRPCs = builder.maxOutstandingActionRPCs;
   }
@@ -25,6 +27,7 @@ public class CollectionOptions {
     private String partitionKey = null;
     private String sortKey = null;
     private boolean allowScans = true;
+    private boolean consistentRead = false;
     private String revisionField = null;
     private int maxOutstandingActionRPCs = 0;
 
@@ -45,6 +48,11 @@ public class CollectionOptions {
 
     public CollectionOptionsBuilder withAllowScans(boolean allowScans) {
       this.allowScans = allowScans;
+      return this;
+    }
+
+    public CollectionOptionsBuilder withConsistentRead(Boolean consistentRead) {
+      this.consistentRead = Boolean.TRUE.equals(consistentRead);
       return this;
     }
 

@@ -1,0 +1,42 @@
+{
+  "id" : "504667a7-9e8f-4a1c-b091-239ebe59b6e5",
+  "name" : "GcpKmsIT_testImportKeyMaterial-POST-3",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-byok-r2:updatePrimaryVersion",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"cryptoKeyVersionId\":\"1\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-byok-r2\",\n  \"primary\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-byok-r2/cryptoKeyVersions/1\",\n    \"state\": 1,\n    \"createTime\": \"2026-10-18T06:15:47.385701493Z\",\n    \"protectionLevel\": 1,\n    \"algorithm\": 1,\n    \"importJob\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/importJobs/mcj-kms-it-byok-r2-rsaoaep3072sha256\",\n    \"importTime\": \"2026-10-18T06:15:47.429534566Z\",\n    \"reimportEligible\": true\n  },\n  \"purpose\": 1,\n  \"createTime\": \"2026-10-18T06:15:43.169691318Z\",\n  \"labels\": {\n    \"suite\": \"multicloudj-conformance\"\n  },\n  \"versionTemplate\": {\n    \"protectionLevel\": 1,\n    \"algorithm\": 1\n  },\n  \"importOnly\": true,\n  \"destroyScheduledDuration\": \"2592000s\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sun, 18 Oct 2026 06:15:50 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "504667a7-9e8f-4a1c-b091-239ebe59b6e5",
+  "persistent" : true,
+  "insertionIndex" : 14
+}

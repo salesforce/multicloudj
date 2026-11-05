@@ -1,0 +1,48 @@
+{
+  "id" : "8e80994f-b0e4-4532-84f4-383a830c331c",
+  "name" : "GcpBlobStoreIT_testListBlobVersions_deleteMarkerTimeline-GET-12",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "maxResults" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/list-object-versions/delete-marker-timeline-blob"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/list-object-versions/delete-marker-timeline-blob/1793818678562071\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Flist-object-versions%2Fdelete-marker-timeline-blob\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Flist-object-versions%2Fdelete-marker-timeline-blob?generation=1793818678562071&alt=media\",\n      \"name\": \"conformance-tests/list-object-versions/delete-marker-timeline-blob\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n      \"generation\": \"1793818678562071\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"9\",\n      \"md5Hash\": \"+9F93vJ26hUlLkubkXWCZw==\",\n      \"crc32c\": \"zQar2A==\",\n      \"etag\": \"CJeagqn/7pcDEAE=\",\n      \"timeCreated\": \"2026-11-04T18:57:58.608Z\",\n      \"updated\": \"2026-11-04T18:57:58.608Z\",\n      \"timeStorageClassUpdated\": \"2026-11-04T18:57:58.608Z\",\n      \"timeFinalized\": \"2026-11-04T18:57:58.608Z\"\n    }\n  ]\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AFy3sg1SJyDpz03aC96yq8Vn42oRjhbiE40HUm9Vw1vgJAP2n7Il2-pHUAe9yJy1exNozFC3eCf9tg",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Wed, 04 Nov 2026 18:57:58 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a1a7ecd66f",
+      "Date" : "Wed, 04 Nov 2026 18:57:58 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "8e80994f-b0e4-4532-84f4-383a830c331c",
+  "persistent" : true,
+  "insertionIndex" : 1419
+}

@@ -9,9 +9,16 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>dbbackuprestore</artifactId>
-        <version>0.4.5-SNAPSHOT</version>
+        <version>0.4.15-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
+
+    <properties>
+        <!-- opt in to the centralized benchmarks jar + guard (config in the root pluginManagement) -->
+        <benchmarks.jar.phase>package</benchmarks.jar.phase>
+        <!-- provider package the benchmark-jar guard asserts is present in META-INF/BenchmarkList -->
+        <benchmarks.expected.package>com.salesforce.multicloudj.dbbackuprestore.aws.</benchmarks.expected.package>
+    </properties>
 
     <dependencies>
         <dependency>
@@ -53,6 +60,11 @@
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>dbbackuprestore-client</artifactId>
             <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -112,6 +124,11 @@
     </dependencies>
     <build>
         <plugins>
+            <!-- opt in to the centralized benchmarks jar (guard runs automatically because benchmarks.expected.package is set) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+            </plugin>
             <plugin>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok-maven-plugin</artifactId>

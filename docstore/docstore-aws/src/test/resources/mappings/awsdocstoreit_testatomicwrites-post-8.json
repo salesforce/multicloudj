@@ -1,5 +1,5 @@
 {
-  "id" : "0bc8a60c-8aa8-4ca1-86d7-05ff44635ac9",
+  "id" : "b2332fbd-a45c-4717-8b5f-69b63f27e9df",
   "name" : "AwsDocstoreIT_testAtomicWrites-POST-8",
   "request" : {
     "url" : "/",
@@ -20,13 +20,13 @@
     "body" : "{\"Responses\":{\"docstore-test-2\":[{\"DocstoreRevision\":{\"S\":\"253f603b-b2e7-5730-ca94-212e8af1d587\"},\"Player\":{\"S\":\"testAtomicWrites6\"},\"s\":{\"S\":\"66\"},\"Game\":{\"S\":\"testAtomicWrites\"}}]},\"UnprocessedKeys\":{}}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-requestid" : "16Q3RVDCMND33E2I8D6OH3CKPJVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "RO4V1477J4MKUMJ9O0JUVIDM7JVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "4104644504",
-      "Date" : "Wed, 22 Jul 2026 23:39:36 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:47 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "0bc8a60c-8aa8-4ca1-86d7-05ff44635ac9",
+  "uuid" : "b2332fbd-a45c-4717-8b5f-69b63f27e9df",
   "persistent" : true,
-  "insertionIndex" : 353
+  "insertionIndex" : 361
 }

@@ -46,6 +46,14 @@ public class UploadRequest {
   private final boolean useKmsManagedKey;
 
   /**
+   * (Optional parameter) When true, the upload succeeds only if no live blob exists at the target
+   * key when the write is committed. The default is false, which preserves overwrite behavior.
+   * This option applies only to uploads using {@code UploadRequest}; multipart uploads do not honor
+   * it.
+   */
+  private final boolean createIfAbsent;
+
+  /**
    * (Optional parameter) The base64-encoded checksum value for upload validation.
    */
   private final String checksumValue;
@@ -81,6 +89,7 @@ public class UploadRequest {
     this.storageClass = builder.storageClass;
     this.kmsKeyId = builder.kmsKeyId;
     this.useKmsManagedKey = builder.useKmsManagedKey;
+    this.createIfAbsent = builder.createIfAbsent;
     this.objectLock = builder.objectLock;
     this.checksumValue = builder.checksumValue;
     this.checksumAlgorithm = builder.checksumAlgorithm != null
@@ -98,6 +107,29 @@ public class UploadRequest {
     return new Builder();
   }
 
+  /**
+   * Returns a {@link Builder} pre-populated with this request's current field values, so callers
+   * can produce a modified copy without restating every field. Adding a new field to
+   * {@link UploadRequest} requires only extending this method (and the corresponding builder
+   * setter) — not every callsite that copies a request.
+   */
+  public Builder toBuilder() {
+    return new Builder()
+        .withKey(key)
+        .withContentLength(contentLength)
+        .withMetadata(metadata)
+        .withTags(tags)
+        .withStorageClass(storageClass)
+        .withKmsKeyId(kmsKeyId)
+        .withUseKmsManagedKey(useKmsManagedKey)
+        .withCreateIfAbsent(createIfAbsent)
+        .withObjectLock(objectLock)
+        .withChecksumValue(checksumValue)
+        .withChecksumAlgorithm(checksumAlgorithm)
+        .withContentType(contentType)
+        .withOperationContext(operationContext);
+  }
+
   public static class Builder {
     private String key;
     private long contentLength;
@@ -106,6 +138,7 @@ public class UploadRequest {
     private String storageClass;
     private String kmsKeyId;
     private boolean useKmsManagedKey;
+    private boolean createIfAbsent;
     private ObjectLockConfiguration objectLock;
     private String checksumValue;
     private ChecksumMethod checksumAlgorithm;
@@ -145,6 +178,12 @@ public class UploadRequest {
     /** See {@link UploadRequest#useKmsManagedKey}. */
     public Builder withUseKmsManagedKey(boolean useKmsManagedKey) {
       this.useKmsManagedKey = useKmsManagedKey;
+      return this;
+    }
+
+    /** See {@link UploadRequest#createIfAbsent}. */
+    public Builder withCreateIfAbsent(boolean createIfAbsent) {
+      this.createIfAbsent = createIfAbsent;
       return this;
     }
 

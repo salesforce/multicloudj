@@ -1,0 +1,42 @@
+{
+  "id" : "e491c3fd-d968-4a19-8409-762f4257ce93",
+  "name" : "AliKmsIT_testSetAndGetKeyPolicy-POST-4",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "SetKeyPolicy"
+      }
+    },
+    "queryParameters" : {
+      "Policy" : {
+        "hasExactly" : [ {
+          "equalTo" : "{\"Version\":\"1\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"RAM\":[\"acs:ram::1099202394511537:*\"]},\"Action\":[\"kms:DescribeKey\",\"kms:EnableKey\",\"kms:DisableKey\",\"kms:ScheduleKeyDeletion\",\"kms:CancelKeyDeletion\",\"kms:SetKeyPolicy\",\"kms:GetKeyPolicy\",\"kms:TagResource\",\"kms:UntagResource\"],\"Resource\":[\"*\"]},{\"Effect\":\"Allow\",\"Principal\":{\"RAM\":[\"acs:ram::1099202394511537:role/chameleon-test-2\"]},\"Action\":[\"kms:Encrypt\",\"kms:Decrypt\"],\"Resource\":[\"*\"]}]}"
+        } ]
+      },
+      "PolicyName" : {
+        "hasExactly" : [ {
+          "equalTo" : "default"
+        } ]
+      },
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae51da1sszahe05dh"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"RequestId\": \"b4f5eaac-3617-4c77-98fc-474d8b3ef176\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 22:43:47 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "e491c3fd-d968-4a19-8409-762f4257ce93",
+  "persistent" : true,
+  "insertionIndex" : 68
+}

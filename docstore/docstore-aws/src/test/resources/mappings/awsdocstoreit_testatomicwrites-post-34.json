@@ -1,5 +1,5 @@
 {
-  "id" : "bf7e140d-4747-4475-a69c-d9a034fb2b7f",
+  "id" : "f94f93e3-90a7-428d-bbf2-6a584c770a79",
   "name" : "AwsDocstoreIT_testAtomicWrites-POST-34",
   "request" : {
     "url" : "/",
@@ -17,16 +17,16 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\"Count\":2,\"Items\":[{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"FrankDelete\"}},{\"i\":{\"N\":\"121\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"ClarkMapDelete\"}}],\"ScannedCount\":2}",
+    "body" : "{\"Count\":2,\"Items\":[{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"FrankDelete\"}},{\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"ClarkMapDelete\"}}],\"ScannedCount\":2}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "M7LJ3DMLNBJ2APE70R7L0R5E2JVV4KQNSO5AEMVJF66Q9ASUAAJG",
-      "x-amz-crc32" : "234815823",
-      "Date" : "Wed, 22 Jul 2026 23:39:34 GMT",
+      "x-amzn-RequestId" : "HM6R6NKB77BF88B9OL0ICMPE3FVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "929100427",
+      "Date" : "Fri, 23 Oct 2026 23:18:45 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "bf7e140d-4747-4475-a69c-d9a034fb2b7f",
+  "uuid" : "f94f93e3-90a7-428d-bbf2-6a584c770a79",
   "persistent" : true,
-  "insertionIndex" : 379
+  "insertionIndex" : 387
 }

@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.provider.Provider;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -39,6 +40,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
   protected final URI endpoint;
   protected final URI proxyEndpoint;
   protected final Duration nackVisibilityTimeout;
+  protected final RetryConfig retryConfig;
 
   /**
    * Constants class for queue batching and sizing parameters. Contains immutable configuration
@@ -113,11 +115,15 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
   private final Batcher.Options receiveBatcherOptions;
   protected final CredentialsOverrider credentialsOverrider;
 
-  /** Synchronization lock for thread-safe access to subscription state and queue operations. */
-  private final ReentrantLock lock = new ReentrantLock();
+  /**
+   * Synchronization lock for thread-safe access to subscription state and queue operations. Fair,
+   * so receivers woken by {@code batchArrived} are not repeatedly beaten to the queue by newly
+   * arriving callers, which starves a waiting receive() for seconds under concurrent consumers.
+   */
+  private final ReentrantLock lock;
 
   /** Condition variable signaled when new batches of messages arrive in the queue. */
-  private final Condition batchArrived = lock.newCondition();
+  private final Condition batchArrived;
 
   /** In-memory queue holding messages that have been fetched but not yet delivered to callers. */
   private final Queue<Message> queue = new ArrayDeque<>();
@@ -154,12 +160,30 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
       String subscriptionName,
       String region,
       CredentialsOverrider credentialsOverrider) {
+    this(providerId, subscriptionName, region, credentialsOverrider, new ReentrantLock(true));
+  }
+
+  /**
+   * Package-private constructor accepting the {@link ReentrantLock} that guards the receive queue
+   * and prefetch state; production callers use the four-argument constructor (a fair {@code new
+   * ReentrantLock(true)}). Tests may inject an instrumented lock to force specific interleavings.
+   */
+  AbstractSubscription(
+      String providerId,
+      String subscriptionName,
+      String region,
+      CredentialsOverrider credentialsOverrider,
+      ReentrantLock lock) {
     this.providerId = providerId;
     this.subscriptionName = subscriptionName;
     this.region = region;
     this.endpoint = null;
     this.proxyEndpoint = null;
     this.nackVisibilityTimeout = Duration.ZERO;
+    this.retryConfig = null;
+
+    this.lock = lock;
+    this.batchArrived = lock.newCondition();
 
     this.receiveBatcherOptions = createReceiveBatcherOptions();
     this.credentialsOverrider = credentialsOverrider;
@@ -185,6 +209,10 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     this.proxyEndpoint = builder.proxyEndpoint;
     this.nackVisibilityTimeout =
         builder.nackVisibilityTimeout == null ? Duration.ZERO : builder.nackVisibilityTimeout;
+    this.retryConfig = builder.retryConfig;
+
+    this.lock = new ReentrantLock(true);
+    this.batchArrived = this.lock.newCondition();
 
     this.receiveBatcherOptions = createReceiveBatcherOptions();
     this.credentialsOverrider = builder.credentialsOverrider;
@@ -658,6 +686,10 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
       List<Message> msgs = getNextBatch(batchSize);
       lock.lock();
       try {
+        // Clear the flag under the same lock that publishes batchArrived, before signalling, so a
+        // woken receive() re-reads prefetchInFlight consistently and never re-enters the wait
+        // observing a still-true flag whose later clearing would carry no signal.
+        prefetchInFlight.set(false);
         queue.addAll(msgs);
         batchArrived.signalAll();
       } finally {
@@ -666,6 +698,10 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     } catch (Throwable t) {
       lock.lock();
       try {
+        // Clear the flag under the same lock that publishes batchArrived, before signalling, so a
+        // woken receive() re-reads prefetchInFlight consistently and never re-enters the wait
+        // observing a still-true flag whose later clearing would carry no signal.
+        prefetchInFlight.set(false);
         // Set permanentError if the error is not retryable
         if (!isRetryable(t)) {
           permanentError.compareAndSet(null, t);
@@ -674,8 +710,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
       } finally {
         lock.unlock();
       }
-    } finally {
-      prefetchInFlight.set(false);
     }
   }
 
@@ -736,6 +770,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     protected URI proxyEndpoint;
     protected CredentialsOverrider credentialsOverrider;
     protected Duration nackVisibilityTimeout;
+    protected RetryConfig retryConfig;
 
     @Override
     public Builder<T> providerId(String providerId) {
@@ -774,6 +809,14 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
             "Nack visibility timeout cannot be negative: " + nackVisibilityTimeout);
       }
       this.nackVisibilityTimeout = nackVisibilityTimeout;
+      return this;
+    }
+
+    public Builder<T> withRetryConfig(RetryConfig retryConfig) {
+      if (retryConfig != null) {
+        retryConfig.validate();
+      }
+      this.retryConfig = retryConfig;
       return this;
     }
 

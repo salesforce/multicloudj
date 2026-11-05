@@ -6,6 +6,7 @@ import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.httpjson.InstantiatingHttpJsonChannelProvider;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.TransportChannelProvider;
+import com.google.api.gax.rpc.UnaryCallSettings;
 import com.google.auth.Credentials;
 import com.google.auto.service.AutoService;
 import com.google.cloud.pubsub.v1.TopicAdminClient;
@@ -22,6 +23,7 @@ import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
+import com.salesforce.multicloudj.common.gcp.GcpRetrySettings;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
@@ -193,6 +195,8 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
       TransportChannelProvider channelProvider = httpJson.build();
       settingsBuilder.setTransportChannelProvider(channelProvider);
 
+      applyRetryConfig(settingsBuilder);
+
       topicAdminClient = TopicAdminClient.create(settingsBuilder.build());
       return topicAdminClient;
 
@@ -200,6 +204,15 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
       throw new SubstrateSdkException(
           "Failed to create topicAdminClient for topic: " + this.topicName, e);
     }
+  }
+
+  private void applyRetryConfig(TopicAdminSettings.Builder settingsBuilder) {
+    if (retryConfig == null) {
+      return;
+    }
+    UnaryCallSettings.Builder<?, ?> publishSettings = settingsBuilder.publishSettings();
+    publishSettings.setRetrySettings(
+        GcpRetrySettings.apply(publishSettings.getRetrySettings(), retryConfig));
   }
 
   /** Builder for creating GcpTopic instances. */

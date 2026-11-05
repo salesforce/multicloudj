@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.gcp;
 
 import com.google.api.gax.retrying.RetrySettings;
+import com.google.cloud.ServiceOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -30,6 +31,8 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.gcp.GcpConstants;
+import com.salesforce.multicloudj.common.gcp.GcpRetrySettings;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
@@ -44,11 +47,18 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Getter;
@@ -61,6 +71,11 @@ public class GcpTransformer {
 
   private final String bucket;
   private static final String TAG_PREFIX = "gcp-tag-";
+  // RFC 9110 token characters.
+  private static final Pattern HEADER_TOKEN = Pattern.compile("[A-Za-z0-9!#$%&'*+.^_`|~-]+");
+  // Visible ASCII with optional inner spaces. HTTP strips leading and trailing whitespace from
+  // header values, so such a value would not be stored as given.
+  private static final Pattern HEADER_VALUE = Pattern.compile("([!-~]([ !-~]*[!-~])?)?");
 
   /**
    * Object-metadata key under which the SDK persists the operation correlation id during upload, so
@@ -87,7 +102,9 @@ public class GcpTransformer {
   /**
    * Stamps the operation context's correlation id, service id and tenant id into the given metadata
    * map so they are persisted on the stored object in GCS. Each key is skipped when the context is
-   * null, when that context value is blank, or when the app has already supplied the same key.
+   * null, when that context value is blank, or when the app has already supplied the same key. The
+   * correlation id is stamped under the caller-customizable key resolved from {@code ctx}; the
+   * service id and tenant id keys are fixed.
    *
    * @param metadata the mutable metadata map to stamp into
    * @param ctx the per-call observability context (may be null)
@@ -96,9 +113,10 @@ public class GcpTransformer {
     if (ctx == null) {
       return;
     }
+    String correlationIdKey = ctx.getEffectiveCorrelationIdMetadataKey();
     if (StringUtils.isNotBlank(ctx.getCorrelationId())
-        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-      metadata.put(CORRELATION_ID_METADATA_KEY, ctx.getCorrelationId());
+        && !metadata.containsKey(correlationIdKey)) {
+      metadata.put(correlationIdKey, ctx.getCorrelationId());
     }
     if (StringUtils.isNotBlank(ctx.getServiceId())
         && !metadata.containsKey(SERVICE_ID_METADATA_KEY)) {
@@ -350,6 +368,62 @@ public class GcpTransformer {
         presignedUrlRequest.getContentType());
   }
 
+  /**
+   * Builds the headers that bind tags to a presigned upload URL, since V4 signing ignores {@link
+   * BlobInfo} metadata and custom time. Tags become {@code x-goog-meta-gcp-tag-*} headers, and the
+   * expiration tag becomes {@code x-goog-custom-time}, anchored at signing time.
+   *
+   * <p>Tags that cannot be sent as HTTP headers are rejected, including keys that differ only by
+   * case, since header names are case-insensitive.
+   *
+   * @param presignedUrlRequest the presigned upload request
+   * @return the headers to sign, empty when the request carries no tags
+   * @throws InvalidArgumentException if a tag key or value is null, a tag key is not an HTTP
+   *     header token, a tag value is not visible ASCII or has leading or trailing whitespace, or
+   *     two keys differ only by case
+   */
+  public Map<String, String> toPresignTagHeaders(PresignedUrlRequest presignedUrlRequest) {
+    Map<String, String> tags = presignedUrlRequest.getTags();
+    if (tags == null || tags.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    Map<String, String> headers = new LinkedHashMap<>();
+    Set<String> lowercaseNames = new HashSet<>();
+    tags.forEach(
+        (tagName, tagValue) -> {
+          validatePresignTag(tagName, tagValue);
+          if (!lowercaseNames.add(tagName.toLowerCase(Locale.ROOT))) {
+            throw new InvalidArgumentException(
+                "Presigned upload tag keys must be unique ignoring case: " + tagName);
+          }
+          headers.put("x-goog-meta-" + TAG_PREFIX + tagName, tagValue);
+        });
+    Integer days = parseExpirationDays(tags.get(GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
+    if (days != null) {
+      headers.put(
+          "x-goog-custom-time",
+          DateTimeFormatter.ISO_INSTANT.format(
+              Instant.now().plus(Duration.ofDays(days)).truncatedTo(ChronoUnit.SECONDS)));
+    }
+    return headers;
+  }
+
+  private static void validatePresignTag(String tagName, String tagValue) {
+    if (tagName == null || tagValue == null) {
+      throw new InvalidArgumentException(
+          "Presigned upload tag key and value must not be null: " + tagName);
+    }
+    if (!HEADER_TOKEN.matcher(tagName).matches()) {
+      throw new InvalidArgumentException(
+          "Presigned upload tag key must contain only HTTP header token characters: " + tagName);
+    }
+    if (!HEADER_VALUE.matcher(tagValue).matches()) {
+      throw new InvalidArgumentException(
+          "Presigned upload tag value must be visible ASCII without leading or trailing"
+              + " whitespace: " + tagName);
+    }
+  }
+
   public BlobInfo toBlobInfo(MultipartUploadRequest request) {
     Map<String, String> metadata = new HashMap<>();
     if (request.getMetadata() != null) {
@@ -462,7 +536,55 @@ public class GcpTransformer {
       builder.setContentType(contentType);
     }
 
+    applyLifecycleExpiration(builder, metadata);
+
     return builder.build();
+  }
+
+  /**
+   * Stamps the object's custom time when the reserved lifecycle-expiration tag carries a positive
+   * day count. GCS lifecycle rules cannot match on custom object metadata, so the custom time
+   * serves as the durable per-object marker that a bucket rule keyed on {@code daysSinceCustomTime}
+   * uses to expire the object. The reserved tag's value is the number of days the object should
+   * live from its creation time; on upload the object's creation time is "now", so the SDK stamps
+   * {@code customTime = now + days}. This is a no-op when the reserved tag is absent or its value
+   * is not a positive integer (for example a "never expire" sentinel), leaving any existing custom
+   * time untouched.
+   *
+   * @param builder the blob info builder being assembled
+   * @param prefixedMetadata object metadata whose tag entries are prefixed with {@code TAG_PREFIX}
+   */
+  public void applyLifecycleExpiration(
+      BlobInfo.Builder builder, Map<String, String> prefixedMetadata) {
+    if (prefixedMetadata == null) {
+      return;
+    }
+    Integer days =
+        parseExpirationDays(
+            prefixedMetadata.get(TAG_PREFIX + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
+    if (days != null) {
+      builder.setCustomTimeOffsetDateTime(OffsetDateTime.now(ZoneOffset.UTC).plusDays(days));
+    }
+  }
+
+  /**
+   * Parses the reserved lifecycle-expiration tag value as a positive number of days. Returns {@code
+   * null} when the value is absent, blank, or not a positive integer (for example a "never expire"
+   * sentinel), signaling that the object should carry no expiration marker.
+   *
+   * @param tagValue the raw value of the reserved lifecycle-expiration tag, or {@code null}
+   * @return the positive day count, or {@code null} when the object should not expire
+   */
+  static Integer parseExpirationDays(String tagValue) {
+    if (StringUtils.isBlank(tagValue)) {
+      return null;
+    }
+    try {
+      int days = Integer.parseInt(tagValue.trim());
+      return days > 0 ? days : null;
+    } catch (NumberFormatException e) {
+      return null;
+    }
   }
 
   public Storage.BlobTargetOption[] getKmsTargetOptions(UploadRequest uploadRequest) {
@@ -485,6 +607,9 @@ public class GcpTransformer {
       } else {
         options.add(Storage.BlobWriteOption.crc32cMatch());
       }
+    }
+    if (uploadRequest.isCreateIfAbsent()) {
+      options.add(Storage.BlobWriteOption.doesNotExist());
     }
     return options.toArray(new Storage.BlobWriteOption[0]);
   }
@@ -579,84 +704,22 @@ public class GcpTransformer {
   }
 
   /**
-   * Converts MultiCloudJ RetryConfig to GCP RetrySettings
+   * Converts a MultiCloudJ RetryConfig, already checked by {@link RetryConfig#validate()}, to GCP
+   * RetrySettings. Fields not set in {@code retryConfig} keep the GCS client defaults, except an
+   * unset totalTimeout, which means no total time limit.
+   *
+   * <p>attemptTimeout is mapped to the RPC timeout, which the GCS client applies only on the gRPC
+   * transport. On the HTTP/JSON transport the GCS client ignores it, so attemptTimeout has no
+   * effect there.
    *
    * @param retryConfig The retry configuration to convert
    * @return GCP RetrySettings
-   * @throws InvalidArgumentException if retryConfig is null or has invalid values
+   * @throws InvalidArgumentException if retryConfig is null
    */
   public RetrySettings toGcpRetrySettings(RetryConfig retryConfig) {
-    if (retryConfig == null) {
-      throw new InvalidArgumentException("RetryConfig cannot be null");
-    }
-    if (retryConfig.getMaxAttempts() != null && retryConfig.getMaxAttempts() <= 0) {
-      throw new InvalidArgumentException(
-          "RetryConfig.maxAttempts must be greater than 0, got: " + retryConfig.getMaxAttempts());
-    }
-
-    RetrySettings.Builder settingsBuilder = RetrySettings.newBuilder();
-
-    // Only set maxAttempts if provided, otherwise use GCP SDK default
-    if (retryConfig.getMaxAttempts() != null) {
-      settingsBuilder.setMaxAttempts(retryConfig.getMaxAttempts());
-    }
-
-    // If mode is not set, use GCP SDK's default backoff strategy
-
-    // Configure backoff strategy based on mode
-    if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
-      if (retryConfig.getInitialDelayMillis() <= 0) {
-        throw new InvalidArgumentException(
-            "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
-                + retryConfig.getInitialDelayMillis());
-      }
-      if (retryConfig.getMaxDelayMillis() <= 0) {
-        throw new InvalidArgumentException(
-            "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
-                + retryConfig.getMaxDelayMillis());
-      }
-      settingsBuilder
-          .setInitialRetryDelayDuration(Duration.ofMillis(retryConfig.getInitialDelayMillis()))
-          .setRetryDelayMultiplier(retryConfig.getMultiplier())
-          .setMaxRetryDelayDuration(Duration.ofMillis(retryConfig.getMaxDelayMillis()));
-    } else if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
-      if (retryConfig.getFixedDelayMillis() <= 0) {
-        throw new InvalidArgumentException(
-            "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: "
-                + retryConfig.getFixedDelayMillis());
-      }
-      // FIXED mode is simulated by setting multiplier to 1.0 and both delays to the same value
-      settingsBuilder
-          .setInitialRetryDelayDuration(Duration.ofMillis(retryConfig.getFixedDelayMillis()))
-          .setRetryDelayMultiplier(1.0)
-          .setMaxRetryDelayDuration(Duration.ofMillis(retryConfig.getFixedDelayMillis()));
-    }
-
-    // Set total timeout if provided
-    if (retryConfig.getTotalTimeout() != null) {
-      if (retryConfig.getTotalTimeout() <= 0) {
-        throw new InvalidArgumentException(
-            "RetryConfig.totalTimeout must be greater than 0, got: "
-                + retryConfig.getTotalTimeout());
-      }
-      settingsBuilder.setTotalTimeoutDuration(Duration.ofMillis(retryConfig.getTotalTimeout()));
-    }
-
-    // Set attempt timeout if provided
-    if (retryConfig.getAttemptTimeout() != null) {
-      if (retryConfig.getAttemptTimeout() <= 0) {
-        throw new InvalidArgumentException(
-            "RetryConfig.attemptTimeout must be greater than 0, got: "
-                + retryConfig.getAttemptTimeout());
-      }
-      Duration attemptTimeout = Duration.ofMillis(retryConfig.getAttemptTimeout());
-      settingsBuilder
-          .setInitialRpcTimeoutDuration(attemptTimeout)
-          .setRpcTimeoutMultiplier(1.0)
-          .setMaxRpcTimeoutDuration(attemptTimeout);
-    }
-
-    return settingsBuilder.build();
+    // StorageOptions applies these defaults only when no RetrySettings are set at all, and
+    // RetrySettings.newBuilder() starts every field at 0, so start from the defaults explicitly.
+    return GcpRetrySettings.apply(ServiceOptions.getDefaultRetrySettings(), retryConfig);
   }
 
   /**

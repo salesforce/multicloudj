@@ -38,10 +38,12 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
+import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -213,6 +215,7 @@ public abstract class AbstractBlobStoreIT {
 
   private static final String GCP_PROVIDER_ID = "gcp";
   private static final String ALI_PROVIDER_ID = "ali";
+  private static final String INMEMORY_PROVIDER_ID = "inmemory";
 
   /**
    * Initializes the WireMock server before all tests.
@@ -496,6 +499,59 @@ public abstract class AbstractBlobStoreIT {
         false);
   }
 
+  @Test
+  public void testUpload_createIfAbsent() {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String key = "conformance-tests/upload/createIfAbsent/ByteArray";
+    byte[] originalContent =
+        "original create-if-absent content for ByteArray".getBytes(StandardCharsets.UTF_8);
+    byte[] replacementContent =
+        "replacement create-if-absent content for ByteArray".getBytes(StandardCharsets.UTF_8);
+    Map<String, String> originalMetadata = Map.of("writer", "original-ByteArray");
+    Map<String, String> replacementMetadata = Map.of("writer", "replacement-ByteArray");
+
+    UploadRequest originalRequest =
+        new UploadRequest.Builder()
+            .withKey(key)
+            .withContentLength(originalContent.length)
+            .withMetadata(originalMetadata)
+            .withCreateIfAbsent(true)
+            .build();
+
+    try {
+      UploadResponse originalResponse = bucketClient.upload(originalRequest, originalContent);
+      Assertions.assertNotNull(originalResponse, "no upload response returned");
+
+      UploadRequest replacementRequest =
+          new UploadRequest.Builder()
+              .withKey(key)
+              .withContentLength(replacementContent.length)
+              .withMetadata(replacementMetadata)
+              .withCreateIfAbsent(true)
+              .build();
+      Assertions.assertThrows(
+          ResourceAlreadyExistsException.class,
+          () -> bucketClient.upload(replacementRequest, replacementContent),
+          "a second create-if-absent upload must lose the race");
+
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      bucketClient.download(new DownloadRequest.Builder().withKey(key).build(), outputStream);
+      Assertions.assertArrayEquals(
+          originalContent,
+          outputStream.toByteArray(),
+          "the failed upload must not replace the original bytes");
+
+      BlobMetadata storedMetadata = bucketClient.getMetadata(key, null);
+      assertUserMetadataEquals(
+          originalMetadata,
+          storedMetadata.getMetadata(),
+          "the failed upload must not replace the original metadata");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
   /**
    * Verifies that when an {@link OperationContext} carrying a service ID and tenant ID is attached
    * to an upload, the SDK stamps those identifiers onto the stored object's metadata under the
@@ -506,10 +562,6 @@ public abstract class AbstractBlobStoreIT {
    */
   @Test
   public void testUpload_withServiceAndTenantId_stampsObjectMetadata() {
-    // Ali: the OSS provider stamps only the correlation id, not service/tenant id, so it does not
-    // satisfy this conformance expectation and has no recorded mappings for it.
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
-
     String key = "conformance-tests/upload/observabilityMetadata";
     String serviceId = "conformance-service";
     String tenantId = "conformance-tenant";
@@ -563,6 +615,61 @@ public abstract class AbstractBlobStoreIT {
   }
 
   /**
+   * Verifies that when an {@link OperationContext} supplies a custom correlation id key via {@code
+   * correlationIdKey}, the SDK stamps the correlation id under that custom key <em>instead of</em>
+   * the default {@code sdk-logging-correlation-id} key. Runs only against the in-memory provider:
+   * the AWS/GCP/Ali suites replay recorded WireMock fixtures that were never recorded with a custom
+   * key, so exercising it there would require re-recording them.
+   */
+  @Test
+  public void testUpload_withCustomCorrelationIdKey_stampsCustomKeyOnly() {
+    Assumptions.assumeTrue(
+        INMEMORY_PROVIDER_ID.equals(harness.getProviderId()),
+        "Custom correlation id key test only runs on the in-memory provider");
+
+    String key = "conformance-tests/upload/customCorrelationIdKey";
+    String customKey = "x-request-id";
+    String correlationId = "custom-key-test-correlation-id";
+    byte[] content = "custom correlation id key test".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      OperationContext operationContext =
+          OperationContext.builder()
+              .correlationId(correlationId)
+              .correlationIdKey(customKey)
+              .build();
+
+      UploadResponse uploadResponse;
+      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+        UploadRequest request =
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(content.length)
+                .withOperationContext(operationContext)
+                .build();
+        uploadResponse = bucketClient.upload(request, inputStream);
+      }
+      Assertions.assertNotNull(uploadResponse, "No upload response returned");
+
+      Map<String, String> storedMetadata = bucketClient.getMetadata(key, null).getMetadata();
+      Assertions.assertEquals(
+          correlationId,
+          storedMetadata.get(customKey),
+          "Custom correlation id key '" + customKey + "' was not stamped onto object metadata");
+      Assertions.assertFalse(
+          storedMetadata.containsKey(SdkLoggingMetadataKeys.CORRELATION_ID),
+          "Default correlation id key must be absent when a custom key is supplied");
+    } catch (Exception e) {
+      Assertions.fail("testUpload_withCustomCorrelationIdKey: unexpected error " + e.getMessage());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  /**
    * Verifies that when an {@link OperationContext} carrying a service ID and tenant ID is attached
    * to an initiateMultipartUpload, the SDK stamps those identifiers onto the completed object's
    * metadata under the {@code sdk-logging-service-id} and {@code sdk-logging-tenant-id} keys,
@@ -571,10 +678,6 @@ public abstract class AbstractBlobStoreIT {
    */
   @Test
   public void testInitiateMultipartUpload_withServiceAndTenantId_stampsObjectMetadata() {
-    // Ali: the OSS provider stamps only the correlation id, not service/tenant id, so it does not
-    // satisfy this conformance expectation and has no recorded mappings for it.
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
-
     String key = "conformance-tests/multipart/observabilityMetadata";
     String serviceId = "conformance-service";
     String tenantId = "conformance-tenant";
@@ -2108,6 +2211,49 @@ public abstract class AbstractBlobStoreIT {
       }
     } finally {
       // Clean up
+      safeDeleteBlobs(bucketClient, keys);
+    }
+  }
+
+  @Test
+  public void testList_WithDelimiter_IncludesMarkedCommonPrefixesWhenRequested()
+      throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String base = "conformance-tests/list-common-prefixes/";
+    String[] keys = {base + "directory/blob.txt", base + "root.txt"};
+    byte[] content = "test".getBytes(StandardCharsets.UTF_8);
+
+    try {
+      for (String key : keys) {
+        try (InputStream inputStream = new ByteArrayInputStream(content)) {
+          bucketClient.upload(
+              new UploadRequest.Builder().withKey(key).withContentLength(content.length).build(),
+              inputStream);
+        }
+      }
+
+      Iterator<BlobInfo> entries =
+          bucketClient.list(
+              ListBlobsRequest.builder()
+                  .withPrefix(base)
+                  .withDelimiter("/")
+                  .withIncludeCommonPrefixes(true)
+                  .build());
+      Set<String> commonPrefixes = new HashSet<>();
+      Set<String> blobKeys = new HashSet<>();
+      entries.forEachRemaining(
+          entry -> {
+            if (entry.isCommonPrefix()) {
+              commonPrefixes.add(entry.getKey());
+            } else {
+              blobKeys.add(entry.getKey());
+            }
+          });
+
+      Assertions.assertEquals(Set.of(base + "directory/"), commonPrefixes);
+      Assertions.assertEquals(Set.of(base + "root.txt"), blobKeys);
+    } finally {
       safeDeleteBlobs(bucketClient, keys);
     }
   }
@@ -3905,10 +4051,12 @@ public abstract class AbstractBlobStoreIT {
             kmsKeyId));
   }
 
-  // @Test
+  @Test
   public void testMultipartUpload_withTags() {
     String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withTags";
-    Map<String, String> tags = Map.of("tag1", "value1");
+    // Mixed-case keys, values with spaces and URL-reserved characters, and the reserved
+    // lifecycle-expiration tag must all round-trip unchanged.
+    Map<String, String> tags = Map.of("tag1", "value1", "Env", "a b/c=d", "expiration-days", "30");
     runMultipartUploadTest(
         new MultipartUploadTestConfig(
             "multipart with tags",
@@ -4032,6 +4180,56 @@ public abstract class AbstractBlobStoreIT {
       // Now delete all blobs that were created
       safeDeleteBlobs(bucketClient, key);
       safeDeleteBlobs(bucketClient, key + "-fake");
+    }
+  }
+
+  /**
+   * Conformance test for the reserved lifecycle-expiration tag. Verifies the documented reserved
+   * key ({@code expiration-days} with a day-count value) is accepted and
+   * round-trips through {@code setTags}, and that removing it via {@code setTags} clears it. The
+   * out-of-band bucket lifecycle rule that performs the deletion is not exercised here; this locks
+   * in that every provider persists the reserved tag like any other tag rather than rejecting or
+   * stripping it.
+   */
+  @Test
+  public void testTagging_lifecycleExpiration() throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // Documented reserved lifecycle-expiration tag key. The conformance suite references the
+    // published contract string directly so it stays provider-agnostic.
+    final String reservedKey = "expiration-days";
+    String key = "conformance-tests/blob-for-lifecycle-expiration";
+    try {
+      byte[] utf8BlobBytes = "lifecycle expiration test data".getBytes(StandardCharsets.UTF_8);
+
+      // Upload a plain object first; the reserved tag is applied afterward via setTags.
+      try (InputStream inputStream = new ByteArrayInputStream(utf8BlobBytes)) {
+        UploadRequest request =
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(utf8BlobBytes.length)
+                .build();
+        bucketClient.upload(request, inputStream);
+      }
+
+      // Positive: setting the reserved tag with a day-count value round-trips like any other tag.
+      Map<String, String> tags = Map.of(reservedKey, "30");
+      bucketClient.setTags(key, tags);
+      Map<String, String> tagResults = bucketClient.getTags(key);
+      Assertions.assertEquals(
+          tags,
+          tagResults,
+          "testTagging_lifecycleExpiration: reserved tag did not round-trip on setTags");
+
+      // Removing the reserved tag via setTags clears it.
+      bucketClient.setTags(key, Map.of("unrelated", "value"));
+      tagResults = bucketClient.getTags(key);
+      Assertions.assertFalse(
+          tagResults.containsKey(reservedKey),
+          "testTagging_lifecycleExpiration: reserved tag was not cleared by setTags");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
     }
   }
 
@@ -5112,6 +5310,68 @@ public abstract class AbstractBlobStoreIT {
     }
   }
 
+  @Test
+  public void testPresignV2_tagsBinding() throws Exception {
+    String key = "conformance-tests/presign-v2/tags-binding";
+    byte[] content = "tagged presigned upload".getBytes(StandardCharsets.UTF_8);
+    Map<String, String> tags = Map.of("presign-tag", "presign-value", "expiration-days", "30");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .tags(tags)
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertFalse(response.getSignedHeaders().isEmpty(),
+          "signedHeaders should carry the tags the uploader must send");
+
+      // Upload only in record mode — presigned URLs bypass WireMock and can't be replayed
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
+      if (!INMEMORY_PROVIDER_ID.equals(harness.getProviderId())) {
+        Assertions.assertEquals(tags, bucketClient.getTags(key));
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_tagsBinding_rejectsMissingTagHeaders() throws Exception {
+    Assumptions.assumeTrue(System.getProperty("record") != null,
+        "Negative presign tests require record mode (real substrate)");
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
+    String key = "conformance-tests/presign-v2/negative/missing-tags";
+    byte[] content = "tagged presigned upload".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .tags(Map.of("presign-tag", "presign-value"))
+              .build());
+
+      // The tags are part of the signature, so omitting them must be rejected
+      assertUploadRejected(response.getUrl(), content, Map.of());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
   /**
    * Asserts that uploading to a presigned URL with the given headers results in a 4xx rejection.
    */
@@ -5826,6 +6086,107 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
+  public void testUploadDirectory_withKmsKey(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+
+    String kmsKeyId = harness.getKmsKeyId();
+    Assumptions.assumeTrue(
+        kmsKeyId != null && !kmsKeyId.isEmpty(), "KMS key not configured for this harness");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    Path file1 = tempDir.resolve("kms-file1.txt");
+    Path subdir = tempDir.resolve("subdir");
+    Files.createDirectories(subdir);
+    Path file2 = subdir.resolve("kms-file2.txt");
+
+    byte[] content1 = "kms-directory-content-1".getBytes(StandardCharsets.UTF_8);
+    byte[] content2 = "kms-directory-content-2".getBytes(StandardCharsets.UTF_8);
+    Files.write(file1, content1);
+    Files.write(file2, content2);
+
+    String prefix = "conformance-tests/directory/upload-kms-v1";
+    String key1 = prefix + "/kms-file1.txt";
+    String key2 = prefix + "/subdir/kms-file2.txt";
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .kmsKeyId(kmsKeyId)
+            .build();
+
+    try {
+      DirectoryUploadResponse response = blobStore.uploadDirectory(request);
+      Assertions.assertNotNull(response);
+      Assertions.assertTrue(
+          response.getFailedTransfers().isEmpty(),
+          "Upload with KMS key should succeed without failures");
+
+      for (Map.Entry<String, byte[]> entry :
+          Map.of(key1, content1, key2, content2).entrySet()) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+          DownloadRequest downloadRequest =
+              new DownloadRequest.Builder().withKey(entry.getKey()).build();
+          bucketClient.download(downloadRequest, out);
+          Assertions.assertArrayEquals(
+              entry.getValue(),
+              out.toByteArray(),
+              "Content roundtrip should succeed for " + entry.getKey());
+        }
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key1, key2);
+    }
+
+    blobStore.close();
+  }
+
+  @Test
+  public void testUploadDirectory_withNullKmsKey(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    Path file1 = tempDir.resolve("null-kms.txt");
+    byte[] content = "null-kms-content".getBytes(StandardCharsets.UTF_8);
+    Files.write(file1, content);
+
+    String prefix = "conformance-tests/directory/upload-kms-null-v1";
+    String key1 = prefix + "/null-kms.txt";
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .kmsKeyId(null)
+            .build();
+
+    try {
+      DirectoryUploadResponse response = blobStore.uploadDirectory(request);
+      Assertions.assertNotNull(response);
+      Assertions.assertTrue(
+          response.getFailedTransfers().isEmpty(),
+          "Upload with null KMS key should fall back to bucket defaults without error");
+
+      try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+        bucketClient.download(new DownloadRequest.Builder().withKey(key1).build(), out);
+        Assertions.assertArrayEquals(content, out.toByteArray(), "Content roundtrip should match");
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key1);
+    }
+
+    blobStore.close();
+  }
+
+  @Test
   public void testDownloadDirectory_basic(@TempDir Path tempDir) throws Exception {
     Assumptions.assumeTrue(
         harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
@@ -6169,6 +6530,158 @@ public abstract class AbstractBlobStoreIT {
         // Best effort cleanup - ignore failures
       }
     }
+  }
+
+  @Test
+  public void testListBlobVersions_deleteMarkerTimeline() throws IOException {
+    // Ali: the delete-marker code path is implemented, but the WireMock fixtures for this scenario
+    // must be recorded by an engineer with Alibaba credentials on the versioned test bucket. Skip
+    // for Ali until those recordings land; remove this guard once they are captured.
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String key = "conformance-tests/list-object-versions/delete-marker-timeline-blob";
+
+    try {
+      // Canonical timeline: PUT A -> DELETE (unqualified) -> PUT B. This exercises supersession by
+      // a deletion, which every versioned store must reflect in the cloud-neutral validity window.
+      byte[] contentA = "content-A".getBytes(StandardCharsets.UTF_8);
+      String versionA;
+      try (InputStream in = new ByteArrayInputStream(contentA)) {
+        versionA =
+            bucketClient
+                .upload(
+                    new UploadRequest.Builder().withKey(key).withContentLength(contentA.length)
+                        .build(),
+                    in)
+                .getVersionId();
+      }
+      Assertions.assertTrue(StringUtils.isNotBlank(versionA), "PUT A should return a versionId");
+
+      // Unqualified delete removes the live object; prior content versions remain listable.
+      bucketClient.delete(key, null);
+
+      byte[] contentB = "content-B".getBytes(StandardCharsets.UTF_8);
+      String versionB;
+      try (InputStream in = new ByteArrayInputStream(contentB)) {
+        versionB =
+            bucketClient
+                .upload(
+                    new UploadRequest.Builder().withKey(key).withContentLength(contentB.length)
+                        .build(),
+                    in)
+                .getVersionId();
+      }
+      Assertions.assertTrue(StringUtils.isNotBlank(versionB), "PUT B should return a versionId");
+
+      // Default listing (flag omitted) must be backward-compatible: only content versions, no
+      // delete markers. Both A and B remain present and downloadable.
+      Map<String, BlobMetadata> defaultByVersion =
+          collectByVersionId(bucketClient, key, false);
+      Assertions.assertTrue(
+          defaultByVersion.containsKey(versionA), "Default listing should include version A");
+      Assertions.assertTrue(
+          defaultByVersion.containsKey(versionB), "Default listing should include version B");
+      Assertions.assertTrue(
+          defaultByVersion.values().stream().noneMatch(BlobMetadata::isArchived),
+          "Default listing must not surface delete markers");
+
+      // Default listing derives no archivedAt: the supersession instant only exists to serve the
+      // opt-in delete-history view, so neither the superseded nor the current version reports one.
+      BlobMetadata metaA = defaultByVersion.get(versionA);
+      BlobMetadata metaB = defaultByVersion.get(versionB);
+      Assertions.assertNull(
+          metaA.getArchivedAt(),
+          "Default listing must not derive archivedAt when delete markers are not requested");
+      Assertions.assertNull(
+          metaB.getArchivedAt(), "Current version B should not report an archivedAt instant");
+
+      // Both content versions must be downloadable by their versionIds.
+      for (String versionId : new String[] {versionA, versionB}) {
+        DownloadResponse response =
+            bucketClient.download(
+                new DownloadRequest.Builder().withKey(key).withVersionId(versionId).build(),
+                new ByteArray());
+        Assertions.assertNotNull(response, "Content version should be downloadable: " + versionId);
+      }
+
+      // Opt-in listing is a superset: the same content versions plus any store-native delete
+      // markers. Stores that do not model standalone delete markers simply add nothing here.
+      Map<String, BlobMetadata> includedByVersion =
+          collectByVersionId(bucketClient, key, true);
+      Assertions.assertTrue(
+          includedByVersion.keySet().containsAll(defaultByVersion.keySet()),
+          "Opt-in listing should contain every content version the default listing returned");
+
+      // Opt-in listing derives archivedAt: version A was superseded and reports the instant it
+      // stopped being current, while the still-current version B reports none.
+      BlobMetadata includedA = includedByVersion.get(versionA);
+      BlobMetadata includedB = includedByVersion.get(versionB);
+      Assertions.assertNotNull(
+          includedA.getArchivedAt(),
+          "With includeArchived set, superseded version A should report an archivedAt instant");
+      Assertions.assertNull(
+          includedB.getArchivedAt(),
+          "Current version B should not report an archivedAt instant even when includeArchived is "
+              + "set");
+      if (includedA.getCreatedTime() != null) {
+        Assertions.assertFalse(
+            includedA.getArchivedAt().isBefore(includedA.getCreatedTime()),
+            "Validity interval [createdTime, archivedAt) must be non-negative");
+      }
+      Assertions.assertTrue(
+          includedByVersion.size() >= defaultByVersion.size(),
+          "Opt-in listing must not drop any entries relative to the default listing");
+      Assertions.assertTrue(
+          includedByVersion.values().stream()
+              .filter(BlobMetadata::isArchived)
+              .allMatch(m -> key.equals(m.getKey())),
+          "Any surfaced archived entry must belong to the requested key");
+
+      // Stores that model deletion as a standalone delete marker (rather than archiving a content
+      // generation) must actually surface that marker when the opt-in flag is set; otherwise the
+      // superset assertions above pass vacuously. GCS has no standalone marker to emit and is
+      // exempt.
+      boolean surfacesStandaloneDeleteMarkers = !GCP_PROVIDER_ID.equals(harness.getProviderId());
+      if (surfacesStandaloneDeleteMarkers) {
+        long archivedCount =
+            includedByVersion.values().stream().filter(BlobMetadata::isArchived).count();
+        Assertions.assertTrue(
+            archivedCount > 0,
+            "Opt-in listing must surface the delete marker created by the unqualified delete");
+        Assertions.assertTrue(
+            includedByVersion.size() > defaultByVersion.size(),
+            "Opt-in listing must add the delete marker on top of the content versions");
+      }
+    } finally {
+      try {
+        List<BlobIdentifier> toDelete = new ArrayList<>();
+        Iterator<BlobMetadata> allEntries =
+            bucketClient.listBlobVersions(
+                ListBlobVersionsRequest.builder().withKey(key).withIncludeArchived(true)
+                    .build());
+        allEntries.forEachRemaining(
+            v -> toDelete.add(new BlobIdentifier(v.getKey(), v.getVersionId())));
+        if (!toDelete.isEmpty()) {
+          bucketClient.delete(toDelete);
+        }
+      } catch (Throwable t) {
+        // Best effort cleanup - ignore failures
+      }
+    }
+  }
+
+  private static Map<String, BlobMetadata> collectByVersionId(
+      BucketClient bucketClient, String key, boolean includeArchived) {
+    Iterator<BlobMetadata> iterator =
+        bucketClient.listBlobVersions(
+            ListBlobVersionsRequest.builder()
+                .withKey(key)
+                .withIncludeArchived(includeArchived)
+                .build());
+    Map<String, BlobMetadata> byVersion = new HashMap<>();
+    iterator.forEachRemaining(v -> byVersion.put(v.getVersionId(), v));
+    return byVersion;
   }
 
   @Test

@@ -1,32 +1,32 @@
 {
-  "id" : "b74a8529-f84b-4955-80c8-ba1910663e4f",
+  "id" : "317fadd3-c25c-47af-8cfb-5fbe1bc50fac",
   "name" : "AwsDocstoreIT_testAtomicWritesFail-POST-9",
   "request" : {
     "url" : "/",
     "method" : "POST",
     "headers" : {
       "X-Amz-Target" : {
-        "equalTo" : "DynamoDB_20120810.DeleteItem"
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"Key\":{\"Player\":{\"S\":\"testAtomicWritesFail1\"},\"Game\":{\"S\":\"testAtomicWritesFail\"}},\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"acafc71f-5b8c-017f-d651-0b318cc11f0e\"}}}",
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-2\":{\"Keys\":[{\"Player\":{\"S\":\"testAtomicWritesFail3\"},\"Game\":{\"S\":\"testAtomicWritesFail\"}},{\"Player\":{\"S\":\"testAtomicWritesFail4\"},\"Game\":{\"S\":\"testAtomicWritesFail\"}},{\"Player\":{\"S\":\"testAtomicWritesFail5\"},\"Game\":{\"S\":\"testAtomicWritesFail\"}}],\"ConsistentRead\":false}}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "{}",
+    "body" : "{\"Responses\":{\"docstore-test-2\":[{\"s\":{\"S\":\"4\"},\"Game\":{\"S\":\"testAtomicWritesFail\"},\"DocstoreRevision\":{\"S\":\"b32f3639-22ed-a89c-95e9-ad10f7c25a1e\"},\"Player\":{\"S\":\"testAtomicWritesFail4\"}},{\"s\":{\"S\":\"3\"},\"Game\":{\"S\":\"testAtomicWritesFail\"},\"DocstoreRevision\":{\"S\":\"67289883-b6e8-85d3-48cd-5b7a7408581b\"},\"Player\":{\"S\":\"testAtomicWritesFail3\"}},{\"s\":{\"S\":\"5\"},\"Game\":{\"S\":\"testAtomicWritesFail\"},\"DocstoreRevision\":{\"S\":\"8202acf1-c138-0366-58e8-092c7069bba7\"},\"Player\":{\"S\":\"testAtomicWritesFail5\"}}]},\"UnprocessedKeys\":{}}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "0T1IS2MSAHCR81HG2M2M07MQ3NVV4KQNSO5AEMVJF66Q9ASUAAJG",
-      "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 22 Jul 2026 23:39:39 GMT",
+      "x-amzn-requestid" : "NH2ERBU6SR6JVKL2692FU7I7LNVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "575833851",
+      "Date" : "Fri, 23 Oct 2026 23:18:50 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "b74a8529-f84b-4955-80c8-ba1910663e4f",
+  "uuid" : "317fadd3-c25c-47af-8cfb-5fbe1bc50fac",
   "persistent" : true,
-  "insertionIndex" : 391
+  "insertionIndex" : 399
 }

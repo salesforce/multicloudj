@@ -3,12 +3,15 @@ package com.salesforce.multicloudj.docstore.aws;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
+import com.salesforce.multicloudj.docstore.client.DocStoreClient;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.Action;
 import com.salesforce.multicloudj.docstore.driver.ActionKind;
@@ -16,12 +19,14 @@ import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.Filter;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
+import com.salesforce.multicloudj.docstore.driver.ReadOptions;
 import com.salesforce.multicloudj.docstore.driver.testtypes.Book;
 import com.salesforce.multicloudj.docstore.driver.testtypes.Person;
 import java.io.IOException;
 import java.io.NotSerializableException;
 import java.lang.reflect.Field;
 import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,6 +42,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
@@ -84,6 +90,12 @@ public class AwsDocStoreTest {
           null);
 
   static class TestDocStore extends AwsDocStore {}
+
+  private static class TestDocStoreClient extends DocStoreClient {
+    TestDocStoreClient(AwsDocStore store) {
+      super(store);
+    }
+  }
 
   static class TestAction extends Action {
     public TestAction(
@@ -546,6 +558,58 @@ public class AwsDocStoreTest {
   }
 
   @Test
+  void testBatchGetUsesConfiguredReadConsistency() {
+    when(mockedDDBClient.batchGetItem(any(BatchGetItemRequest.class)))
+        .thenReturn(BatchGetItemResponse.builder().build());
+    for (boolean consistentRead : new boolean[] {false, true}) {
+      CollectionOptions options =
+          new CollectionOptions.CollectionOptionsBuilder()
+              .withTableName(collectionOptions.getTableName())
+              .withPartitionKey("title")
+              .withSortKey("publisher")
+              .withConsistentRead(consistentRead)
+              .build();
+      try (AwsDocStore store =
+          new AwsDocStore.Builder()
+              .withRegion("us-east-1")
+              .withCollectionOptions(options)
+              .withDDBClient(mockedDDBClient)
+              .build()) {
+        DocStoreClient client = new TestDocStoreClient(store);
+        ReadOptions override = ReadOptions.builder().consistentRead(!consistentRead).build();
+        client.get(new Document(book), override);
+        client.batchGet(
+            List.of(
+                new Document(book),
+                new Document(new HashMap<>(Map.of("title", "other", "publisher", "WA")))),
+            override);
+        client.get(new Document(book));
+        Query query =
+            new Query(store)
+                .where("title", FilterOperation.EQUAL, "value")
+                .where("publisher", FilterOperation.EQUAL, "value");
+        Assertions.assertEquals(
+            consistentRead,
+            Boolean.TRUE.equals(store.planQuery(query).getQueryRequest().consistentRead()));
+        query.consistentRead(!consistentRead);
+        Assertions.assertEquals(
+            !consistentRead,
+            Boolean.TRUE.equals(store.planQuery(query).getQueryRequest().consistentRead()));
+      }
+    }
+    ArgumentCaptor<BatchGetItemRequest> requests =
+        ArgumentCaptor.forClass(BatchGetItemRequest.class);
+    verify(mockedDDBClient, times(6)).batchGetItem(requests.capture());
+    Assertions.assertEquals(
+        List.of(true, true, false, false, false, true),
+        requests.getAllValues().stream()
+            .map(
+                request ->
+                    request.requestItems().get(collectionOptions.getTableName()).consistentRead())
+            .toList());
+  }
+
+  @Test
   void testNewWriteOperation() {
     Person person =
         new Person(
@@ -970,19 +1034,26 @@ public class AwsDocStoreTest {
     Query query = new Query(docStore).where("field", FilterOperation.EQUAL, "value");
     QueryRunner queryRunner = docStore.planQuery(query);
     Assertions.assertNotNull(queryRunner.getScanRequest());
+    Assertions.assertFalse(Boolean.TRUE.equals(queryRunner.getScanRequest().consistentRead()));
 
     int limit = 3;
     Query query2 =
-        new Query(docStore).where("GsiHashKey", FilterOperation.EQUAL, "value").limit(limit);
+        new Query(docStore)
+            .where("GsiHashKey", FilterOperation.EQUAL, "value")
+            .limit(limit)
+            .consistentRead(true);
     queryRunner = docStore.planQuery(query2);
     Assertions.assertNotNull(queryRunner.getQueryRequest());
     Assertions.assertEquals(limit, queryRunner.getQueryRequest().limit());
+    Assertions.assertFalse(Boolean.TRUE.equals(queryRunner.getQueryRequest().consistentRead()));
 
     Query query3 = new Query(docStore).where("field", FilterOperation.EQUAL, "value").limit(limit);
+    query3.consistentRead(true);
     query3.initGet(List.of("field.a", "field.b"));
     queryRunner = docStore.planQuery(query3);
     Assertions.assertNotNull(queryRunner.getScanRequest());
     Assertions.assertEquals(limit, queryRunner.getScanRequest().limit());
+    Assertions.assertTrue(queryRunner.getScanRequest().consistentRead());
   }
 
   @Test
@@ -1007,20 +1078,25 @@ public class AwsDocStoreTest {
     Query queryLsi =
         new Query(docStore)
             .where("title", FilterOperation.EQUAL, "value")
-            .where("LsiSortKey", FilterOperation.LESS_THAN, "value2");
+            .where("LsiSortKey", FilterOperation.LESS_THAN, "value2")
+            .consistentRead(true);
     queryable = docStore.getBestQueryable(queryLsi);
     Assertions.assertNotNull(queryable);
     Assertions.assertNotNull(queryable.getKey());
     Assertions.assertNotNull(queryable.getIndexName());
+    Assertions.assertTrue(docStore.planQuery(queryLsi).getQueryRequest().consistentRead());
 
     Query queryGsiPkSk =
         new Query(docStore)
             .where("GsiHashKey", FilterOperation.EQUAL, "value")
-            .where("GsiSortKey", FilterOperation.LESS_THAN, "value2");
+            .where("GsiSortKey", FilterOperation.LESS_THAN, "value2")
+            .consistentRead(true);
     queryable = docStore.getBestQueryable(queryGsiPkSk);
     Assertions.assertNotNull(queryable);
     Assertions.assertNotNull(queryable.getKey());
     Assertions.assertNotNull(queryable.getIndexName());
+    Assertions.assertFalse(
+        Boolean.TRUE.equals(docStore.planQuery(queryGsiPkSk).getQueryRequest().consistentRead()));
 
     Query queryPk = new Query(docStore).where("title", FilterOperation.EQUAL, "value");
     queryable = docStore.getBestQueryable(queryPk);
@@ -1075,5 +1151,139 @@ public class AwsDocStoreTest {
     Query query2 = new Query(docStore).where("GsiHashKey", FilterOperation.EQUAL, "value");
     query2.initGet(List.of("SomeAttribute1", "SomeAttribute2"));
     Assertions.assertTrue(docStore.globalFieldIncluded(query2, gsi));
+  }
+
+  private AwsDocStore pkOnlyDocStore(String pk, DynamoDbClient ddb) {
+    CollectionOptions opts =
+        new CollectionOptions.CollectionOptionsBuilder()
+            .withTableName("pk-only")
+            .withPartitionKey(pk)
+            .withAllowScans(true)
+            .withRevisionField("docRevision")
+            .build();
+    return new AwsDocStore.Builder()
+        .withRegion("us-east-1")
+        .withCollectionOptions(opts)
+        .withDDBClient(ddb)
+        .build();
+  }
+
+  private static TestAction mapAction(ActionKind kind, Map<String, Object> doc) {
+    return new TestAction(kind, new Document(doc), null, null);
+  }
+
+  @Test
+  void testPreconditionCreateAliasesPartitionKey() {
+    AwsDocStore ds = pkOnlyDocStore("key", mock(DynamoDbClient.class));
+    Map<String, String> names = new HashMap<>();
+    Map<String, AttributeValue> values = new HashMap<>();
+    String cond =
+        ds.buildPrecondition(
+            mapAction(ActionKind.ACTION_KIND_CREATE, new HashMap<>(Map.of("key", "k1"))),
+            names,
+            values);
+    Assertions.assertEquals("attribute_not_exists(#pk)", cond);
+    Assertions.assertEquals(Map.of("#pk", "key"), names);
+    Assertions.assertTrue(values.isEmpty());
+  }
+
+  @Test
+  void testPreconditionReplaceWithoutRevisionAliasesPartitionKey() {
+    AwsDocStore ds = pkOnlyDocStore("key", mock(DynamoDbClient.class));
+    Map<String, String> names = new HashMap<>();
+    Map<String, AttributeValue> values = new HashMap<>();
+    String cond =
+        ds.buildPrecondition(
+            mapAction(ActionKind.ACTION_KIND_REPLACE, new HashMap<>(Map.of("key", "k1"))),
+            names,
+            values);
+    Assertions.assertEquals("attribute_exists(#pk)", cond);
+    Assertions.assertEquals(Map.of("#pk", "key"), names);
+    Assertions.assertTrue(values.isEmpty());
+  }
+
+  @Test
+  void testPreconditionReplaceWithRevisionKeepsRevisionConditionOnly() {
+    AwsDocStore ds = pkOnlyDocStore("key", mock(DynamoDbClient.class));
+    Map<String, String> names = new HashMap<>();
+    Map<String, AttributeValue> values = new HashMap<>();
+    String cond =
+        ds.buildPrecondition(
+            mapAction(
+                ActionKind.ACTION_KIND_REPLACE,
+                new HashMap<>(Map.of("key", "k1", "docRevision", "rev-1"))),
+            names,
+            values);
+    Assertions.assertEquals("#revField = :revValue", cond);
+    Assertions.assertEquals(Map.of("#revField", "docRevision"), names);
+    Assertions.assertEquals(1, values.size());
+    Assertions.assertEquals("rev-1", values.get(":revValue").s());
+  }
+
+  @Test
+  void testCreateAndReplacePutItemRequestCarriesConditionAndNames() {
+    DynamoDbClient ddb = mock(DynamoDbClient.class);
+    when(ddb.putItem(any(PutItemRequest.class))).thenReturn(mock(PutItemResponse.class));
+    AwsDocStore ds = pkOnlyDocStore("key", ddb);
+
+    ds.newPut(mapAction(ActionKind.ACTION_KIND_CREATE, new HashMap<>(Map.of("key", "k1"))), null)
+        .getRun()
+        .run();
+    ds.newPut(mapAction(ActionKind.ACTION_KIND_REPLACE, new HashMap<>(Map.of("key", "k1"))), null)
+        .getRun()
+        .run();
+    ds.newPut(mapAction(ActionKind.ACTION_KIND_PUT, new HashMap<>(Map.of("key", "k1"))), null)
+        .getRun()
+        .run();
+
+    ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
+    verify(ddb, times(3)).putItem(captor.capture());
+    PutItemRequest create = captor.getAllValues().get(0);
+    PutItemRequest replace = captor.getAllValues().get(1);
+    PutItemRequest put = captor.getAllValues().get(2);
+    Assertions.assertEquals("attribute_not_exists(#pk)", create.conditionExpression());
+    Assertions.assertEquals(Map.of("#pk", "key"), create.expressionAttributeNames());
+    Assertions.assertFalse(create.hasExpressionAttributeValues());
+    Assertions.assertEquals("attribute_exists(#pk)", replace.conditionExpression());
+    Assertions.assertEquals(Map.of("#pk", "key"), replace.expressionAttributeNames());
+    Assertions.assertFalse(replace.hasExpressionAttributeValues());
+    Assertions.assertNull(put.conditionExpression());
+    Assertions.assertFalse(put.hasExpressionAttributeNames());
+  }
+
+  @Test
+  void testBuildDDBClientAppliesRetryConfig() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .maxAttempts(4)
+            .initialDelayMillis(50)
+            .maxDelayMillis(500)
+            .attemptTimeout(1000L)
+            .totalTimeout(5000L)
+            .build();
+    AwsDocStore.Builder builder =
+        new AwsDocStore.Builder().withRegion("us-west-2").withRetryConfig(retryConfig);
+
+    try (DynamoDbClient client = AwsDocStore.Builder.buildDDBClient(builder)) {
+      ClientOverrideConfiguration config =
+          client.serviceClientConfiguration().overrideConfiguration();
+      Assertions.assertEquals(4, config.retryStrategy().orElseThrow().maxAttempts());
+      Assertions.assertEquals(
+          Duration.ofMillis(1000), config.apiCallAttemptTimeout().orElseThrow());
+      Assertions.assertEquals(Duration.ofMillis(5000), config.apiCallTimeout().orElseThrow());
+    }
+  }
+
+  @Test
+  void testBuildDDBClientWithoutRetryConfigKeepsSdkTimeouts() {
+    AwsDocStore.Builder builder = new AwsDocStore.Builder().withRegion("us-west-2");
+
+    try (DynamoDbClient client = AwsDocStore.Builder.buildDDBClient(builder)) {
+      ClientOverrideConfiguration config =
+          client.serviceClientConfiguration().overrideConfiguration();
+      Assertions.assertTrue(config.apiCallAttemptTimeout().isEmpty());
+      Assertions.assertTrue(config.apiCallTimeout().isEmpty());
+    }
   }
 }

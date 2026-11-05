@@ -3,9 +3,12 @@ package com.salesforce.multicloudj.docstore.client;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.ActionList;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
@@ -14,6 +17,7 @@ import java.net.URI;
 import java.util.List;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 public class DocStoreClientTest {
 
@@ -25,6 +29,22 @@ public class DocStoreClientTest {
 
   AbstractDocStore mockDocStore = mock(AbstractDocStore.class);
   MockDocStoreClient mockClient = new MockDocStoreClient(mockDocStore);
+
+  @Test
+  void testWithRetryConfigDelegatesToProviderBuilder() {
+    AbstractDocStore.Builder<?, ?> providerBuilder = mock(AbstractDocStore.Builder.class);
+    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(3).build();
+
+    try (MockedStatic<ProviderSupplier> providerSupplier = mockStatic(ProviderSupplier.class)) {
+      providerSupplier
+          .when(() -> ProviderSupplier.findProviderBuilder("test"))
+          .thenReturn(providerBuilder);
+
+      DocStoreClient.builder("test").withRetryConfig(retryConfig);
+    }
+
+    verify(providerBuilder).withRetryConfig(retryConfig);
+  }
 
   @Test
   void testCreateDocStoreClient() {

@@ -1,5 +1,5 @@
 {
-  "id" : "ce45d6ae-81ed-4440-920e-de4a0db05c4d",
+  "id" : "16004dc6-8198-4f93-a8c2-71f38f81320a",
   "name" : "AwsDocstoreIT_testAtomicWrites-POST-24",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"Key\":{\"Player\":{\"S\":\"testAtomicWrites5\"},\"Game\":{\"S\":\"testAtomicWrites\"}}}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"Key\":{\"Player\":{\"S\":\"testAtomicWrites4\"},\"Game\":{\"S\":\"testAtomicWrites\"}}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "MQOTI5IRH6R8Q2K6DDQ124V7LRVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "G1AU393BTJIS700GJ31L017NHNVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 22 Jul 2026 23:39:35 GMT",
+      "Date" : "Fri, 23 Oct 2026 23:18:46 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "ce45d6ae-81ed-4440-920e-de4a0db05c4d",
+  "uuid" : "16004dc6-8198-4f93-a8c2-71f38f81320a",
   "persistent" : true,
-  "insertionIndex" : 369
+  "insertionIndex" : 377
 }

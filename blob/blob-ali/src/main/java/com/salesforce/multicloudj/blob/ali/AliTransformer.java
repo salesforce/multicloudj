@@ -79,10 +79,13 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -117,6 +120,35 @@ public class AliTransformer {
     this.bucket = bucket;
   }
 
+  /**
+   * Returns a new mutable copy of the given application metadata with the context's correlation,
+   * service and tenant ids stamped under their {@code sdk-logging-*} keys. Each id is skipped
+   * independently when the context is null, the value is blank, or the key is already present, so
+   * caller-supplied metadata always wins.
+   */
+  private static Map<String, String> stampContextMetadata(
+      Map<String, String> appMetadata, OperationContext ctx) {
+    Map<String, String> metadata =
+        appMetadata != null ? new HashMap<>(appMetadata) : new HashMap<>();
+    if (ctx == null) {
+      return metadata;
+    }
+    String correlationIdKey = ctx.getEffectiveCorrelationIdMetadataKey();
+    if (StringUtils.isNotBlank(ctx.getCorrelationId())
+        && !metadata.containsKey(correlationIdKey)) {
+      metadata.put(correlationIdKey, ctx.getCorrelationId());
+    }
+    if (StringUtils.isNotBlank(ctx.getServiceId())
+        && !metadata.containsKey(SdkLoggingMetadataKeys.SERVICE_ID)) {
+      metadata.put(SdkLoggingMetadataKeys.SERVICE_ID, ctx.getServiceId());
+    }
+    if (StringUtils.isNotBlank(ctx.getTenantId())
+        && !metadata.containsKey(SdkLoggingMetadataKeys.TENANT_ID)) {
+      metadata.put(SdkLoggingMetadataKeys.TENANT_ID, ctx.getTenantId());
+    }
+    return metadata;
+  }
+
   public PutObjectRequest toPutObjectRequest(
       UploadRequest uploadRequest,
       BinaryData body) {
@@ -126,21 +158,16 @@ public class AliTransformer {
             .key(uploadRequest.getKey())
             .body(body);
 
-    // Copy the application-supplied metadata and stamp the SDK's correlation
-    // id onto the stored object so it persists in OSS alongside the user's
-    // metadata. Skipped when the request carries no operation context, or
-    // when the app has supplied the same key explicitly.
-    Map<String, String> metadata = uploadRequest.getMetadata() != null
-        ? new HashMap<>(uploadRequest.getMetadata())
-        : new HashMap<>();
-    if (uploadRequest.getOperationContext() != null
-        && StringUtils.isNotBlank(
-            uploadRequest.getOperationContext().getCorrelationId())
-        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-      metadata.put(
-          CORRELATION_ID_METADATA_KEY,
-          uploadRequest.getOperationContext().getCorrelationId());
+    if (uploadRequest.isCreateIfAbsent()) {
+      // OSS enforces this atomically for non-versioned buckets. The service ignores the option
+      // when bucket versioning is enabled or suspended.
+      builder.forbidOverwrite(true);
     }
+
+    // Application metadata plus the SDK's correlation, service and tenant ids, so they persist
+    // in OSS alongside the user's metadata.
+    Map<String, String> metadata =
+        stampContextMetadata(uploadRequest.getMetadata(), uploadRequest.getOperationContext());
     if (!metadata.isEmpty()) {
       builder.metadata(metadata);
     }
@@ -201,10 +228,16 @@ public class AliTransformer {
     return builder.build();
   }
 
-  private String encodeTags(Map<String, String> tags) {
+  // OSS requires the x-oss-tagging header to be UTF-8 URL-encoded query parameters; spaces must
+  // be %20 rather than '+'.
+  private static String encodeTags(Map<String, String> tags) {
     return tags.entrySet().stream()
-        .map(e -> e.getKey() + "=" + e.getValue())
+        .map(e -> urlEncode(e.getKey()) + "=" + urlEncode(e.getValue()))
         .collect(Collectors.joining("&"));
+  }
+
+  private static String urlEncode(String value) {
+    return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
   }
 
 
@@ -526,8 +559,10 @@ public class AliTransformer {
             .bucket(bucket)
             .key(request.getKey());
 
-    if (request.getMetadata() != null && !request.getMetadata().isEmpty()) {
-      builder.metadata(request.getMetadata());
+    Map<String, String> metadata =
+        stampContextMetadata(request.getMetadata(), request.getOperationContext());
+    if (!metadata.isEmpty()) {
+      builder.metadata(metadata);
     }
 
     if (StringUtils.isNotEmpty(request.getKmsKeyId())) {
@@ -579,7 +614,7 @@ public class AliTransformer {
         .bucket(upload.bucket())
         .key(upload.key())
         .id(upload.uploadId())
-        .metadata(request.getMetadata())
+        .metadata(stampContextMetadata(request.getMetadata(), request.getOperationContext()))
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
         .checksumAlgorithm(algorithm)
@@ -830,36 +865,16 @@ public class AliTransformer {
     StandardRetryer.Builder builder = StandardRetryer.newBuilder();
 
     if (config.getMaxAttempts() != null) {
-      if (config.getMaxAttempts() <= 0) {
-        throw new InvalidArgumentException(
-            "RetryConfig.maxAttempts must be greater than 0, got: "
-                + config.getMaxAttempts());
-      }
       builder.maxAttempts(config.getMaxAttempts());
     }
 
     if (config.getMode() != null) {
       BackoffDelayer backoff;
       if (config.getMode() == RetryConfig.Mode.EXPONENTIAL) {
-        if (config.getInitialDelayMillis() <= 0) {
-          throw new InvalidArgumentException(
-              "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
-                  + config.getInitialDelayMillis());
-        }
-        if (config.getMaxDelayMillis() <= 0) {
-          throw new InvalidArgumentException(
-              "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
-                  + config.getMaxDelayMillis());
-        }
         backoff = new EqualJitterBackoff(
             Duration.ofMillis(config.getInitialDelayMillis()),
             Duration.ofMillis(config.getMaxDelayMillis()));
       } else {
-        if (config.getFixedDelayMillis() <= 0) {
-          throw new InvalidArgumentException(
-              "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: "
-                  + config.getFixedDelayMillis());
-        }
         backoff = new FixedDelayBackoff(
             Duration.ofMillis(config.getFixedDelayMillis()));
       }

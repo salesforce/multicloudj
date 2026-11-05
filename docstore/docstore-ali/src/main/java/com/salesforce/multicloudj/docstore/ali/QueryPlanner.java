@@ -60,15 +60,24 @@ public final class QueryPlanner {
     private final Direction direction;
     private final ColumnValueFilter columnFilter;
 
+    // True iff every filter was folded into the key range, so the column filter only trims an O(1)
+    // terminal boundary rather than dropping a non-trivial number of scanned rows. When true, a
+    // fixed per-page GetRange row cap (offset + limit) is accurate; when false, such a cap would
+    // force the driving iterator to re-scan page after page (the filter drops most of what each
+    // capped page scans), so the caller leaves the page cap off. See computeKeyRangeTight.
+    private final boolean keyRangeTight;
+
     Plan(
         PrimaryKey inclusiveStartPrimaryKey,
         PrimaryKey exclusiveEndPrimaryKey,
         Direction direction,
-        ColumnValueFilter columnFilter) {
+        ColumnValueFilter columnFilter,
+        boolean keyRangeTight) {
       this.inclusiveStartPrimaryKey = inclusiveStartPrimaryKey;
       this.exclusiveEndPrimaryKey = exclusiveEndPrimaryKey;
       this.direction = direction;
       this.columnFilter = columnFilter;
+      this.keyRangeTight = keyRangeTight;
     }
   }
 
@@ -147,6 +156,11 @@ public final class QueryPlanner {
       upper = bound(v, true);
     }
     boolean terminal = rc == n - 1;
+    // Full-equality means every PK column carried an equality, so the last equality was demoted to
+    // the degenerate [v, v] terminal range above. In that case rc == n - 1 carries an equality (not
+    // a genuine range), which both the redundant-equality drop and the key-range-tight check treat
+    // specially.
+    boolean fullEquality = eqPrefixLen == n;
 
     PrimaryKeyValue[] eqPrefix = new PrimaryKeyValue[eqLen];
     for (int i = 0; i < eqLen; i++) {
@@ -166,8 +180,145 @@ public final class QueryPlanner {
       end = backwardEnd(pkColumns, eqPrefix, rc, terminal, lower);
     }
 
-    ColumnValueFilter columnFilter = buildColumnFilter(filters);
-    return new Plan(start, end, direction, columnFilter);
+    ColumnValueFilter columnFilter = buildColumnFilter(filters, pkColumns, eqPrefix);
+    boolean tight =
+        computeKeyRangeTight(pkColumns, filters, eqLen, rc, fullEquality, orderAscending);
+    return new Plan(start, end, direction, columnFilter, tight);
+  }
+
+  // True iff the key range captures the whole predicate set so the column filter drops at most an
+  // O(1) boundary group (one full-key row) — the precondition for the per-page offset+limit cap to
+  // be accurate. This requires BOTH conditions below to hold:
+  //  (1) Every filter is folded into the key range: an EQUAL on a used-equality-prefix column, the
+  //      single range op on the range column, or the demoted full-equality on the terminal column.
+  //      Anything else — a non-key predicate, IN/NOT_IN, a non-PK-typed value on a key column, an
+  //      equality after a gap, or a second same-side range — is enforced only by the column filter,
+  //      which then drops a non-trivial number of scanned rows.
+  //  (2) The folded range does not leave the scanned-away end OPEN. A terminal (last PK) column has
+  //      no trailing slot, so an inclusive bound on the side the scan runs toward (forward <= via
+  //      forwardEnd, backward >= via backwardEnd) and a demoted full-equality terminal ([v, v]) are
+  //      widened fully open (INF_MAX / INF_MIN). The scan then covers the whole equality-prefix
+  //      group and the column filter trims a potentially large, data-skewed tail, so a per-page cap
+  //      would re-scan page after page. The exact/loose-by-one combos (forward >,>=,< ; backward
+  //      <,<=,> ; any non-terminal range, which fills an exact INF tail) leave the end bounded.
+  //
+  // Empty filters are trivially tight: with no predicate to drop, a page's setLimit(N) returns
+  // exactly N rows, so the fixed per-page cap is accurate. (An open, everything-in-range scan where
+  // scanned == matched.)
+  private static boolean computeKeyRangeTight(
+      List<String> pkColumns,
+      List<Filter> filters,
+      int eqLen,
+      int rc,
+      boolean fullEquality,
+      boolean orderAscending) {
+    if (filters == null || filters.isEmpty()) {
+      return true;
+    }
+    // A genuine range column can fold only ONE lower and ONE upper bound into the key range:
+    // extractPkConstraints keeps just the last predicate per side, so any additional same-side
+    // predicate on the range column supplies no key bound and is enforced only by the column
+    // filter. That filter may be selective (e.g. B>100 AND B>0 retains only the weaker B>0 as the
+    // bound while B>100 drops the (0,100] rows the range scanned), so the plan is NOT tight and the
+    // per-page cap must stay off. Skip when rc carries the demoted full-equality (not a range).
+    if (rc >= 0 && !fullEquality && hasRepeatedSameSideBound(pkColumns.get(rc), filters)) {
+      return false;
+    }
+    for (Filter f : filters) {
+      if (!isFilterFolded(f, pkColumns, eqLen, rc, fullEquality)) {
+        return false;
+      }
+    }
+    // Condition (2): a genuine TERMINAL range whose inclusive bound faces the scan direction is
+    // widened fully open (forward <=, backward >=), so the folded range imposes no limit on the
+    // scanned-away side and the column filter trims an unbounded tail — NOT tight.
+    if (rc == pkColumns.size() - 1
+        && !fullEquality
+        && hasOpenEndedTerminalBound(pkColumns.get(rc), filters, orderAscending)) {
+      return false;
+    }
+    // A demoted full-equality terminal ([v, v]) is open on the scanned-away side in BOTH directions
+    // (forwardEnd/backwardEnd widen the inclusive terminal to INF), so the scan spans the whole
+    // equality-prefix group and the column filter trims it back to the single value — NOT tight.
+    if (fullEquality) {
+      return false;
+    }
+    return true;
+  }
+
+  // Whether the terminal (last) PK range column carries an inclusive bound on the side the scan
+  // opens fully: forward opens the UPPER end for <= (LESS_THAN_OR_EQUAL_TO); backward opens the
+  // LOWER end for >= (GREATER_THAN_OR_EQUAL_TO). Those inclusive terminal bounds have no trailing
+  // key slot to represent them exactly, so forwardEnd/backwardEnd widen them fully open and only
+  // the column filter trims the tail. Exclusive terminal bounds (< / >) and the opposite-side
+  // inclusive bound are represented exactly (or loose by at most one row), so they are not open.
+  private static boolean hasOpenEndedTerminalBound(
+      String terminalColumn, List<Filter> filters, boolean orderAscending) {
+    FilterOperation openEndedOp =
+        orderAscending
+            ? FilterOperation.LESS_THAN_OR_EQUAL_TO
+            : FilterOperation.GREATER_THAN_OR_EQUAL_TO;
+    for (Filter f : filters) {
+      if (terminalColumn.equals(f.getFieldPath()) && f.getOp() == openEndedOp) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Whether the range column has more than one predicate on the same side (>= 2 lower bounds
+  // GT/GE, or >= 2 upper bounds LT/LE). Only one lower and one upper can be the retained (folded)
+  // key bound; any extra same-side predicate is column-filter-only and may be selective.
+  private static boolean hasRepeatedSameSideBound(String rangeColumn, List<Filter> filters) {
+    int lowerCount = 0;
+    int upperCount = 0;
+    for (Filter f : filters) {
+      if (!rangeColumn.equals(f.getFieldPath())) {
+        continue;
+      }
+      switch (f.getOp()) {
+        case GREATER_THAN:
+        case GREATER_THAN_OR_EQUAL_TO:
+          lowerCount++;
+          break;
+        case LESS_THAN:
+        case LESS_THAN_OR_EQUAL_TO:
+          upperCount++;
+          break;
+        default:
+          break;
+      }
+    }
+    return lowerCount >= 2 || upperCount >= 2;
+  }
+
+  // Whether a single filter was folded into the key range (see computeKeyRangeTight). Mirrors the
+  // fold decisions plan() makes when deriving eqLen / rc: only the used equality prefix, the single
+  // range column, and the demoted full-equality terminal are folded.
+  private static boolean isFilterFolded(
+      Filter f, List<String> pkColumns, int eqLen, int rc, boolean fullEquality) {
+    int idx = pkColumns.indexOf(f.getFieldPath());
+    if (idx < 0) {
+      return false; // non-key predicate: enforced only by the column filter
+    }
+    if (toPrimaryKeyValue(f.getValue()) == null) {
+      return false; // value cannot be a key bound (e.g. a Double against a key column)
+    }
+    switch (f.getOp()) {
+      case EQUAL:
+        // Folded as part of the used equality prefix, or as the demoted full-equality terminal
+        // column (rc, which is the last key column in that case).
+        return idx < eqLen || (fullEquality && idx == rc);
+      case GREATER_THAN:
+      case GREATER_THAN_OR_EQUAL_TO:
+      case LESS_THAN:
+      case LESS_THAN_OR_EQUAL_TO:
+        // A range is folded only when it IS the single range column, and never in the full-equality
+        // case (where rc carries the demoted equality, not a range).
+        return idx == rc && !fullEquality;
+      default:
+        return false; // IN / NOT_IN: not expressible as a contiguous key range
+    }
   }
 
   // Bound tuple builders. Each returns a full N-column PrimaryKey. The "cells" array is filled
@@ -354,20 +505,40 @@ public final class QueryPlanner {
   }
 
   /**
-   * Builds the correctness-layer column filter: EVERY predicate becomes a
-   * {@link ColumnValueFilter}, ANDed together — including predicates on primary-key columns. This
-   * is deliberate: it makes the returned rows exact regardless of how loose the key bounds are,
-   * with no dependency on the bounds being tight or on any column carrying an equality. (Some of
-   * these filters are redundant with an exact bound — a harmless server-side re-check we may
-   * optimize away later.) {@code IN} expands to an {@code OR} of equals; {@code NOT_IN} to a
-   * {@code NOT} of that {@code OR}. Returns null when there are no predicates.
+   * Builds the correctness-layer column filter: each predicate becomes a
+   * {@link ColumnValueFilter}, ANDed together, so the returned rows are exact regardless of how
+   * loose the key bounds are, with no dependency on the bounds being tight.
+   *
+   * <p><b>Redundant-equality elision.</b> An {@code EQUAL} predicate on a used-equality-prefix
+   * column ({@code pkColumns[i]} for {@code i} in {@code [0, eqLen)}) is provably redundant: the
+   * key range pins that column to that exact value on both the inclusive start and the exclusive
+   * end, so every scanned row already carries it. Such a predicate is dropped rather than
+   * re-checked server-side. The elision is value-guarded — it fires only when the predicate's value
+   * equals the value actually pinned into the range ({@code eqPrefix[i]}), so a (degenerate) second
+   * equality on the same column with a different value is kept and still enforced. Everything else
+   * is retained: range predicates (they trim widened terminal bounds), the demoted full-equality
+   * terminal column (it trims the {@code [v, v]} widening), {@code IN}/{@code NOT_IN}, non-key
+   * predicates, and an equality after a gap (unconsumed, so still needed).
+   *
+   * <p>{@code IN} expands to an {@code OR} of equals; {@code NOT_IN} to a {@code NOT} of that
+   * {@code OR}. Returns null when nothing remains after elision (no predicates, or every predicate
+   * was a redundant prefix equality).
+   *
+   * @param pkColumns the target's ordered primary-key column names.
+   * @param eqPrefix the values pinned into the key range for the used equality prefix; its length
+   *     is the used equality-prefix length ({@code eqLen}), and {@code eqPrefix[i]} is the value
+   *     pinned for {@code pkColumns[i]}.
    */
-  static ColumnValueFilter buildColumnFilter(List<Filter> filters) {
+  static ColumnValueFilter buildColumnFilter(
+      List<Filter> filters, List<String> pkColumns, PrimaryKeyValue[] eqPrefix) {
     if (filters == null) {
       return null;
     }
     List<ColumnValueFilter> parts = new ArrayList<>();
     for (Filter f : filters) {
+      if (isRedundantPrefixEquality(f, pkColumns, eqPrefix)) {
+        continue; // pinned exactly by the key-range equality prefix; the re-check would be a no-op
+      }
       parts.add(toColumnValueFilter(f));
     }
     if (parts.isEmpty()) {
@@ -382,6 +553,26 @@ public final class QueryPlanner {
       and.addFilter(p);
     }
     return and;
+  }
+
+  // Whether this predicate is an EQUAL on a used-equality-prefix column whose value is exactly the
+  // one pinned into the key range for that column. Such a predicate is redundant: the range fixes
+  // that column to that value on both bounds, so every scanned row already satisfies it. The
+  // value guard keeps the elision provably safe — a differing value on the same prefix column
+  // (a degenerate contradictory query) is NOT dropped, so the column filter still rejects the rows
+  // the range would otherwise return. The demoted full-equality terminal column is not part of the
+  // prefix ({@code eqLen == n - 1} there), so its equality is never elided here.
+  private static boolean isRedundantPrefixEquality(
+      Filter f, List<String> pkColumns, PrimaryKeyValue[] eqPrefix) {
+    if (f.getOp() != FilterOperation.EQUAL) {
+      return false;
+    }
+    int idx = pkColumns.indexOf(f.getFieldPath());
+    if (idx < 0 || idx >= eqPrefix.length) {
+      return false;
+    }
+    PrimaryKeyValue pkv = toPrimaryKeyValue(f.getValue());
+    return pkv != null && pkv.equals(eqPrefix[idx]);
   }
 
   private static ColumnValueFilter toColumnValueFilter(Filter f) {

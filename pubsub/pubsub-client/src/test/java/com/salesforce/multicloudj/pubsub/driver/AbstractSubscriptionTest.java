@@ -11,8 +11,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayDeque;
@@ -25,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -368,6 +371,26 @@ public class AbstractSubscriptionTest {
     assertEquals(URI.create("https://custom-endpoint.example.com"), builder.endpoint);
     assertEquals(URI.create("https://proxy.example.com:8080"), builder.proxyEndpoint);
     assertEquals(Duration.ofSeconds(30), builder.nackVisibilityTimeout);
+  }
+
+  @Test
+  void testWithRetryConfigStoresValidConfig() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(3)
+            .fixedDelayMillis(100)
+            .build();
+    TestBuilder builder = new TestBuilder();
+    builder.withRetryConfig(retryConfig);
+    assertSame(retryConfig, builder.retryConfig);
+  }
+
+  @Test
+  void testWithRetryConfigRejectsInvalidConfig() {
+    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(0).build();
+    assertThrows(
+        InvalidArgumentException.class, () -> new TestBuilder().withRetryConfig(retryConfig));
   }
 
   @Test
@@ -794,5 +817,19 @@ public class AbstractSubscriptionTest {
     }
 
     sub.close();
+  }
+
+  @Test
+  void testReceiveLockIsFair() throws Exception {
+    TestSubscription direct = new TestSubscription();
+    TestSubscription built = new TestSubscription.Builder().build();
+    Field lockField = AbstractSubscription.class.getDeclaredField("lock");
+    lockField.setAccessible(true);
+
+    assertTrue(((ReentrantLock) lockField.get(direct)).isFair());
+    assertTrue(((ReentrantLock) lockField.get(built)).isFair());
+
+    direct.close();
+    built.close();
   }
 }

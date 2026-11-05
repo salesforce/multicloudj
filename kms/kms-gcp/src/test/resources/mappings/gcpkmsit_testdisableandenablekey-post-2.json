@@ -1,0 +1,44 @@
+{
+  "id" : "807df118-8eae-4630-9417-b6fa1134fa4f",
+  "name" : "GcpKmsIT_testDisableAndEnableKey-POST-2",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-toggle-r2:encrypt",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"plaintext\":\"bXVsdGljbG91ZGota21zLWNvbmZvcm1hbmNl\",\"additionalAuthenticatedData\":\"eyJwdXJwb3NlIjoiY29uZm9ybWFuY2UifQ==\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-toggle-r2/cryptoKeyVersions/1\",\n  \"ciphertext\": \"CiQAvp9EfZj0k4yzSlnO2v8ZhbkfyyePX/ugQt9BDCjdx4Mvh/QSRABSoN+Ou+26/AA2GgYzytujfwvjYGUNnwRm8jQdbe60tnDNTriRDKUbcsZKZBOFTXIbHlnadGMWKoz2hCUNpGtgmPan\",\n  \"ciphertextCrc32c\": \"3724901852\",\n  \"protectionLevel\": 1\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sun, 18 Oct 2026 06:15:56 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "807df118-8eae-4630-9417-b6fa1134fa4f",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-v1-projects-substrate-sdk-gcp-poc1-locations-us-west1-keyRings-multicloudj-kms-it-cryptoKeys-kms-it-toggle-r2:encrypt",
+  "requiredScenarioState" : "scenario-2-v1-projects-substrate-sdk-gcp-poc1-locations-us-west1-keyRings-multicloudj-kms-it-cryptoKeys-kms-it-toggle-r2:encrypt-2",
+  "insertionIndex" : 26
+}

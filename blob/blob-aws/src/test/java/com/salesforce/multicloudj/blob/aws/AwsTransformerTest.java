@@ -36,7 +36,6 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
-import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.file.Path;
@@ -48,12 +47,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
 import software.amazon.awssdk.services.s3.model.ChecksumMode;
@@ -84,6 +83,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.services.s3.model.StorageClass;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.Tagging;
@@ -139,6 +139,34 @@ public class AwsTransformerTest {
             .build();
 
     assertEquals(expected, transformer.toRequest(request));
+  }
+
+  @Test
+  void testUploadCreateIfAbsentUsesConditionalPut() {
+    UploadRequest request =
+        UploadRequest.builder().withKey(SOME_KEY).withCreateIfAbsent(true).build();
+
+    PutObjectRequest actual = transformer.toRequest(request);
+
+    assertEquals("*", actual.ifNoneMatch());
+  }
+
+  @Test
+  void testUploadDefaultDoesNotUseConditionalPut() {
+    UploadRequest request = UploadRequest.builder().withKey(SOME_KEY).build();
+
+    PutObjectRequest actual = transformer.toRequest(request);
+
+    assertNull(actual.ifNoneMatch());
+  }
+
+  @Test
+  void testUploadWithoutTagsOmitsTagging() {
+    UploadRequest request = UploadRequest.builder().withKey(SOME_KEY).build();
+
+    PutObjectRequest actual = transformer.toRequest(request);
+
+    assertNull(actual.tagging());
   }
 
   @Test
@@ -235,6 +263,59 @@ public class AwsTransformerTest {
         "user-supplied",
         actual.metadata().get("sdk-logging-correlation-id"),
         "application's explicit sdk-logging-correlation-id metadata value"
+            + " must take precedence over the SDK's");
+  }
+
+  @Test
+  void testUpload_customCorrelationIdKeyUsed() {
+    var key = "some-key";
+    var ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .correlationIdKey("x-custom-corr")
+            .build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        actual.metadata().get("x-custom-corr"),
+        "transformer must use the custom correlation id key when specified");
+    assertFalse(
+        actual.metadata().containsKey("sdk-logging-correlation-id"),
+        "default key must not be used when custom key is specified");
+  }
+
+  @Test
+  void testUpload_customCorrelationIdKeyNotOverwrittenWhenUserSupplied() {
+    var key = "some-key";
+    var ctx =
+        OperationContext.builder()
+            .correlationId("sdk-generated")
+            .correlationIdKey("x-custom-corr")
+            .build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("x-custom-corr", "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(
+        "user-supplied",
+        actual.metadata().get("x-custom-corr"),
+        "application's explicit custom correlation id metadata value"
             + " must take precedence over the SDK's");
   }
 
@@ -490,7 +571,8 @@ public class AwsTransformerTest {
     UploadRequest uploadRequest =
         UploadRequest.builder().withKey("key").withContentLength(content.length).build();
 
-    AsyncRequestBody asyncRequestBody = transformer.toAsyncRequestBody(uploadRequest, inputStream);
+    AsyncRequestBody asyncRequestBody =
+        transformer.toAsyncRequestBody(uploadRequest, inputStream, mock(ExecutorService.class));
 
     assertTrue(asyncRequestBody.contentLength().isPresent());
     assertEquals(content.length, asyncRequestBody.contentLength().get());
@@ -504,7 +586,8 @@ public class AwsTransformerTest {
     InputStream inputStream = new ByteArrayInputStream(content);
     UploadRequest uploadRequest = UploadRequest.builder().withKey("key").build();
 
-    AsyncRequestBody asyncRequestBody = transformer.toAsyncRequestBody(uploadRequest, inputStream);
+    AsyncRequestBody asyncRequestBody =
+        transformer.toAsyncRequestBody(uploadRequest, inputStream, mock(ExecutorService.class));
 
     assertFalse(asyncRequestBody.contentLength().isPresent());
   }
@@ -875,6 +958,32 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testToCreateMultipartUploadRequest_customCorrelationIdKeyUsed() {
+    var ctx =
+        OperationContext.builder()
+            .correlationId("req-abc-123")
+            .correlationIdKey("x-custom-corr")
+            .build();
+    var mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals("user-value", request.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        request.metadata().get("x-custom-corr"),
+        "multipart create must use the custom correlation id key when specified");
+    assertFalse(
+        request.metadata().containsKey("sdk-logging-correlation-id"),
+        "default key must not be used on multipart create when a custom key is specified");
+  }
+
+  @Test
   void testToCreateMultipartUploadRequest_serviceIdAndTenantIdInjectedIntoMetadata() {
     var ctx =
         OperationContext.builder()
@@ -1136,6 +1245,19 @@ public class AwsTransformerTest {
     assertEquals(metadata, actualRequest.putObjectRequest().metadata());
     assertNull(actualRequest.putObjectRequest().serverSideEncryptionAsString());
     assertNull(actualRequest.putObjectRequest().ssekmsKeyId());
+  }
+
+  @Test
+  void testToPutObjectPresignRequestWithoutTagsOmitsTagging() {
+    PresignedUrlRequest presignedUrlRequest =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(4))
+            .build();
+    PutObjectPresignRequest actualRequest =
+        transformer.toPutObjectPresignRequest(presignedUrlRequest);
+    assertNull(actualRequest.putObjectRequest().tagging());
   }
 
   @Test
@@ -1512,6 +1634,106 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testToUploadDirectoryRequest_WithKmsKeyId() {
+    String kmsKeyId = "arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab";
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .includeSubFolders(true)
+            .kmsKeyId(kmsKeyId)
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
+
+    assertNotNull(request);
+    // The KMS-only request must not be dropped by the early-return guard.
+    assertNotNull(request.uploadFileRequestTransformer());
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertEquals(ServerSideEncryption.AWS_KMS, putRequest.serverSideEncryption());
+    assertEquals(kmsKeyId, putRequest.ssekmsKeyId());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_WithUseKmsManagedKey() {
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .includeSubFolders(true)
+            .useKmsManagedKey(true)
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
+
+    assertNotNull(request);
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertEquals(ServerSideEncryption.AWS_KMS, putRequest.serverSideEncryption());
+    assertNull(putRequest.ssekmsKeyId());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_KmsKeyIdWinsOverUseKmsManagedKey() {
+    String kmsKeyId = "arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab";
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .kmsKeyId(kmsKeyId)
+            .useKmsManagedKey(true)
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
+
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertEquals(ServerSideEncryption.AWS_KMS, putRequest.serverSideEncryption());
+    assertEquals(kmsKeyId, putRequest.ssekmsKeyId());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_NoKmsLeavesEncryptionUnset() {
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .tags(Map.of("env", "prod"))
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
+
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertNull(putRequest.serverSideEncryption());
+    assertNull(putRequest.ssekmsKeyId());
+  }
+
+  @Test
   void testToDirectoryUploadResponse() {
     Exception exception1 = new RuntimeException("Exception1!");
     Path path1 = Paths.get("/home/documents/files/document1.txt");
@@ -1844,168 +2066,6 @@ public class AwsTransformerTest {
         "req-abc-123",
         handleMetadata.get("sdk-logging-correlation-id"),
         "correlation id must be echoed onto the multipart upload handle metadata");
-  }
-
-  @Test
-  void testToAwsRetryStrategyWithExponentialMode() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .maxAttempts(3)
-            .initialDelayMillis(100L)
-            .multiplier(2.0)
-            .maxDelayMillis(5000L)
-            .build();
-
-    RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
-
-    assertNotNull(strategy);
-  }
-
-  @Test
-  void testToAwsRetryStrategyWithFixedMode() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.FIXED)
-            .maxAttempts(5)
-            .fixedDelayMillis(1000L)
-            .build();
-
-    RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
-
-    assertNotNull(strategy);
-  }
-
-  @Test
-  void testToAwsRetryStrategyWithNullConfig() {
-    InvalidArgumentException exception =
-        assertThrows(InvalidArgumentException.class, () -> transformer.toAwsRetryStrategy(null));
-    assertEquals("RetryConfig cannot be null", exception.getMessage());
-  }
-
-  @Test
-  void testToAwsRetryStrategyWithInvalidMaxAttempts() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .maxAttempts(0)
-            .initialDelayMillis(100L)
-            .maxDelayMillis(5000L)
-            .build();
-
-    InvalidArgumentException exception =
-        assertThrows(InvalidArgumentException.class, () -> transformer.toAwsRetryStrategy(config));
-    assertEquals("RetryConfig.maxAttempts must be greater than 0, got: 0", exception.getMessage());
-  }
-
-  @Test
-  void testToAwsRetryStrategyWithNegativeMaxAttempts() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .maxAttempts(-1)
-            .initialDelayMillis(100L)
-            .maxDelayMillis(5000L)
-            .build();
-
-    InvalidArgumentException exception =
-        assertThrows(InvalidArgumentException.class, () -> transformer.toAwsRetryStrategy(config));
-    assertEquals("RetryConfig.maxAttempts must be greater than 0, got: -1", exception.getMessage());
-  }
-
-  @Test
-  void testToAwsRetryStrategyExponentialWithInvalidInitialDelay() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .maxAttempts(3)
-            .initialDelayMillis(0L)
-            .maxDelayMillis(5000L)
-            .build();
-
-    InvalidArgumentException exception =
-        assertThrows(InvalidArgumentException.class, () -> transformer.toAwsRetryStrategy(config));
-    assertEquals(
-        "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0",
-        exception.getMessage());
-  }
-
-  @Test
-  void testToAwsRetryStrategyExponentialWithInvalidMaxDelay() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .maxAttempts(3)
-            .initialDelayMillis(100L)
-            .maxDelayMillis(0L)
-            .build();
-
-    InvalidArgumentException exception =
-        assertThrows(InvalidArgumentException.class, () -> transformer.toAwsRetryStrategy(config));
-    assertEquals(
-        "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0",
-        exception.getMessage());
-  }
-
-  @Test
-  void testToAwsRetryStrategyFixedWithInvalidFixedDelay() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.FIXED)
-            .maxAttempts(3)
-            .fixedDelayMillis(0L)
-            .build();
-
-    InvalidArgumentException exception =
-        assertThrows(InvalidArgumentException.class, () -> transformer.toAwsRetryStrategy(config));
-    assertEquals(
-        "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: 0",
-        exception.getMessage());
-  }
-
-  @Test
-  void testToAwsRetryStrategyWithNullMaxAttempts() {
-    // Test that null maxAttempts uses AWS SDK default
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .maxAttempts(null)
-            .initialDelayMillis(100L)
-            .maxDelayMillis(5000L)
-            .build();
-
-    RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
-
-    assertNotNull(strategy);
-  }
-
-  @Test
-  void testToAwsRetryStrategyExponentialWithMinimalValues() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.EXPONENTIAL)
-            .maxAttempts(1)
-            .initialDelayMillis(1L)
-            .maxDelayMillis(1L)
-            .build();
-
-    RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
-
-    assertNotNull(strategy);
-  }
-
-  @Test
-  void testToAwsRetryStrategyFixedWithMinimalValues() {
-    RetryConfig config =
-        RetryConfig.builder()
-            .mode(RetryConfig.Mode.FIXED)
-            .maxAttempts(1)
-            .fixedDelayMillis(1L)
-            .build();
-
-    RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
-
-    assertNotNull(strategy);
   }
 
   @Test

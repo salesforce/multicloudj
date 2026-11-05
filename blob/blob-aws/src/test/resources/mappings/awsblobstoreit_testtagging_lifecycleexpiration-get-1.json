@@ -1,0 +1,35 @@
+{
+  "id" : "a3493490-3c58-4304-8a35-afe13aa51f91",
+  "name" : "AwsBlobStoreIT_testTagging_lifecycleExpiration-GET-1",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/blob-for-lifecycle-expiration",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPFRhZ2dpbmcgeG1sbnM9Imh0dHA6Ly9zMy5hbWF6b25hd3MuY29tL2RvYy8yMDA2LTAzLTAxLyI+PFRhZ1NldD48VGFnPjxLZXk+dW5yZWxhdGVkPC9LZXk+PFZhbHVlPnZhbHVlPC9WYWx1ZT48L1RhZz48L1RhZ1NldD48L1RhZ2dpbmc+",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "479BZ1CB5B651JBW",
+      "x-amz-id-2" : "aP/Lp5ZBET39rowYmyAyNuCNaaDyaxgENrl/dir8WwmNXx2zhh/5BW/d/oJDNDSBfIslTLULPnkfMkr9JN2dJ7uiGocAWy9YMv/k5GY4JGM=",
+      "Date" : "Mon, 14 Sep 2026 18:12:41 GMT"
+    }
+  },
+  "uuid" : "a3493490-3c58-4304-8a35-afe13aa51f91",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-lifecycle-expiration",
+  "requiredScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-lifecycle-expiration-2",
+  "insertionIndex" : 782
+}

@@ -1,0 +1,28 @@
+{
+  "id" : "80f8c75b-17c9-4378-8224-46cfc3bf9d1e",
+  "name" : "AwsBlobStoreIT_testListBlobVersions_deleteMarkerTimeline-PUT-8",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/list-object-versions/delete-marker-timeline-blob",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "Y29udGVudC1B"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"fbd17ddef276ea15252e4b9b91758267\"",
+      "x-amz-checksum-crc64nvme" : "xvqqtLpfDKw=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "RTWTH5WX5FWSJHRV",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "qfRFH4uDma65Dn52AeU1aTd7FdVaW4L3fN8bpU03Waaz1AtNFUVUFkzbxFGV01MrbHAzZB8LaKYTN4AOyxLQmkXYLOonYMhZ",
+      "x-amz-version-id" : "7MDb1A4x9HNUZ1UOemybAQiHj98aGex0",
+      "Date" : "Mon, 07 Sep 2026 06:53:16 GMT"
+    }
+  },
+  "uuid" : "80f8c75b-17c9-4378-8224-46cfc3bf9d1e",
+  "persistent" : true,
+  "insertionIndex" : 789
+}

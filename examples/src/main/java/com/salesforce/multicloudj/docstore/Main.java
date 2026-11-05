@@ -7,6 +7,7 @@ import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
 import com.salesforce.multicloudj.docstore.driver.PaginationToken;
+import com.salesforce.multicloudj.examples.AppConfig;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -22,13 +23,11 @@ import org.slf4j.LoggerFactory;
  * Main class demonstrating DocStore operations across different cloud providers. This example shows
  * how to use the multicloudj library for document storage operations.
  *
- * <p>Usage: java -jar docstore-example.jar [provider] [table-name] - provider: Cloud provider (aws,
- * gcp-firestore, etc.) - defaults to "gcp-firestore" - table-name: Table/collection name - defaults
- * to GCP Firestore path
- *
- * <p>Examples: java -jar docstore-example.jar java -jar docstore-example.jar aws java -jar
- * docstore-example.jar gcp-firestore
- * "projects/my-project/databases/(default)/documents/my-collection"
+ * <p>Usage: {@code java -cp examples/target/multicloudj-examples-<version>.jar
+ * com.salesforce.multicloudj.docstore.Main [provider-id] [table-name]}. The provider id defaults to
+ * {@code docstore.provider}, else the global {@code provider}; the table name defaults to {@code
+ * docstore.table}; the region comes from the global {@code region} (see {@code
+ * examples.properties}).
  */
 public class Main {
   private static final Logger logger = LoggerFactory.getLogger(Main.class);
@@ -37,12 +36,6 @@ public class Main {
   private static final String KEY_PUBLISHER = "publisher";
   private static final String KEY_TITLE = "title";
   private static final String REVISION_FIELD = "docRevision";
-
-  // Default Configuration
-  private static final String DEFAULT_PROVIDER = "gcp-firestore";
-  private static final String DEFAULT_TABLE_NAME =
-      "projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1";
-  private static final String REGION = "us-west-2";
 
   // Demo settings
   private static final int STATUS_BAR_WIDTH = 50;
@@ -62,6 +55,7 @@ public class Main {
   // Runtime configuration
   private final String provider;
   private final String tableName;
+  private final String region;
 
   /** Data model representing a person. */
   @AllArgsConstructor
@@ -86,24 +80,26 @@ public class Main {
     private Object docRevision;
   }
 
-  /** Constructor that accepts provider and table name configuration. */
-  public Main(String provider, String tableName) {
+  /** Constructor that accepts provider, table name and region configuration. */
+  public Main(String provider, String tableName, String region) {
     this.provider = provider;
     this.tableName = tableName;
+    this.region = region;
   }
 
   public static void main(String[] args) {
-    // Parse command line arguments
+    // Parse command line arguments, falling back to configuration
     String provider = parseProvider(args);
     String tableName = parseTableName(args);
+    String region = AppConfig.get("region");
 
     // Display welcome banner
     printWelcomeBanner();
 
     // Display configuration
-    printConfiguration(provider, tableName);
+    printConfiguration(provider, tableName, region);
 
-    Main main = new Main(provider, tableName);
+    Main main = new Main(provider, tableName, region);
     main.runDemo();
 
     // Display completion banner
@@ -119,113 +115,100 @@ public class Main {
 
   /** Print a welcome banner for the demo. */
   private static void printWelcomeBanner() {
-    System.out.println();
-    System.out.println(
-        "╔══════════════════════════════════════════════════════════════════════════════╗");
-    System.out.println(
-        "║                    🚀 MultiCloudJ DocStore Demo 🚀                        ║");
-    System.out.println(
-        "║                    Cross-Cloud Document Storage                            ║");
-    System.out.println(
-        "╚══════════════════════════════════════════════════════════════════════════════╝");
-    System.out.println();
+    logger.info("");
+    logger.info("╔══════════════════════════════════════════════════════════════════════════════╗");
+    logger.info("║                    🚀 MultiCloudJ DocStore Demo 🚀                        ║");
+    logger.info("║                    Cross-Cloud Document Storage                            ║");
+    logger.info("╚══════════════════════════════════════════════════════════════════════════════╝");
+    logger.info("");
   }
 
   /** Print the configuration being used. */
-  private static void printConfiguration(String provider, String tableName) {
-    System.out.println("📋 Configuration:");
-    System.out.println("   Provider: " + provider);
-    System.out.println("   Table/Collection: " + tableName);
-    System.out.println("   Region: " + REGION);
-    System.out.println();
+  private static void printConfiguration(String provider, String tableName, String region) {
+    logger.info("📋 Configuration:");
+    logger.info("   Provider: {}", provider);
+    logger.info("   Table/Collection: {}", tableName);
+    logger.info("   Region: {}", region);
+    logger.info("");
     waitForEnter("Press Enter to start the demo...");
   }
 
   /** Print a completion banner. */
   private static void printCompletionBanner() {
-    System.out.println();
-    System.out.println(
-        "╔══════════════════════════════════════════════════════════════════════════════╗");
-    System.out.println(
-        "║                    ✅ Demo Completed Successfully! ✅                       ║");
-    System.out.println(
-        "║                    Thanks for trying MultiCloudJ!                          ║");
-    System.out.println(
-        "╚══════════════════════════════════════════════════════════════════════════════╝");
-    System.out.println();
+    logger.info("");
+    logger.info("╔══════════════════════════════════════════════════════════════════════════════╗");
+    logger.info("║                    ✅ Demo Completed Successfully! ✅                       ║");
+    logger.info("║                    Thanks for trying MultiCloudJ!                          ║");
+    logger.info("╚══════════════════════════════════════════════════════════════════════════════╝");
+    logger.info("");
     waitForEnter("Press Enter to exit...");
   }
 
-  /** Parse provider from command line arguments. Defaults to DEFAULT_PROVIDER if not specified. */
+  /** Parse provider from command line arguments, falling back to configuration. */
   private static String parseProvider(String[] args) {
     if (args.length > 0 && args[0] != null && !args[0].trim().isEmpty()) {
       return args[0].trim();
     }
-    return DEFAULT_PROVIDER;
+    // Never hardcode the provider id; resolve it from configuration (see examples.properties)
+    return AppConfig.provider("docstore");
   }
 
-  /**
-   * Parse table name from command line arguments. Defaults to DEFAULT_TABLE_NAME if not specified.
-   */
+  /** Parse table name from command line arguments, falling back to configuration. */
   private static String parseTableName(String[] args) {
     if (args.length > 1 && args[1] != null && !args[1].trim().isEmpty()) {
       return args[1].trim();
     }
-    return DEFAULT_TABLE_NAME;
+    return AppConfig.get("docstore.table");
   }
 
   /** Wait for user to press Enter key. */
   private static void waitForEnter(String message) {
-    System.out.print(message);
+    logger.info(message);
     try {
       reader.readLine();
     } catch (IOException e) {
       // If there's an error reading input, just continue
-      System.out.println("(Continuing automatically...)");
+      logger.info("(Continuing automatically...)");
     }
   }
 
   /** Display a simple progress indicator. */
   private static void showProgress(String message, int current, int total) {
-    System.out.printf("🔄 %s (%d/%d)%n", message, current, total);
+    logger.info("🔄 {} ({}/{})", message, current, total);
   }
 
   /** Display a success message with emoji and wait for user input. */
   private static void showSuccess(String message) {
-    System.out.println("✅ " + message);
+    logger.info("✅ {}", message);
   }
 
   /** Display an info message with emoji and wait for user input. */
   private static void showInfo(String message) {
-    System.out.println("ℹ️  " + message);
+    logger.info("ℹ️  {}", message);
   }
 
   /** Display a section header and wait for user input. */
   private static void showSectionHeader(String title) {
-    System.out.println();
-    System.out.println(
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    System.out.println("📚 " + title);
-    System.out.println(
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    System.out.println();
+    logger.info("");
+    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    logger.info("📚 {}", title);
+    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    logger.info("");
   }
 
   /** Display a section header with pause for major transitions. */
   private static void showSectionHeaderWithPause(String title) {
-    System.out.println();
-    System.out.println(
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    System.out.println("📚 " + title);
-    System.out.println(
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    System.out.println();
+    logger.info("");
+    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    logger.info("📚 {}", title);
+    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    logger.info("");
     waitForEnter("Press Enter to start this section...");
   }
 
   /** Display a success message without waiting (for status bar completion). */
   private static void showSuccessNoWait(String message) {
-    System.out.println("✅ " + message);
+    logger.info("✅ {}", message);
   }
 
   /** Main demo method that orchestrates all the DocStore operations. */
@@ -259,7 +242,7 @@ public class Main {
             .build();
 
     return DocStoreClient.builder(provider)
-        .withRegion(REGION)
+        .withRegion(region)
         .withCollectionOptions(collectionOptions)
         .build();
   }

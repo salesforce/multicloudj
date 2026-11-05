@@ -104,10 +104,12 @@ import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -134,6 +136,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -193,6 +196,11 @@ public class AliBlobStoreTest {
 
     assertInstanceOf(
         UnknownException.class, ali.mapException(new IOException("Channel is closed")));
+
+    ServiceException collision = mock(ServiceException.class);
+    when(collision.errorCode()).thenReturn("FileAlreadyExists");
+    when(collision.statusCode()).thenReturn(409);
+    assertInstanceOf(ResourceAlreadyExistsException.class, ali.mapException(collision));
   }
 
   @Test
@@ -682,6 +690,96 @@ public class AliBlobStoreTest {
     }
   }
 
+  @Test
+  void testDoList_IncludesMarkedCommonPrefixesWhenRequested() {
+    ListBlobsRequest request =
+        ListBlobsRequest.builder()
+            .withPrefix("base/")
+            .withDelimiter("/")
+            .withIncludeCommonPrefixes(true)
+            .build();
+    ObjectSummary object = ObjectSummary.newBuilder().key("base/root.txt").size(4L).build();
+    ListObjectsV2Result mockResult = mock(ListObjectsV2Result.class);
+    when(mockOssClient.listObjectsV2(
+            any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(mockResult);
+    when(mockResult.contents()).thenReturn(List.of(object));
+    when(mockResult.commonPrefixes())
+        .thenReturn(List.of(CommonPrefix.newBuilder().prefix("base/directory/").build()));
+    when(mockResult.nextContinuationToken()).thenReturn(null);
+
+    Iterator<BlobInfo> iterator = ali.doList(request);
+    List<BlobInfo> entries = new ArrayList<>();
+    iterator.forEachRemaining(entries::add);
+
+    assertEquals(2, entries.size());
+    assertEquals(
+        Map.of("base/directory/", true, "base/root.txt", false),
+        entries.stream()
+            .collect(Collectors.toMap(BlobInfo::getKey, BlobInfo::isCommonPrefix)));
+  }
+
+  @Test
+  void testDoList_SkipsEmptyIntermediatePage() {
+    ObjectSummary firstObject = ObjectSummary.newBuilder().key("first.txt").size(1L).build();
+    ObjectSummary lastObject = ObjectSummary.newBuilder().key("last.txt").size(1L).build();
+    ListObjectsV2Result firstPage = mock(ListObjectsV2Result.class);
+    ListObjectsV2Result emptyIntermediatePage = mock(ListObjectsV2Result.class);
+    ListObjectsV2Result lastPage = mock(ListObjectsV2Result.class);
+    when(firstPage.contents()).thenReturn(List.of(firstObject));
+    when(firstPage.nextContinuationToken()).thenReturn("page-2");
+    when(emptyIntermediatePage.contents()).thenReturn(List.of());
+    when(emptyIntermediatePage.nextContinuationToken()).thenReturn("page-3");
+    when(lastPage.contents()).thenReturn(List.of(lastObject));
+    when(lastPage.nextContinuationToken()).thenReturn(null);
+    when(mockOssClient.listObjectsV2(
+            any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(firstPage, emptyIntermediatePage, lastPage);
+
+    Iterator<BlobInfo> iterator =
+        ali.doList(ListBlobsRequest.builder().withDelimiter("/").build());
+    List<BlobInfo> entries = new ArrayList<>();
+    iterator.forEachRemaining(entries::add);
+
+    assertEquals(
+        List.of("first.txt", "last.txt"),
+        entries.stream().map(BlobInfo::getKey).toList());
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  void testDoList_IncludesCommonPrefixesAcrossPages() {
+    ObjectSummary firstObject = ObjectSummary.newBuilder().key("b.txt").size(1L).build();
+    ObjectSummary lastObject = ObjectSummary.newBuilder().key("d.txt").size(1L).build();
+    ListObjectsV2Result firstPage = mock(ListObjectsV2Result.class);
+    ListObjectsV2Result lastPage = mock(ListObjectsV2Result.class);
+    when(firstPage.contents()).thenReturn(List.of(firstObject));
+    when(firstPage.commonPrefixes())
+        .thenReturn(List.of(CommonPrefix.newBuilder().prefix("a/").build()));
+    when(firstPage.nextContinuationToken()).thenReturn("page-2");
+    when(lastPage.contents()).thenReturn(List.of(lastObject));
+    when(lastPage.commonPrefixes())
+        .thenReturn(List.of(CommonPrefix.newBuilder().prefix("c/").build()));
+    when(lastPage.nextContinuationToken()).thenReturn(null);
+    when(mockOssClient.listObjectsV2(
+            any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(firstPage, lastPage);
+
+    Iterator<BlobInfo> iterator =
+        ali.doList(
+            ListBlobsRequest.builder()
+                .withDelimiter("/")
+                .withIncludeCommonPrefixes(true)
+                .build());
+    List<BlobInfo> entries = new ArrayList<>();
+    iterator.forEachRemaining(entries::add);
+
+    assertEquals(
+        Map.of("a/", true, "b.txt", false, "c/", true, "d.txt", false),
+        entries.stream()
+            .collect(Collectors.toMap(BlobInfo::getKey, BlobInfo::isCommonPrefix)));
+  }
+
   // Base instant for deterministic lastModified values in the object-summary fixtures;
   // each summary i gets BASE_LAST_MODIFIED + i seconds so tests can assert exact timestamps.
   private static final java.time.Instant BASE_LAST_MODIFIED =
@@ -915,6 +1013,43 @@ public class AliBlobStoreTest {
     assertEquals("object-1", actualRequest.key());
     assertEquals("bucket-1", actualRequest.bucket());
     assertEquals(metadata, actualRequest.metadata());
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_withOperationContext_stampsMetadata() {
+    InitiateMultipartUploadResult mockResult = mock(InitiateMultipartUploadResult.class);
+    InitiateMultipartUpload mockUpload = mock(InitiateMultipartUpload.class);
+    when(mockResult.initiateMultipartUpload()).thenReturn(mockUpload);
+    when(mockUpload.bucket()).thenReturn("bucket-1");
+    when(mockUpload.key()).thenReturn("object-1");
+    when(mockUpload.uploadId()).thenReturn("mpu-id");
+    when(mockOssClient.initiateMultipartUpload(
+        any(InitiateMultipartUploadRequest.class),
+        any(OperationOptions.class))).thenReturn(mockResult);
+    OperationContext ctx = OperationContext.builder()
+        .serviceId("svc-1")
+        .tenantId("tenant-1")
+        .correlationId("corr-1")
+        .build();
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("object-1")
+        .withMetadata(Map.of("key-1", "value-1"))
+        .withOperationContext(ctx)
+        .build();
+
+    MultipartUpload handle = ali.initiateMultipartUpload(request);
+
+    ArgumentCaptor<InitiateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(InitiateMultipartUploadRequest.class);
+    verify(mockOssClient, times(1)).initiateMultipartUpload(captor.capture(),
+        any(OperationOptions.class));
+    Map<String, String> expected = Map.of(
+        "key-1", "value-1",
+        "sdk-logging-service-id", "svc-1",
+        "sdk-logging-tenant-id", "tenant-1",
+        "sdk-logging-correlation-id", "corr-1");
+    assertEquals(expected, captor.getValue().metadata());
+    assertEquals(expected, handle.getMetadata());
   }
 
   @Test
@@ -1824,12 +1959,13 @@ public class AliBlobStoreTest {
   @Test
   void testListBlobVersions() {
     String key = "my-object";
+    // OSS returns versions newest-first, so v1 is the newer of the two.
     ObjectVersion v1 = ObjectVersion.newBuilder()
         .key(key).versionId("v1").eTag("etag1").size(100L)
-        .lastModified(Instant.now()).build();
+        .lastModified(Instant.ofEpochSecond(200)).build();
     ObjectVersion v2 = ObjectVersion.newBuilder()
         .key(key).versionId("v2").eTag("etag2").size(200L)
-        .lastModified(Instant.now()).build();
+        .lastModified(Instant.ofEpochSecond(100)).build();
 
     ListObjectVersionsResult result = mock(ListObjectVersionsResult.class);
     when(result.versions()).thenReturn(List.of(v1, v2));

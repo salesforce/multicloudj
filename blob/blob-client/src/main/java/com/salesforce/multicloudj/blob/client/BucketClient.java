@@ -27,7 +27,11 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.observability.MultiCloudJLogger;
 import com.salesforce.multicloudj.common.observability.OperationContext;
@@ -94,8 +98,7 @@ public class BucketClient implements AutoCloseable {
           try {
             return withCorrelationId(blobStore.upload(enriched, inputStream), ctx);
           } catch (Throwable t) {
-            propagate(t);
-            return null;
+            throw mapUploadException(enriched, t);
           }
         });
   }
@@ -118,8 +121,7 @@ public class BucketClient implements AutoCloseable {
           try {
             return withCorrelationId(blobStore.upload(enriched, content), ctx);
           } catch (Throwable t) {
-            propagate(t);
-            return null;
+            throw mapUploadException(enriched, t);
           }
         });
   }
@@ -142,8 +144,7 @@ public class BucketClient implements AutoCloseable {
           try {
             return withCorrelationId(blobStore.upload(enriched, file), ctx);
           } catch (Throwable t) {
-            propagate(t);
-            return null;
+            throw mapUploadException(enriched, t);
           }
         });
   }
@@ -166,8 +167,7 @@ public class BucketClient implements AutoCloseable {
           try {
             return withCorrelationId(blobStore.upload(enriched, path), ctx);
           } catch (Throwable t) {
-            propagate(t);
-            return null;
+            throw mapUploadException(enriched, t);
           }
         });
   }
@@ -330,7 +330,13 @@ public class BucketClient implements AutoCloseable {
   /**
    * Deletes a collection of Blobs from a substrate-specific Blob storage.
    *
+   * <p>Blobs that do not exist count as deleted. If some blobs cannot be deleted, a {@link
+   * BatchOperationException} is thrown whose failed item ids are the keys of those blobs; every
+   * other blob was deleted. Providers that cannot report per-object results may surface a
+   * request-level error instead.
+   *
    * @param objects A collection of blob identifiers to delete
+   * @throws BatchOperationException Thrown if some of the blobs could not be deleted.
    * @throws SubstrateSdkException Thrown if the operation fails. Will not throw an exception if a
    *     blob in the list does not exist.
    */
@@ -341,9 +347,15 @@ public class BucketClient implements AutoCloseable {
   /**
    * Deletes a collection of Blobs from a substrate-specific Blob storage.
    *
+   * <p>Blobs that do not exist count as deleted. If some blobs cannot be deleted, a {@link
+   * BatchOperationException} is thrown whose failed item ids are the keys of those blobs; every
+   * other blob was deleted. Providers that cannot report per-object results may surface a
+   * request-level error instead.
+   *
    * @param objects A collection of blob identifiers to delete
    * @param operationContext Per-call observability context carrying the correlation ID. May be
    *     null, in which case tracing is treated as disabled.
+   * @throws BatchOperationException Thrown if some of the blobs could not be deleted.
    * @throws SubstrateSdkException Thrown if the operation fails. Will not throw an exception if a
    *     blob in the list does not exist.
    */
@@ -717,6 +729,16 @@ public class BucketClient implements AutoCloseable {
   /**
    * Sets tags on a blob.
    *
+   * <p>{@code expiration-days} is a reserved tag key. Setting it with a positive integer
+   * value marks the object as eligible for lifecycle-based expiration, where the value is
+   * the number of days from the object's creation time after which it should expire. The
+   * SDK only classifies the object; the actual deletion is performed by a bucket lifecycle
+   * rule that must be configured separately.
+   *
+   * <p>Once an object has been marked, the expiration can only be moved to a later time.
+   * Lowering the value or removing the tag does not retract an expiration that was already
+   * scheduled; only extending it to a later date takes effect.
+   *
    * @param key Name of the blob to set tags on
    * @param tags The tags to set
    * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the blob
@@ -738,6 +760,10 @@ public class BucketClient implements AutoCloseable {
 
   /**
    * Generates a presigned URL for uploading/downloading blobs
+   *
+   * <p>Only the URL is returned. If the request sets tags, a content type, or a checksum, the
+   * uploader may need to send headers that were signed into the URL; use {@link
+   * #presign(PresignedUrlRequest)} to obtain them.
    *
    * @param request The presigned request
    * @return Returns the presigned URL
@@ -978,27 +1004,39 @@ public class BucketClient implements AutoCloseable {
     throw blobStore.mapException(t);
   }
 
+  private SubstrateSdkException mapUploadException(UploadRequest request, Throwable t) {
+    SubstrateSdkException mapped = blobStore.mapException(t);
+    if (!request.isCreateIfAbsent()) {
+      return mapped;
+    }
+
+    Throwable cause = mapped.getCause() != null ? mapped.getCause() : mapped;
+    if (mapped instanceof FailedPreconditionException) {
+      return new ResourceAlreadyExistsException("Blob already exists", cause);
+    }
+    if (mapped instanceof ResourceConflictException) {
+      return new ResourceConflictException(
+          "Conditional blob upload conflicted", cause, true);
+    }
+    return mapped;
+  }
+
   private static UploadResponse withCorrelationId(UploadResponse r, OperationContext ctx) {
     if (r == null) {
       return null;
     }
-    return UploadResponse.builder()
-        .key(r.getKey())
-        .versionId(r.getVersionId())
-        .eTag(r.getETag())
-        .checksumValue(r.getChecksumValue())
-        .correlationId(ctx.getCorrelationId())
-        .build();
+    return r.toBuilder().correlationId(ctx.getCorrelationId()).build();
   }
 
   private static DownloadResponse withCorrelationId(DownloadResponse r, OperationContext ctx) {
     if (r == null) {
       return null;
     }
-    return DownloadResponse.builder()
-        .key(r.getKey())
+    // The nested BlobMetadata rebuild is intentional — do not "simplify" it out. A plain
+    // toBuilder().correlationId(...).build() would shallow-copy the driver's original BlobMetadata,
+    // leaving its correlationId unstamped and defeating the purpose of this rebuild.
+    return r.toBuilder()
         .metadata(withCorrelationId(r.getMetadata(), ctx))
-        .inputStream(r.getInputStream())
         .correlationId(ctx.getCorrelationId())
         .build();
   }
@@ -1007,60 +1045,29 @@ public class BucketClient implements AutoCloseable {
     if (m == null) {
       return null;
     }
-    return BlobMetadata.builder()
-        .key(m.getKey())
-        .versionId(m.getVersionId())
-        .eTag(m.getETag())
-        .checksum(m.getChecksum())
-        .objectSize(m.getObjectSize())
-        .metadata(m.getMetadata())
-        .lastModified(m.getLastModified())
-        .createdTime(m.getCreatedTime())
-        .md5(m.getMd5())
-        .contentType(m.getContentType())
-        .objectLockInfo(m.getObjectLockInfo())
-        .correlationId(ctx.getCorrelationId())
-        .build();
+    return m.toBuilder().correlationId(ctx.getCorrelationId()).build();
   }
 
   private static CopyResponse withCorrelationId(CopyResponse r, OperationContext ctx) {
     if (r == null) {
       return null;
     }
-    return CopyResponse.builder()
-        .key(r.getKey())
-        .versionId(r.getVersionId())
-        .eTag(r.getETag())
-        .lastModified(r.getLastModified())
-        .correlationId(ctx.getCorrelationId())
-        .build();
+    return r.toBuilder().correlationId(ctx.getCorrelationId()).build();
   }
 
   /**
    * Returns a copy of {@code req} with the resolved {@link OperationContext} attached so the
-   * provider's transformer can read the same correlation id that this call's trace/log/MDC
-   * emit (an empty string when the caller didn't supply one; the correlation id is never
-   * auto-generated). The transformer then persists that id onto the stored object metadata under
-   * {@link com.salesforce.multicloudj.blob.driver.BlobMetadataKeys#CORRELATION_ID}.
+   * provider's transformer can read the same correlation id that this call's trace/log/MDC emit (an
+   * empty string when the caller didn't supply one; the correlation id is never auto-generated).
+   * The transformer then persists that id onto the stored object metadata under {@link
+   * com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys#CORRELATION_ID}, or
+   * under the caller's own key when {@code correlationIdKey} is supplied.
    */
   static UploadRequest withResolvedContext(UploadRequest req, OperationContext ctx) {
     if (ctx == req.getOperationContext()) {
       return req;
     }
-    return UploadRequest.builder()
-        .withKey(req.getKey())
-        .withContentLength(req.getContentLength())
-        .withMetadata(req.getMetadata())
-        .withTags(req.getTags())
-        .withStorageClass(req.getStorageClass())
-        .withKmsKeyId(req.getKmsKeyId())
-        .withUseKmsManagedKey(req.isUseKmsManagedKey())
-        .withObjectLock(req.getObjectLock())
-        .withChecksumValue(req.getChecksumValue())
-        .withChecksumAlgorithm(req.getChecksumAlgorithm())
-        .withContentType(req.getContentType())
-        .withOperationContext(ctx)
-        .build();
+    return req.toBuilder().withOperationContext(ctx).build();
   }
 
   /**
@@ -1075,18 +1082,7 @@ public class BucketClient implements AutoCloseable {
     if (ctx == req.getOperationContext()) {
       return req;
     }
-    return new MultipartUploadRequest.Builder()
-        .withKey(req.getKey())
-        .withMetadata(req.getMetadata())
-        .withTags(req.getTags())
-        .withKmsKeyId(req.getKmsKeyId())
-        .withUseKmsManagedKey(req.isUseKmsManagedKey())
-        .withChecksumEnabled(req.isChecksumEnabled())
-        .withChecksumAlgorithm(req.getChecksumAlgorithm())
-        .withObjectLock(req.getObjectLock())
-        .withContentType(req.getContentType())
-        .withOperationContext(ctx)
-        .build();
+    return req.toBuilder().withOperationContext(ctx).build();
   }
 
   public static class BlobBuilder {
@@ -1245,6 +1241,19 @@ public class BucketClient implements AutoCloseable {
      */
     public BlobBuilder withTracingPolicy(TracingPolicy tracingPolicy) {
       this.blobStoreBuilder.withTracingPolicy(tracingPolicy);
+      return this;
+    }
+
+    /**
+     * Method to request gRPC transport for the storage client. Providers whose underlying SDK
+     * supports gRPC will use it instead of the default HTTP/JSON transport; providers without gRPC
+     * support ignore this setting.
+     *
+     * @param grpcEnabled whether to request gRPC transport for the storage client
+     * @return An instance of self
+     */
+    public BlobBuilder withGrpcEnabled(Boolean grpcEnabled) {
+      this.blobStoreBuilder.withGrpcEnabled(grpcEnabled);
       return this;
     }
 

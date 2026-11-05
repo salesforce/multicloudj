@@ -111,6 +111,25 @@ MultiCloudJ follows standard Java coding conventions:
 mvn clean test
 ```
 
+### Publishing benchmarks for a module
+
+Benchmarks are published as a separate `benchmarks`-classifier jar (JMH classes and
+metadata only, no test infrastructure). The jar config and a build-time guard live once in
+the root `pom.xml`; a module opts in through properties, not copied XML.
+
+- Any benchmark-bearing module: set `<benchmarks.jar.phase>package</benchmarks.jar.phase>`,
+  and declare a bare `maven-jar-plugin` if the module does not already.
+- Provider modules (runnable benchmarks): additionally set
+  `<benchmarks.expected.package>com.salesforce.multicloudj.<service>.<cloud>.</benchmarks.expected.package>`
+  (keep the trailing dot). The guard then fails the build at `verify` if a fresh jar was not
+  built, its `META-INF/BenchmarkList` is empty, or it does not contain that package.
+- Client modules (abstract benchmark base classes only): set just `benchmarks.jar.phase`; the
+  guard stays inactive because no `benchmarks.expected.package` is set.
+
+Modules that set neither property produce no benchmarks jar. The guard also fails any module
+that ships a jar of runnable benchmarks without declaring `benchmarks.expected.package`, so a
+new provider cannot accidentally publish an unverified benchmarks jar.
+
 ---
 
 ## Documentation Contributions

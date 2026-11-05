@@ -1,0 +1,32 @@
+{
+  "id" : "aa5abb24-658b-4601-9a0f-407b50e2193f",
+  "name" : "AwsKmsIT_testTagKey-POST-1",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.DeleteAlias"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"AliasName\":\"alias/multicloudj-kms-it-tag\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "e5312162-df2e-47cd-a92e-f6fbfe5e231b",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Mon, 19 Oct 2026 17:46:00 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "aa5abb24-658b-4601-9a0f-407b50e2193f",
+  "persistent" : true,
+  "insertionIndex" : 58
+}

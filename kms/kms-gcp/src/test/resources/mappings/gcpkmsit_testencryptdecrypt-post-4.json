@@ -1,0 +1,52 @@
+{
+  "id" : "b7a640a0-56a6-45af-b81e-2184f7009a89",
+  "name" : "GcpKmsIT_testEncryptDecrypt-POST-4",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      },
+      "cryptoKeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "kms-it-crypt-r2"
+        } ]
+      },
+      "skipInitialVersionCreation" : {
+        "hasExactly" : [ {
+          "equalTo" : "false"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"purpose\":1,\"labels\":{\"suite\":\"multicloudj-conformance\"},\"versionTemplate\":{\"protectionLevel\":1,\"algorithm\":1}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-crypt-r2\",\n  \"primary\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-crypt-r2/cryptoKeyVersions/1\",\n    \"state\": 1,\n    \"createTime\": \"2026-10-18T06:15:58.581819946Z\",\n    \"protectionLevel\": 1,\n    \"algorithm\": 1,\n    \"generateTime\": \"2026-10-18T06:15:58.581819946Z\"\n  },\n  \"purpose\": 1,\n  \"createTime\": \"2026-10-18T06:15:58.581819946Z\",\n  \"labels\": {\n    \"suite\": \"multicloudj-conformance\"\n  },\n  \"versionTemplate\": {\n    \"protectionLevel\": 1,\n    \"algorithm\": 1\n  },\n  \"destroyScheduledDuration\": \"2592000s\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sun, 18 Oct 2026 06:15:58 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "b7a640a0-56a6-45af-b81e-2184f7009a89",
+  "persistent" : true,
+  "insertionIndex" : 38
+}

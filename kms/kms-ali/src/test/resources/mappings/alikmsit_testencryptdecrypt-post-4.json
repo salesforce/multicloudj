@@ -1,0 +1,42 @@
+{
+  "id" : "8aa4907a-2551-4185-8ea2-8b8c8fdb6f50",
+  "name" : "AliKmsIT_testEncryptDecrypt-POST-4",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "x-acs-action" : {
+        "equalTo" : "Encrypt"
+      }
+    },
+    "queryParameters" : {
+      "EncryptionContext" : {
+        "hasExactly" : [ {
+          "equalTo" : "{\"purpose\":\"conformance\"}"
+        } ]
+      },
+      "Plaintext" : {
+        "hasExactly" : [ {
+          "equalTo" : "bXVsdGljbG91ZGota21zLWNvbmZvcm1hbmNl"
+        } ]
+      },
+      "KeyId" : {
+        "hasExactly" : [ {
+          "equalTo" : "key-shh6ae51db7b14so2etha"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\t\"KeyId\": \"key-shh6ae51db7b14so2etha\",\n\t\"KeyVersionId\": \"key-shh6ae51db7b14so2etha-n212j7k2xs\",\n\t\"CiphertextBlob\": \"a2V5LXNoaDZhZTUxZGI3YjE0c28yZXRoYS1uMjEyajdrMnhzNp6C3nFU29YwW15/M/bXzx6E9RaxcbQl4tQpECc0DON3qRE59XGmtL9UXTfSKrXDlKT1dYFpiOB5zdXw2do3uw==\",\n\t\"RequestId\": \"ccac4a89-b5c6-42fd-bfb7-a5385c80b9ef\"\n}",
+    "headers" : {
+      "Server" : "Tengine/2.5.7_20220713195920",
+      "Date" : "Fri, 30 Oct 2026 22:44:09 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "8aa4907a-2551-4185-8ea2-8b8c8fdb6f50",
+  "persistent" : true,
+  "insertionIndex" : 98
+}

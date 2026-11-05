@@ -1,0 +1,47 @@
+{
+  "id" : "bbce5310-0c9b-4f54-9b38-8ca0e4f82f64",
+  "name" : "GcpKmsIT_testImportKeyMaterial-POST-9",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/importJobs",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      },
+      "importJobId" : {
+        "hasExactly" : [ {
+          "equalTo" : "mcj-kms-it-byok-r2-rsaoaep3072sha256"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"importMethod\":5,\"protectionLevel\":1}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"name\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/importJobs/mcj-kms-it-byok-r2-rsaoaep3072sha256\",\n  \"importMethod\": 5,\n  \"createTime\": \"2026-10-18T06:15:44.508982228Z\",\n  \"expireTime\": \"2026-10-21T06:15:44.508982228Z\",\n  \"state\": 1,\n  \"protectionLevel\": 1\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sun, 18 Oct 2026 06:15:44 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "bbce5310-0c9b-4f54-9b38-8ca0e4f82f64",
+  "persistent" : true,
+  "insertionIndex" : 20
+}

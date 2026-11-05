@@ -1,11 +1,15 @@
 package com.salesforce.multicloudj.docstore.aws;
 
 import com.google.protobuf.Timestamp;
+import com.salesforce.multicloudj.docstore.driver.FieldCache;
 import com.salesforce.multicloudj.docstore.driver.codec.Codec;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -94,5 +98,77 @@ public class AwsEncoderTest {
     map.put("a", "b");
     Codec.encode(map, encoder);
     // To add assert when the function is supported.
+  }
+
+  @Test
+  void testEncodeStructWithSiblingObjectAndMapDoesNotCrossContaminate() {
+    Book book = new Book();
+    book.author = new Author("Zoe", "Ford", 22);
+    book.tableOfContents = new LinkedHashMap<>();
+    book.tableOfContents.put("Chapter 1", 5);
+    book.tableOfContents.put("Chapter 2", 10);
+
+    AwsEncoder encoder = new AwsEncoder();
+    Codec.encodeObject(book, new FieldCache(), encoder);
+    Map<String, AttributeValue> item = encoder.getAttributeValue().m();
+
+    Assertions.assertEquals(
+        Set.of("firstName", "lastName", "age"),
+        item.get("author").m().keySet(),
+        "author sub-map should contain only the Author's own fields");
+
+    Assertions.assertEquals(
+        Set.of("Chapter 1", "Chapter 2"),
+        item.get("tableOfContents").m().keySet(),
+        "tableOfContents sub-map must not contain author fields");
+  }
+
+  @Test
+  void testEncodeStructWithMapBeforeObjectDoesNotCrossContaminate() {
+    HeadlinedBook book = new HeadlinedBook();
+    book.chapters = new LinkedHashMap<>();
+    book.chapters.put("Chapter 1", 5);
+    book.chapters.put("Chapter 2", 10);
+    book.writer = new Author("Zoe", "Ford", 22);
+
+    AwsEncoder encoder = new AwsEncoder();
+    Codec.encodeObject(book, new FieldCache(), encoder);
+    Map<String, AttributeValue> item = encoder.getAttributeValue().m();
+
+    Assertions.assertEquals(
+        Set.of("Chapter 1", "Chapter 2"),
+        item.get("chapters").m().keySet(),
+        "chapters sub-map should contain only chapter entries");
+
+    Assertions.assertEquals(
+        Set.of("firstName", "lastName", "age"),
+        item.get("writer").m().keySet(),
+        "writer sub-map must not contain chapter entries");
+  }
+
+  static class Author {
+    String firstName;
+    String lastName;
+    int age;
+
+    Author() {}
+
+    Author(String firstName, String lastName, int age) {
+      this.firstName = firstName;
+      this.lastName = lastName;
+      this.age = age;
+    }
+  }
+
+  static class Book {
+    Author author;
+    Map<String, Integer> tableOfContents;
+  }
+
+  // Field names chosen so alphabetical sort (see FieldCache) yields the Map
+  // field first, then the object field — the reverse of Book above.
+  static class HeadlinedBook {
+    Map<String, Integer> chapters;
+    Author writer;
   }
 }

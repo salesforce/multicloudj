@@ -1,0 +1,33 @@
+{
+  "id" : "36c6c9b9-e53a-4f7c-8905-794fdd70baf6",
+  "name" : "AwsKmsIT_testImportKeyMaterial-POST-0",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "TrentService.ScheduleKeyDeletion"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"KeyId\":\"50ccc0bb-7a7a-44b3-bd37-09e59facc194\",\"PendingWindowInDays\":7}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"DeletionDate\":1.793036744707E9,\"KeyId\":\"arn:aws:kms:us-west-2:654654370895:key/50ccc0bb-7a7a-44b3-bd37-09e59facc194\",\"KeyState\":\"PendingDeletion\",\"PendingWindowInDays\":7}",
+    "headers" : {
+      "Cache-Control" : "no-cache, no-store, must-revalidate, private",
+      "x-amzn-RequestId" : "7e77b0c0-6bd8-46c5-ae74-2fe3a7b69473",
+      "Pragma" : "no-cache",
+      "Expires" : "0",
+      "Date" : "Mon, 19 Oct 2026 17:45:44 GMT",
+      "Content-Type" : "application/x-amz-json-1.1"
+    }
+  },
+  "uuid" : "36c6c9b9-e53a-4f7c-8905-794fdd70baf6",
+  "persistent" : true,
+  "insertionIndex" : 12
+}

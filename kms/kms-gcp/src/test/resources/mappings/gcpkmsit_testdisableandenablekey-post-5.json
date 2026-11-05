@@ -1,0 +1,45 @@
+{
+  "id" : "755ba0ae-c21a-4691-bd0a-13b97a9a2e64",
+  "name" : "GcpKmsIT_testDisableAndEnableKey-POST-5",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-toggle-r2:encrypt",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"plaintext\":\"bXVsdGljbG91ZGota21zLWNvbmZvcm1hbmNl\",\"additionalAuthenticatedData\":\"eyJwdXJwb3NlIjoiY29uZm9ybWFuY2UifQ==\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-toggle-r2/cryptoKeyVersions/1 is not enabled, current state is: DISABLED.\",\n    \"status\": \"FAILED_PRECONDITION\",\n    \"details\": [\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.PreconditionFailure\",\n        \"violations\": [\n          {\n            \"type\": \"KEY_DISABLED\",\n            \"subject\": \"projects/substrate-sdk-gcp-poc1/locations/us-west1/keyRings/multicloudj-kms-it/cryptoKeys/kms-it-toggle-r2/cryptoKeyVersions/1\"\n          }\n        ]\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sun, 18 Oct 2026 06:15:54 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "755ba0ae-c21a-4691-bd0a-13b97a9a2e64",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-v1-projects-substrate-sdk-gcp-poc1-locations-us-west1-keyRings-multicloudj-kms-it-cryptoKeys-kms-it-toggle-r2:encrypt",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-2-v1-projects-substrate-sdk-gcp-poc1-locations-us-west1-keyRings-multicloudj-kms-it-cryptoKeys-kms-it-toggle-r2:encrypt-2",
+  "insertionIndex" : 29
+}

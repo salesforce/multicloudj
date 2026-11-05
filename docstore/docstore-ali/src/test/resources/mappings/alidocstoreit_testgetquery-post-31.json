@@ -1,26 +1,27 @@
 {
-  "id" : "2bc040b5-dcca-4c1f-99af-cd677daaa3fc",
+  "id" : "04184d89-7fbd-4ed4-b63b-9f46a0ff9048",
   "name" : "AliDocstoreIT_testGetQuery-POST-31",
   "request" : {
-    "url" : "/GetRange",
+    "url" : "/DescribeTable",
     "method" : "POST",
     "bodyPatterns" : [ {
-      "binaryEqualTo" : "Cg9kb2NzdG9yZV90ZXN0XzEQACgBOhp1AAAAAQMEBQAAAHBOYW1lBQEAAAAJCtUJ+0IadQAAAAEDBAUAAABwTmFtZQUBAAAACgrcCUY="
+      "equalTo" : "\n\u000Fdocstore_test_2",
+      "caseInsensitive" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "base64Body" : "CgYKBAgBEAASACgAMAA=",
+    "base64Body" : "CnIKD2RvY3N0b3JlX3Rlc3RfMhIICgRHYW1lEAISCgoGUGxheWVyEAIaCQoFU2NvcmUQARoICgRUaW1lEAQaDgoKV2l0aEdsaXRjaBADKiRmYzUyNDZjMS1hYTVkLTQ5NjgtODFjNy1iNjI2ZWI1NjhjODYSDAoECAAQABDzr4TTBhoVCP///////////wEQASiAowUwATgAIAEqBAgAIAA6AggAQjIKA2xzaRIER2FtZRIFU2NvcmUSBlBsYXllchoEVGltZRoKV2l0aEdsaXRjaCABKAEwAkIyCgNnc2kSBlBsYXllchIEVGltZRIER2FtZRoFU2NvcmUaCldpdGhHbGl0Y2ggACgAMAJIpq/fvYDnlQNiAggAaAA=",
     "headers" : {
-      "x-ots-requestid" : "000657ed-c04c-5a93-8807-fe0a0b24917c",
-      "Authorization" : "OTS STS.NY3TWDAWC3sV57fGWmx8PCPqs:opmBVlkxAylJoyQVboZAc+GQY5M=",
-      "x-ots-date" : "2026-07-31T20:08:25.392880Z",
+      "x-ots-requestid" : "00065a13-1d24-c522-ccdf-c60bcba7ac26",
+      "Authorization" : "OTS STS.NYKRCFQWXELvmrjAHWndrQSNH:5rHx/HhejFlYLch7HpQwRTveE0I=",
+      "x-ots-date" : "2026-08-28T03:33:20.100915Z",
       "x-ots-contenttype" : "protocol buffer",
-      "x-ots-contentmd5" : "M+F5fmlafi12epAjSQP18w==",
-      "Date" : "Fri, 31 Jul 2026 20:08:25 GMT"
+      "x-ots-contentmd5" : "eMBWZUy6fHv+1cPqGPns5A==",
+      "Date" : "Fri, 28 Aug 2026 03:33:20 GMT"
     }
   },
-  "uuid" : "2bc040b5-dcca-4c1f-99af-cd677daaa3fc",
+  "uuid" : "04184d89-7fbd-4ed4-b63b-9f46a0ff9048",
   "persistent" : true,
-  "insertionIndex" : 32
+  "insertionIndex" : 210
 }

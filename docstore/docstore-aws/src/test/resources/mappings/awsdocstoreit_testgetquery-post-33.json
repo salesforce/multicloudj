@@ -1,32 +1,32 @@
 {
-  "id" : "9247c4f9-9690-4d3d-8f55-93dedb92107b",
+  "id" : "a0a68b26-edbf-4d26-91b3-6352e531369c",
   "name" : "AwsDocstoreIT_testGetQuery-POST-33",
   "request" : {
     "url" : "/",
     "method" : "POST",
     "headers" : {
       "X-Amz-Target" : {
-        "equalTo" : "DynamoDB_20120810.DeleteItem"
+        "equalTo" : "DynamoDB_20120810.DescribeTable"
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"testAtomicWritesFail3\"}},\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"67289883-b6e8-85d3-48cd-5b7a7408581b\"}}}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\"}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "{}",
+    "body" : "{\"Table\":{\"AttributeDefinitions\":[{\"AttributeName\":\"pName\",\"AttributeType\":\"S\"}],\"CreationDateTime\":1.739250359602E9,\"DeletionProtectionEnabled\":false,\"ItemCount\":0,\"KeySchema\":[{\"AttributeName\":\"pName\",\"KeyType\":\"HASH\"}],\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5},\"TableArn\":\"arn:aws:dynamodb:us-west-2:654654370895:table/docstore-test-1\",\"TableId\":\"a64f5fc6-5267-4059-b0bf-e10cc9fcf628\",\"TableName\":\"docstore-test-1\",\"TableSizeBytes\":0,\"TableStatus\":\"ACTIVE\",\"WarmThroughput\":{\"ReadUnitsPerSecond\":5,\"Status\":\"ACTIVE\",\"WriteUnitsPerSecond\":5}}}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "54NCUKF2EU51NMOV55J0QTDU2BVV4KQNSO5AEMVJF66Q9ASUAAJG",
-      "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 04 Mar 2026 21:12:19 GMT",
+      "x-amzn-RequestId" : "65IP6IE55PM6NG1JINPII94FDVVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "1512694266",
+      "Date" : "Fri, 23 Oct 2026 23:18:02 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "9247c4f9-9690-4d3d-8f55-93dedb92107b",
+  "uuid" : "a0a68b26-edbf-4d26-91b3-6352e531369c",
   "persistent" : true,
-  "insertionIndex" : 34
+  "insertionIndex" : 243
 }
