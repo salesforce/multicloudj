@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.14](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.13...multicloudj-v0.4.14) (2026-11-05)
+
+
+### Blob Store
+
+* apply client endpoint override to AWS S3Presigner and omit empty tagging ([#732](https://github.com/salesforce/multicloudj/issues/732)) ([de6bcc0](https://github.com/salesforce/multicloudj/commit/de6bcc0338b507f098f0f2b701a6715b1be96f33))
+* delete objects from every listing page in GCP deleteDirectory ([#734](https://github.com/salesforce/multicloudj/issues/734)) ([20a7746](https://github.com/salesforce/multicloudj/commit/20a774689bca732045dbf80ca07af9ef1fa0543b))
+* report per-object failures in batch delete for AWS and GCP ([#738](https://github.com/salesforce/multicloudj/issues/738)) ([8f3db4c](https://github.com/salesforce/multicloudj/commit/8f3db4c0f68da23d71c75c83c416b6580b472b7c))
+* URL-encode tag keys and values in the Ali x-oss-tagging header ([#726](https://github.com/salesforce/multicloudj/issues/726)) ([e788246](https://github.com/salesforce/multicloudj/commit/e7882467009f99ee17e576ddd8de8e2792bf0fce))
+
 ## [0.4.13](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.12...multicloudj-v0.4.13) (2026-11-02)
 
 
