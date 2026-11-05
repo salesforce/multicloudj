@@ -27,6 +27,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -58,8 +59,8 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
   // not listed: a caller may supply its own value, which replaces the generated one.
   private static final Set<String> SIGNER_OWNED_HEADERS =
       Set.of("host", "x-amz-date", "x-amz-security-token", "authorization");
-  // An HTTP header name is an RFC 7230 token; names arrive lowercase, so only lowercase letters are
-  // listed. The JDK HTTP client also refuses to set the restricted names below (host is already
+  // An HTTP header name is an RFC 7230 token; names are lowercased first, so only lowercase letters
+  // are listed. The JDK HTTP client also refuses to set the restricted names below (host is already
   // signer owned). Both are checked before signing, so a bad name is reported as invalid input.
   private static final Pattern HEADER_NAME_TOKEN = Pattern.compile("[!#$%&'*+.^_`|~0-9a-z-]+");
   private static final Set<String> CLIENT_RESTRICTED_HEADERS =
@@ -154,22 +155,30 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
       headers.put(REQUEST_HASH_HEADER, getSha256Hash(payload));
     }
     // Caller supplied custom headers (e.g. a federation target resource) are always signed. Names
-    // arrive lowercase, as the SigV4 canonical rules require. Names the signer sets itself are
-    // rejected so a caller cannot replace the signing date, credentials, or host. A custom
-    // content-type or x-request-hash replaces the generated value. Values are
-    // normalized the way SigV4 canonicalizes them, so the value sent, the value signed, and the
-    // value a verifier recomputes from are the same.
+    // are lowercased, as the SigV4 canonical rules require, so two names that differ only by case
+    // are rejected. Names the signer sets itself are rejected so a caller cannot replace the
+    // signing date, credentials, or host. A custom content-type or x-request-hash replaces the
+    // generated value. Values are normalized the way SigV4 canonicalizes them, so the value sent,
+    // the value signed, and the value a verifier recomputes from are the same.
+    Set<String> customNames = new HashSet<>();
     for (Map.Entry<String, String> header : options.getCustomHeaders().entrySet()) {
-      if (SIGNER_OWNED_HEADERS.contains(header.getKey())) {
-        throw new InvalidArgumentException(
-            "custom header \"" + header.getKey() + "\" is reserved by the signer");
+      if (header.getKey() == null || header.getValue() == null) {
+        throw new InvalidArgumentException("custom header name and value must not be null");
       }
-      if (!HEADER_NAME_TOKEN.matcher(header.getKey()).matches()
-          || CLIENT_RESTRICTED_HEADERS.contains(header.getKey())) {
+      String name = header.getKey().toLowerCase(Locale.ROOT);
+      if (SIGNER_OWNED_HEADERS.contains(name)) {
         throw new InvalidArgumentException(
-            "custom header \"" + header.getKey() + "\" is not a valid request header name");
+            "custom header \"" + name + "\" is reserved by the signer");
       }
-      headers.put(header.getKey(), canonicalHeaderValue(header.getValue()));
+      if (!HEADER_NAME_TOKEN.matcher(name).matches() || CLIENT_RESTRICTED_HEADERS.contains(name)) {
+        throw new InvalidArgumentException(
+            "custom header \"" + name + "\" is not a valid request header name");
+      }
+      if (!customNames.add(name)) {
+        throw new InvalidArgumentException(
+            "custom header \"" + name + "\" is specified more than once");
+      }
+      headers.put(name, canonicalHeaderValue(header.getValue()));
     }
 
     // Authorization is not itself a signed header, so it is added after signing. host was signed

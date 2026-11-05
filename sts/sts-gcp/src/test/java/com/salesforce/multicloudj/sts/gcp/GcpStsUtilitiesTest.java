@@ -246,19 +246,19 @@ class GcpStsUtilitiesTest {
   }
 
   @Test
-  void customHeaderClaimNamesAreLowercased() throws Exception {
+  void customHeaderClaimNamesKeepTheirCase() throws Exception {
     SignOptions signOptions = SignOptions.builder().withCustomHeader("X-Tenant", "t1").build();
     SignedAuthRequest signed = signer().newCloudNativeAuthSignedRequest(null, signOptions);
 
     JsonWebSignature parsed =
         JsonWebSignature.parse(GsonFactory.getDefaultInstance(), signed.getSignedIdentity());
-    Assertions.assertEquals("t1", parsed.getPayload().get("x-tenant"));
-    Assertions.assertNull(parsed.getPayload().get("X-Tenant"));
+    Assertions.assertEquals("t1", parsed.getPayload().get("X-Tenant"));
+    Assertions.assertNull(parsed.getPayload().get("x-tenant"));
   }
 
   @Test
   void signerOwnedClaimNamesAreRejectedAsCustomHeaders() {
-    for (String name : new String[] {"iss", "sub", "iat", "exp", "nbf", "ISS"}) {
+    for (String name : new String[] {"iss", "sub", "iat", "exp", "nbf"}) {
       SignOptions signOptions = SignOptions.builder().withCustomHeader(name, "v").build();
       InvalidArgumentException e =
           Assertions.assertThrows(

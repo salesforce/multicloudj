@@ -7,7 +7,6 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.driver.AbstractStsVerifier;
-import com.salesforce.multicloudj.sts.driver.CustomHeaderLookup;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.io.IOException;
@@ -153,8 +152,9 @@ public class AwsStsVerifier extends AbstractStsVerifier {
       return;
     }
     for (Map.Entry<String, String> expected : options.getExpectedCustomHeaders().entrySet()) {
-      String actual =
-          CustomHeaderLookup.find(params, expected.getKey(), "signed request parameter");
+      // The signer lowercases header names, as SigV4 requires, so look the expected name up the
+      // same way.
+      String actual = params.get(expected.getKey().toLowerCase(Locale.ROOT));
       if (actual == null) {
         throw new InvalidArgumentException(
             "expected custom header \"" + expected.getKey() + "\" not found in signed request");

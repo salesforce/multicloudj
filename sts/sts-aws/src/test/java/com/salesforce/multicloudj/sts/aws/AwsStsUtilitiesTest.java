@@ -173,6 +173,22 @@ class AwsStsUtilitiesTest {
   }
 
   @Test
+  void blankNullOrCaseDuplicateHeaderNamesAreRejected() {
+    SignOptions[] invalid = {
+      SignOptions.builder().withCustomHeader(" ", "v").build(),
+      SignOptions.builder().withCustomHeader(null, "v").build(),
+      SignOptions.builder().withCustomHeader("x-a", null).build(),
+      SignOptions.builder().withCustomHeader("X-A", "1").withCustomHeader("x-a", "2").build()
+    };
+    for (SignOptions options : invalid) {
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options),
+          options.getCustomHeaders().toString());
+    }
+  }
+
+  @Test
   void invalidHeaderNameIsInvalidArgumentThroughPublicApi() {
     SignOptions options = SignOptions.builder().withCustomHeader("x foo", "v").build();
 
