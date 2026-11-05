@@ -17,6 +17,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -53,9 +54,12 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
+import com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
@@ -445,6 +449,70 @@ public class AsyncBucketClientTest {
     assertFailed(
         client.delete(List.of(new BlobIdentifier("object-1", "version-1"))),
         UnAuthorizedException.class);
+  }
+
+  private static BatchOperationException batchDeleteFailure() {
+    return new BatchOperationException(
+        List.of(
+            new ItemFailure("object-1", new UnAuthorizedException("denied")),
+            new ItemFailure(
+                "object-2",
+                new ResourceExhaustedException("slow down"),
+                Map.of(BlobIdentifier.VERSION_ID_ATTRIBUTE, "v2"))));
+  }
+
+  @Test
+  void testBulkDeleteSurfacesBatchDeleteExceptionUnchanged() {
+    BatchOperationException failure = batchDeleteFailure();
+    List<BlobIdentifier> objects = List.of(new BlobIdentifier("object-1", null));
+    when(mockBlobStore.delete(objects))
+        .thenReturn(CompletableFuture.failedFuture(new CompletionException(failure)));
+
+    ExecutionException error =
+        assertThrows(ExecutionException.class, () -> client.delete(objects).get());
+
+    assertSame(failure, error.getCause());
+    BatchOperationException thrown = (BatchOperationException) error.getCause();
+    assertEquals(List.of("object-1", "object-2"), thrown.getFailedItemIds());
+    assertEquals(
+        Map.of(BlobIdentifier.VERSION_ID_ATTRIBUTE, "v2"),
+        thrown.getFailures().get(1).getAttributes());
+    verify(mockBlobStore, never()).mapException(any());
+  }
+
+  @Test
+  void testBulkDeleteStillMapsOtherWrappedExceptions() {
+    CompletionException wrapper = new CompletionException(new RuntimeException("delete failed"));
+    List<BlobIdentifier> objects = List.of(new BlobIdentifier("object-1", null));
+    when(mockBlobStore.delete(objects)).thenReturn(CompletableFuture.failedFuture(wrapper));
+
+    assertFailed(client.delete(objects), UnAuthorizedException.class);
+
+    verify(mockBlobStore).mapException(wrapper);
+  }
+
+  @Test
+  void testDeleteDirectorySurfacesBatchDeleteExceptionUnchanged() {
+    BatchOperationException failure = batchDeleteFailure();
+    when(mockBlobStore.deleteDirectory("files"))
+        .thenReturn(CompletableFuture.failedFuture(new CompletionException(failure)));
+
+    ExecutionException error =
+        assertThrows(ExecutionException.class, () -> client.deleteDirectory("files").get());
+
+    assertSame(failure, error.getCause());
+    verify(mockBlobStore, never()).mapException(any());
+  }
+
+  @Test
+  void testDeleteDirectoryStillMapsOtherWrappedExceptions() {
+    CompletionException wrapper = new CompletionException(new RuntimeException("delete failed"));
+    when(mockBlobStore.deleteDirectory("files"))
+        .thenReturn(CompletableFuture.failedFuture(wrapper));
+
+    assertFailed(client.deleteDirectory("files"), UnAuthorizedException.class);
+
+    verify(mockBlobStore).mapException(wrapper);
   }
 
   @Test

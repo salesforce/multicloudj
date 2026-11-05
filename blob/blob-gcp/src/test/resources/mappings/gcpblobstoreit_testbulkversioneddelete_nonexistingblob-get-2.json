@@ -1,5 +1,5 @@
 {
-  "id" : "69974e87-2827-4c8e-8001-b748bdf8eafa",
+  "id" : "a83a6c1e-fe98-4662-8389-eb254bc5c87f",
   "name" : "GcpBlobStoreIT_testBulkVersionedDelete_nonExistingBlob-GET-2",
   "request" : {
     "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
@@ -13,11 +13,6 @@
       "maxResults" : {
         "hasExactly" : [ {
           "equalTo" : "1"
-        } ]
-      },
-      "prefix" : {
-        "hasExactly" : [ {
-          "equalTo" : ""
         } ]
       },
       "projection" : {
@@ -34,14 +29,15 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
-      "X-GUploader-UploadID" : "AAVLpEhoM6AB0Dz_roWV2c9oNpxFWeqS-Q6bmiukmTSWPZohXV6g7u28JHsnsRNfj0yatN78",
+      "X-GUploader-UploadID" : "AFy3sg24bNZt7UqiReaT8rVDwcDu8KkLdTTk1JZxofkDm_gdUKE19R4zkl1WHXx5QOro3mqD1C1Z5Q",
       "Vary" : [ "Origin", "X-Origin" ],
-      "Expires" : "Thu, 04 Jun 2026 20:04:48 GMT",
-      "Date" : "Thu, 04 Jun 2026 20:04:48 GMT",
+      "Expires" : "Wed, 04 Nov 2026 18:58:16 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a1a7ed1aa1",
+      "Date" : "Wed, 04 Nov 2026 18:58:16 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "69974e87-2827-4c8e-8001-b748bdf8eafa",
+  "uuid" : "a83a6c1e-fe98-4662-8389-eb254bc5c87f",
   "persistent" : true,
-  "insertionIndex" : 1420
+  "insertionIndex" : 1479
 }
