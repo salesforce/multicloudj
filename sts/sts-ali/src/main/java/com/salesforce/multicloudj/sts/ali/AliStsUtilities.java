@@ -37,6 +37,11 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
 
   public AliStsUtilities(Builder builder) {
     super(builder);
+    // Only an identity signed for a genuine STS endpoint can be verified.
+    if (endpoint != null && !AliStsVerifier.isStsHost(endpoint.getHost())) {
+      throw new InvalidArgumentException(
+          "endpoint is not an Alibaba Cloud STS endpoint: " + endpoint);
+    }
   }
 
   public AliStsUtilities() {
