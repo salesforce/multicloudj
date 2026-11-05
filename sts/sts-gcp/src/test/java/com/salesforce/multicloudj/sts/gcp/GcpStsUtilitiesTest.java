@@ -83,17 +83,6 @@ class GcpStsUtilitiesTest {
   }
 
   @Test
-  void endpointOverrideWithPortKeepsPort() throws Exception {
-    GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
-    builder.withEndpoint(URI.create("https://localhost:8443"));
-    GoogleCredentials creds = Mockito.mock(GoogleCredentials.class);
-
-    IamCredentialsSettings settings = builder.build().iamCredentialsSettings(creds);
-
-    Assertions.assertEquals("localhost:8443", settings.getEndpoint());
-  }
-
-  @Test
   void endpointWithPathQueryFragmentOrHttpIsRejected() {
     for (String endpoint :
         new String[] {

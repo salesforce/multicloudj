@@ -310,36 +310,6 @@ class AwsStsUtilitiesTest {
   }
 
   @Test
-  void endpointOverrideWithPortSignsHostWithPort() {
-    SignedAuthRequest signed =
-        signer(FIXED_CLOCK, REGION, URI.create("https://localhost:8443"))
-            .newCloudNativeAuthSignedRequest(formRequest(), null);
-
-    Assertions.assertEquals(URI.create("https://localhost:8443/"), signed.getRequest().uri());
-    Assertions.assertTrue(
-        signed.getSignedIdentity().startsWith("https://localhost:8443/?"),
-        signed.getSignedIdentity());
-    Assertions.assertEquals(
-        awsSdkAuthorization(signed),
-        signed.getRequest().headers().firstValue("authorization").orElseThrow());
-  }
-
-  @Test
-  void endpointWithHttpsDefaultPortOmitsPort() {
-    SignedAuthRequest signed =
-        signer(FIXED_CLOCK, REGION, URI.create("https://sts.amazonaws.com:443"))
-            .newCloudNativeAuthSignedRequest(formRequest(), null);
-
-    Assertions.assertEquals(URI.create("https://sts.amazonaws.com/"), signed.getRequest().uri());
-    Assertions.assertTrue(
-        signed.getSignedIdentity().startsWith("https://sts.amazonaws.com/?"),
-        signed.getSignedIdentity());
-    Assertions.assertEquals(
-        awsSdkAuthorization(signed),
-        signed.getRequest().headers().firstValue("authorization").orElseThrow());
-  }
-
-  @Test
   void httpEndpointIsRejected() {
     for (String endpoint : new String[] {"http://localhost", "http://localhost:80"}) {
       AwsStsUtilities.Builder builder = new AwsStsUtilities.Builder();

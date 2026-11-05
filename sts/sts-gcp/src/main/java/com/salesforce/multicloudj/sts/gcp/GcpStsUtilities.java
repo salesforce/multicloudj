@@ -227,8 +227,8 @@ public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
   }
 
   /**
-   * Builds the IAM Credentials client settings. The client's endpoint is a {@code host:port} pair,
-   * so an overriding endpoint without an explicit port uses 443.
+   * Builds the IAM Credentials client settings. The client's endpoint is a {@code host:port} pair;
+   * the builder rejects an endpoint port, so an overriding endpoint uses 443.
    */
   IamCredentialsSettings iamCredentialsSettings(GoogleCredentials signingCredentials)
       throws IOException {
@@ -236,8 +236,7 @@ public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
         IamCredentialsSettings.newBuilder()
             .setCredentialsProvider(FixedCredentialsProvider.create(signingCredentials));
     if (endpoint != null) {
-      int port = endpoint.getPort() == -1 ? 443 : endpoint.getPort();
-      settings.setEndpoint(endpoint.getHost() + ":" + port);
+      settings.setEndpoint(endpoint.getHost() + ":443");
     }
     return settings.build();
   }

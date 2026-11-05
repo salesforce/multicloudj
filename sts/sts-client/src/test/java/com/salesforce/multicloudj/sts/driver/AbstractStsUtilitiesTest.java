@@ -114,7 +114,9 @@ class AbstractStsUtilitiesTest {
           "https://sts.example.com/proxy",
           "https://sts.example.com/?a=b",
           "https://sts.example.com?a=b",
-          "https://sts.example.com/#frag"
+          "https://sts.example.com/#frag",
+          "https://sts.example.com:8443",
+          "https://sts.example.com:443"
         }) {
       assertThrows(
           InvalidArgumentException.class,
@@ -125,9 +127,8 @@ class AbstractStsUtilitiesTest {
   }
 
   @Test
-  void driverBuilderAcceptsHostWithOptionalPortAndRootPath() {
-    for (String endpoint :
-        new String[] {"https://sts.example.com", "HTTPS://sts.example.com/", "https://h:8443"}) {
+  void driverBuilderAcceptsHostWithOptionalRootPath() {
+    for (String endpoint : new String[] {"https://sts.example.com", "HTTPS://sts.example.com/"}) {
       stsUtilitiesDriver.withEndpoint(URI.create(endpoint));
       assertEquals(URI.create(endpoint), stsUtilitiesDriver.build().endpoint, endpoint);
     }

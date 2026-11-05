@@ -102,14 +102,6 @@ class AliStsUtilitiesTest {
   }
 
   @Test
-  void endpointWithSchemeDefaultPortIsAccepted() {
-    SignedAuthRequest signed =
-        endpointSigner("https://sts.example.com:443").newCloudNativeAuthSignedRequest(null);
-
-    Assertions.assertEquals("sts.example.com", URI.create(signed.getSignedIdentity()).getHost());
-  }
-
-  @Test
   void noEndpointKeepsRegionalDefault() {
     StsUtilities stsUtil = endpointSigner(null);
 
@@ -136,12 +128,6 @@ class AliStsUtilitiesTest {
           () -> builder.withEndpoint(URI.create(endpoint)),
           endpoint);
     }
-  }
-
-  @Test
-  void endpointWithNonDefaultPortIsRejectedAtBuild() {
-    Assertions.assertThrows(
-        InvalidArgumentException.class, () -> endpointSigner("https://sts.example.com:8443"));
   }
 
   private static StsUtilities endpointSigner(String endpoint) {
