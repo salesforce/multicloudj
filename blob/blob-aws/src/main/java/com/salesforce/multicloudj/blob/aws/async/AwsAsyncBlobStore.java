@@ -326,17 +326,23 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
   @Override
   protected CompletableFuture<Void> doDelete(Collection<BlobIdentifier> objects) {
-    var request = transformer.toDeleteRequests(objects);
-    return client
-        .deleteObjects(request)
+    return deleteChunk(objects)
         .thenAccept(
-            response -> {
-              List<ItemFailure> failures =
-                  transformer.toBatchDeleteFailures(response);
+            failures -> {
               if (!failures.isEmpty()) {
                 throw new BatchOperationException(failures);
               }
             });
+  }
+
+  /**
+   * Deletes one batch of objects and resolves to its per-object failures. Resolves to an empty list
+   * when every object was deleted; fails only on a request-level error.
+   */
+  private CompletableFuture<List<ItemFailure>> deleteChunk(Collection<BlobIdentifier> objects) {
+    return client
+        .deleteObjects(transformer.toDeleteRequests(objects))
+        .thenApply(transformer::toBatchDeleteFailures);
   }
 
   @Override
@@ -558,9 +564,9 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
   @Override
   protected CompletableFuture<Void> doDeleteDirectory(String prefix) {
-    // Each element resolves to the chunk's per-object failures, or null when the chunk fully
-    // succeeded. Keeping the futures in chunk order makes the merged failures deterministic.
-    List<CompletableFuture<BatchOperationException>> deletes = new ArrayList<>();
+    // Kept in chunk order so the combined failures are deterministic regardless of the order in
+    // which the chunk deletes complete.
+    List<CompletableFuture<List<ItemFailure>>> deletes = new ArrayList<>();
 
     // When listed batches of blobs come in, partition them into groups, then delete them
     Consumer<ListBlobsBatch> consumer =
@@ -568,41 +574,21 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           List<List<BlobInfo>> partitionedBlobLists =
               transformer.partitionList(batch.getBlobs(), MAX_OBJECTS_PER_DELETE);
           for (List<BlobInfo> blobList : partitionedBlobLists) {
-            deletes.add(
-                doDelete(transformer.toBlobIdentifiers(blobList))
-                    .thenApply(ignored -> (BatchOperationException) null)
-                    .exceptionally(
-                        t -> {
-                          Throwable cause = t instanceof CompletionException ? t.getCause() : t;
-                          if (cause instanceof BatchOperationException) {
-                            return (BatchOperationException) cause;
-                          }
-                          throw t instanceof CompletionException
-                              ? (CompletionException) t
-                              : new CompletionException(t);
-                        }));
+            deletes.add(deleteChunk(transformer.toBlobIdentifiers(blobList)));
           }
         };
     // Deletes are only all known once listing completes, so wait on them after it. A request-level
-    // failure in any chunk fails the whole operation and takes precedence over per-object
-    // failures reported by other chunks.
+    // failure in any chunk fails allOf and so takes precedence over per-object failures reported by
+    // other chunks.
     return doList(ListBlobsRequest.builder().withPrefix(prefix).build(), consumer)
         .thenCompose(
             ignored -> CompletableFuture.allOf(deletes.toArray(new CompletableFuture[0])))
         .thenAccept(
             ignored -> {
-              List<BatchOperationException> chunkFailures = new ArrayList<>();
-              for (CompletableFuture<BatchOperationException> delete : deletes) {
-                BatchOperationException failure = delete.join();
-                if (failure != null) {
-                  chunkFailures.add(failure);
-                }
-              }
-              if (!chunkFailures.isEmpty()) {
-                BatchOperationException merged = BatchOperationException.merge(chunkFailures);
-                if (!merged.getFailures().isEmpty()) {
-                  throw merged;
-                }
+              List<ItemFailure> failures = new ArrayList<>();
+              deletes.forEach(delete -> failures.addAll(delete.join()));
+              if (!failures.isEmpty()) {
+                throw new BatchOperationException(failures);
               }
             });
   }

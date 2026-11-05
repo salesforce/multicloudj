@@ -39,25 +39,6 @@ public class BatchOperationException extends SubstrateSdkException {
   }
 
   /**
-   * Combines the failures of several batch exceptions into a single exception.
-   *
-   * @param exceptions the exceptions to combine; null elements are skipped
-   * @return an exception holding every failure of the given exceptions, in order; it holds no
-   *     failures if {@code exceptions} is null or empty
-   */
-  public static BatchOperationException merge(Collection<BatchOperationException> exceptions) {
-    List<ItemFailure> merged = new ArrayList<>();
-    if (exceptions != null) {
-      for (BatchOperationException exception : exceptions) {
-        if (exception != null) {
-          merged.addAll(exception.getFailures());
-        }
-      }
-    }
-    return new BatchOperationException(merged);
-  }
-
-  /**
    * @return the ids of the failed items, in failure order
    */
   public List<String> getFailedItemIds() {
