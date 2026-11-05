@@ -85,11 +85,11 @@ public abstract class AbstractStsUtilities<T extends AbstractStsUtilities<T>> im
     /**
      * Sets the endpoint the provider uses to produce the signed identity.
      *
-     * @param endpoint The absolute https endpoint to set: a host and optional port, with no path
-     *     other than {@code /}.
+     * @param endpoint The absolute https endpoint to set: a host, with no port and no path other
+     *     than {@code /}.
      * @return An instance of self
      * @throws InvalidArgumentException if the endpoint is null, not absolute, has no host, carries
-     *     user info, uses a scheme other than https, or has a path, query, or fragment.
+     *     user info, uses a scheme other than https, or has a port, path, query, or fragment.
      */
     public AbstractStsUtilities.Builder withEndpoint(URI endpoint) {
       validateEndpoint(endpoint);
@@ -99,10 +99,10 @@ public abstract class AbstractStsUtilities<T extends AbstractStsUtilities<T>> im
 
     /**
      * Checks the rules every provider shares. Only https is accepted: the verifiers reject signed
-     * identities for any other scheme, and the signed request carries credentials. No provider can
-     * carry an endpoint path: the SigV4
-     * canonical URI is fixed at {@code /}, and the other providers take a bare host. A query or
-     * fragment would not be covered by the signature.
+     * identities for any other scheme, and the signed request carries credentials. STS endpoints
+     * are served on the https default port, so a port is rejected. No provider can carry an
+     * endpoint path: the SigV4 canonical URI is fixed at {@code /}, and the other providers take a
+     * bare host. A query or fragment would not be covered by the signature.
      */
     private static void validateEndpoint(URI endpoint) {
       if (endpoint == null || !endpoint.isAbsolute() || endpoint.getHost() == null) {
@@ -114,6 +114,9 @@ public abstract class AbstractStsUtilities<T extends AbstractStsUtilities<T>> im
       // User info in an endpoint would leak credentials into logs and request URLs.
       if (endpoint.getRawUserInfo() != null) {
         throw new InvalidArgumentException("endpoint must not contain user info");
+      }
+      if (endpoint.getPort() != -1) {
+        throw new InvalidArgumentException("endpoint must not have a port: " + endpoint);
       }
       String path = endpoint.getRawPath();
       if ((path != null && !path.isEmpty() && !"/".equals(path))

@@ -37,7 +37,6 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
 
   public AliStsUtilities(Builder builder) {
     super(builder);
-    validateEndpointPort();
   }
 
   public AliStsUtilities() {
@@ -122,21 +121,6 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
             credentials.getAccessKeySecret(),
             credentials.getSessionToken()),
         signedIdentity);
-  }
-
-  /**
-   * The request domain is a bare host, so a non-default port cannot be carried and is rejected
-   * rather than silently dropped. Port 443, the https default, is the same as no port.
-   */
-  private void validateEndpointPort() {
-    if (endpoint == null) {
-      return;
-    }
-    int port = endpoint.getPort();
-    if (port != -1 && port != 443) {
-      throw new InvalidArgumentException(
-          "endpoint must not have a non-default port: " + endpoint);
-    }
   }
 
   /** Returns the domain the request is signed for: the endpoint host, or the regional default. */

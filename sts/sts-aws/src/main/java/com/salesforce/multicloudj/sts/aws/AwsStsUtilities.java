@@ -140,7 +140,7 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
     String dateStamp = AMZ_DATESTAMP_FORMAT.format(now.atOffset(ZoneOffset.UTC));
 
     SortedMap<String, String> headers = new TreeMap<>();
-    headers.put("host", hostHeaderValue(uri));
+    headers.put("host", uri.getHost());
     headers.put("x-amz-date", amzDate);
     if (signingCredentials.getSecurityToken() != null
         && !signingCredentials.getSecurityToken().isEmpty()) {
@@ -222,22 +222,9 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
     if (endpoint == null) {
       return URI.create(String.format(SIGN_STS_ENDPOINT, region));
     }
-    // Built from host and port alone so the URI and the signed host header cannot differ. The
-    // builder only accepts https.
-    return URI.create("https://" + endpoint.getHost() + portSuffix(endpoint) + "/");
-  }
-
-  /**
-   * The signed host header carries the port only when it is not the https default, matching the
-   * Host header an HTTP client sends.
-   */
-  private static String hostHeaderValue(URI uri) {
-    return uri.getHost() + portSuffix(uri);
-  }
-
-  private static String portSuffix(URI uri) {
-    int port = uri.getPort();
-    return port == -1 || port == 443 ? "" : ":" + port;
+    // Built from the host alone so the URI and the signed host header cannot differ. The builder
+    // only accepts https with no port.
+    return URI.create("https://" + endpoint.getHost() + "/");
   }
 
   /**
