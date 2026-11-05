@@ -599,7 +599,10 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                 }
               }
               if (!chunkFailures.isEmpty()) {
-                throw BatchOperationException.merge(chunkFailures);
+                BatchOperationException merged = BatchOperationException.merge(chunkFailures);
+                if (!merged.getFailures().isEmpty()) {
+                  throw merged;
+                }
               }
             });
   }

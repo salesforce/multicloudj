@@ -14,7 +14,8 @@ import lombok.Getter;
  * the exception for its own item, so a caller can retry just the items whose failure is
  * retryable.
  *
- * <p>The exception is retryable only if every failure is retryable.
+ * <p>The exception is retryable only if it holds at least one failure and every failure is
+ * retryable.
  */
 public class BatchOperationException extends SubstrateSdkException {
 
@@ -24,27 +25,34 @@ public class BatchOperationException extends SubstrateSdkException {
   @Getter private final List<ItemFailure> failures;
 
   /**
-   * @param failures the per-item failures; must not be null or empty
-   * @throws IllegalArgumentException if {@code failures} is null or empty
+   * @param failures the per-item failures; a null collection is treated as empty
    */
   public BatchOperationException(Collection<ItemFailure> failures) {
-    super(buildMessage(failures), allRetryable(failures));
-    this.failures = Collections.unmodifiableList(new ArrayList<>(failures));
+    this(copyOf(failures));
+  }
+
+  private BatchOperationException(List<ItemFailure> failures) {
+    super(
+        "Batch operation failed for " + failures.size() + " item(s)",
+        !failures.isEmpty() && failures.stream().allMatch(ItemFailure::isRetryable));
+    this.failures = failures;
   }
 
   /**
    * Combines the failures of several batch exceptions into a single exception.
    *
-   * @param exceptions the exceptions to combine; must not be null or empty
-   * @return an exception holding every failure of the given exceptions, in order
+   * @param exceptions the exceptions to combine; null elements are skipped
+   * @return an exception holding every failure of the given exceptions, in order; it holds no
+   *     failures if {@code exceptions} is null or empty
    */
   public static BatchOperationException merge(Collection<BatchOperationException> exceptions) {
-    if (exceptions == null || exceptions.isEmpty()) {
-      throw new IllegalArgumentException("exceptions must not be empty");
-    }
     List<ItemFailure> merged = new ArrayList<>();
-    for (BatchOperationException exception : exceptions) {
-      merged.addAll(exception.getFailures());
+    if (exceptions != null) {
+      for (BatchOperationException exception : exceptions) {
+        if (exception != null) {
+          merged.addAll(exception.getFailures());
+        }
+      }
     }
     return new BatchOperationException(merged);
   }
@@ -56,19 +64,9 @@ public class BatchOperationException extends SubstrateSdkException {
     return failures.stream().map(ItemFailure::getItemId).collect(Collectors.toUnmodifiableList());
   }
 
-  private static boolean allRetryable(Collection<ItemFailure> failures) {
-    requireNonEmpty(failures);
-    return failures.stream().allMatch(ItemFailure::isRetryable);
-  }
-
-  private static String buildMessage(Collection<ItemFailure> failures) {
-    requireNonEmpty(failures);
-    return "Batch operation failed for " + failures.size() + " item(s)";
-  }
-
-  private static void requireNonEmpty(Collection<ItemFailure> failures) {
-    if (failures == null || failures.isEmpty()) {
-      throw new IllegalArgumentException("failures must not be empty");
-    }
+  private static List<ItemFailure> copyOf(Collection<ItemFailure> failures) {
+    return failures == null
+        ? Collections.emptyList()
+        : Collections.unmodifiableList(new ArrayList<>(failures));
   }
 }

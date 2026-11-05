@@ -84,11 +84,37 @@ class BatchOperationExceptionTest {
   }
 
   @Test
-  void rejectsEmptyOrNullInput() {
-    assertThrows(IllegalArgumentException.class, () -> new BatchOperationException(List.of()));
-    assertThrows(IllegalArgumentException.class, () -> new BatchOperationException(null));
-    assertThrows(IllegalArgumentException.class, () -> BatchOperationException.merge(List.of()));
-    assertThrows(IllegalArgumentException.class, () -> BatchOperationException.merge(null));
+  void emptyAndNullFailuresProduceAnEmptyNonRetryableException() {
+    for (BatchOperationException e :
+        List.of(new BatchOperationException(List.of()), new BatchOperationException(null))) {
+      assertTrue(e.getFailures().isEmpty());
+      assertTrue(e.getFailedItemIds().isEmpty());
+      assertEquals("Batch operation failed for 0 item(s)", e.getMessage());
+      assertFalse(e.isRetryable());
+    }
+  }
+
+  @Test
+  void mergeOfNullOrEmptyInputHoldsNoFailures() {
+    for (BatchOperationException e :
+        List.of(BatchOperationException.merge(null), BatchOperationException.merge(List.of()))) {
+      assertTrue(e.getFailures().isEmpty());
+      assertEquals("Batch operation failed for 0 item(s)", e.getMessage());
+      assertFalse(e.isRetryable());
+    }
+  }
+
+  @Test
+  void mergeSkipsNullElementsAndKeepsOrder() {
+    List<BatchOperationException> inputs = new ArrayList<>();
+    inputs.add(new BatchOperationException(List.of(transientFailure("a"))));
+    inputs.add(null);
+    inputs.add(new BatchOperationException(List.of(transientFailure("b"), transientFailure("c"))));
+
+    BatchOperationException merged = BatchOperationException.merge(inputs);
+
+    assertEquals(List.of("a", "b", "c"), merged.getFailedItemIds());
+    assertTrue(merged.isRetryable());
   }
 
   @Test

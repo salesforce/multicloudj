@@ -2278,6 +2278,17 @@ public class AwsAsyncBlobStoreTest {
     result.get();
   }
 
+  @Test
+  void doDeleteDirectory_emptyListingCompletesWithoutDeleting() throws Exception {
+    AsyncListing listing = stubAsyncDeleteDirectoryListing();
+
+    CompletableFuture<Void> result = aws.doDeleteDirectory("files");
+    listing.deliver();
+
+    result.get();
+    verify(mockS3Client, never()).deleteObjects(any(DeleteObjectsRequest.class));
+  }
+
   private AsyncListing stubAsyncDeleteDirectoryListing() {
     AsyncListing listing = new AsyncListing();
     ListObjectsV2Publisher publisher = mock(ListObjectsV2Publisher.class);
