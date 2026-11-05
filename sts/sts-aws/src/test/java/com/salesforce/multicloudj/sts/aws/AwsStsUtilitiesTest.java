@@ -341,6 +341,39 @@ class AwsStsUtilitiesTest {
   }
 
   @Test
+  void stsEndpointHostsAreAccepted() {
+    for (String endpoint :
+        new String[] {
+          "https://sts.amazonaws.com",
+          "https://sts.us-west-2.amazonaws.com",
+          "https://sts-fips.us-east-1.amazonaws.com",
+          "https://sts.cn-north-1.amazonaws.com.cn",
+          "https://STS.US-WEST-2.AMAZONAWS.COM"
+        }) {
+      Assertions.assertDoesNotThrow(
+          () -> signer(FIXED_CLOCK, REGION, URI.create(endpoint)), endpoint);
+    }
+  }
+
+  @Test
+  void nonStsEndpointHostIsRejectedAtBuild() {
+    for (String endpoint :
+        new String[] {
+          "https://example.com",
+          "https://sts.amazonaws.com.evil.com",
+          "https://s3.us-west-2.amazonaws.com",
+          "https://evil-sts.amazonaws.com"
+        }) {
+      InvalidArgumentException e =
+          Assertions.assertThrows(
+              InvalidArgumentException.class,
+              () -> signer(FIXED_CLOCK, REGION, URI.create(endpoint)),
+              endpoint);
+      Assertions.assertTrue(e.getMessage().contains("not an AWS STS endpoint"), e.getMessage());
+    }
+  }
+
+  @Test
   void missingRegionIsRejected() {
     for (String blank : new String[] {null, "", "  "}) {
       AwsStsUtilities utilities = signer(FIXED_CLOCK, blank, null);

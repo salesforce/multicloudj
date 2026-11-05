@@ -86,6 +86,10 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
   // Lets tests pin the signing time.
   AwsStsUtilities(Builder builder, Clock clock) {
     super(builder);
+    // Only an identity signed for a genuine STS endpoint can be verified.
+    if (endpoint != null && !AwsStsVerifier.isStsHost(endpoint.getHost())) {
+      throw new InvalidArgumentException("endpoint is not an AWS STS endpoint: " + endpoint);
+    }
     this.clock = clock;
   }
 

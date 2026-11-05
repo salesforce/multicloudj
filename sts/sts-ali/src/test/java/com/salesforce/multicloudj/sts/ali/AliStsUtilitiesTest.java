@@ -85,20 +85,51 @@ class AliStsUtilitiesTest {
 
   @Test
   void endpointOverrideSetsSigningDomain() {
-    StsUtilities stsUtil = endpointSigner("https://sts.example.com");
+    StsUtilities stsUtil = endpointSigner("https://sts.cn-hangzhou.aliyuncs.com");
 
     SignedAuthRequest signed = stsUtil.newCloudNativeAuthSignedRequest(null);
 
-    Assertions.assertEquals("sts.example.com", URI.create(signed.getSignedIdentity()).getHost());
-    Assertions.assertEquals("sts.example.com", signed.getRequest().uri().getHost());
+    Assertions.assertEquals(
+        "sts.cn-hangzhou.aliyuncs.com", URI.create(signed.getSignedIdentity()).getHost());
+    Assertions.assertEquals("sts.cn-hangzhou.aliyuncs.com", signed.getRequest().uri().getHost());
   }
 
   @Test
   void endpointOverrideWithRootPathIsAccepted() {
     SignedAuthRequest signed =
-        endpointSigner("https://sts.example.com/").newCloudNativeAuthSignedRequest(null);
+        endpointSigner("https://sts.aliyuncs.com/").newCloudNativeAuthSignedRequest(null);
 
-    Assertions.assertEquals("sts.example.com", URI.create(signed.getSignedIdentity()).getHost());
+    Assertions.assertEquals("sts.aliyuncs.com", URI.create(signed.getSignedIdentity()).getHost());
+  }
+
+  @Test
+  void stsEndpointHostsAreAccepted() {
+    for (String endpoint :
+        new String[] {
+          "https://sts.aliyuncs.com",
+          "https://sts.cn-hangzhou.aliyuncs.com",
+          "https://sts-vpc.cn-hangzhou.aliyuncs.com",
+          "https://STS.AP-SOUTHEAST-1.ALIYUNCS.COM"
+        }) {
+      Assertions.assertDoesNotThrow(() -> endpointSigner(endpoint), endpoint);
+    }
+  }
+
+  @Test
+  void nonStsEndpointHostIsRejectedAtBuild() {
+    for (String endpoint :
+        new String[] {
+          "https://sts.example.com",
+          "https://ecs.cn-hangzhou.aliyuncs.com",
+          "https://sts.aliyuncs.com.evil.com",
+          "https://evil.com"
+        }) {
+      InvalidArgumentException e =
+          Assertions.assertThrows(
+              InvalidArgumentException.class, () -> endpointSigner(endpoint), endpoint);
+      Assertions.assertTrue(
+          e.getMessage().contains("not an Alibaba Cloud STS endpoint"), e.getMessage());
+    }
   }
 
   @Test
