@@ -18,7 +18,6 @@ import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.sts.driver.AbstractStsVerifier;
-import com.salesforce.multicloudj.sts.driver.CustomHeaderLookup;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.io.IOException;
@@ -149,7 +148,7 @@ public class GcpStsVerifier extends AbstractStsVerifier {
       return;
     }
     for (Map.Entry<String, String> expected : options.getExpectedCustomHeaders().entrySet()) {
-      Object actual = CustomHeaderLookup.find(payload, expected.getKey(), "JWT claim");
+      Object actual = payload.get(expected.getKey());
       if (actual == null) {
         throw new InvalidArgumentException(
             "expected custom header \"" + expected.getKey() + "\" not found in JWT claims");
