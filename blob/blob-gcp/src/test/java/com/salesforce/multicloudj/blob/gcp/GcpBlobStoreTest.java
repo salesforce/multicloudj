@@ -3062,8 +3062,22 @@ class GcpBlobStoreTest {
 
   private static DownloadResult makeDownloadResult(
       String key, Path destination, TransferStatus status, Exception ex) {
-    DownloadResult.Builder b =
-        DownloadResult.newBuilder(BlobInfo.newBuilder(TEST_BUCKET, key).build(), status);
+    return makeDownloadResult(
+        BlobInfo.newBuilder(TEST_BUCKET, key).build(), destination, status, ex);
+  }
+
+  // BlobInfo.Builder#setSize is not public, so a sized input is mocked.
+  private static DownloadResult makeDownloadResult(
+      String key, long size, Path destination, TransferStatus status, Exception ex) {
+    BlobInfo input = mock(BlobInfo.class);
+    lenient().when(input.getName()).thenReturn(key);
+    lenient().when(input.getSize()).thenReturn(size);
+    return makeDownloadResult(input, destination, status, ex);
+  }
+
+  private static DownloadResult makeDownloadResult(
+      BlobInfo input, Path destination, TransferStatus status, Exception ex) {
+    DownloadResult.Builder b = DownloadResult.newBuilder(input, status);
     if (destination != null) {
       b.setOutputDestination(destination);
     }
@@ -3826,8 +3840,88 @@ class GcpBlobStoreTest {
         response.getFailedTransfers(),
         "failedTransfers must be a non-null empty list when nothing failed");
     assertTrue(response.getFailedTransfers().isEmpty());
+    assertEquals(0L, response.getTotalBytesTransferred());
     verify(mockTransferManager, never())
         .downloadBlobs(anyList(), any(ParallelDownloadConfig.class));
+  }
+
+  private DirectoryDownloadResponse downloadDirectoryWithResults(
+      boolean loggingEnabled, DownloadResult... results) throws Exception {
+    DirectoryDownloadRequest request =
+        DirectoryDownloadRequest.builder()
+            .prefixToDownload("test-prefix/")
+            .localDestinationDirectory(tempDir.toString())
+            .transferStatusLoggingEnabled(loggingEnabled)
+            .build();
+
+    List<Blob> blobs = new ArrayList<>();
+    for (DownloadResult result : results) {
+      String name = result.getInput().getName();
+      Blob blob = mock(Blob.class);
+      when(blob.getName()).thenReturn(name);
+      blobs.add(blob);
+    }
+    Page<Blob> mockPage = mock(Page.class);
+    when(mockPage.iterateAll()).thenReturn(blobs);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+
+    DownloadJob mockJob = mock(DownloadJob.class);
+    when(mockJob.getDownloadResults()).thenReturn(List.of(results));
+    when(mockTransferManager.downloadBlobs(anyList(), any(ParallelDownloadConfig.class)))
+        .thenReturn(mockJob);
+
+    return gcpBlobStore.doDownloadDirectory(request);
+  }
+
+  @Test
+  void testDoDownloadDirectory_AllSucceededReportsTotalBytes() throws Exception {
+    DirectoryDownloadResponse response =
+        downloadDirectoryWithResults(
+            false,
+            makeDownloadResult(
+                "test-prefix/a.txt", 100L, tempDir.resolve("a.txt"), TransferStatus.SUCCESS, null),
+            makeDownloadResult(
+                "test-prefix/b.txt", 23L, tempDir.resolve("b.txt"), TransferStatus.SUCCESS, null));
+
+    assertEquals(123L, response.getTotalBytesTransferred());
+  }
+
+  @Test
+  void testDoDownloadDirectory_PartialFailureWithoutLoggingReportsNullBytes() throws Exception {
+    DirectoryDownloadResponse response =
+        downloadDirectoryWithResults(
+            false,
+            makeDownloadResult(
+                "test-prefix/a.txt", 100L, tempDir.resolve("a.txt"), TransferStatus.SUCCESS, null),
+            makeDownloadResult(
+                "test-prefix/b.txt",
+                23L,
+                null,
+                TransferStatus.FAILED_TO_FINISH,
+                new RuntimeException("boom")));
+
+    assertEquals(1, response.getFailedTransfers().size());
+    assertNull(response.getTotalBytesTransferred());
+  }
+
+  @Test
+  void testDoDownloadDirectory_PartialFailureWithLoggingReportsSucceededBytes()
+      throws Exception {
+    DirectoryDownloadResponse response =
+        downloadDirectoryWithResults(
+            true,
+            makeDownloadResult(
+                "test-prefix/a.txt", 100L, tempDir.resolve("a.txt"), TransferStatus.SUCCESS, null),
+            makeDownloadResult(
+                "test-prefix/b.txt",
+                23L,
+                null,
+                TransferStatus.FAILED_TO_FINISH,
+                new RuntimeException("boom")));
+
+    assertEquals(1, response.getFailedTransfers().size());
+    assertEquals(100L, response.getTotalBytesTransferred());
   }
 
   @Test

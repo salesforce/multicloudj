@@ -134,11 +134,14 @@ import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** GCP implementation of BlobStore */
 @AutoService(AbstractBlobStore.class)
 public class GcpBlobStore extends AbstractBlobStore {
 
+  private static final Logger logger = LoggerFactory.getLogger(GcpBlobStore.class);
   private static final String OBJECT_KEY_DIRECTORY_PREFIX_REGEX = "^.*/";
 
   private final Storage storage;
@@ -1303,7 +1306,10 @@ public class GcpBlobStore extends AbstractBlobStore {
 
       List<FailedBlobDownload> failed = new ArrayList<>();
       if (blobInfos.isEmpty()) {
-        return DirectoryDownloadResponse.builder().failedTransfers(failed).build();
+        return DirectoryDownloadResponse.builder()
+            .failedTransfers(failed)
+            .totalBytesTransferred(0L)
+            .build();
       }
 
       ParallelDownloadConfig.Builder downloadConfigBuilder =
@@ -1316,8 +1322,17 @@ public class GcpBlobStore extends AbstractBlobStore {
 
       DownloadJob job = transferManager.downloadBlobs(blobInfos, downloadConfigBuilder.build());
 
+      // GCS TransferManager has no per-transfer listener and DownloadResult carries no byte
+      // count, so bytes are derived from the listed object size of each successful download.
+      final boolean loggingEnabled = req.isTransferStatusLoggingEnabled();
+      long succeededBytes = 0L;
+      int succeededCount = 0;
       for (DownloadResult result : job.getDownloadResults()) {
-        if (result.getStatus() != TransferStatus.SUCCESS) {
+        if (result.getStatus() == TransferStatus.SUCCESS) {
+          Long size = result.getInput().getSize();
+          succeededBytes += size != null ? size : 0L;
+          succeededCount++;
+        } else {
           // DownloadResult#getOutputDestination() throws when status is not SUCCESS,
           // so we always compute the destination from the blob name for failed transfers.
           String name = result.getInput().getName();
@@ -1326,6 +1341,14 @@ public class GcpBlobStore extends AbstractBlobStore {
                   ? name.substring(prefix.length())
                   : name;
           Path destination = targetDir.resolve(relative).normalize();
+          if (loggingEnabled) {
+            logger.error(
+                "substrate SDK downloadDirectory: key={}, bucket={}, status={}. transfer failed.",
+                name,
+                getBucket(),
+                result.getStatus(),
+                result.getException());
+          }
           failed.add(
               FailedBlobDownload.builder()
                   .destination(destination)
@@ -1334,7 +1357,25 @@ public class GcpBlobStore extends AbstractBlobStore {
         }
       }
 
-      return DirectoryDownloadResponse.builder().failedTransfers(failed).build();
+      if (loggingEnabled) {
+        logger.info(
+            "substrate SDK downloadDirectory: bucket={}, prefix={}, succeeded={}, failed={},"
+                + " totalBytesTransferred={}. directory download complete.",
+            getBucket(),
+            prefix,
+            succeededCount,
+            failed.size(),
+            succeededBytes);
+      }
+
+      // With logging enabled the total reflects what actually landed on disk, including on
+      // partial failure. Without it, a partial failure yields null so the total is never
+      // mistaken for a complete download.
+      Long totalBytesTransferred = loggingEnabled || failed.isEmpty() ? succeededBytes : null;
+      return DirectoryDownloadResponse.builder()
+          .failedTransfers(failed)
+          .totalBytesTransferred(totalBytesTransferred)
+          .build();
 
     } catch (Exception e) {
       throw new SubstrateSdkException("Failed to download directory", e);
