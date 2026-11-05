@@ -33,8 +33,10 @@ import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.AwsRetryStrategies;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import java.io.File;
@@ -329,7 +331,12 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
    */
   @Override
   protected void doDelete(Collection<BlobIdentifier> objects) {
-    s3Client.deleteObjects(transformer.toDeleteRequests(objects));
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(
+            s3Client.deleteObjects(transformer.toDeleteRequests(objects)));
+    if (!failures.isEmpty()) {
+      throw new BatchOperationException(failures);
+    }
   }
 
   /**

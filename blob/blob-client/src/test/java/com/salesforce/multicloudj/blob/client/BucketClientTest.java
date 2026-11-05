@@ -46,10 +46,14 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -367,6 +371,29 @@ public class BucketClientTest {
         () -> {
           client.delete(Collections.emptyList());
         });
+  }
+
+  @Test
+  void testBulkDeletePassesBatchOperationExceptionThroughProviderMapping() {
+    BatchOperationException failure =
+        new BatchOperationException(
+            List.of(new ItemFailure("object-1", new UnAuthorizedException("denied"))));
+    List<BlobIdentifier> objects = List.of(new BlobIdentifier("object-1", null));
+    doThrow(failure).when(mockBlobStore).delete(objects);
+    doAnswer(
+            invocation ->
+                ExceptionHandler.build(
+                    UnknownException.class, invocation.getArgument(0, Throwable.class), null))
+        .when(mockBlobStore)
+        .mapException(any());
+
+    BatchOperationException thrown =
+        assertThrows(BatchOperationException.class, () -> client.delete(objects));
+
+    assertSame(failure, thrown);
+    assertEquals(List.of("object-1"), thrown.getFailedItemIds());
+    assertEquals(
+        UnAuthorizedException.class, thrown.getFailures().get(0).getException().getClass());
   }
 
   @Test

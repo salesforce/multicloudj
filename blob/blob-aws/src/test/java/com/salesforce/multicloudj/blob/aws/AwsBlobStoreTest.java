@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -47,10 +48,13 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
@@ -116,6 +120,7 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.GetBucketVersioningRequest;
 import software.amazon.awssdk.services.s3.model.GetBucketVersioningResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldRequest;
@@ -152,6 +157,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRetentionRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRetentionResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingResponse;
+import software.amazon.awssdk.services.s3.model.S3Error;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
@@ -746,6 +752,8 @@ public class AwsBlobStoreTest {
             new BlobIdentifier("object-1", "version-1"),
             new BlobIdentifier("object-2", "version-2"),
             new BlobIdentifier("object-3", "version-3"));
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(DeleteObjectsResponse.builder().build());
     aws.doDelete(objects);
 
     ArgumentCaptor<DeleteObjectsRequest> deleteObjectsRequestCaptor =
@@ -762,6 +770,171 @@ public class AwsBlobStoreTest {
     for (ObjectIdentifier objectIdentifier : identifiers) {
       assertEquals(objectsMap.get(objectIdentifier.key()), objectIdentifier.versionId());
     }
+  }
+
+  private static S3Error deleteError(String key, String versionId, String code) {
+    return S3Error.builder()
+        .key(key)
+        .versionId(versionId)
+        .code(code)
+        .message("detail for " + key)
+        .build();
+  }
+
+  @Test
+  void testDoBulkDelete_AlreadyAbsentErrorsCountAsDeleted() {
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(
+            DeleteObjectsResponse.builder()
+                .errors(
+                    deleteError("object-1", null, "NoSuchKey"),
+                    deleteError("object-2", "version-2", "NoSuchVersion"))
+                .build());
+
+    aws.doDelete(
+        List.of(new BlobIdentifier("object-1", null), new BlobIdentifier("object-2", "version-2")));
+
+    verify(mockS3Client, times(1)).deleteObjects(any(DeleteObjectsRequest.class));
+  }
+
+  @Test
+  void testDoBulkDelete_OtherErrorsThrowWithFailedKeys() {
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(
+            DeleteObjectsResponse.builder()
+                .errors(
+                    deleteError("object-1", null, "NoSuchKey"),
+                    deleteError("object-2", "version-2", "AccessDenied"),
+                    deleteError("object-3", null, "InternalError"))
+                .build());
+
+    BatchOperationException e =
+        assertThrows(
+            BatchOperationException.class,
+            () ->
+                aws.doDelete(
+                    List.of(
+                        new BlobIdentifier("object-1", null),
+                        new BlobIdentifier("object-2", "version-2"),
+                        new BlobIdentifier("object-3", null))));
+
+    assertEquals(List.of("object-2", "object-3"), e.getFailedItemIds());
+    ItemFailure denied = e.getFailures().get(0);
+    assertEquals(
+        Map.of(BlobIdentifier.VERSION_ID_ATTRIBUTE, "version-2"), denied.getAttributes());
+    assertEquals(UnAuthorizedException.class, denied.getException().getClass());
+    assertTrue(denied.getException().getMessage().contains("detail for object-2"));
+    assertFalse(denied.isRetryable());
+    assertTrue(e.getFailures().get(1).getAttributes().isEmpty());
+    assertTrue(e.getFailures().get(1).isRetryable());
+    assertFalse(e.isRetryable());
+    assertFalse(e.getMessage().contains("detail for"));
+  }
+
+  @Test
+  void testDoBulkDelete_TransientCodesAreRetryable() {
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(
+            DeleteObjectsResponse.builder()
+                .errors(
+                    deleteError("object-1", null, "InternalError"),
+                    deleteError("object-2", null, "SlowDown"),
+                    deleteError("object-3", null, "ServiceUnavailable"))
+                .build());
+
+    BatchOperationException e =
+        assertThrows(
+            BatchOperationException.class,
+            () ->
+                aws.doDelete(
+                    List.of(
+                        new BlobIdentifier("object-1", null),
+                        new BlobIdentifier("object-2", null),
+                        new BlobIdentifier("object-3", null))));
+
+    assertEquals(List.of("object-1", "object-2", "object-3"), e.getFailedItemIds());
+    assertTrue(e.getFailures().stream().allMatch(ItemFailure::isRetryable));
+    assertTrue(e.isRetryable());
+  }
+
+  @Test
+  void testDoBulkDelete_UnmappedCodeIsPlainNonRetryableException() {
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(
+            DeleteObjectsResponse.builder()
+                .errors(deleteError("object-1", null, "SomethingNew"))
+                .build());
+
+    BatchOperationException e =
+        assertThrows(
+            BatchOperationException.class,
+            () -> aws.doDelete(List.of(new BlobIdentifier("object-1", null))));
+
+    ItemFailure failure = e.getFailures().get(0);
+    assertEquals(SubstrateSdkException.class, failure.getException().getClass());
+    assertFalse(failure.isRetryable());
+    assertFalse(e.isRetryable());
+  }
+
+  @Test
+  void testDoBulkDelete_RequestLevelFailurePropagatesUnchanged() {
+    S3Exception failure = (S3Exception) S3Exception.builder().message("request failed").build();
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class))).thenThrow(failure);
+
+    S3Exception thrown =
+        assertThrows(
+            S3Exception.class, () -> aws.doDelete(List.of(new BlobIdentifier("object-1", null))));
+
+    assertSame(failure, thrown);
+  }
+
+  @Test
+  void testDoBulkDelete_ErrorWithoutCodeThrowsBatchOperationExceptionWithKey() {
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(
+            DeleteObjectsResponse.builder()
+                .errors(
+                    deleteError("object-1", null, null),
+                    deleteError("object-2", null, "NoSuchKey"))
+                .build());
+
+    BatchOperationException e =
+        assertThrows(
+            BatchOperationException.class,
+            () ->
+                aws.doDelete(
+                    List.of(
+                        new BlobIdentifier("object-1", null),
+                        new BlobIdentifier("object-2", null))));
+
+    assertEquals(List.of("object-1"), e.getFailedItemIds());
+    assertEquals(SubstrateSdkException.class, e.getFailures().get(0).getException().getClass());
+    assertFalse(e.getFailures().get(0).isRetryable());
+  }
+
+  @Test
+  void testDoBulkDelete_ErrorWithoutKeyIsNotDropped() {
+    when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+        .thenReturn(
+            DeleteObjectsResponse.builder()
+                .errors(S3Error.builder().code("AccessDenied").message("no key").build())
+                .build());
+
+    IllegalStateException e =
+        assertThrows(
+            IllegalStateException.class,
+            () -> aws.doDelete(List.of(new BlobIdentifier("object-1", null))));
+
+    assertTrue(e.getMessage().contains("AccessDenied"));
+  }
+
+  @Test
+  void testMapException_BatchOperationExceptionPassesThrough() {
+    BatchOperationException failure =
+        new BatchOperationException(
+            List.of(new ItemFailure("object-1", new UnAuthorizedException("denied"))));
+
+    assertSame(failure, aws.mapException(failure));
   }
 
   @Test

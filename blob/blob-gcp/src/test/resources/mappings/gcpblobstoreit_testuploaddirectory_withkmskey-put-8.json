@@ -1,5 +1,5 @@
 {
-  "id" : "11eb0202-468f-4f4b-bbf8-d8d6ebb25a69",
+  "id" : "fd02f67f-25d5-49a9-9655-b8230ca45072",
   "name" : "GcpBlobStoreIT_testUploadDirectory_withKmsKey-PUT-8",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
@@ -17,7 +17,7 @@
       },
       "name" : {
         "hasExactly" : [ {
-          "equalTo" : "conformance-tests/directory/upload-kms-v1/kms-file1.txt"
+          "equalTo" : "conformance-tests/directory/upload-kms-v1/subdir/kms-file2.txt"
         } ]
       },
       "uploadType" : {
@@ -27,32 +27,33 @@
       },
       "upload_id" : {
         "hasExactly" : [ {
-          "equalTo" : "AJjja9ZMwDrGtkznDtvn1-gx1la3vy2DvAEII-x9_pEyQRyRLyy4cdjeOUgHO4XMkLrf5yj8_dABauxpFP4qGT3UirON4rpJW9NUKjU9VI3d5g"
+          "equalTo" : "AFy3sg0itxr8j6K8DwNWtCp83WclU13TKkTT04axDrHJRB5VuF7zYSylY_YoIXSt7sT2DIPtQr75MchaoL7lIloQTG8KUtGgmDTkm8cPjspiJw"
         } ]
       }
     },
     "bodyPatterns" : [ {
-      "equalTo" : "kms-directory-content-1",
+      "equalTo" : "kms-directory-content-2",
       "caseInsensitive" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/directory/upload-kms-v1/kms-file1.txt/1787084544232853\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fupload-kms-v1%2Fkms-file1.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fupload-kms-v1%2Fkms-file1.txt?generation=1787084544232853&alt=media\",\n  \"name\": \"conformance-tests/directory/upload-kms-v1/kms-file1.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1787084544232853\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"23\",\n  \"md5Hash\": \"o9PiPoT45x0JFFG/mMMo7A==\",\n  \"crc32c\": \"Cj7oBw==\",\n  \"etag\": \"CJWbxduAq5YDEAE=\",\n  \"kmsKeyName\": \"projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test/cryptoKeyVersions/1\",\n  \"timeCreated\": \"2026-08-18T20:22:24.286Z\",\n  \"updated\": \"2026-08-18T20:22:24.286Z\",\n  \"timeStorageClassUpdated\": \"2026-08-18T20:22:24.286Z\",\n  \"timeFinalized\": \"2026-08-18T20:22:24.286Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/directory/upload-kms-v1/subdir/kms-file2.txt/1793818697727957\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fupload-kms-v1%2Fsubdir%2Fkms-file2.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fupload-kms-v1%2Fsubdir%2Fkms-file2.txt?generation=1793818697727957&alt=media\",\n  \"name\": \"conformance-tests/directory/upload-kms-v1/subdir/kms-file2.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1793818697727957\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"23\",\n  \"md5Hash\": \"rRveRDID05J5UBgj8W/opA==\",\n  \"crc32c\": \"GW4b8w==\",\n  \"etag\": \"CNX/k7L/7pcDEAE=\",\n  \"kmsKeyName\": \"projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test/cryptoKeyVersions/1\",\n  \"timeCreated\": \"2026-11-04T18:58:17.781Z\",\n  \"updated\": \"2026-11-04T18:58:17.781Z\",\n  \"timeStorageClassUpdated\": \"2026-11-04T18:58:17.781Z\",\n  \"timeFinalized\": \"2026-11-04T18:58:17.781Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CJWbxduAq5YDEAE=",
-      "X-GUploader-UploadID" : "AJjja9ZMwDrGtkznDtvn1-gx1la3vy2DvAEII-x9_pEyQRyRLyy4cdjeOUgHO4XMkLrf5yj8_dABauxpFP4qGT3UirON4rpJW9NUKjU9VI3d5g",
+      "ETag" : "CNX/k7L/7pcDEAE=",
+      "X-GUploader-UploadID" : "AFy3sg0itxr8j6K8DwNWtCp83WclU13TKkTT04axDrHJRB5VuF7zYSylY_YoIXSt7sT2DIPtQr75MchaoL7lIloQTG8KUtGgmDTkm8cPjspiJw",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Tue, 18 Aug 2026 20:22:24 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a1a7ed2046",
+      "Date" : "Wed, 04 Nov 2026 18:58:17 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "11eb0202-468f-4f4b-bbf8-d8d6ebb25a69",
+  "uuid" : "fd02f67f-25d5-49a9-9655-b8230ca45072",
   "persistent" : true,
-  "insertionIndex" : 1509
+  "insertionIndex" : 1489
 }

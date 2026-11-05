@@ -7,6 +7,7 @@ import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.Credentials;
 import com.google.auto.service.AutoService;
+import com.google.cloud.BatchResult;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
@@ -22,6 +23,7 @@ import com.google.cloud.storage.MultipartUploadSettings;
 import com.google.cloud.storage.ParallelCompositeUploadBlobWriteSessionConfig.PartNamingStrategy;
 import com.google.cloud.storage.RequestBody;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageBatch;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import com.google.cloud.storage.multipartupload.model.AbortMultipartUploadRequest;
@@ -84,9 +86,11 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
@@ -502,8 +506,50 @@ public class GcpBlobStore extends AbstractBlobStore {
         objects.stream()
             .map(obj -> transformer.toBlobId(bucket, obj.getKey(), obj.getVersionId()))
             .collect(Collectors.toList());
-    // Batch delete is a JSON-API feature with no gRPC equivalent, so it runs on the HTTP client.
-    httpStorage.delete(blobIds);
+    List<ItemFailure> failures = deleteBatch(blobIds);
+    if (!failures.isEmpty()) {
+      throw new BatchOperationException(failures);
+    }
+  }
+
+  /**
+   * Deletes the given blobs with batch requests and returns the per-object failures. A blob that
+   * does not exist is reported by the batch result as {@code false} and counts as deleted.
+   *
+   * <p>Batch delete is a JSON-API feature with no gRPC equivalent, so it runs on the HTTP client.
+   * The client splits the batch into multiple HTTP requests when it exceeds the per-request call
+   * limit.
+   */
+  private List<ItemFailure> deleteBatch(List<BlobId> blobIds) {
+    List<ItemFailure> failures = new ArrayList<>();
+    if (blobIds.isEmpty()) {
+      return failures;
+    }
+    StorageBatch batch = httpStorage.batch();
+    for (BlobId blobId : blobIds) {
+      batch
+          .delete(blobId)
+          .notify(
+              new BatchResult.Callback<Boolean, StorageException>() {
+                @Override
+                public void success(Boolean deleted) {}
+
+                @Override
+                public void error(StorageException e) {
+                  failures.add(
+                      new ItemFailure(
+                          blobId.getName(),
+                          mapException(e),
+                          blobId.getGeneration() == null
+                              ? null
+                              : Map.of(
+                                  BlobIdentifier.VERSION_ID_ATTRIBUTE,
+                                  String.valueOf(blobId.getGeneration()))));
+                }
+              });
+    }
+    batch.submit();
+    return failures;
   }
 
   @Override
@@ -1343,30 +1389,28 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected void doDeleteDirectory(String prefix) {
-    try {
-      // List all blobs with the given prefix and delete them in batches
-      Storage.BlobListOption[] options =
-          prefix != null
-              ? new Storage.BlobListOption[] {Storage.BlobListOption.prefix(prefix)}
-              : new Storage.BlobListOption[0];
+    // List all blobs with the given prefix and delete them in batches
+    Storage.BlobListOption[] options =
+        prefix != null
+            ? new Storage.BlobListOption[] {Storage.BlobListOption.prefix(prefix)}
+            : new Storage.BlobListOption[0];
 
-      // Delete while listing to bound memory; later pages resume after the last listed name,
-      // so deleting earlier objects does not skip any.
-      List<BlobId> batch = new ArrayList<>(MAX_OBJECTS_PER_BATCH_DELETE);
-      for (Blob blob : storage.list(getBucket(), options).iterateAll()) {
-        batch.add(BlobId.of(getBucket(), blob.getName()));
-        if (batch.size() == MAX_OBJECTS_PER_BATCH_DELETE) {
-          // Batch delete is a JSON-API feature with no gRPC equivalent; run it on the HTTP client.
-          httpStorage.delete(batch);
-          batch = new ArrayList<>(MAX_OBJECTS_PER_BATCH_DELETE);
-        }
+    List<ItemFailure> failures = new ArrayList<>();
+    // Delete while listing to bound memory; later pages resume after the last listed name,
+    // so deleting earlier objects does not skip any.
+    List<BlobId> batch = new ArrayList<>(MAX_OBJECTS_PER_BATCH_DELETE);
+    for (Blob blob : storage.list(getBucket(), options).iterateAll()) {
+      batch.add(BlobId.of(getBucket(), blob.getName()));
+      if (batch.size() == MAX_OBJECTS_PER_BATCH_DELETE) {
+        failures.addAll(deleteBatch(batch));
+        batch = new ArrayList<>(MAX_OBJECTS_PER_BATCH_DELETE);
       }
-      if (!batch.isEmpty()) {
-        httpStorage.delete(batch);
-      }
-
-    } catch (Exception e) {
-      throw new SubstrateSdkException("Failed to delete directory", e);
+    }
+    if (!batch.isEmpty()) {
+      failures.addAll(deleteBatch(batch));
+    }
+    if (!failures.isEmpty()) {
+      throw new BatchOperationException(failures);
     }
   }
 
