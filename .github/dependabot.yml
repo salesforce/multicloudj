@@ -3,8 +3,11 @@ version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
+    # Monthly keeps routine version bumps to one batch of PRs a month. Dependabot
+    # security updates, when enabled in the repository settings, do not follow
+    # this schedule.
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     # Skip versions published less than 7 days ago, so a malicious release is
     # likely to be caught and removed before it is proposed.
     cooldown:
@@ -22,8 +25,9 @@ updates:
   - package-ecosystem: "maven"
     directory: "/"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
+      interval: "monthly"
+    # Room for one PR per group below plus a few ungrouped major bumps.
+    open-pull-requests-limit: 15
     cooldown:
       default-days: 7
     commit-message:
@@ -31,12 +35,16 @@ updates:
       include: "scope"
     ignore:
       - dependency-name: "com.salesforce.multicloudj:*"
-    # Grouped so a weekly run yields a few PRs instead of one per artifact. Major
-    # bumps stay ungrouped so each breaking upgrade is reviewed on its own.
+    # Grouped so a monthly run yields one PR per area instead of one per artifact,
+    # and no single PR is too large to review. Major bumps stay ungrouped so each
+    # breaking upgrade is reviewed on its own.
+    # A dependency joins the first group it matches, so other-dependencies must
+    # stay last.
     groups:
       aws-sdk:
         patterns:
           - "software.amazon.awssdk:*"
+          - "software.amazon.awssdk.crt:*"
           - "software.amazon.eventstream:*"
         update-types: ["minor", "patch"]
       gcp-sdk:
@@ -44,12 +52,83 @@ updates:
           - "com.google.cloud:*"
           - "com.google.api:*"
           - "com.google.api-client:*"
+          - "com.google.auth:*"
+          - "com.google.http-client:*"
           - "com.google.protobuf:*"
           - "io.grpc:*"
         update-types: ["minor", "patch"]
       ali-sdk:
         patterns:
           - "com.aliyun*"
+        update-types: ["minor", "patch"]
+      # Build-only; no effect on the published artifacts' runtime.
+      maven-plugins:
+        patterns:
+          - "org.apache.maven.plugins:*"
+          - "org.codehaus.mojo:*"
+          - "org.jacoco:*"
+          - "org.sonatype.central:*"
+          - "com.puppycrawl.tools:*"
+        update-types: ["minor", "patch"]
+      # Netty modules must stay on the same version.
+      netty:
+        patterns:
+          - "io.netty:*"
+        update-types: ["minor", "patch"]
+      serialization:
+        patterns:
+          - "com.fasterxml*"
+          - "com.google.code.gson:*"
+          - "jakarta.xml.bind:*"
+          - "jakarta.activation:*"
+          - "org.glassfish.jaxb:*"
+          - "org.eclipse.angus:*"
+          - "com.sun.istack:*"
+          - "org.codehaus.woodstox:*"
+          - "org.codehaus.jettison:*"
+          - "org.jdom:*"
+        update-types: ["minor", "patch"]
+      http-clients:
+        patterns:
+          - "org.apache.httpcomponents*"
+          - "com.squareup.okhttp3:*"
+          - "commons-codec:*"
+          - "commons-logging:*"
+        update-types: ["minor", "patch"]
+      test:
+        patterns:
+          - "org.junit*"
+          - "org.mockito:*"
+          - "org.wiremock:*"
+          - "org.openjdk.jmh:*"
+        update-types: ["minor", "patch"]
+      observability:
+        patterns:
+          - "io.opentelemetry*"
+          - "io.opentracing:*"
+          - "org.slf4j:*"
+          - "ch.qos.logback:*"
+        update-types: ["minor", "patch"]
+      # Guava and the annotation libraries it depends on release together.
+      google-core:
+        patterns:
+          - "com.google.guava:*"
+          - "com.google.errorprone:*"
+          - "com.google.j2objc:*"
+          - "org.checkerframework:*"
+          - "com.google.code.findbugs:*"
+          - "com.google.auto*"
+          - "com.google.inject*"
+        update-types: ["minor", "patch"]
+      # Annotation processor; a bump can break compilation on its own.
+      build-time:
+        patterns:
+          - "org.projectlombok:*"
+        update-types: ["minor", "patch"]
+      # Crypto provider; kept alone so it can be merged quickly.
+      security:
+        patterns:
+          - "org.bouncycastle:*"
         update-types: ["minor", "patch"]
       other-dependencies:
         patterns:
