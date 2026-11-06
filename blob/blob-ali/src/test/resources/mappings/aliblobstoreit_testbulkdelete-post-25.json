@@ -1,5 +1,5 @@
 {
-  "id" : "1dcbcc6e-8341-4ee3-8c38-be459f2f7823",
+  "id" : "7dc936bf-5926-4677-99b7-84a20f2c0755",
   "name" : "AliBlobStoreIT_testBulkDelete-POST-25",
   "request" : {
     "urlPath" : "/",
@@ -25,19 +25,21 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToXml" : "<Delete><Quiet>true</Quiet><Object><Key>conformance-tests/blob-for-bulk-delete_happy1</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy2</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy3</Key></Object></Delete>"
+      "equalToXml" : "<Delete><Quiet>false</Quiet><Object><Key>conformance-tests/blob-for-bulk-delete_happy1</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy2</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy3</Key></Object></Delete>"
     } ]
   },
   "response" : {
     "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult>\n  <EncodingType>url</EncodingType>\n  <Deleted>\n    <Key>conformance-tests%2Fblob-for-bulk-delete_happy1</Key>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests%2Fblob-for-bulk-delete_happy2</Key>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests%2Fblob-for-bulk-delete_happy3</Key>\n  </Deleted>\n</DeleteResult>\n",
     "headers" : {
-      "x-oss-request-id" : "6A0F7E9410827E3836B6B112",
-      "x-oss-server-time" : "55",
+      "x-oss-request-id" : "6AED2BFA00A1C23638EF145A",
+      "x-oss-server-time" : "73",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 21:52:20 GMT"
+      "Date" : "Fri, 06 Nov 2026 01:23:06 GMT",
+      "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "1dcbcc6e-8341-4ee3-8c38-be459f2f7823",
+  "uuid" : "7dc936bf-5926-4677-99b7-84a20f2c0755",
   "persistent" : true,
-  "insertionIndex" : 34
+  "insertionIndex" : 719
 }

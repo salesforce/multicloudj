@@ -1,0 +1,40 @@
+{
+  "id" : "fd143b84-d1c0-499a-aa65-6e08fae2c592",
+  "name" : "AliBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-HEAD-0",
+  "request" : {
+    "urlPath" : "/conformance-tests/bulkDeleteByVersion/legalhold-held",
+    "method" : "HEAD",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "versionId" : {
+        "hasExactly" : [ {
+          "equalTo" : "CAEQkiQYxOSn36XpuY0aIiBjODdiNDMwMzIzZDk0MTY2OWNlMGVkNWQ4YTIxZDdjOQ--"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "headers" : {
+      "x-oss-request-id" : "6AED2C3CCC7B3F33374ECA7D",
+      "x-oss-server-time" : "62",
+      "Server" : "AliyunOSS",
+      "x-oss-err" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPEVycm9yPgogIDxDb2RlPk5vU3VjaFZlcnNpb248L0NvZGU+CiAgPE1lc3NhZ2U+VGhlIHNwZWNpZmllZCB2ZXJzaW9uIGRvZXMgbm90IGV4aXN0LjwvTWVzc2FnZT4KICA8UmVxdWVzdElkPjZBRUQyQzNDQ0M3QjNGMzMzNzRFQ0E3RDwvUmVxdWVzdElkPgogIDxIb3N0SWQ+Y2hhbWVsZW9uLW11bHRpY2xvdWRqLXRlc3QtdmVyc2lvbmVkLm9zcy1jbi1zaGFuZ2hhaS5hbGl5dW5jcy5jb208L0hvc3RJZD4KICA8S2V5PmNvbmZvcm1hbmNlLXRlc3RzL2J1bGtEZWxldGVCeVZlcnNpb24vbGVnYWxob2xkLWhlbGQ8L0tleT4KICA8VmVyc2lvbklkPkNBRVFraVFZeE9TbjM2WHB1WTBhSWlCak9EZGlORE13TXpJelpEazBNVFkyT1dObE1HVmtOV1E0WVRJeFpEZGpPUS0tPC9WZXJzaW9uSWQ+CiAgPEVDPjAwMTItMDAwMDAyMDM8L0VDPgogIDxSZWNvbW1lbmREb2M+aHR0cHM6Ly9hcGkuYWxpeXVuLmNvbS90cm91Ymxlc2hvb3Q/cT0wMDEyLTAwMDAwMjAzPC9SZWNvbW1lbmREb2M+CjwvRXJyb3I+Cg==",
+      "x-oss-ec" : "0012-00000203",
+      "Date" : "Fri, 06 Nov 2026 01:24:12 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "fd143b84-d1c0-499a-aa65-6e08fae2c592",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-conformance-tests-bulkDeleteByVersion-legalhold-held",
+  "requiredScenarioState" : "scenario-1-conformance-tests-bulkDeleteByVersion-legalhold-held-2",
+  "insertionIndex" : 762
+}
