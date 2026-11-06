@@ -1,5 +1,5 @@
 {
-  "id" : "d9f292ad-dce8-4579-8b06-b8a90ad78dba",
+  "id" : "ee6a6a71-e71e-4250-acbf-37894e671cb4",
   "name" : "GcpBlobStoreIT_testBulkDelete-PUT-35",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
@@ -22,7 +22,7 @@
       },
       "upload_id" : {
         "hasExactly" : [ {
-          "equalTo" : "AFy3sg1jU3MWD1XgikpYd-NAYDksWTACmAdzFoqIIIddKAXpZonbgCb1HXF-CqSs51A8_eyhNq_aQyDjEzPY6F2QqcJUhtHaMuZF6LWFpa7kidQ"
+          "equalTo" : "AFy3sg2OD-ic5wKddIelwRcGqhWJCos6OK2VQElMf2McUnN2Qz8nr-Gsrp2biDeIFLDKlz4AMNru2v3QTi1YrnujMW-te_Ma9g3eCD9PhCa8fUQ"
         } ]
       }
     },
@@ -33,22 +33,22 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-bulk-delete_happy4/1793818662893167\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-bulk-delete_happy4\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-bulk-delete_happy4?generation=1793818662893167&alt=media\",\n  \"name\": \"conformance-tests/blob-for-bulk-delete_happy4\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1793818662893167\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"66\",\n  \"md5Hash\": \"2lNKly3cMKFOR160UiJZ/A==\",\n  \"crc32c\": \"RXysrA==\",\n  \"etag\": \"CO/sxaH/7pcDEAE=\",\n  \"timeCreated\": \"2026-11-04T18:57:42.947Z\",\n  \"updated\": \"2026-11-04T18:57:42.947Z\",\n  \"timeStorageClassUpdated\": \"2026-11-04T18:57:42.947Z\",\n  \"timeFinalized\": \"2026-11-04T18:57:42.947Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-bulk-delete_happy4/1794003070719672\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-bulk-delete_happy4\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-bulk-delete_happy4?generation=1794003070719672&alt=media\",\n  \"name\": \"conformance-tests/blob-for-bulk-delete_happy4\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1794003070719672\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"66\",\n  \"md5Hash\": \"2lNKly3cMKFOR160UiJZ/A==\",\n  \"crc32c\": \"RXysrA==\",\n  \"etag\": \"CLithp6u9JcDEAE=\",\n  \"timeCreated\": \"2026-11-06T22:11:10.780Z\",\n  \"updated\": \"2026-11-06T22:11:10.780Z\",\n  \"timeStorageClassUpdated\": \"2026-11-06T22:11:10.780Z\",\n  \"timeFinalized\": \"2026-11-06T22:11:10.780Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CO/sxaH/7pcDEAE=",
-      "X-GUploader-UploadID" : "AFy3sg1jU3MWD1XgikpYd-NAYDksWTACmAdzFoqIIIddKAXpZonbgCb1HXF-CqSs51A8_eyhNq_aQyDjEzPY6F2QqcJUhtHaMuZF6LWFpa7kidQ",
+      "ETag" : "CLithp6u9JcDEAE=",
+      "X-GUploader-UploadID" : "AFy3sg2OD-ic5wKddIelwRcGqhWJCos6OK2VQElMf2McUnN2Qz8nr-Gsrp2biDeIFLDKlz4AMNru2v3QTi1YrnujMW-te_Ma9g3eCD9PhCa8fUQ",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "X-Goog-Gcs-Base-Ts" : "1a1a7ec983f",
-      "Date" : "Wed, 04 Nov 2026 18:57:42 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a1b2ea6f50",
+      "Date" : "Fri, 06 Nov 2026 22:11:10 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "d9f292ad-dce8-4579-8b06-b8a90ad78dba",
+  "uuid" : "ee6a6a71-e71e-4250-acbf-37894e671cb4",
   "persistent" : true,
-  "insertionIndex" : 1371
+  "insertionIndex" : 1517
 }

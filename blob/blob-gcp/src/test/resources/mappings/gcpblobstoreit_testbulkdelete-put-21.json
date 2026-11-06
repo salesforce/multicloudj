@@ -1,5 +1,5 @@
 {
-  "id" : "43581c64-d111-41af-99c8-e843d432eea9",
+  "id" : "530d0f15-6c64-4951-a239-d7e6d9db8a3d",
   "name" : "GcpBlobStoreIT_testBulkDelete-PUT-21",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
@@ -22,7 +22,7 @@
       },
       "upload_id" : {
         "hasExactly" : [ {
-          "equalTo" : "AFy3sg2Y5eYiVrDNwZ-8RMtQ2DLBLuVFKJNmAap65Nw2yrio7OWirJmAQQrGuWWwexnI05vnH8HI1jgEP6j04IAkb4pcjRSL9rNpWlFtYKZ20w"
+          "equalTo" : "AFy3sg0vcdnyL9EK1yUHTEkuDbG3vJEdweHeflP5-nfFznnH81ovf5NuR6ejw74BWMNkj6VOWnxMsD3ZoD-zL-lQz19bo-eHBsKAHX8mQqtcmw"
         } ]
       }
     },
@@ -33,22 +33,22 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-bulk-delete_happy8/1793818667101283\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-bulk-delete_happy8\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-bulk-delete_happy8?generation=1793818667101283&alt=media\",\n  \"name\": \"conformance-tests/blob-for-bulk-delete_happy8\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1793818667101283\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"66\",\n  \"md5Hash\": \"7AmwNq9610rjFxdC12kbYQ==\",\n  \"crc32c\": \"CD9jfA==\",\n  \"etag\": \"COPYxqP/7pcDEAE=\",\n  \"timeCreated\": \"2026-11-04T18:57:47.155Z\",\n  \"updated\": \"2026-11-04T18:57:47.155Z\",\n  \"timeStorageClassUpdated\": \"2026-11-04T18:57:47.155Z\",\n  \"timeFinalized\": \"2026-11-04T18:57:47.155Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-bulk-delete_happy8/1794003075179494\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-bulk-delete_happy8\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-bulk-delete_happy8?generation=1794003075179494&alt=media\",\n  \"name\": \"conformance-tests/blob-for-bulk-delete_happy8\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1794003075179494\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"66\",\n  \"md5Hash\": \"7AmwNq9610rjFxdC12kbYQ==\",\n  \"crc32c\": \"CD9jfA==\",\n  \"etag\": \"CObHlqCu9JcDEAE=\",\n  \"timeCreated\": \"2026-11-06T22:11:15.234Z\",\n  \"updated\": \"2026-11-06T22:11:15.234Z\",\n  \"timeStorageClassUpdated\": \"2026-11-06T22:11:15.234Z\",\n  \"timeFinalized\": \"2026-11-06T22:11:15.234Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "COPYxqP/7pcDEAE=",
-      "X-GUploader-UploadID" : "AFy3sg2Y5eYiVrDNwZ-8RMtQ2DLBLuVFKJNmAap65Nw2yrio7OWirJmAQQrGuWWwexnI05vnH8HI1jgEP6j04IAkb4pcjRSL9rNpWlFtYKZ20w",
+      "ETag" : "CObHlqCu9JcDEAE=",
+      "X-GUploader-UploadID" : "AFy3sg0vcdnyL9EK1yUHTEkuDbG3vJEdweHeflP5-nfFznnH81ovf5NuR6ejw74BWMNkj6VOWnxMsD3ZoD-zL-lQz19bo-eHBsKAHX8mQqtcmw",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "X-Goog-Gcs-Base-Ts" : "1a1a7eca8a6",
-      "Date" : "Wed, 04 Nov 2026 18:57:47 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a1b2ea80b5",
+      "Date" : "Fri, 06 Nov 2026 22:11:15 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "43581c64-d111-41af-99c8-e843d432eea9",
+  "uuid" : "530d0f15-6c64-4951-a239-d7e6d9db8a3d",
   "persistent" : true,
-  "insertionIndex" : 1357
+  "insertionIndex" : 1503
 }
