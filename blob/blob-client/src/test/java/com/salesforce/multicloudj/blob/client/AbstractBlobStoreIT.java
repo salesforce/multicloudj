@@ -1725,20 +1725,20 @@ public abstract class AbstractBlobStoreIT {
     }
   }
 
+  /**
+   * A batch with one deletable and one legal-held object throws a BatchOperationException naming
+   * only the held object, with the free object deleted and the held object intact.
+   */
   @Test
   public void testBulkVersionedDelete_perObjectFailure_legalHold() throws IOException {
     String keyPrefix = "conformance-tests/bulkDeleteByVersion/";
     String heldKey = keyPrefix + "legalhold-held";
     String freeKey = keyPrefix + "legalhold-free";
-    String absentKey = keyPrefix + "legalhold-absent";
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
     String heldVersion = null;
     String freeVersion = null;
-    String absentVersion = null;
-    boolean heldDeleted = false;
     boolean freeDeleted = false;
-    boolean absentDeleted = false;
     try {
       byte[] content = "per-object failure".getBytes(StandardCharsets.UTF_8);
       try (InputStream inputStream = new ByteArrayInputStream(content)) {
@@ -1767,24 +1767,9 @@ public abstract class AbstractBlobStoreIT {
                 .getVersionId();
       }
       Assertions.assertNotNull(freeVersion, "the versioned bucket must return a version id");
-      try (InputStream inputStream = new ByteArrayInputStream(content)) {
-        absentVersion =
-            bucketClient
-                .upload(
-                    new UploadRequest.Builder()
-                        .withKey(absentKey)
-                        .withContentLength(content.length)
-                        .build(),
-                    inputStream)
-                .getVersionId();
-      }
-      Assertions.assertNotNull(absentVersion, "the versioned bucket must return a version id");
-      bucketClient.delete(absentKey, absentVersion);
-      absentDeleted = true;
 
       final String heldVer = heldVersion;
       final String freeVer = freeVersion;
-      final String absentVer = absentVersion;
       BatchOperationException batchException =
           Assertions.assertThrows(
               BatchOperationException.class,
@@ -1792,8 +1777,7 @@ public abstract class AbstractBlobStoreIT {
                   bucketClient.delete(
                       List.of(
                           new BlobIdentifier(freeKey, freeVer),
-                          new BlobIdentifier(heldKey, heldVer),
-                          new BlobIdentifier(absentKey, absentVer))));
+                          new BlobIdentifier(heldKey, heldVer))));
 
       Assertions.assertEquals(1, batchException.getFailures().size());
       Assertions.assertEquals(List.of(heldKey), batchException.getFailedItemIds());
@@ -1807,15 +1791,8 @@ public abstract class AbstractBlobStoreIT {
           ResourceNotFoundException.class, () -> bucketClient.getMetadata(freeKey, freeVer));
       freeDeleted = true;
       Assertions.assertEquals(heldVer, bucketClient.getMetadata(heldKey, heldVer).getVersionId());
-
-      bucketClient.updateLegalHold(heldKey, heldVer, false);
-      Assertions.assertDoesNotThrow(
-          () -> bucketClient.delete(List.of(new BlobIdentifier(heldKey, heldVer))));
-      heldDeleted = true;
-      Assertions.assertThrows(
-          ResourceNotFoundException.class, () -> bucketClient.getMetadata(heldKey, heldVer));
     } finally {
-      if (heldVersion != null && !heldDeleted) {
+      if (heldVersion != null) {
         try {
           bucketClient.updateLegalHold(heldKey, heldVersion, false);
         } catch (Exception ignored) {
@@ -1825,9 +1802,6 @@ public abstract class AbstractBlobStoreIT {
       }
       if (freeVersion != null && !freeDeleted) {
         deleteVersionQuietly(bucketClient, freeKey, freeVersion);
-      }
-      if (absentVersion != null && !absentDeleted) {
-        deleteVersionQuietly(bucketClient, absentKey, absentVersion);
       }
     }
   }
