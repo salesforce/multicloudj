@@ -1,8 +1,8 @@
 {
-  "id" : "78e26251-2ee5-401e-880d-f20ed311fc18",
-  "name" : "AliBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-PUT-10",
+  "id" : "4d817785-05a8-44ad-86fd-aa2189ddb817",
+  "name" : "AliBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-PUT-5",
   "request" : {
-    "url" : "/conformance-tests/bulkDeleteByVersion/legalhold-held",
+    "url" : "/conformance-tests/bulkDeleteByVersion/legalhold-free",
     "method" : "PUT",
     "headers" : {
       "Host" : {
@@ -16,17 +16,17 @@
   "response" : {
     "status" : 200,
     "headers" : {
-      "x-oss-version-id" : "CAEQkiQYxOSn36XpuY0aIiBjODdiNDMwMzIzZDk0MTY2OWNlMGVkNWQ4YTIxZDdjOQ--",
-      "x-oss-request-id" : "6AED2C32F40CB6303866F7FD",
-      "x-oss-server-time" : "36",
+      "x-oss-version-id" : "CAEQkiQYwZvjwZjBy40aIiA0N2M1ZWM1MjA3YTQ0NmRhYTRhZTJlYTk2N2Q3MDQ5Zg--",
+      "x-oss-request-id" : "6AEE4DF93BC91B3535FA928C",
+      "x-oss-server-time" : "57",
       "Server" : "AliyunOSS",
       "x-oss-hash-crc64ecma" : "12826145959762287853",
       "ETag" : "\"BF13828C1FFE71D101501DF3F05D99C6\"",
-      "Date" : "Fri, 06 Nov 2026 01:24:02 GMT",
+      "Date" : "Fri, 06 Nov 2026 22:00:26 GMT",
       "Content-MD5" : "vxOCjB/+cdEBUB3z8F2Zxg=="
     }
   },
-  "uuid" : "78e26251-2ee5-401e-880d-f20ed311fc18",
+  "uuid" : "4d817785-05a8-44ad-86fd-aa2189ddb817",
   "persistent" : true,
-  "insertionIndex" : 772
+  "insertionIndex" : 796
 }

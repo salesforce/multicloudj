@@ -1,8 +1,8 @@
 {
-  "id" : "04312890-e274-4cce-a43e-9d3d89a7543f",
+  "id" : "24cf3d59-2f22-495f-890c-83c98372990e",
   "name" : "AliBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-PUT-7",
   "request" : {
-    "url" : "/conformance-tests/bulkDeleteByVersion/legalhold-absent",
+    "url" : "/conformance-tests/bulkDeleteByVersion/legalhold-held",
     "method" : "PUT",
     "headers" : {
       "Host" : {
@@ -16,17 +16,17 @@
   "response" : {
     "status" : 200,
     "headers" : {
-      "x-oss-version-id" : "CAEQkiQYmu.TmbTpuY0aIiAwOGU2Zjc0NjlmN2Q0ZmE4OWE1Njc5NDk1OGY0NjMwOA--",
-      "x-oss-request-id" : "6AED2C36EFD97E3033CF9FBC",
-      "x-oss-server-time" : "69",
+      "x-oss-version-id" : "CAEQkiQYk8Xi_pHBy40aIiBmYmNlYmRjY2Q2OTE0NDNiYTc3NWMxOTUyOTYyYTc5Yg--",
+      "x-oss-request-id" : "6AEE4DF824FA4D32325EFF70",
+      "x-oss-server-time" : "73",
       "Server" : "AliyunOSS",
       "x-oss-hash-crc64ecma" : "12826145959762287853",
       "ETag" : "\"BF13828C1FFE71D101501DF3F05D99C6\"",
-      "Date" : "Fri, 06 Nov 2026 01:24:06 GMT",
+      "Date" : "Fri, 06 Nov 2026 22:00:24 GMT",
       "Content-MD5" : "vxOCjB/+cdEBUB3z8F2Zxg=="
     }
   },
-  "uuid" : "04312890-e274-4cce-a43e-9d3d89a7543f",
+  "uuid" : "24cf3d59-2f22-495f-890c-83c98372990e",
   "persistent" : true,
-  "insertionIndex" : 769
+  "insertionIndex" : 798
 }

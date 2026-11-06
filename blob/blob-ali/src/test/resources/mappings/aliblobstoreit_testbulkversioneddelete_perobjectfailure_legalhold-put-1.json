@@ -1,6 +1,6 @@
 {
-  "id" : "4138b4f1-1ab5-407a-ba1e-25a4b58c2168",
-  "name" : "AliBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-PUT-9",
+  "id" : "8b31177c-6ddc-4d39-bfe0-2a28eabb6e49",
+  "name" : "AliBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-PUT-1",
   "request" : {
     "urlPath" : "/conformance-tests/bulkDeleteByVersion/legalhold-held",
     "method" : "PUT",
@@ -15,7 +15,7 @@
     "queryParameters" : {
       "versionId" : {
         "hasExactly" : [ {
-          "equalTo" : "CAEQkiQYxOSn36XpuY0aIiBjODdiNDMwMzIzZDk0MTY2OWNlMGVkNWQ4YTIxZDdjOQ--"
+          "equalTo" : "CAEQkiQYk8Xi_pHBy40aIiBmYmNlYmRjY2Q2OTE0NDNiYTc3NWMxOTUyOTYyYTc5Yg--"
         } ]
       },
       "legalHold" : {
@@ -25,20 +25,20 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToXml" : "<LegalHold><Status>ON</Status></LegalHold>"
+      "equalToXml" : "<LegalHold><Status>OFF</Status></LegalHold>"
     } ]
   },
   "response" : {
     "status" : 200,
     "headers" : {
-      "x-oss-version-id" : "CAEQkiQYxOSn36XpuY0aIiBjODdiNDMwMzIzZDk0MTY2OWNlMGVkNWQ4YTIxZDdjOQ--",
-      "x-oss-request-id" : "6AED2C3302657931394CE2A3",
-      "x-oss-server-time" : "12",
+      "x-oss-version-id" : "CAEQkiQYk8Xi_pHBy40aIiBmYmNlYmRjY2Q2OTE0NDNiYTc3NWMxOTUyOTYyYTc5Yg--",
+      "x-oss-request-id" : "6AEE4DFD972B6C32347F7F87",
+      "x-oss-server-time" : "44",
       "Server" : "AliyunOSS",
-      "Date" : "Fri, 06 Nov 2026 01:24:03 GMT"
+      "Date" : "Fri, 06 Nov 2026 22:00:29 GMT"
     }
   },
-  "uuid" : "4138b4f1-1ab5-407a-ba1e-25a4b58c2168",
+  "uuid" : "8b31177c-6ddc-4d39-bfe0-2a28eabb6e49",
   "persistent" : true,
-  "insertionIndex" : 771
+  "insertionIndex" : 792
 }

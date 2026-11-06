@@ -1,8 +1,8 @@
 {
-  "id" : "3136f0fa-73ed-4802-9017-93ab510f5286",
+  "id" : "5877bead-50db-4967-b87d-ef854ef75a50",
   "name" : "AliBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-HEAD-3",
   "request" : {
-    "urlPath" : "/conformance-tests/bulkDeleteByVersion/legalhold-held",
+    "urlPath" : "/conformance-tests/bulkDeleteByVersion/legalhold-free",
     "method" : "HEAD",
     "headers" : {
       "Host" : {
@@ -15,34 +15,24 @@
     "queryParameters" : {
       "versionId" : {
         "hasExactly" : [ {
-          "equalTo" : "CAEQkiQYxOSn36XpuY0aIiBjODdiNDMwMzIzZDk0MTY2OWNlMGVkNWQ4YTIxZDdjOQ--"
+          "equalTo" : "CAEQkiQYwZvjwZjBy40aIiA0N2M1ZWM1MjA3YTQ0NmRhYTRhZTJlYTk2N2Q3MDQ5Zg--"
         } ]
       }
     }
   },
   "response" : {
-    "status" : 200,
+    "status" : 404,
     "headers" : {
-      "x-oss-version-id" : "CAEQkiQYxOSn36XpuY0aIiBjODdiNDMwMzIzZDk0MTY2OWNlMGVkNWQ4YTIxZDdjOQ--",
-      "x-oss-request-id" : "6AED2C3983DA7331394F10C2",
+      "x-oss-request-id" : "6AEE4DFBD7BC0737392E1FE3",
       "x-oss-server-time" : "40",
       "Server" : "AliyunOSS",
-      "x-oss-object-type" : "Normal",
-      "Last-Modified" : "Fri, 06 Nov 2026 01:24:02 GMT",
-      "Date" : "Fri, 06 Nov 2026 01:24:09 GMT",
-      "Content-MD5" : "vxOCjB/+cdEBUB3z8F2Zxg==",
-      "Accept-Ranges" : "bytes",
-      "x-oss-storage-class" : "Standard",
-      "x-oss-object-worm-legal-hold" : "ON",
-      "x-oss-hash-crc64ecma" : "12826145959762287853",
-      "ETag" : "\"BF13828C1FFE71D101501DF3F05D99C6\"",
-      "Content-Type" : "application/octet-stream"
+      "x-oss-err" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPEVycm9yPgogIDxDb2RlPk5vU3VjaFZlcnNpb248L0NvZGU+CiAgPE1lc3NhZ2U+VGhlIHNwZWNpZmllZCB2ZXJzaW9uIGRvZXMgbm90IGV4aXN0LjwvTWVzc2FnZT4KICA8UmVxdWVzdElkPjZBRUU0REZCRDdCQzA3MzczOTJFMUZFMzwvUmVxdWVzdElkPgogIDxIb3N0SWQ+Y2hhbWVsZW9uLW11bHRpY2xvdWRqLXRlc3QtdmVyc2lvbmVkLm9zcy1jbi1zaGFuZ2hhaS5hbGl5dW5jcy5jb208L0hvc3RJZD4KICA8S2V5PmNvbmZvcm1hbmNlLXRlc3RzL2J1bGtEZWxldGVCeVZlcnNpb24vbGVnYWxob2xkLWZyZWU8L0tleT4KICA8VmVyc2lvbklkPkNBRVFraVFZd1p2andaakJ5NDBhSWlBME4yTTFaV00xTWpBM1lUUTBObVJoWVRSaFpUSmxZVGsyTjJRM01EUTVaZy0tPC9WZXJzaW9uSWQ+CiAgPEVDPjAwMTItMDAwMDAyMDM8L0VDPgogIDxSZWNvbW1lbmREb2M+aHR0cHM6Ly9hcGkuYWxpeXVuLmNvbS90cm91Ymxlc2hvb3Q/cT0wMDEyLTAwMDAwMjAzPC9SZWNvbW1lbmREb2M+CjwvRXJyb3I+Cg==",
+      "x-oss-ec" : "0012-00000203",
+      "Date" : "Fri, 06 Nov 2026 22:00:27 GMT",
+      "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "3136f0fa-73ed-4802-9017-93ab510f5286",
+  "uuid" : "5877bead-50db-4967-b87d-ef854ef75a50",
   "persistent" : true,
-  "scenarioName" : "scenario-1-conformance-tests-bulkDeleteByVersion-legalhold-held",
-  "requiredScenarioState" : "Started",
-  "newScenarioState" : "scenario-1-conformance-tests-bulkDeleteByVersion-legalhold-held-2",
-  "insertionIndex" : 765
+  "insertionIndex" : 794
 }
