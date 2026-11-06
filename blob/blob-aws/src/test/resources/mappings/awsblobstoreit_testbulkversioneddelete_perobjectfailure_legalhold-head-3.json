@@ -1,8 +1,8 @@
 {
-  "id" : "1b7c05cd-4772-4a2b-a39b-e6c728050bcc",
+  "id" : "16f8c43d-6090-4d61-ac3c-77d8093d3d4c",
   "name" : "AwsBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-HEAD-3",
   "request" : {
-    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/bulkDeleteByVersion/legalhold-held",
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/bulkDeleteByVersion/legalhold-free",
     "method" : "HEAD",
     "headers" : {
       "X-Query-Param-Count" : {
@@ -12,33 +12,22 @@
     "queryParameters" : {
       "versionId" : {
         "hasExactly" : [ {
-          "equalTo" : "D0LaWWiDQ4zimwv6Yqbo8EIY6__RleKA"
+          "equalTo" : "FuMqmixBftqu7ueSQYfZAgT2xy.aVS5J"
         } ]
       }
     }
   },
   "response" : {
-    "status" : 200,
+    "status" : 404,
     "headers" : {
       "Server" : "AmazonS3",
-      "Last-Modified" : "Fri, 06 Nov 2026 02:09:35 GMT",
-      "x-amz-server-side-encryption" : "AES256",
-      "x-amz-version-id" : "D0LaWWiDQ4zimwv6Yqbo8EIY6__RleKA",
-      "Date" : "Fri, 06 Nov 2026 02:09:38 GMT",
-      "Accept-Ranges" : "bytes",
-      "x-amz-object-lock-legal-hold" : "ON",
-      "ETag" : "\"bf13828c1ffe71d101501df3f05d99c6\"",
-      "x-amz-checksum-type" : "FULL_OBJECT",
-      "x-amz-request-id" : "MSXAG2ZVCEZ9N5EZ",
-      "x-amz-checksum-crc32c" : "w2DZ3Q==",
-      "x-amz-id-2" : "ULY4vVINflD5sQ3WqIIj8JgmVFCxW6qqxSQ/q9AcRV0jH3na5xA6Ga9s//g13vAmxmRY7GRvDR0=",
-      "Content-Type" : "application/octet-stream"
+      "x-amz-request-id" : "4ZQMG9V5Y01W3QJN",
+      "x-amz-id-2" : "+kZQlXkdJLH36cNFWtWGxojrulhEddHH9TGuhwXOURUKEkpx7x/DnJF2XATPvQUsowugabN2t5c=",
+      "Date" : "Fri, 06 Nov 2026 21:55:38 GMT",
+      "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "1b7c05cd-4772-4a2b-a39b-e6c728050bcc",
+  "uuid" : "16f8c43d-6090-4d61-ac3c-77d8093d3d4c",
   "persistent" : true,
-  "scenarioName" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-bulkDeleteByVersion-legalhold-held",
-  "requiredScenarioState" : "Started",
-  "newScenarioState" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-bulkDeleteByVersion-legalhold-held-2",
   "insertionIndex" : 821
 }
