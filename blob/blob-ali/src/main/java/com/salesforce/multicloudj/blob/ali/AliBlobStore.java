@@ -11,6 +11,7 @@ import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult;
 import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
 import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
+import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsResult;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetBucketVersioningResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectLegalHoldResult;
@@ -72,7 +73,9 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
@@ -525,6 +528,8 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
    * Deletes a collection of Blobs
    *
    * @param objects A collection of blob identifiers to delete
+   * @throws BatchOperationException if the service did not confirm the delete of one or more
+   *     objects
    */
   @Override
   protected void doDelete(Collection<BlobIdentifier> objects) {
@@ -533,8 +538,12 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
     }
     DeleteMultipleObjectsRequest request =
         transformer.toDeleteMultipleObjectsRequest(objects);
-    ossClient.deleteMultipleObjects(request,
-        OperationOptions.defaults());
+    DeleteMultipleObjectsResult result =
+        ossClient.deleteMultipleObjects(request, OperationOptions.defaults());
+    List<ItemFailure> failures = transformer.toBatchDeleteFailures(objects, result);
+    if (!failures.isEmpty()) {
+      throw new BatchOperationException(failures);
+    }
   }
 
   /**

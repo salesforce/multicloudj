@@ -1,5 +1,5 @@
 {
-  "id" : "a50c1815-5725-4e56-9937-870d4a5e92cf",
+  "id" : "6c8c7ae8-cd43-44e0-8504-803d03eff01e",
   "name" : "AliBlobStoreIT_testNonexistentBucket-POST-9",
   "request" : {
     "urlPath" : "/",
@@ -25,21 +25,21 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToXml" : "<Delete><Quiet>true</Quiet><Object><Key>conformance-tests/blob-for-failing/testNonexistentBucket</Key></Object></Delete>"
+      "equalToXml" : "<Delete><Quiet>false</Quiet><Object><Key>conformance-tests/blob-for-failing/testNonexistentBucket</Key></Object></Delete>"
     } ]
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchBucket</Code>\n  <Message>The specified bucket does not exist.</Message>\n  <RequestId>6A0F7F16A8277C3933C32B77</RequestId>\n  <HostId>java-bucket-does-not-exist.oss-cn-shanghai.aliyuncs.com</HostId>\n  <BucketName>java-bucket-does-not-exist</BucketName>\n  <EC>0015-00000101</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0015-00000101</RecommendDoc>\n</Error>\n",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchBucket</Code>\n  <Message>The specified bucket does not exist.</Message>\n  <RequestId>6AED2C1FB37E8135389360F5</RequestId>\n  <HostId>java-bucket-does-not-exist.oss-cn-shanghai.aliyuncs.com</HostId>\n  <BucketName>java-bucket-does-not-exist</BucketName>\n  <EC>0015-00000101</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0015-00000101</RecommendDoc>\n</Error>\n",
     "headers" : {
-      "x-oss-request-id" : "6A0F7F16A8277C3933C32B77",
+      "x-oss-request-id" : "6AED2C1FB37E8135389360F5",
       "Server" : "AliyunOSS",
       "x-oss-ec" : "0015-00000101",
-      "Date" : "Thu, 21 May 2026 21:54:30 GMT",
+      "Date" : "Fri, 06 Nov 2026 01:23:43 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "a50c1815-5725-4e56-9937-870d4a5e92cf",
+  "uuid" : "6c8c7ae8-cd43-44e0-8504-803d03eff01e",
   "persistent" : true,
-  "insertionIndex" : 206
+  "insertionIndex" : 746
 }

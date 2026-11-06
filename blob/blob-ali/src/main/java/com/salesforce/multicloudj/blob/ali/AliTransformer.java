@@ -9,7 +9,9 @@ import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
 import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
 import com.aliyun.sdk.service.oss2.models.Delete;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
+import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsResult;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.DeletedInfo;
 import com.aliyun.sdk.service.oss2.models.GetBucketVersioningRequest;
 import com.aliyun.sdk.service.oss2.models.GetBucketVersioningResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectLegalHoldRequest;
@@ -78,6 +80,8 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.observability.SdkLoggingMetadataKeys;
@@ -94,8 +98,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
@@ -358,13 +366,86 @@ public class AliTransformer {
         .collect(Collectors.toList());
     Delete delete =
         Delete.newBuilder()
-            .quiet(true)
+            // Keys that could not be deleted are reported only by being absent from the deleted
+            // list, so the response must not be suppressed.
+            .quiet(false)
             .objects(identifiers)
             .build();
     return DeleteMultipleObjectsRequest.newBuilder()
         .bucket(bucket)
         .delete(delete)
         .build();
+  }
+
+  /**
+   * Returns one failure per distinct requested (key, versionId) identity that the service did not
+   * confirm as deleted. An identity is confirmed only by an exact match on key and version; an
+   * unversioned request is confirmed by an entry without a version id or by the delete marker it
+   * created. A missing or malformed result confirms nothing.
+   */
+  public List<ItemFailure> toBatchDeleteFailures(
+      Collection<BlobIdentifier> requested, DeleteMultipleObjectsResult result) {
+    Set<DeleteIdentity> confirmed = new HashSet<>();
+    List<DeletedInfo> deletedObjects = result == null ? null : result.deletedObjects();
+    if (deletedObjects != null) {
+      for (DeletedInfo info : deletedObjects) {
+        if (info == null || info.key() == null) {
+          continue;
+        }
+        confirmed.add(new DeleteIdentity(info.key(), info.versionId()));
+        if (info.deleteMarkerVersionId() != null) {
+          confirmed.add(new DeleteIdentity(info.key(), info.deleteMarkerVersionId()));
+        }
+      }
+    }
+    Set<DeleteIdentity> distinctRequested = new LinkedHashSet<>();
+    for (BlobIdentifier id : requested) {
+      distinctRequested.add(new DeleteIdentity(id.getKey(), id.getVersionId()));
+    }
+    List<ItemFailure> failures = new ArrayList<>();
+    for (DeleteIdentity identity : distinctRequested) {
+      if (confirmed.contains(identity)) {
+        continue;
+      }
+      String message =
+          "Delete not confirmed by the service (the object may be retained, held or access is"
+              + " denied): key="
+              + identity.key
+              + (identity.versionId == null ? "" : ", versionId=" + identity.versionId);
+      Map<String, String> attributes =
+          identity.versionId == null
+              ? null
+              : Map.of(BlobIdentifier.VERSION_ID_ATTRIBUTE, identity.versionId);
+      failures.add(new ItemFailure(identity.key, new SubstrateSdkException(message), attributes));
+    }
+    return failures;
+  }
+
+  private static final class DeleteIdentity {
+    private final String key;
+    private final String versionId;
+
+    private DeleteIdentity(String key, String versionId) {
+      this.key = key;
+      this.versionId = versionId == null || versionId.isBlank() ? null : versionId;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof DeleteIdentity)) {
+        return false;
+      }
+      DeleteIdentity other = (DeleteIdentity) o;
+      return Objects.equals(key, other.key) && Objects.equals(versionId, other.versionId);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(key, versionId);
+    }
   }
 
   public CopyObjectRequest toCopyObjectRequest(

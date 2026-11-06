@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,7 +30,9 @@ import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml;
 import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
 import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
+import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsResult;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.DeletedInfo;
 import com.aliyun.sdk.service.oss2.models.GetBucketVersioningRequest;
 import com.aliyun.sdk.service.oss2.models.GetBucketVersioningResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectLegalHoldResult;
@@ -102,10 +105,13 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -201,6 +207,33 @@ public class AliBlobStoreTest {
     when(collision.errorCode()).thenReturn("FileAlreadyExists");
     when(collision.statusCode()).thenReturn(409);
     assertInstanceOf(ResourceAlreadyExistsException.class, ali.mapException(collision));
+  }
+
+  @Test
+  void testMapExceptionFileImmutableIsNonRetryableFailedPrecondition() {
+    ServiceException immutable = mock(ServiceException.class);
+    when(immutable.errorCode()).thenReturn("FileImmutable");
+    when(immutable.statusCode()).thenReturn(409);
+    SubstrateSdkException immutableMapped = ali.mapException(immutable);
+    assertInstanceOf(FailedPreconditionException.class, immutableMapped);
+    assertFalse(immutableMapped.isRetryable());
+
+    ServiceException exists = mock(ServiceException.class);
+    when(exists.errorCode()).thenReturn("FileAlreadyExists");
+    when(exists.statusCode()).thenReturn(409);
+    SubstrateSdkException existsMapped = ali.mapException(exists);
+    assertInstanceOf(ResourceAlreadyExistsException.class, existsMapped);
+    assertFalse(existsMapped.isRetryable());
+  }
+
+  @Test
+  void testMapExceptionNoSuchVersionIsNonRetryableResourceNotFound() {
+    ServiceException missingVersion = mock(ServiceException.class);
+    when(missingVersion.errorCode()).thenReturn("NoSuchVersion");
+    when(missingVersion.statusCode()).thenReturn(404);
+    SubstrateSdkException mapped = ali.mapException(missingVersion);
+    assertInstanceOf(ResourceNotFoundException.class, mapped);
+    assertFalse(mapped.isRetryable());
   }
 
   @Test
@@ -478,6 +511,7 @@ public class AliBlobStoreTest {
             new BlobIdentifier("object-2", null),
             new BlobIdentifier("object-3", "version-3"),
             new BlobIdentifier("object-4", null));
+    stubDeleteMultipleObjectsConfirmingAll();
     ali.doDelete(objects);
 
     ArgumentCaptor<DeleteMultipleObjectsRequest> captor =
@@ -487,6 +521,7 @@ public class AliBlobStoreTest {
         any(OperationOptions.class));
     DeleteMultipleObjectsRequest actual = captor.getValue();
     assertEquals("bucket-1", actual.bucket());
+    assertFalse(actual.delete().quiet());
     List<ObjectIdentifier> ids = actual.delete().objects();
     assertEquals(4, ids.size());
     assertEquals("object-1", ids.get(0).key());
@@ -507,6 +542,125 @@ public class AliBlobStoreTest {
     verify(mockOssClient, times(3)).deleteMultipleObjects(
         any(DeleteMultipleObjectsRequest.class),
         any(OperationOptions.class));
+  }
+
+  private void stubDeleteMultipleObjectsConfirmingAll() {
+    when(mockOssClient.deleteMultipleObjects(
+            any(DeleteMultipleObjectsRequest.class), any(OperationOptions.class)))
+        .thenAnswer(
+            invocation -> {
+              DeleteMultipleObjectsRequest request = invocation.getArgument(0);
+              return deleteResult(
+                  request.delete().objects().stream()
+                      .map(id -> deletedInfo(id.key(), id.versionId()))
+                      .collect(Collectors.toList()));
+            });
+  }
+
+  private void stubDeleteMultipleObjects(DeletedInfo... deleted) {
+    DeleteMultipleObjectsResult result = deleteResult(List.of(deleted));
+    when(mockOssClient.deleteMultipleObjects(
+            any(DeleteMultipleObjectsRequest.class), any(OperationOptions.class)))
+        .thenReturn(result);
+  }
+
+  private static DeletedInfo deletedInfo(String key, String versionId) {
+    return DeletedInfo.newBuilder().key(key).versionId(versionId).build();
+  }
+
+  private static DeleteMultipleObjectsResult deleteResult(List<DeletedInfo> deleted) {
+    DeleteMultipleObjectsResult result = mock(DeleteMultipleObjectsResult.class);
+    doReturn(deleted).when(result).deletedObjects();
+    return result;
+  }
+
+  @Test
+  void testDoBulkDelete_allConfirmedDoesNotThrow() {
+    stubDeleteMultipleObjects(deletedInfo("a", null), deletedInfo("b", "v1"));
+
+    assertDoesNotThrow(
+        () -> ali.doDelete(List.of(new BlobIdentifier("a", null), new BlobIdentifier("b", "v1"))));
+  }
+
+  @Test
+  void testDoBulkDelete_partialFailureThrowsBatchOperationException() {
+    stubDeleteMultipleObjects(deletedInfo("ok", null), deletedInfo("ok2", "v2"));
+
+    BatchOperationException e =
+        assertThrows(
+            BatchOperationException.class,
+            () ->
+                ali.doDelete(
+                    List.of(
+                        new BlobIdentifier("ok", null),
+                        new BlobIdentifier("held", "v1"),
+                        new BlobIdentifier("ok2", "v2"),
+                        new BlobIdentifier("denied", null))));
+
+    List<ItemFailure> failures = e.getFailures();
+    assertEquals(2, failures.size());
+    assertEquals("held", failures.get(0).getItemId());
+    assertEquals(
+        Map.of(BlobIdentifier.VERSION_ID_ATTRIBUTE, "v1"), failures.get(0).getAttributes());
+    assertEquals("denied", failures.get(1).getItemId());
+    assertTrue(failures.get(1).getAttributes().isEmpty());
+  }
+
+  @Test
+  void testDoBulkDelete_noneConfirmedFailsEveryItem() {
+    stubDeleteMultipleObjects();
+
+    BatchOperationException e =
+        assertThrows(
+            BatchOperationException.class,
+            () ->
+                ali.doDelete(
+                    List.of(new BlobIdentifier("a", null), new BlobIdentifier("b", null))));
+
+    assertEquals(2, e.getFailures().size());
+  }
+
+  @Test
+  void testDoBulkDelete_nullResultFailsEveryItem() {
+    when(mockOssClient.deleteMultipleObjects(
+            any(DeleteMultipleObjectsRequest.class), any(OperationOptions.class)))
+        .thenReturn(null);
+
+    BatchOperationException e =
+        assertThrows(
+            BatchOperationException.class,
+            () -> ali.doDelete(List.of(new BlobIdentifier("a", null))));
+
+    assertEquals(1, e.getFailures().size());
+  }
+
+  @Test
+  void testDoBulkDelete_duplicateIdentitiesReportOneFailure() {
+    stubDeleteMultipleObjects();
+
+    BatchOperationException e =
+        assertThrows(
+            BatchOperationException.class,
+            () ->
+                ali.doDelete(
+                    List.of(new BlobIdentifier("a", "v1"), new BlobIdentifier("a", "v1"))));
+
+    assertEquals(1, e.getFailures().size());
+  }
+
+  @Test
+  void testDoBulkDelete_requestLevelFailurePropagatesUnchanged() {
+    ServiceException failure = mock(ServiceException.class);
+    when(mockOssClient.deleteMultipleObjects(
+            any(DeleteMultipleObjectsRequest.class), any(OperationOptions.class)))
+        .thenThrow(failure);
+
+    ServiceException thrown =
+        assertThrows(
+            ServiceException.class,
+            () -> ali.doDelete(List.of(new BlobIdentifier("a", "bogus"))));
+
+    assertSame(failure, thrown);
   }
 
   @Test

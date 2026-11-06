@@ -1,0 +1,32 @@
+{
+  "id" : "24cf3d59-2f22-495f-890c-83c98372990e",
+  "name" : "AliBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-PUT-7",
+  "request" : {
+    "url" : "/conformance-tests/bulkDeleteByVersion/legalhold-held",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "cGVyLW9iamVjdCBmYWlsdXJl"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-version-id" : "CAEQkiQYk8Xi_pHBy40aIiBmYmNlYmRjY2Q2OTE0NDNiYTc3NWMxOTUyOTYyYTc5Yg--",
+      "x-oss-request-id" : "6AEE4DF824FA4D32325EFF70",
+      "x-oss-server-time" : "73",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "12826145959762287853",
+      "ETag" : "\"BF13828C1FFE71D101501DF3F05D99C6\"",
+      "Date" : "Fri, 06 Nov 2026 22:00:24 GMT",
+      "Content-MD5" : "vxOCjB/+cdEBUB3z8F2Zxg=="
+    }
+  },
+  "uuid" : "24cf3d59-2f22-495f-890c-83c98372990e",
+  "persistent" : true,
+  "insertionIndex" : 798
+}
