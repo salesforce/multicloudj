@@ -10,6 +10,8 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
+import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsResult;
+import com.aliyun.sdk.service.oss2.models.DeletedInfo;
 import com.aliyun.sdk.service.oss2.models.GetBucketVersioningResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
@@ -42,13 +44,17 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -429,7 +435,7 @@ public class AliTransformerTest {
 
     assertEquals(BUCKET, actual.bucket());
     var delete = actual.delete();
-    assertTrue(delete.quiet());
+    assertFalse(delete.quiet());
     var ids = delete.objects();
     assertEquals(3, ids.size());
     assertEquals("key1", ids.get(0).key());
@@ -438,6 +444,242 @@ public class AliTransformerTest {
     assertNull(ids.get(1).versionId());
     assertEquals("key3", ids.get(2).key());
     assertEquals("v3", ids.get(2).versionId());
+  }
+
+  private static DeletedInfo deleted(String key, String versionId) {
+    return DeletedInfo.newBuilder().key(key).versionId(versionId).build();
+  }
+
+  private static DeleteMultipleObjectsResult resultOf(DeletedInfo... infos) {
+    return resultOf(List.of(infos));
+  }
+
+  private static DeleteMultipleObjectsResult resultOf(List<DeletedInfo> infos) {
+    DeleteMultipleObjectsResult result = mock(DeleteMultipleObjectsResult.class);
+    doReturn(infos).when(result).deletedObjects();
+    return result;
+  }
+
+  private static List<String> failedIds(List<ItemFailure> failures) {
+    List<String> ids = new ArrayList<>();
+    for (ItemFailure failure : failures) {
+      String versionId = failure.getAttributes().get(BlobIdentifier.VERSION_ID_ATTRIBUTE);
+      ids.add(failure.getItemId() + (versionId == null ? "" : "@" + versionId));
+    }
+    return ids;
+  }
+
+  @Test
+  void testToBatchDeleteFailures_allDeleted() {
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(
+            List.of(new BlobIdentifier("a", null), new BlobIdentifier("b", "v1")),
+            resultOf(deleted("a", null), deleted("b", "v1")));
+
+    assertTrue(failures.isEmpty());
+  }
+
+  @Test
+  void testToBatchDeleteFailures_nullResultFailsEverything() {
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(
+            List.of(new BlobIdentifier("a", null), new BlobIdentifier("b", "v1")), null);
+
+    assertEquals(List.of("a", "b@v1"), failedIds(failures));
+  }
+
+  @Test
+  void testToBatchDeleteFailures_nullDeletedListFailsEverything() {
+    DeleteMultipleObjectsResult result = mock(DeleteMultipleObjectsResult.class);
+    doReturn(null).when(result).deletedObjects();
+
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(List.of(new BlobIdentifier("a", null)), result);
+
+    assertEquals(List.of("a"), failedIds(failures));
+  }
+
+  @Test
+  void testToBatchDeleteFailures_emptyDeletedListFailsEverything() {
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(
+            List.of(new BlobIdentifier("a", null), new BlobIdentifier("b", null)), resultOf());
+
+    assertEquals(List.of("a", "b"), failedIds(failures));
+  }
+
+  @Test
+  void testToBatchDeleteFailures_partialFailureListsOnlyUnconfirmed() {
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(
+            List.of(
+                new BlobIdentifier("a", null),
+                new BlobIdentifier("held", null),
+                new BlobIdentifier("c", null)),
+            resultOf(deleted("a", null), deleted("c", null)));
+
+    assertEquals(List.of("held"), failedIds(failures));
+  }
+
+  @Test
+  void testToBatchDeleteFailures_missingVersionOfDeletedKeyIsReported() {
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(
+            List.of(new BlobIdentifier("k", "v1"), new BlobIdentifier("k", "v2")),
+            resultOf(deleted("k", "v1")));
+
+    assertEquals(List.of("k@v2"), failedIds(failures));
+  }
+
+  @Test
+  void testToBatchDeleteFailures_versionedEntryDoesNotConfirmUnversionedRequest() {
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(
+            List.of(new BlobIdentifier("k", null)), resultOf(deleted("k", "v1")));
+
+    assertEquals(List.of("k"), failedIds(failures));
+  }
+
+  @Test
+  void testToBatchDeleteFailures_unversionedEntryDoesNotConfirmVersionedRequest() {
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(
+            List.of(new BlobIdentifier("k", "v1")), resultOf(deleted("k", null)));
+
+    assertEquals(List.of("k@v1"), failedIds(failures));
+  }
+
+  @Test
+  void testToBatchDeleteFailures_deleteMarkerConfirmsUnversionedRequestAndItsMarkerVersion() {
+    DeletedInfo marker =
+        DeletedInfo.newBuilder()
+            .key("k")
+            .deleteMarker(true)
+            .deleteMarkerVersionId("marker-1")
+            .build();
+
+    assertTrue(
+        transformer
+            .toBatchDeleteFailures(List.of(new BlobIdentifier("k", null)), resultOf(marker))
+            .isEmpty());
+    assertTrue(
+        transformer
+            .toBatchDeleteFailures(List.of(new BlobIdentifier("k", "marker-1")), resultOf(marker))
+            .isEmpty());
+    assertEquals(
+        List.of("k@other"),
+        failedIds(
+            transformer.toBatchDeleteFailures(
+                List.of(new BlobIdentifier("k", "other")), resultOf(marker))));
+  }
+
+  @Test
+  void testToBatchDeleteFailures_duplicateRequestsYieldOneFailure() {
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(
+            List.of(
+                new BlobIdentifier("k", "v1"),
+                new BlobIdentifier("k", "v1"),
+                new BlobIdentifier("k", "v1")),
+            resultOf());
+
+    assertEquals(List.of("k@v1"), failedIds(failures));
+  }
+
+  @Test
+  void testToBatchDeleteFailures_blankVersionIdTreatedAsUnversioned() {
+    assertTrue(
+        transformer
+            .toBatchDeleteFailures(
+                List.of(new BlobIdentifier("k", "  ")), resultOf(deleted("k", "")))
+            .isEmpty());
+
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(
+            List.of(new BlobIdentifier("k", " ")), resultOf(deleted("k", "v1")));
+    assertEquals(List.of("k"), failedIds(failures));
+    assertTrue(failures.get(0).getAttributes().isEmpty());
+  }
+
+  @Test
+  void testToBatchDeleteFailures_nullEntriesAndNullKeysAreIgnored() {
+    List<DeletedInfo> deletedObjects = new ArrayList<>();
+    deletedObjects.add(null);
+    deletedObjects.add(DeletedInfo.newBuilder().versionId("v1").build());
+    deletedObjects.add(deleted("b", null));
+    DeleteMultipleObjectsResult result = resultOf(deletedObjects);
+
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(
+            List.of(new BlobIdentifier("a", null), new BlobIdentifier("b", null)), result);
+
+    assertEquals(List.of("a"), failedIds(failures));
+  }
+
+  @Test
+  void testToBatchDeleteFailures_specialCharacterKeysMatchExactly() {
+    List<String> keys = List.of("a b", "a+b", "a%20b", "a&b", "é/テスト");
+    List<BlobIdentifier> requested = new ArrayList<>();
+    for (String key : keys) {
+      requested.add(new BlobIdentifier(key, null));
+    }
+
+    assertTrue(
+        transformer
+            .toBatchDeleteFailures(
+                requested,
+                resultOf(
+                    deleted("a b", null),
+                    deleted("a+b", null),
+                    deleted("a%20b", null),
+                    deleted("a&b", null),
+                    deleted("é/テスト", null)))
+            .isEmpty());
+
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(requested, resultOf(deleted("a b", null)));
+    assertEquals(
+        List.of("a+b", "a%20b", "a&b", "é/テスト"), failedIds(failures));
+  }
+
+  @Test
+  void testToBatchDeleteFailures_preservesRequestOrder() {
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(
+            List.of(
+                new BlobIdentifier("z", null),
+                new BlobIdentifier("a", "v2"),
+                new BlobIdentifier("m", null),
+                new BlobIdentifier("a", "v1")),
+            resultOf(deleted("m", null)));
+
+    assertEquals(List.of("z", "a@v2", "a@v1"), failedIds(failures));
+  }
+
+  @Test
+  void testToBatchDeleteFailures_attributesCarryVersionIdOnlyWhenRequested() {
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(
+            List.of(new BlobIdentifier("a", null), new BlobIdentifier("b", "v9")), resultOf());
+
+    assertTrue(failures.get(0).getAttributes().isEmpty());
+    assertEquals(
+        Map.of(BlobIdentifier.VERSION_ID_ATTRIBUTE, "v9"), failures.get(1).getAttributes());
+  }
+
+  @Test
+  void testToBatchDeleteFailures_itemExceptionIsPlainNonRetryableSdkException() {
+    ItemFailure failure =
+        transformer
+            .toBatchDeleteFailures(List.of(new BlobIdentifier("k", "v1")), resultOf())
+            .get(0);
+
+    SubstrateSdkException exception = failure.getException();
+    assertEquals(SubstrateSdkException.class, exception.getClass());
+    assertFalse(exception instanceof UnknownException);
+    assertFalse(exception.isRetryable());
+    assertTrue(exception.getMessage().contains("key=k"));
+    assertTrue(exception.getMessage().contains("versionId=v1"));
   }
 
   @Test
