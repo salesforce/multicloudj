@@ -1276,6 +1276,44 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoDelete_WithCollection_PrefixScopedCredentials() {
+    // Credentials that may list only under "org-1/" get a 403 when listing the bucket root.
+    Storage.BlobListOption allowedPrefix = Storage.BlobListOption.prefix("org-1/key1");
+    when(mockStorage.list(any(), any(Storage.BlobListOption[].class)))
+        .thenAnswer(
+            invocation -> {
+              for (Object arg : invocation.getArguments()) {
+                if (allowedPrefix.equals(arg)) {
+                  return null;
+                }
+              }
+              throw new StorageException(403, "Forbidden");
+            });
+
+    BlobId id1 = BlobId.of(TEST_BUCKET, "org-1/key1");
+    BlobId id2 = BlobId.of(TEST_BUCKET, "org-1/key2");
+    when(mockTransformer.toBlobId(TEST_BUCKET, "org-1/key1", null)).thenReturn(id1);
+    when(mockTransformer.toBlobId(TEST_BUCKET, "org-1/key2", null)).thenReturn(id2);
+    List<List<BlobId>> submitted = stubDeleteBatches(mockStorage, id -> true);
+
+    gcpBlobStore.doDelete(
+        List.of(new BlobIdentifier("org-1/key1", null), new BlobIdentifier("org-1/key2", null)));
+
+    assertEquals(List.of(List.of(id1, id2)), submitted);
+  }
+
+  @Test
+  void testDoDelete_WithCollection_BucketNotFound() {
+    when(mockStorage.list(any(), any(Storage.BlobListOption[].class)))
+        .thenThrow(new StorageException(404, "Not Found"));
+
+    assertThrows(
+        ResourceNotFoundException.class,
+        () -> gcpBlobStore.doDelete(List.of(new BlobIdentifier("key1", null))));
+    verify(mockStorage, never()).batch();
+  }
+
+  @Test
   void testDoCopy() {
     // Given
     CopyRequest copyRequest =
