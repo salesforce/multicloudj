@@ -1,0 +1,37 @@
+{
+  "id" : "a6b346df-c776-4c47-bbb2-e54dc18d45f2",
+  "name" : "AwsBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-POST-1",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "delete" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Object><Key>conformance-tests/bulkDeleteByVersion/legalhold-held</Key><VersionId>D0LaWWiDQ4zimwv6Yqbo8EIY6__RleKA</VersionId></Object></Delete>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Deleted><Key>conformance-tests/bulkDeleteByVersion/legalhold-held</Key><VersionId>D0LaWWiDQ4zimwv6Yqbo8EIY6__RleKA</VersionId></Deleted></DeleteResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "K2830HFSSF1TSZ8E",
+      "x-amz-id-2" : "6DyDjRtUNo2VSbQaC98WmC4+MBv1yjvN4uDVe4WgOY33T959Ze4a6XXVcPukNzySLDQxBgkqZZU=",
+      "Date" : "Fri, 06 Nov 2026 02:09:39 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "a6b346df-c776-4c47-bbb2-e54dc18d45f2",
+  "persistent" : true,
+  "insertionIndex" : 819
+}

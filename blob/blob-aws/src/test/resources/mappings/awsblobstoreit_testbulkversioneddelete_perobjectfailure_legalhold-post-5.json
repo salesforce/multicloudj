@@ -1,0 +1,37 @@
+{
+  "id" : "a0f6b713-0ac9-44bf-9ca8-50a64980cb6c",
+  "name" : "AwsBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-POST-5",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "delete" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Object><Key>conformance-tests/bulkDeleteByVersion/legalhold-free</Key><VersionId>1FpHS6UgHLO7IYB1072DchmTMAEwQEpH</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/legalhold-held</Key><VersionId>D0LaWWiDQ4zimwv6Yqbo8EIY6__RleKA</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/legalhold-absent</Key><VersionId>fBwEWSyeJLRwoQu6jr_eLTHBuidCUVAg</VersionId></Object></Delete>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Deleted><Key>conformance-tests/bulkDeleteByVersion/legalhold-free</Key><VersionId>1FpHS6UgHLO7IYB1072DchmTMAEwQEpH</VersionId></Deleted><Deleted><Key>conformance-tests/bulkDeleteByVersion/legalhold-absent</Key><VersionId>fBwEWSyeJLRwoQu6jr_eLTHBuidCUVAg</VersionId></Deleted><Error><Key>conformance-tests/bulkDeleteByVersion/legalhold-held</Key><VersionId>D0LaWWiDQ4zimwv6Yqbo8EIY6__RleKA</VersionId><Code>AccessDenied</Code><Message>Access Denied because object protected by object lock.</Message></Error></DeleteResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "5W49K66G9TA6TFXT",
+      "x-amz-id-2" : "pO67BzUk3aB8IVSCbhlylusbCuh/Q6SczUuv/zBah5ziPABXUkXX/Z0BfFUc0zS8MjPRlmtSPp4=",
+      "Date" : "Fri, 06 Nov 2026 02:09:37 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "a0f6b713-0ac9-44bf-9ca8-50a64980cb6c",
+  "persistent" : true,
+  "insertionIndex" : 823
+}

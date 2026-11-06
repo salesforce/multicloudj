@@ -1,0 +1,33 @@
+{
+  "id" : "850c4b08-b055-45fd-99e9-6ceb2222db00",
+  "name" : "AwsBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-HEAD-4",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/bulkDeleteByVersion/legalhold-free",
+    "method" : "HEAD",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "versionId" : {
+        "hasExactly" : [ {
+          "equalTo" : "1FpHS6UgHLO7IYB1072DchmTMAEwQEpH"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "MSX0V2S8AKX4MMPZ",
+      "x-amz-id-2" : "7vu9FyyraLHXgosLauEVd7spb/y2kCS5S8SNIpOSvugALOugvfF43Sgavd8a2fKgeB+GOa+uSUc=",
+      "Date" : "Fri, 06 Nov 2026 02:09:36 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "850c4b08-b055-45fd-99e9-6ceb2222db00",
+  "persistent" : true,
+  "insertionIndex" : 822
+}
