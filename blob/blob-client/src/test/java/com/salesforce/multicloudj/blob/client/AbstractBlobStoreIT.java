@@ -6361,6 +6361,70 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
+  public void testDownloadDirectory_prefixesToExclude(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    Path uploadDir = tempDir.resolve("upload");
+    Files.createDirectories(uploadDir.resolve("logs"));
+    Files.createDirectories(uploadDir.resolve("subdir"));
+    Files.write(uploadDir.resolve("file1.txt"), "keep-1".getBytes(StandardCharsets.UTF_8));
+    Files.write(uploadDir.resolve("logs/app.log"), "skip".getBytes(StandardCharsets.UTF_8));
+    Files.write(uploadDir.resolve("subdir/file2.txt"), "keep-2".getBytes(StandardCharsets.UTF_8));
+
+    String prefix = "conformance-tests/directory/download-exclude-v1";
+
+    try {
+      DirectoryUploadResponse uploadResponse =
+          blobStore.uploadDirectory(
+              DirectoryUploadRequest.builder()
+                  .localSourceDirectory(uploadDir.toString())
+                  .prefix(prefix)
+                  .includeSubFolders(true)
+                  .build());
+      Assertions.assertTrue(
+          uploadResponse.getFailedTransfers().isEmpty(), "Upload should succeed without failures");
+
+      Path downloadDir = tempDir.resolve("download");
+      Files.createDirectories(downloadDir);
+
+      // Exclusions match the full object key: "subdir/" is relative to the download prefix,
+      // so it must not exclude anything.
+      DirectoryDownloadResponse downloadResponse =
+          blobStore.downloadDirectory(
+              DirectoryDownloadRequest.builder()
+                  .prefixToDownload(prefix)
+                  .localDestinationDirectory(downloadDir.toString())
+                  .prefixesToExclude(List.of(prefix + "/logs/", "subdir/"))
+                  .build());
+
+      Assertions.assertTrue(
+          downloadResponse.getFailedTransfers().isEmpty(),
+          "Download should succeed without failures");
+      Assertions.assertEquals(
+          "keep-1",
+          new String(Files.readAllBytes(downloadDir.resolve("file1.txt")), StandardCharsets.UTF_8));
+      Assertions.assertEquals(
+          "keep-2",
+          new String(
+              Files.readAllBytes(downloadDir.resolve("subdir/file2.txt")),
+              StandardCharsets.UTF_8));
+      Assertions.assertFalse(
+          Files.exists(downloadDir.resolve("logs/app.log")), "Excluded key must not be downloaded");
+    } finally {
+      safeDeleteBlobs(
+          bucketClient,
+          prefix + "/file1.txt",
+          prefix + "/logs/app.log",
+          prefix + "/subdir/file2.txt");
+      blobStore.close();
+    }
+  }
+
+  @Test
   public void testDeleteDirectory_basic(@TempDir Path tempDir) throws Exception {
     Assumptions.assumeTrue(
         harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");

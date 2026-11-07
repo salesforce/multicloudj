@@ -1274,6 +1274,20 @@ public class GcpBlobStore extends AbstractBlobStore {
     return blob.getName().endsWith("/") && size != null && size == 0L;
   }
 
+  // True when the full object key starts with any exclusion prefix. A null or empty list
+  // excludes nothing.
+  private static boolean isExcluded(String key, List<String> prefixesToExclude) {
+    if (prefixesToExclude == null || prefixesToExclude.isEmpty()) {
+      return false;
+    }
+    for (String excludePrefix : prefixesToExclude) {
+      if (key.startsWith(excludePrefix)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   // Translates GCS UploadResult -> portable FailedBlobUpload: keeps non-SUCCESS only,
   // recovers the source path from keyToSource (UploadResult only carries the blob key).
   // The GCS SDK guarantees a non-null exception for FAILED_TO_START / FAILED_TO_FINISH
@@ -1318,14 +1332,16 @@ public class GcpBlobStore extends AbstractBlobStore {
               Storage.BlobField.SIZE,
               Storage.BlobField.GENERATION));
 
+      final List<String> prefixesToExclude = req.getPrefixesToExclude();
       List<BlobInfo> blobInfos = new ArrayList<>();
       for (Blob blob :
           storage.list(getBucket(), listOptions.toArray(new Storage.BlobListOption[0]))
               .iterateAll()) {
-        // Skip folder markers (matches AWS default). GCS TransferManager has no
-        // built-in filter and would otherwise create a 0-byte file at the marker's
-        // path, blocking the real files inside that virtual folder.
-        if (!isFolderMarker(blob)) {
+        // GCS TransferManager has no filter hook, so folder markers and excluded keys
+        // are dropped here before it sees the list. A folder marker would otherwise
+        // become a 0-byte file at the marker's path, blocking the real files inside
+        // that virtual folder.
+        if (!isFolderMarker(blob) && !isExcluded(blob.getName(), prefixesToExclude)) {
           blobInfos.add(blob);
         }
       }

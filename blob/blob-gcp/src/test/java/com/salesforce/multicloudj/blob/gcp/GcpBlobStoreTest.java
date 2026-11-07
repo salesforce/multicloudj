@@ -4270,6 +4270,86 @@ class GcpBlobStoreTest {
     assertEquals("test-prefix/file.txt", blobsCaptor.getValue().get(0).getName());
   }
 
+  private List<BlobInfo> downloadDirectoryWithExclusions(
+      List<String> prefixesToExclude, String... keys) throws Exception {
+    DirectoryDownloadRequest request =
+        DirectoryDownloadRequest.builder()
+            .prefixToDownload("test-prefix/")
+            .localDestinationDirectory(tempDir.toString())
+            .prefixesToExclude(prefixesToExclude)
+            .build();
+
+    List<Blob> blobs = new ArrayList<>();
+    for (String key : keys) {
+      Blob blob = mock(Blob.class);
+      when(blob.getName()).thenReturn(key);
+      when(blob.getSize()).thenReturn(8L);
+      blobs.add(blob);
+    }
+    Page<Blob> mockPage = mock(Page.class);
+    when(mockPage.iterateAll()).thenReturn(blobs);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+
+    List<BlobInfo> forwarded = new ArrayList<>();
+    DownloadJob mockJob = mock(DownloadJob.class);
+    // Lenient: unused when every blob is excluded and the TransferManager is never called.
+    lenient().when(mockJob.getDownloadResults()).thenReturn(List.of());
+    lenient()
+        .when(mockTransferManager.downloadBlobs(anyList(), any(ParallelDownloadConfig.class)))
+        .thenAnswer(
+            invocation -> {
+              forwarded.addAll(invocation.getArgument(0));
+              return mockJob;
+            });
+
+    gcpBlobStore.doDownloadDirectory(request);
+    return forwarded;
+  }
+
+  @Test
+  void testDoDownloadDirectory_ExcludesKeysMatchingPrefixes() throws Exception {
+    List<BlobInfo> forwarded =
+        downloadDirectoryWithExclusions(
+            List.of("test-prefix/logs/", "test-prefix/tmp"),
+            "test-prefix/data.txt",
+            "test-prefix/logs/app.log",
+            "test-prefix/tmp-file.txt",
+            "test-prefix/sub/logs/keep.txt");
+
+    // Matching is against the full key, so only keys that *start with* an entry are dropped.
+    assertEquals(
+        List.of("test-prefix/data.txt", "test-prefix/sub/logs/keep.txt"),
+        forwarded.stream().map(BlobInfo::getName).toList());
+  }
+
+  @Test
+  void testDoDownloadDirectory_NullExclusionsKeepsAllBlobs() throws Exception {
+    List<BlobInfo> forwarded =
+        downloadDirectoryWithExclusions(null, "test-prefix/a.txt", "test-prefix/b.txt");
+
+    assertEquals(2, forwarded.size());
+  }
+
+  @Test
+  void testDoDownloadDirectory_EmptyExclusionsKeepsAllBlobs() throws Exception {
+    List<BlobInfo> forwarded =
+        downloadDirectoryWithExclusions(List.of(), "test-prefix/a.txt", "test-prefix/b.txt");
+
+    assertEquals(2, forwarded.size());
+  }
+
+  @Test
+  void testDoDownloadDirectory_AllBlobsExcludedSkipsTransferManager() throws Exception {
+    List<BlobInfo> forwarded =
+        downloadDirectoryWithExclusions(
+            List.of("test-prefix/"), "test-prefix/a.txt", "test-prefix/b.txt");
+
+    assertEquals(0, forwarded.size());
+    verify(mockTransferManager, never())
+        .downloadBlobs(anyList(), any(ParallelDownloadConfig.class));
+  }
+
   @Test
   void testDoDownloadDirectory_DownloadFailure() throws Exception {
     // Given
