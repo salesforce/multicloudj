@@ -1,5 +1,5 @@
 {
-  "id" : "9b31197e-348a-4441-9d29-70e10d4acf6d",
+  "id" : "ef7f311b-3549-4bbf-b01a-71a277d5c345",
   "name" : "AliBlobStoreIT_testBulkVersionedDelete_happyPath-POST-6",
   "request" : {
     "urlPath" : "/",
@@ -25,19 +25,21 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToXml" : "<Delete><Quiet>true</Quiet><Object><Key>conformance-tests/bulkDeleteByVersion/happy1</Key><VersionId>CAEQigEYgYDA84OOsvIZIiAzNjdjMDYzNGJmYjE0MTU4OTNkZDJhNWNhNjA3YmY1Mg--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy2</Key><VersionId>CAEQigEYgYDA8YaOsvIZIiAzMmNkMTAzYTAzNzA0NDQ1YWU4ZjViOGNmNGRmMGMxYQ--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy3</Key><VersionId>CAEQigEYgYCA7ImOsvIZIiBlOGIzZThjNDBiOGQ0ZWMzOTU2ZjlkMDg5N2Y5ZDEwYQ--</VersionId></Object></Delete>"
+      "equalToXml" : "<Delete><Quiet>false</Quiet><Object><Key>conformance-tests/bulkDeleteByVersion/happy1</Key><VersionId>CAEQkiQYjqP45KzouY0aIiAyMDlkNGIxZTcwNDE0N2Q2OWJiZDkwNjZiMjM0Y2NiOA--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy2</Key><VersionId>CAEQkiQYxdDUibDouY0aIiBjZmI3YjBiOGQwOTA0NzMxODAyMmIwODg1YzVkMThmMA--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy3</Key><VersionId>CAEQkiQYh6iSvrPouY0aIiBmYmMzYjExYzFkMDE0M2FiOWNmMTM0YTEwMDBjYmEyNQ--</VersionId></Object></Delete>"
     } ]
   },
   "response" : {
     "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult>\n  <EncodingType>url</EncodingType>\n  <Deleted>\n    <Key>conformance-tests%2FbulkDeleteByVersion%2Fhappy1</Key>\n    <VersionId>CAEQkiQYjqP45KzouY0aIiAyMDlkNGIxZTcwNDE0N2Q2OWJiZDkwNjZiMjM0Y2NiOA--</VersionId>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests%2FbulkDeleteByVersion%2Fhappy2</Key>\n    <VersionId>CAEQkiQYxdDUibDouY0aIiBjZmI3YjBiOGQwOTA0NzMxODAyMmIwODg1YzVkMThmMA--</VersionId>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests%2FbulkDeleteByVersion%2Fhappy3</Key>\n    <VersionId>CAEQkiQYh6iSvrPouY0aIiBmYmMzYjExYzFkMDE0M2FiOWNmMTM0YTEwMDBjYmEyNQ--</VersionId>\n  </Deleted>\n</DeleteResult>\n",
     "headers" : {
-      "x-oss-request-id" : "6A0F7EBB76ADAE3538D481C9",
-      "x-oss-server-time" : "37",
+      "x-oss-request-id" : "6AED2C16026579373579E3A2",
+      "x-oss-server-time" : "79",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 21:52:59 GMT"
+      "Date" : "Fri, 06 Nov 2026 01:23:34 GMT",
+      "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "9b31197e-348a-4441-9d29-70e10d4acf6d",
+  "uuid" : "ef7f311b-3549-4bbf-b01a-71a277d5c345",
   "persistent" : true,
-  "insertionIndex" : 74
+  "insertionIndex" : 732
 }

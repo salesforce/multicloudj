@@ -1,5 +1,5 @@
 {
-  "id" : "2e8116ab-8f93-4276-a3f2-b0191ead322a",
+  "id" : "4e4e9658-e788-429e-aa44-cd45e1a71c43",
   "name" : "AliBlobStoreIT_testBulkVersionedDelete_nonExistingBlob-POST-1",
   "request" : {
     "urlPath" : "/",
@@ -25,19 +25,21 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToXml" : "<Delete><Quiet>true</Quiet><Object><Key>conformance-tests/bulkDeleteByVersion/nonexisting</Key></Object></Delete>"
+      "equalToXml" : "<Delete><Quiet>false</Quiet><Object><Key>conformance-tests/bulkDeleteByVersion/nonexisting</Key></Object></Delete>"
     } ]
   },
   "response" : {
     "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult>\n  <EncodingType>url</EncodingType>\n  <Deleted>\n    <Key>conformance-tests%2FbulkDeleteByVersion%2Fnonexisting</Key>\n    <DeleteMarker>true</DeleteMarker>\n    <DeleteMarkerVersionId>CAEQkiQY_Pvi8PbpuY0aIiBkMzM4MmM0NDcxYzE0Njg0YmIyODc3YjYyYzNhNGY0Zg--</DeleteMarkerVersionId>\n  </Deleted>\n</DeleteResult>\n",
     "headers" : {
-      "x-oss-request-id" : "6A0F7F74F40CB6383258743E",
-      "x-oss-server-time" : "72",
+      "x-oss-request-id" : "6AED2C479670D2323069ACA1",
+      "x-oss-server-time" : "71",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 21:56:04 GMT"
+      "Date" : "Fri, 06 Nov 2026 01:24:23 GMT",
+      "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "2e8116ab-8f93-4276-a3f2-b0191ead322a",
+  "uuid" : "4e4e9658-e788-429e-aa44-cd45e1a71c43",
   "persistent" : true,
-  "insertionIndex" : 374
+  "insertionIndex" : 787
 }

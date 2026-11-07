@@ -1,0 +1,41 @@
+{
+  "id" : "8d22dfc2-28ef-4b6a-a24a-d40c20dd4654",
+  "name" : "AwsBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-HEAD-2",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/bulkDeleteByVersion/legalhold-held",
+    "method" : "HEAD",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "versionId" : {
+        "hasExactly" : [ {
+          "equalTo" : "eBCWrn0.3c_aTUMc4TDTbwtKZvb_c_OJ"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "Last-Modified" : "Fri, 06 Nov 2026 21:55:38 GMT",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-version-id" : "eBCWrn0.3c_aTUMc4TDTbwtKZvb_c_OJ",
+      "Date" : "Fri, 06 Nov 2026 21:55:40 GMT",
+      "Accept-Ranges" : "bytes",
+      "x-amz-object-lock-legal-hold" : "ON",
+      "ETag" : "\"bf13828c1ffe71d101501df3f05d99c6\"",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "KPS3N7YWEKQBJ1HB",
+      "x-amz-checksum-crc32c" : "w2DZ3Q==",
+      "x-amz-id-2" : "emaCCK1ClGbrzp5/zJ4AihKqJNWExXHJod+W/rH03TYqVcAawTIvmJyUn9/wIKv9+ePMSQjajB4=",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "8d22dfc2-28ef-4b6a-a24a-d40c20dd4654",
+  "persistent" : true,
+  "insertionIndex" : 820
+}

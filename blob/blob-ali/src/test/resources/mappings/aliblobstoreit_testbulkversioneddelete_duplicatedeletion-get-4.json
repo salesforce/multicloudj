@@ -1,5 +1,5 @@
 {
-  "id" : "bcf65ffa-49d9-4855-93b3-2529808f0e5e",
+  "id" : "885af960-94ae-4aed-bddf-3b2b2c72b173",
   "name" : "AliBlobStoreIT_testBulkVersionedDelete_duplicateDeletion-GET-4",
   "request" : {
     "url" : "/conformance-tests/bulkDeleteByVersion/happy7",
@@ -12,22 +12,22 @@
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6A0F7F8F9357953331203034</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>conformance-tests/bulkDeleteByVersion/happy7</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6AED2C4BDCEE823031D6D315</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>conformance-tests/bulkDeleteByVersion/happy7</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
     "headers" : {
-      "x-oss-version-id" : "CAEQigEYgYCApJ3Zr_IZIiA2OWI4NmQzNDMyNTA0ZDM5OTg3M2Q0NmM5OTA2MmQ3NA--",
-      "x-oss-request-id" : "6A0F7F8F9357953331203034",
-      "x-oss-server-time" : "5",
+      "x-oss-version-id" : "CAEQkiQYte6wmcTfuY0aIiAxNzg2NTRmZDE4N2I0NzAyYTY0YjdlODY1OGI3N2JlNQ--",
+      "x-oss-request-id" : "6AED2C4BDCEE823031D6D315",
+      "x-oss-server-time" : "16",
       "Server" : "AliyunOSS",
       "x-oss-ec" : "0026-00000001",
       "x-oss-delete-marker" : "true",
-      "Date" : "Thu, 21 May 2026 21:56:31 GMT",
+      "Date" : "Fri, 06 Nov 2026 01:24:27 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "bcf65ffa-49d9-4855-93b3-2529808f0e5e",
+  "uuid" : "885af960-94ae-4aed-bddf-3b2b2c72b173",
   "persistent" : true,
   "scenarioName" : "scenario-1-conformance-tests-bulkDeleteByVersion-happy7",
   "requiredScenarioState" : "Started",
   "newScenarioState" : "scenario-1-conformance-tests-bulkDeleteByVersion-happy7-2",
-  "insertionIndex" : 422
+  "insertionIndex" : 793
 }

@@ -1,0 +1,31 @@
+{
+  "id" : "ecea24bc-624d-42c7-b777-a3ba5b8c03c0",
+  "name" : "GcpBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-POST-6",
+  "request" : {
+    "url" : "/batch/storage/v1",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "matches" : "(?s)--__END_OF_PART__[a-f0-9-]+__(?:(?!--__END_OF_PART__)[\\s\\S])*?\\Q\r\ncontent-id: 1\r\n\\E(?:(?!--__END_OF_PART__)[\\s\\S])*?\\Q\r\n\r\nDELETE https://storage.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Flegalhold-free?generation=1794009416324326 HTTP/1.1\r\n\\E(?:(?!--__END_OF_PART__)[\\s\\S])*?--__END_OF_PART__[a-f0-9-]+__(?:(?!--__END_OF_PART__)[\\s\\S])*?\\Q\r\ncontent-id: 2\r\n\\E(?:(?!--__END_OF_PART__)[\\s\\S])*?\\Q\r\n\r\nDELETE https://storage.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Flegalhold-held?generation=1794009415650831 HTTP/1.1\r\n\\E(?:(?!--__END_OF_PART__)[\\s\\S])*?--__END_OF_PART__[a-f0-9-]+__--\\s*"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "LS1iYXRjaF9wWWc0TjdPLUFXYjY0U1ItQy11R0FsTFdyOFlFNTBsdw0KQ29udGVudC1UeXBlOiBhcHBsaWNhdGlvbi9odHRwDQpDb250ZW50LUlEOiByZXNwb25zZS0xDQoNCkhUVFAvMS4xIDIwNCBObyBDb250ZW50DQpDb250ZW50LVR5cGU6IGFwcGxpY2F0aW9uL2pzb24NCkRhdGU6IEZyaSwgMDYgTm92IDIwMjYgMjM6NTY6NTcgR01UDQpDYWNoZS1Db250cm9sOiBuby1jYWNoZSwgbm8tc3RvcmUsIG1heC1hZ2U9MCwgbXVzdC1yZXZhbGlkYXRlDQpFeHBpcmVzOiBNb24sIDAxIEphbiAxOTkwIDAwOjAwOjAwIEdNVA0KQ29udGVudC1MZW5ndGg6IDANCg0KDQotLWJhdGNoX3BZZzRON08tQVdiNjRTUi1DLXVHQWxMV3I4WUU1MGx3DQpDb250ZW50LVR5cGU6IGFwcGxpY2F0aW9uL2h0dHANCkNvbnRlbnQtSUQ6IHJlc3BvbnNlLTINCg0KSFRUUC8xLjEgNDAzIEZvcmJpZGRlbg0KQ29udGVudC1UeXBlOiBhcHBsaWNhdGlvbi9qc29uOyBjaGFyc2V0PVVURi04DQpEYXRlOiBGcmksIDA2IE5vdiAyMDI2IDIzOjU2OjU3IEdNVA0KQ2FjaGUtQ29udHJvbDogbm8tY2FjaGUsIG5vLXN0b3JlLCBtYXgtYWdlPTAsIG11c3QtcmV2YWxpZGF0ZQ0KRXhwaXJlczogTW9uLCAwMSBKYW4gMTk5MCAwMDowMDowMCBHTVQNCkNvbnRlbnQtTGVuZ3RoOiA1OTANCg0KewogICJlcnJvciI6IHsKICAgICJjb2RlIjogNDAzLAogICAgIm1lc3NhZ2UiOiAiT2JqZWN0ICdzdWJzdHJhdGUtc2RrLWdjcC1wb2MxLXRlc3QtYnVja2V0LXZlcnNpb25lZC9jb25mb3JtYW5jZS10ZXN0cy9idWxrRGVsZXRlQnlWZXJzaW9uL2xlZ2FsaG9sZC1oZWxkJyBpcyB1bmRlciBhY3RpdmUgVGVtcG9yYXJ5IGhvbGQgYW5kIGNhbm5vdCBiZSBkZWxldGVkLCBvdmVyd3JpdHRlbiBvciBhcmNoaXZlZCB1bnRpbCBob2xkIGlzIHJlbW92ZWQuIiwKICAgICJlcnJvcnMiOiBbCiAgICAgIHsKICAgICAgICAibWVzc2FnZSI6ICJPYmplY3QgJ3N1YnN0cmF0ZS1zZGstZ2NwLXBvYzEtdGVzdC1idWNrZXQtdmVyc2lvbmVkL2NvbmZvcm1hbmNlLXRlc3RzL2J1bGtEZWxldGVCeVZlcnNpb24vbGVnYWxob2xkLWhlbGQnIGlzIHVuZGVyIGFjdGl2ZSBUZW1wb3JhcnkgaG9sZCBhbmQgY2Fubm90IGJlIGRlbGV0ZWQsIG92ZXJ3cml0dGVuIG9yIGFyY2hpdmVkIHVudGlsIGhvbGQgaXMgcmVtb3ZlZC4iLAogICAgICAgICJkb21haW4iOiAiZ2xvYmFsIiwKICAgICAgICAicmVhc29uIjogImZvcmJpZGRlbiIKICAgICAgfQogICAgXQogIH0KfQoNCi0tYmF0Y2hfcFlnNE43Ty1BV2I2NFNSLUMtdUdBbExXcjhZRTUwbHctLQ0K",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Cache-Control" : "private, max-age=0",
+      "Server" : "Upload Server",
+      "X-Content-Type-Options" : "nosniff",
+      "X-GUploader-UploadID" : "AFy3sg2-7N7cRAkBOmC4cUXc8hBsjlaHIBhXgq3jebb-1N9awuNoVpO5KGysK7DDlxi3ve4KQyrNerjWotP5",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Fri, 06 Nov 2026 23:56:57 GMT",
+      "X-XSS-Protection" : "1; mode=block",
+      "Date" : "Fri, 06 Nov 2026 23:56:57 GMT",
+      "Content-Type" : "multipart/mixed; boundary=batch_pYg4N7O-AWb64SR-C-uGAlLWr8YE50lw"
+    }
+  },
+  "uuid" : "ecea24bc-624d-42c7-b777-a3ba5b8c03c0",
+  "persistent" : true,
+  "insertionIndex" : 1542
+}

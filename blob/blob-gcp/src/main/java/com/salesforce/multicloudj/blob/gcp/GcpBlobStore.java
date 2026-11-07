@@ -501,7 +501,12 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected void doDelete(Collection<BlobIdentifier> objects) {
-    validateBucketExists();
+    if (objects.isEmpty()) {
+      return;
+    }
+    // Probe with a key from the batch, not the bucket root: prefix-scoped credentials can list
+    // only under their allowed prefix, and every key the caller deletes is inside that scope.
+    validateBucketExists(objects.iterator().next().getKey());
     List<BlobId> blobIds =
         objects.stream()
             .map(obj -> transformer.toBlobId(bucket, obj.getKey(), obj.getVersionId()))
@@ -952,28 +957,6 @@ public class GcpBlobStore extends AbstractBlobStore {
                 .versionId(archivedBlob.getGeneration().toString())
                 .build());
       }
-    }
-  }
-
-  /**
-   * Validates that the bucket is accessible by attempting to list objects.
-   *
-   * Performs a lightweight probe using {@code storage.list()} with {@code pageSize(1)}.
-   * This requires only {@code storage.objects.list} IAM permission, not
-   * {@code storage.buckets.get}.
-   *
-   * @throws ResourceNotFoundException if the list operation returns HTTP 404 (bucket does not
-   *     exist or caller lacks permission to see it)
-   * @throws UnknownException if the list operation fails with any other error
-   */
-  private void validateBucketExists() {
-    try {
-      storage.list(getBucket(), Storage.BlobListOption.pageSize(1));
-    } catch (StorageException e) {
-      if (e.getCode() == 404) {
-        throw new ResourceNotFoundException("Bucket not found: " + bucket, e);
-      }
-      throw new UnknownException("Failed to check bucket existence", e);
     }
   }
 

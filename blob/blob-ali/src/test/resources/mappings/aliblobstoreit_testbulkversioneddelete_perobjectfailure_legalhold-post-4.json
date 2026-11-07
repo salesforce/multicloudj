@@ -1,0 +1,45 @@
+{
+  "id" : "8795828e-e20c-42f1-b2f4-292642795e77",
+  "name" : "AliBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-POST-4",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "delete" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<Delete><Quiet>false</Quiet><Object><Key>conformance-tests/bulkDeleteByVersion/legalhold-free</Key><VersionId>CAEQkiQYwZvjwZjBy40aIiA0N2M1ZWM1MjA3YTQ0NmRhYTRhZTJlYTk2N2Q3MDQ5Zg--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/legalhold-held</Key><VersionId>CAEQkiQYk8Xi_pHBy40aIiBmYmNlYmRjY2Q2OTE0NDNiYTc3NWMxOTUyOTYyYTc5Yg--</VersionId></Object></Delete>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult>\n  <EncodingType>url</EncodingType>\n  <Deleted>\n    <Key>conformance-tests%2FbulkDeleteByVersion%2Flegalhold-free</Key>\n    <VersionId>CAEQkiQYwZvjwZjBy40aIiA0N2M1ZWM1MjA3YTQ0NmRhYTRhZTJlYTk2N2Q3MDQ5Zg--</VersionId>\n  </Deleted>\n</DeleteResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6AEE4DFAEF9B9835357D4570",
+      "x-oss-server-time" : "45",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 06 Nov 2026 22:00:26 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "8795828e-e20c-42f1-b2f4-292642795e77",
+  "persistent" : true,
+  "insertionIndex" : 795
+}
