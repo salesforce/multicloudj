@@ -1,5 +1,5 @@
 {
-  "id" : "93cd88c1-d28e-4f97-b5e7-73d196fd9857",
+  "id" : "f5fb3743-c510-42ce-9824-83b6dfe79ec5",
   "name" : "GcpBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-GET-3",
   "request" : {
     "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Flegalhold-held",
@@ -12,7 +12,7 @@
     "queryParameters" : {
       "generation" : {
         "hasExactly" : [ {
-          "equalTo" : "1794003020936259"
+          "equalTo" : "1794009415650831"
         } ]
       },
       "projection" : {
@@ -24,21 +24,21 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/legalhold-held/1794003020936259\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Flegalhold-held\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Flegalhold-held?generation=1794003020936259&alt=media\",\n  \"name\": \"conformance-tests/bulkDeleteByVersion/legalhold-held\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1794003020936259\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"18\",\n  \"md5Hash\": \"vxOCjB/+cdEBUB3z8F2Zxg==\",\n  \"crc32c\": \"w2DZ3Q==\",\n  \"etag\": \"CMPop4au9JcDEAE=\",\n  \"temporaryHold\": true,\n  \"timeCreated\": \"2026-11-06T22:10:20.997Z\",\n  \"updated\": \"2026-11-06T22:10:20.997Z\",\n  \"timeStorageClassUpdated\": \"2026-11-06T22:10:20.997Z\",\n  \"timeFinalized\": \"2026-11-06T22:10:20.997Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/legalhold-held/1794009415650831\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Flegalhold-held\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Flegalhold-held?generation=1794009415650831&alt=media\",\n  \"name\": \"conformance-tests/bulkDeleteByVersion/legalhold-held\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1794009415650831\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"18\",\n  \"md5Hash\": \"vxOCjB/+cdEBUB3z8F2Zxg==\",\n  \"crc32c\": \"w2DZ3Q==\",\n  \"etag\": \"CI+cxu/F9JcDEAE=\",\n  \"temporaryHold\": true,\n  \"timeCreated\": \"2026-11-06T23:56:55.718Z\",\n  \"updated\": \"2026-11-06T23:56:55.718Z\",\n  \"timeStorageClassUpdated\": \"2026-11-06T23:56:55.718Z\",\n  \"timeFinalized\": \"2026-11-06T23:56:55.718Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
-      "ETag" : "CMPop4au9JcDEAE=",
-      "X-GUploader-UploadID" : "AFy3sg3RDeOD7edfG1xSwnV8A5PaBbsJXpas3xycTWd_nKTdFpQAqbRp2MXLxU36TuRzaw-ok58dFCqxs9uP",
+      "ETag" : "CI+cxu/F9JcDEAE=",
+      "X-GUploader-UploadID" : "AFy3sg348tgosCuQdh5y6oSVLWBtE0VYV7IMfvPJcZkXvY3kAykZccQHoHzWTbX3t_GE8wbjDrjQjFqfgCt-uA",
       "Vary" : [ "Origin", "X-Origin" ],
-      "Expires" : "Fri, 06 Nov 2026 22:10:23 GMT",
-      "X-Goog-Gcs-Base-Ts" : "1a1b2e9b5e3",
-      "Date" : "Fri, 06 Nov 2026 22:10:23 GMT",
+      "Expires" : "Fri, 06 Nov 2026 23:56:58 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a1b34b497d",
+      "Date" : "Fri, 06 Nov 2026 23:56:58 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "93cd88c1-d28e-4f97-b5e7-73d196fd9857",
+  "uuid" : "f5fb3743-c510-42ce-9824-83b6dfe79ec5",
   "persistent" : true,
   "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-bulkDeleteByVersion-legalhold-held",
   "requiredScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-bulkDeleteByVersion-legalhold-held-2",

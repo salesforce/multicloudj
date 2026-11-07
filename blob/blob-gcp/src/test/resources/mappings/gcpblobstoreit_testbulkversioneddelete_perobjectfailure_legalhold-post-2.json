@@ -1,5 +1,5 @@
 {
-  "id" : "11365c5c-c30b-472f-b20e-219552335ea7",
+  "id" : "2fe9302c-7c4f-4913-af7e-11cb8091e082",
   "name" : "GcpBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-POST-2",
   "request" : {
     "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Flegalhold-held",
@@ -17,29 +17,29 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"generation\":\"1794003020936259\",\"name\":\"conformance-tests/bulkDeleteByVersion/legalhold-held\",\"temporaryHold\":false}",
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"generation\":\"1794009415650831\",\"name\":\"conformance-tests/bulkDeleteByVersion/legalhold-held\",\"temporaryHold\":false}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/legalhold-held/1794003020936259\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Flegalhold-held\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Flegalhold-held?generation=1794003020936259&alt=media\",\n  \"name\": \"conformance-tests/bulkDeleteByVersion/legalhold-held\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1794003020936259\",\n  \"metageneration\": \"2\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"18\",\n  \"md5Hash\": \"vxOCjB/+cdEBUB3z8F2Zxg==\",\n  \"crc32c\": \"w2DZ3Q==\",\n  \"etag\": \"CMPop4au9JcDEAI=\",\n  \"temporaryHold\": false,\n  \"timeCreated\": \"2026-11-06T22:10:20.997Z\",\n  \"updated\": \"2026-11-06T22:10:23.696Z\",\n  \"timeStorageClassUpdated\": \"2026-11-06T22:10:20.997Z\",\n  \"timeFinalized\": \"2026-11-06T22:10:20.997Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/legalhold-held/1794009415650831\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Flegalhold-held\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Flegalhold-held?generation=1794009415650831&alt=media\",\n  \"name\": \"conformance-tests/bulkDeleteByVersion/legalhold-held\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1794009415650831\",\n  \"metageneration\": \"2\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"18\",\n  \"md5Hash\": \"vxOCjB/+cdEBUB3z8F2Zxg==\",\n  \"crc32c\": \"w2DZ3Q==\",\n  \"etag\": \"CI+cxu/F9JcDEAI=\",\n  \"temporaryHold\": false,\n  \"timeCreated\": \"2026-11-06T23:56:55.718Z\",\n  \"updated\": \"2026-11-06T23:56:58.487Z\",\n  \"timeStorageClassUpdated\": \"2026-11-06T23:56:55.718Z\",\n  \"timeFinalized\": \"2026-11-06T23:56:55.718Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CMPop4au9JcDEAI=",
-      "X-GUploader-UploadID" : "AFy3sg2x_xDgELVwtvieZhd101pHc0PL0vGmx4GcbrktzCwfOzjPmNDNeDhKOd7bkRM3XY3CaQJJq6IqSGtd",
+      "ETag" : "CI+cxu/F9JcDEAI=",
+      "X-GUploader-UploadID" : "AFy3sg0zr1MmcTKa5A7IhkJT6EupLPHO0mCOf5W1pW99TYPAlbvTwnLcFSioA3Ja9CdnbPEKhxvtD58",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "X-Goog-Gcs-Base-Ts" : "1a1b2e9b761",
-      "Date" : "Fri, 06 Nov 2026 22:10:23 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a1b34b4b09",
+      "Date" : "Fri, 06 Nov 2026 23:56:58 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "11365c5c-c30b-472f-b20e-219552335ea7",
+  "uuid" : "2fe9302c-7c4f-4913-af7e-11cb8091e082",
   "persistent" : true,
   "insertionIndex" : 1538
 }
