@@ -4125,13 +4125,12 @@ class GcpBlobStoreTest {
         .downloadBlobs(anyList(), any(ParallelDownloadConfig.class));
   }
 
-  private DirectoryDownloadResponse downloadDirectoryWithResults(
-      boolean loggingEnabled, DownloadResult... results) throws Exception {
+  private DirectoryDownloadResponse downloadDirectoryWithResults(DownloadResult... results)
+      throws Exception {
     DirectoryDownloadRequest request =
         DirectoryDownloadRequest.builder()
             .prefixToDownload("test-prefix/")
             .localDestinationDirectory(tempDir.toString())
-            .transferStatusLoggingEnabled(loggingEnabled)
             .build();
 
     List<Blob> blobs = new ArrayList<>();
@@ -4158,7 +4157,6 @@ class GcpBlobStoreTest {
   void testDoDownloadDirectory_AllSucceededReportsTotalBytes() throws Exception {
     DirectoryDownloadResponse response =
         downloadDirectoryWithResults(
-            false,
             makeDownloadResult(
                 "test-prefix/a.txt", 100L, tempDir.resolve("a.txt"), TransferStatus.SUCCESS, null),
             makeDownloadResult(
@@ -4168,29 +4166,9 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testDoDownloadDirectory_PartialFailureWithoutLoggingReportsNullBytes() throws Exception {
+  void testDoDownloadDirectory_PartialFailureReportsSucceededBytes() throws Exception {
     DirectoryDownloadResponse response =
         downloadDirectoryWithResults(
-            false,
-            makeDownloadResult(
-                "test-prefix/a.txt", 100L, tempDir.resolve("a.txt"), TransferStatus.SUCCESS, null),
-            makeDownloadResult(
-                "test-prefix/b.txt",
-                23L,
-                null,
-                TransferStatus.FAILED_TO_FINISH,
-                new RuntimeException("boom")));
-
-    assertEquals(1, response.getFailedTransfers().size());
-    assertNull(response.getTotalBytesTransferred());
-  }
-
-  @Test
-  void testDoDownloadDirectory_PartialFailureWithLoggingReportsSucceededBytes()
-      throws Exception {
-    DirectoryDownloadResponse response =
-        downloadDirectoryWithResults(
-            true,
             makeDownloadResult(
                 "test-prefix/a.txt", 100L, tempDir.resolve("a.txt"), TransferStatus.SUCCESS, null),
             makeDownloadResult(
