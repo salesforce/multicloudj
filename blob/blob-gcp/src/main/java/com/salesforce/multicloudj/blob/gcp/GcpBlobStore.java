@@ -1332,7 +1332,10 @@ public class GcpBlobStore extends AbstractBlobStore {
 
       List<FailedBlobDownload> failed = new ArrayList<>();
       if (blobInfos.isEmpty()) {
-        return DirectoryDownloadResponse.builder().failedTransfers(failed).build();
+        return DirectoryDownloadResponse.builder()
+            .failedTransfers(failed)
+            .totalBytesTransferred(0L)
+            .build();
       }
 
       ParallelDownloadConfig.Builder downloadConfigBuilder =
@@ -1345,8 +1348,14 @@ public class GcpBlobStore extends AbstractBlobStore {
 
       DownloadJob job = transferManager.downloadBlobs(blobInfos, downloadConfigBuilder.build());
 
+      // GCS TransferManager has no per-transfer listener and DownloadResult carries no byte
+      // count, so bytes are derived from the listed object size of each successful download.
+      long succeededBytes = 0L;
       for (DownloadResult result : job.getDownloadResults()) {
-        if (result.getStatus() != TransferStatus.SUCCESS) {
+        if (result.getStatus() == TransferStatus.SUCCESS) {
+          Long size = result.getInput().getSize();
+          succeededBytes += size != null ? size : 0L;
+        } else {
           // DownloadResult#getOutputDestination() throws when status is not SUCCESS,
           // so we always compute the destination from the blob name for failed transfers.
           String name = result.getInput().getName();
@@ -1363,7 +1372,10 @@ public class GcpBlobStore extends AbstractBlobStore {
         }
       }
 
-      return DirectoryDownloadResponse.builder().failedTransfers(failed).build();
+      return DirectoryDownloadResponse.builder()
+          .failedTransfers(failed)
+          .totalBytesTransferred(succeededBytes)
+          .build();
 
     } catch (Exception e) {
       throw new SubstrateSdkException("Failed to download directory", e);
