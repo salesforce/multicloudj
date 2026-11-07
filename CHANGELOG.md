@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.16](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.15...multicloudj-v0.4.16) (2026-11-07)
+
+
+### Blob Store
+
+* report total bytes transferred from GCP downloadDirectory ([#742](https://github.com/salesforce/multicloudj/issues/742)) ([9851221](https://github.com/salesforce/multicloudj/commit/98512215fea0893ae4540deca9a4e75212cb09c6))
+
 ## [0.4.15](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.14...multicloudj-v0.4.15) (2026-11-07)
 
 
