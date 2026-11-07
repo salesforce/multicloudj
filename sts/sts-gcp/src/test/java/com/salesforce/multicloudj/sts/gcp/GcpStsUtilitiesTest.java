@@ -34,11 +34,13 @@ import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.math.BigInteger;
+import java.net.URI;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,6 +69,53 @@ class GcpStsUtilitiesTest {
   void builderAndDefaultBuildProduceGcpUtilities() {
     Assertions.assertEquals("gcp", new GcpStsUtilities().builder().build().getProviderId());
     Assertions.assertEquals("gcp", new GcpStsUtilities.Builder().build().getProviderId());
+  }
+
+  @Test
+  void endpointOverrideSetsIamCredentialsEndpoint() throws Exception {
+    GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+    builder.withEndpoint(URI.create("https://iamcredentials.example.com"));
+    GoogleCredentials creds = Mockito.mock(GoogleCredentials.class);
+
+    IamCredentialsSettings settings = builder.build().iamCredentialsSettings(creds);
+
+    Assertions.assertEquals("iamcredentials.example.com:443", settings.getEndpoint());
+  }
+
+  @Test
+  void endpointWithPathQueryFragmentOrHttpIsRejected() {
+    for (String endpoint :
+        new String[] {
+          "https://h/proxy", "https://h/?a=b", "https://h?a=b", "https://h/#frag", "http://h"
+        }) {
+      GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> builder.withEndpoint(URI.create(endpoint)),
+          endpoint);
+    }
+  }
+
+  @Test
+  void endpointWithRootPathIsAccepted() throws Exception {
+    GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+    builder.withEndpoint(URI.create("https://iamcredentials.example.com/"));
+
+    IamCredentialsSettings settings =
+        builder.build().iamCredentialsSettings(Mockito.mock(GoogleCredentials.class));
+
+    Assertions.assertEquals("iamcredentials.example.com:443", settings.getEndpoint());
+  }
+
+  @Test
+  void noEndpointKeepsDefaultIamCredentialsEndpoint() throws Exception {
+    GoogleCredentials creds = Mockito.mock(GoogleCredentials.class);
+
+    IamCredentialsSettings settings = new GcpStsUtilities().iamCredentialsSettings(creds);
+
+    Assertions.assertEquals(
+        IamCredentialsSettings.getDefaultEndpoint(), settings.getEndpoint());
   }
 
   @Test
@@ -183,6 +232,50 @@ class GcpStsUtilitiesTest {
         JsonWebSignature.parse(GsonFactory.getDefaultInstance(), signed.getSignedIdentity());
     Assertions.assertEquals("example", parsed.getPayload().get("x-request-source"));
     Assertions.assertEquals("tenant-42", parsed.getPayload().get("x-tenant-id"));
+  }
+
+  @Test
+  void customHeaderClaimNamesKeepTheirCase() throws Exception {
+    SignOptions signOptions = SignOptions.builder().withCustomHeader("X-Tenant", "t1").build();
+    SignedAuthRequest signed = signer().newCloudNativeAuthSignedRequest(null, signOptions);
+
+    JsonWebSignature parsed =
+        JsonWebSignature.parse(GsonFactory.getDefaultInstance(), signed.getSignedIdentity());
+    Assertions.assertEquals("t1", parsed.getPayload().get("X-Tenant"));
+    Assertions.assertNull(parsed.getPayload().get("x-tenant"));
+  }
+
+  @Test
+  void signerOwnedClaimNamesAreRejectedAsCustomHeaders() {
+    for (String name : new String[] {"iss", "sub", "iat", "exp", "nbf"}) {
+      SignOptions signOptions = SignOptions.builder().withCustomHeader(name, "v").build();
+      InvalidArgumentException e =
+          Assertions.assertThrows(
+              InvalidArgumentException.class,
+              () -> signer().newCloudNativeAuthSignedRequest(null, signOptions),
+              name);
+      Assertions.assertEquals(
+          "custom header \"" + name.toLowerCase(Locale.ROOT)
+              + "\" is reserved by the signer",
+          e.getMessage());
+    }
+  }
+
+  @Test
+  void audienceAndJwtIdAreAllowedAsCustomHeaders() throws Exception {
+    SignOptions signOptions =
+        SignOptions.builder()
+            .withCustomHeader("aud", "https://service.example.com")
+            .withCustomHeader("jti", "request-1")
+            .build();
+    SignedAuthRequest signed = signer().newCloudNativeAuthSignedRequest(null, signOptions);
+
+    JsonWebSignature.Payload claims =
+        JsonWebSignature.parse(GsonFactory.getDefaultInstance(), signed.getSignedIdentity())
+            .getPayload();
+    Assertions.assertEquals("https://service.example.com", claims.get("aud"));
+    Assertions.assertEquals("request-1", claims.get("jti"));
+    Assertions.assertEquals(SERVICE_ACCOUNT, claims.getIssuer());
   }
 
   @Test

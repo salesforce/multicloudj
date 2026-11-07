@@ -41,6 +41,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 
 /**
@@ -62,6 +63,10 @@ import org.apache.commons.lang3.StringUtils;
  */
 @AutoService(AbstractStsUtilities.class)
 public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
+  // Claims the signer sets itself, plus nbf: custom header values are strings, and a string nbf is
+  // not a valid JWT NumericDate. Other registered claims such as aud and jti are left to the
+  // caller, who may supply them as custom headers.
+  private static final Set<String> RESERVED_CLAIMS = Set.of("iss", "sub", "iat", "exp", "nbf");
   private static final long JWT_EXPIRY_SECONDS = 300L;
   private static final String SCOPE = "https://www.googleapis.com/auth/cloud-platform";
   private static final String SA_NAME_FORMAT = "projects/-/serviceAccounts/%s";
@@ -126,6 +131,14 @@ public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
       HttpRequest request, SignOptions options) {
     if (options == null) {
       options = SignOptions.builder().build();
+    }
+
+    // These claims identify and bound the token, so a custom header must not replace them.
+    for (String name : options.getCustomHeaders().keySet()) {
+      if (RESERVED_CLAIMS.contains(name)) {
+        throw new InvalidArgumentException(
+            "custom header \"" + name + "\" is reserved by the signer");
+      }
     }
 
     String serviceAccountEmail = resolveServiceAccountEmail();
@@ -210,11 +223,22 @@ public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
               .build();
     }
 
-    IamCredentialsSettings settings =
+    return IamCredentialsClient.create(iamCredentialsSettings(signingCredentials));
+  }
+
+  /**
+   * Builds the IAM Credentials client settings. The client's endpoint is a {@code host:port} pair;
+   * the builder rejects an endpoint port, so an overriding endpoint uses 443.
+   */
+  IamCredentialsSettings iamCredentialsSettings(GoogleCredentials signingCredentials)
+      throws IOException {
+    IamCredentialsSettings.Builder settings =
         IamCredentialsSettings.newBuilder()
-            .setCredentialsProvider(FixedCredentialsProvider.create(signingCredentials))
-            .build();
-    return IamCredentialsClient.create(settings);
+            .setCredentialsProvider(FixedCredentialsProvider.create(signingCredentials));
+    if (endpoint != null) {
+      settings.setEndpoint(endpoint.getHost() + ":443");
+    }
+    return settings.build();
   }
 
   /**

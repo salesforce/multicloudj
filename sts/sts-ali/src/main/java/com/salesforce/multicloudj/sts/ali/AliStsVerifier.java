@@ -110,10 +110,18 @@ public class AliStsVerifier extends AbstractStsVerifier {
           "signed identity must target an https STS endpoint, got scheme: " + scheme);
     }
     String host = identityUri.getHost();
-    if (host == null || !STS_HOST_PATTERN.matcher(host.toLowerCase(Locale.ROOT)).matches()) {
+    if (!isStsHost(host)) {
       throw new UnAuthorizedException(
           "signed identity does not target a recognized Alibaba Cloud STS endpoint: " + host);
     }
+  }
+
+  /**
+   * Returns whether {@code host} is a genuine Alibaba Cloud STS endpoint host. The signer uses it
+   * too.
+   */
+  static boolean isStsHost(String host) {
+    return host != null && STS_HOST_PATTERN.matcher(host.toLowerCase(Locale.ROOT)).matches();
   }
 
   private static void verifyExpectedCustomHeaders(
