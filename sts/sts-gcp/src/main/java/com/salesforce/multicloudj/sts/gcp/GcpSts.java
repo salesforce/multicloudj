@@ -193,9 +193,8 @@ public class GcpSts extends AbstractSts {
     String action = permission.substring("storage:".length());
 
     // Map common actions to GCP roles
-    // Credential Access Boundaries accept only roles, so each action maps to the narrowest
-    // predefined role containing it. objectViewer grants both get and list, so GetObject and
-    // ListBucket each imply the other.
+    // Credential Access Boundaries accept only roles, not individual permissions. objectViewer
+    // grants both get and list, so GetObject and ListBucket each imply the other.
     switch (action) {
       case "GetObject":
         return "inRole:roles/storage.objectViewer";
