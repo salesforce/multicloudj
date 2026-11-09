@@ -959,7 +959,7 @@ public class AwsDocStore extends AbstractDocStore {
 
   // Reports whether query has a filter that mentions the top-level field.
   protected boolean hasFilter(Query query, String field) {
-    if (field.isEmpty()) {
+    if (StringUtils.isEmpty(field)) {
       return false;
     }
     for (Filter filter : query.getFilters()) {
