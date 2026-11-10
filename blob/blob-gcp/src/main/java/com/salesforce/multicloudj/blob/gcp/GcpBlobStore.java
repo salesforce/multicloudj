@@ -1649,22 +1649,18 @@ public class GcpBlobStore extends AbstractBlobStore {
     return ExceptionHandler.build(exceptionClass, source, GcpRetryClassifier.classify(source));
   }
 
+  /** Identifies clients closed by this store so wrappers can avoid closing them twice. */
+  public final boolean managesStorage(Storage client) {
+    return client != null && (client == storage || client == httpStorage);
+  }
+
   /** Closes the underlying GCP Storage clients and releases any resources. */
   @Override
   public void close() {
-    try {
-      if (transferManager != null) {
-        transferManager.close();
-      }
-      if (storage != null) {
-        storage.close();
-      }
-      // When the gRPC transport is selected, httpStorage is a distinct client backing the
-      // operations gRPC does not implement; close it too. Otherwise it is the same instance as
-      // storage (already closed above).
-      if (httpStorage != null && httpStorage != storage) {
-        httpStorage.close();
-      }
+    try (Storage fallbackClient = httpStorage != storage ? httpStorage : null;
+        Storage mainClient = storage;
+        TransferManager manager = transferManager) {
+      // Close transfer work before its storage clients, even if an earlier close fails.
     } catch (Exception e) {
       throw new SubstrateSdkException("Failed to close GCP storage clients", e);
     }

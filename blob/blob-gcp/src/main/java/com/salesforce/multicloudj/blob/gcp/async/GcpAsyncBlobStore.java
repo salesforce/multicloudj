@@ -10,6 +10,7 @@ import com.salesforce.multicloudj.blob.gcp.GcpTransformerSupplier;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
 
 /** GCP implementation of AsyncBlobStore */
@@ -18,6 +19,7 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
   private final Storage storage;
   private final GcpTransformerSupplier transformerSupplier;
   private final boolean useTransferListener;
+  private final AtomicBoolean closed = new AtomicBoolean();
 
   /**
    * Creates a new async wrapper around the provided BlobStore.
@@ -51,12 +53,17 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
   /** Closes the underlying GCP Storage client and wrapped blob store */
   @Override
   public void close() {
-    try {
-      if (storage != null) {
-        storage.close();
-      }
+    if (!closed.compareAndSet(false, true)) {
+      return;
+    }
+    try (Storage directStorage =
+        getBlobStore() instanceof GcpBlobStore
+                && ((GcpBlobStore) getBlobStore()).managesStorage(storage)
+            ? null
+            : storage) {
+      super.close();
     } catch (Exception e) {
-      throw new SubstrateSdkException("Failed to close GCP Storage client", e);
+      throw new SubstrateSdkException("Failed to close GCP async blob store", e);
     }
   }
 
