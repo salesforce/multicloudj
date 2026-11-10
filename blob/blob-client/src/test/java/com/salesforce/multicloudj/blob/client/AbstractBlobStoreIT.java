@@ -6350,6 +6350,9 @@ public abstract class AbstractBlobStoreIT {
         "file1.txt content should match");
     Assertions.assertEquals(content2, downloadedContent2,
         "subdir/file2.txt content should match");
+    Assertions.assertEquals(
+        (long) (content1.length() + content2.length()),
+        downloadResponse.getTotalBytesTransferred());
 
     // Cleanup
     safeDeleteBlobs(bucketClient, prefix + "/file1.txt", prefix + "/subdir/file2.txt");

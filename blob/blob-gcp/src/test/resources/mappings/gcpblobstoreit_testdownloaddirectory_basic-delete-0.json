@@ -1,5 +1,5 @@
 {
-  "id" : "a0dbe89b-d835-4e8f-ae75-c1f3e1a5c4ac",
+  "id" : "c25eaa19-007b-4e13-8aee-d2a9d5fd536d",
   "name" : "GcpBlobStoreIT_testDownloadDirectory_basic-DELETE-0",
   "request" : {
     "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdirectory%2Fdownload-basic-v1%2Fsubdir%2Ffile2.txt",
@@ -11,15 +11,16 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AAVLpEhw8WjMtfH1lCd7o3Me3ejZ0UfZez_j4RRE7rlXhHh847KN4zFlEN5EO8YQLcUN5qyL",
+      "X-GUploader-UploadID" : "AFy3sg3qYQHdUp5HuH71i521dOYqhW8XAy_kPM9nekwSGgQKYSIBT19b1OgCX0S8Zk_MgEXnKuVA2Lo",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Wed, 27 May 2026 14:55:53 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a19f0f4fdd",
+      "Date" : "Tue, 03 Nov 2026 01:39:03 GMT",
       "Content-Type" : "application/json"
     }
   },
-  "uuid" : "a0dbe89b-d835-4e8f-ae75-c1f3e1a5c4ac",
+  "uuid" : "c25eaa19-007b-4e13-8aee-d2a9d5fd536d",
   "persistent" : true,
-  "insertionIndex" : 1388
+  "insertionIndex" : 1573
 }
