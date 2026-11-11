@@ -37,6 +37,11 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
 
   public AliStsUtilities(Builder builder) {
     super(builder);
+    // Only an identity signed for a genuine STS endpoint can be verified.
+    if (endpoint != null && !AliStsVerifier.isStsHost(endpoint.getHost())) {
+      throw new InvalidArgumentException(
+          "endpoint is not an Alibaba Cloud STS endpoint: " + endpoint);
+    }
   }
 
   public AliStsUtilities() {
@@ -50,6 +55,7 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
 
   @Override
   protected SignedAuthRequest newCloudNativeAuthSignedRequest(HttpRequest request) {
+    String domain = signingDomain();
     BasicSessionCredentials credentials;
     try {
       if (credentialsOverrider != null
@@ -68,7 +74,7 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
     }
 
     CommonRequest commonRequest = new CommonRequest();
-    commonRequest.setSysDomain(String.format(SIGN_STS_ENDPOINT, region));
+    commonRequest.setSysDomain(domain);
     commonRequest.setSysProduct(SERVICE_SIGNING_NAME);
     commonRequest.setSysAction(DEFAULT_API_ACTION_NAME);
     commonRequest.setSysVersion(DEFAULT_API_VERSION);
@@ -120,6 +126,11 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
             credentials.getAccessKeySecret(),
             credentials.getSessionToken()),
         signedIdentity);
+  }
+
+  /** Returns the domain the request is signed for: the endpoint host, or the regional default. */
+  private String signingDomain() {
+    return endpoint == null ? String.format(SIGN_STS_ENDPOINT, region) : endpoint.getHost();
   }
 
   public static class Builder extends AbstractStsUtilities.Builder<AliStsUtilities> {
