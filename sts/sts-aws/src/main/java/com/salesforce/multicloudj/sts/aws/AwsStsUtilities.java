@@ -130,8 +130,14 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
       headers.put(REQUEST_HASH_HEADER, getSha256Hash(payload));
     }
     // Caller supplied custom headers (e.g. a federation target resource) are always signed. Names
-    // must already be lowercase to satisfy the SigV4 canonical rules.
+    // must already be lowercase to satisfy the SigV4 canonical rules. Values are checked before
+    // signing, so a value that cannot be sent fails here rather than after the request is signed.
     for (Map.Entry<String, String> header : options.getCustomHeaders().entrySet()) {
+      if (header.getValue() != null && !isSendableHeaderValue(header.getValue())) {
+        throw new InvalidArgumentException(
+            "custom header \"" + header.getKey()
+                + "\" value contains a character that cannot be sent");
+      }
       headers.put(header.getKey(), header.getValue());
     }
 
@@ -156,6 +162,21 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
     String signedIdentity = buildSignedIdentity(uri, headers);
 
     return new SignedAuthRequest(builder.build(), signingCredentials, signedIdentity);
+  }
+
+  /**
+   * Returns whether a header value can be signed and sent byte for byte: tab or printable ASCII.
+   * The JDK HTTP client rejects other control characters and anything above 0xFF, and 0x80-0xFF
+   * would be hashed as UTF-8 in the canonical request but written as single bytes on the wire.
+   */
+  static boolean isSendableHeaderValue(String value) {
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (c != '\t' && (c < 0x20 || c > 0x7e)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**

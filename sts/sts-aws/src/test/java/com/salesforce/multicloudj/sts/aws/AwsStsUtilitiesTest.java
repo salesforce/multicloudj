@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.sts.aws;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.client.StsUtilities;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -123,6 +124,40 @@ class AwsStsUtilitiesTest {
         "custom-value",
         signed.getRequest().headers().firstValue("X-Custom-Header").orElse(null),
         "Custom header should be applied to the signed request");
+  }
+
+  @Test
+  void customHeaderValueWithControlCharacterIsRejectedBeforeSigning() {
+    assertCustomHeaderValueRejected("a\u0000b");
+  }
+
+  @Test
+  void customHeaderValueWithNonAsciiCharacterIsRejectedBeforeSigning() {
+    assertCustomHeaderValueRejected("café");
+  }
+
+  @Test
+  void customHeaderValueWithEmbeddedTabIsAccepted() {
+    SignedAuthRequest signed =
+        stsUtil()
+            .newCloudNativeAuthSignedRequest(
+                sampleRequest(),
+                SignOptions.builder().withCustomHeader("x-custom-header", "a\tb").build());
+
+    Assertions.assertEquals(
+        "a\tb", signed.getRequest().headers().firstValue("x-custom-header").orElse(null));
+  }
+
+  private static void assertCustomHeaderValueRejected(String value) {
+    SignOptions options = SignOptions.builder().withCustomHeader("x-custom-header", value).build();
+
+    InvalidArgumentException e =
+        Assertions.assertThrows(
+            InvalidArgumentException.class,
+            () -> stsUtil().newCloudNativeAuthSignedRequest(sampleRequest(), options));
+    Assertions.assertEquals(
+        "custom header \"x-custom-header\" value contains a character that cannot be sent",
+        e.getMessage());
   }
 
   @Test
