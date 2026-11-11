@@ -18,34 +18,34 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 
 Feature Detail describes the shared API behavior. Provider-Specific Exceptions describes
 provider limitations, native mode mappings, workarounds, and options that only apply to certain
-clients or transports. A dash (—) means no provider-specific exception is documented for that row.
+clients or transports. An empty cell means no provider-specific exception is documented for that row.
 Support refers to MultiCloudJ support, which may use a workaround instead of a native API.
 
 ### Core API Features
 
 | Feature Name | Feature Detail | GCP | AWS | ALI | Provider-Specific Exceptions |
 |--------------|----------------|-----|-----|-----|-----------------------------|
-| **Basic Upload** | `upload`: upload from InputStream, byte[], File, or Path | ✅ Supported | ✅ Supported | ✅ Supported | Tags, checksums, encryption, and object lock follow the corresponding rows below. |
-| **Basic Download** | `download`: download to OutputStream, byte[], File, or Path | ✅ Supported | ✅ Supported | ✅ Supported | Parallel transfer support depends on the destination and client; see **Parallel Downloads**. |
+| **Basic Upload** | `upload`: upload from InputStream, byte[], File, or Path | ✅ Supported | ✅ Supported | ✅ Supported | |
+| **Basic Download** | `download`: download to OutputStream, byte[], File, or Path | ✅ Supported | ✅ Supported | ✅ Supported | |
 | **Delete Objects** | `delete`: single and batch delete operations | ✅ Supported | ✅ Supported | ✅ Supported | GCP uses an HTTP/JSON fallback for collection delete when gRPC is enabled. |
-| **Copy Objects** | `copy`, `copyFrom`: server-side copy within and across buckets | ✅ Supported | ✅ Supported | ✅ Supported | — |
-| **Get Metadata** | `getMetadata`: retrieve object metadata and properties | ✅ Supported | ✅ Supported | ✅ Supported | — |
-| **List Objects** | `list`, `listPage`: paginated listing with filters | ✅ Supported | ✅ Supported | ✅ Supported | — |
+| **Copy Objects** | `copy`, `copyFrom`: server-side copy within and across buckets | ✅ Supported | ✅ Supported | ✅ Supported |  |
+| **Get Metadata** | `getMetadata`: retrieve object metadata and properties | ✅ Supported | ✅ Supported | ✅ Supported |  |
+| **List Objects** | `list`, `listPage`: paginated listing with filters | ✅ Supported | ✅ Supported | ✅ Supported |  |
 | **Object Tagging** | `getTags`, `setTags`, and tags on upload requests | ✅ Supported | ✅ Supported | ✅ Supported | GCS has no object-tag API. MultiCloudJ stores tags as custom metadata prefixed with `gcp-tag-` and removes the prefix when reading them. AWS and Alibaba use native object tags. |
 | **Presigned URLs** | `presign`, `generatePresignedUrl`: generate temporary access URLs | ✅ Supported | ✅ Supported | ✅ Supported | GCP signs through HTTP/JSON even when gRPC is enabled. GCS V4 signing cannot enforce SHA256 upload integrity, so MultiCloudJ rejects SHA256; use CRC32C or MD5. |
 | **Versioning Support** | Object version-specific operations using `versionId` | ✅ Supported | ✅ Supported | ✅ Supported | GCP maps `versionId` to the object's numeric generation. AWS and Alibaba use native version IDs. |
 | **Upload Checksums** | `ChecksumMethod` on upload and multipart requests | ✅ Supported | ✅ Supported | ✅ Supported | GCP accepts CRC32C or MD5; Alibaba multipart upload uses CRC64; AWS maps CRC32C, SHA256, and MD5 where supported. Unsupported explicit algorithms fail fast. |
-| **Provider-Managed KMS Encryption** | `withUseKmsManagedKey` on upload requests | ⚠️ No-op | ✅ Supported | ✅ Supported | AWS and Alibaba explicitly request provider-managed KMS encryption. GCP ignores this flag and uses the bucket's configured encryption default. |
+| **Provider-Managed KMS Encryption** | `withUseKmsManagedKey` on upload requests | ⚠️ Ignored | ✅ Supported | ✅ Supported | AWS and Alibaba explicitly request provider-managed KMS encryption. GCP ignores this flag and uses the bucket's configured encryption default. |
 
 ### Multipart Upload Features
 
 | Feature Name | Feature Detail | GCP | AWS | ALI | Provider-Specific Exceptions |
 |--------------|----------------|-----|-----|-----|-----------------------------|
 | **Initiate Multipart** | `initiateMultipartUpload`: start a multipart upload session | ✅ Supported | ✅ Supported | ✅ Supported | GCP uses the GCS XML multipart API. Checksum algorithms follow **Upload Checksums**. |
-| **Upload Part** | `uploadMultipartPart`: upload individual parts | ✅ Supported | ✅ Supported | ✅ Supported | — |
+| **Upload Part** | `uploadMultipartPart`: upload individual parts | ✅ Supported | ✅ Supported | ✅ Supported |  |
 | **Complete Multipart** | `completeMultipartUpload`: finalize the upload | ✅ Supported | ✅ Supported | ✅ Supported | GCP sorts parts by part number before completion, then applies tags and legal holds in separate metadata updates after the object is committed. A failure in those updates can leave a completed object without all requested tags or holds. |
-| **List Parts** | `listMultipartUpload`: list uploaded parts | ✅ Supported | ✅ Supported | ✅ Supported | — |
-| **Abort Multipart** | `abortMultipartUpload`: cancel the upload | ✅ Supported | ✅ Supported | ✅ Supported | — |
+| **List Parts** | `listMultipartUpload`: list uploaded parts | ✅ Supported | ✅ Supported | ✅ Supported |  |
+| **Abort Multipart** | `abortMultipartUpload`: cancel the upload | ✅ Supported | ✅ Supported | ✅ Supported |  |
 
 ### Object Lock & Retention Features
 
@@ -63,7 +63,7 @@ Support refers to MultiCloudJ support, which may use a workaround instead of a n
 | Feature Name | Feature Detail | GCP | AWS | ALI | Provider-Specific Exceptions |
 |--------------|----------------|-----|-----|-----|-----------------------------|
 | **Async Operations** | CompletableFuture-based API via `AsyncBucketClient` | ✅ Supported | ✅ Supported | ✅ Supported | GCP runs core synchronous Blob operations on the configured executor; directory transfers use the GCS Transfer Manager. |
-| **Bucket Operations** | `BlobClient.listBuckets`: list buckets | ✅ Supported | ✅ Supported | ✅ Supported | — |
+| **Bucket Operations** | `BlobClient.listBuckets`: list buckets | ✅ Supported | ✅ Supported | ✅ Supported |  |
 | **Directory Transfers** | `uploadDirectory`, `downloadDirectory`: transfer files under a directory or prefix | ✅ Supported | ✅ Supported | ✅ Supported | AWS and Alibaba attach per-file logging listeners when `transferStatusLoggingEnabled` is set; GCP ignores that flag. GCP parallel composite uploads with object retention or holds can leave protected component objects behind and report a failed file even after creating the final object; disable parallel uploads for these directory transfers. |
 | **Lifecycle Expiration Tag** | Reserved `expiration-days` tag marks an object for deletion by an out-of-band bucket lifecycle rule ([details](#lifecycle-expiration-via-tagging)) | ✅ Supported | ✅ Supported | ✅ Supported | GCS lifecycle rules cannot filter by tag, so MultiCloudJ sets object custom time and the rule uses `daysSinceCustomTime`. AWS and Alibaba use native tag filters with a rule for each supported day-count value. |
 
@@ -71,13 +71,13 @@ Support refers to MultiCloudJ support, which may use a workaround instead of a n
 
 | Configuration | Feature Detail | GCP | AWS | ALI | Provider-Specific Exceptions |
 |---------------|----------------|-----|-----|-----|-----------------------------|
-| **Endpoint Override** | `withEndpoint`: configure a custom endpoint | ✅ Supported | ✅ Supported | ✅ Supported | — |
-| **Proxy Support** | `withProxyEndpoint`: configure an HTTP proxy | ✅ Supported | ✅ Supported | ✅ Supported | — |
-| **Automatic Proxy Discovery** | `withUseSystemPropertyProxyValues`, `withUseEnvironmentVariableProxyValues` | ❌ Not supported | ✅ Supported | ❌ Not supported | These flags control AWS SDK proxy discovery. GCP and Alibaba ignore them; use explicit proxy configuration. |
-| **Credentials Override** | Custom credential providers via STS | ✅ Supported | ✅ Supported | ✅ Supported | — |
-| **Region** | `withRegion`: configure the service region | ⚠️ No-op | ✅ Supported | ✅ Supported | AWS and Alibaba use the region. GCS is a global service and does not consume this option. |
-| **gRPC Transport** | `withGrpcEnabled`: select gRPC | ✅ Supported | ❌ Not supported | ❌ Not supported | Selects GCS gRPC. Signed URLs, collection delete, and retention updates requiring `overrideUnlockedRetention` use an HTTP/JSON fallback. |
-| **Quota Project** | `withQuotaProjectId`: configure billing and quota attribution | ✅ Supported | ❌ Not supported | ❌ Not supported | Sets the GCP billing and quota project. AWS and Alibaba ignore this option. |
+| **Endpoint Override** | `withEndpoint`: configure a custom endpoint | ✅ Supported | ✅ Supported | ✅ Supported |  |
+| **Proxy Support** | `withProxyEndpoint`: configure an HTTP proxy | ✅ Supported | ✅ Supported | ✅ Supported |  |
+| **Automatic Proxy Discovery** | `withUseSystemPropertyProxyValues`, `withUseEnvironmentVariableProxyValues` | ⚠️ Ignored | ✅ Supported | ⚠️ Ignored | These flags control AWS SDK proxy discovery. GCP and Alibaba ignore them; use explicit proxy configuration. |
+| **Credentials Override** | Custom credential providers via STS | ✅ Supported | ✅ Supported | ✅ Supported |  |
+| **Region** | `withRegion`: configure the service region | ⚠️ Ignored | ✅ Supported | ✅ Supported | AWS and Alibaba use the region. GCS is a global service and does not consume this option. |
+| **gRPC Transport** | `withGrpcEnabled`: select gRPC | ✅ Supported | ⚠️ Ignored | ⚠️ Ignored | Selects GCS gRPC. Signed URLs, collection delete, and retention updates requiring `overrideUnlockedRetention` use an HTTP/JSON fallback. |
+| **Quota Project** | `withQuotaProjectId`: configure billing and quota attribution | ✅ Supported | ⚠️ Ignored | ⚠️ Ignored | Sets the GCP billing and quota project. AWS and Alibaba ignore this option. |
 | **Retry Timeouts** | `RetryConfig.totalTimeout`, `RetryConfig.attemptTimeout` | ⚠️ Transport-dependent | ✅ Supported | ⚠️ Partial | Alibaba OSS v2 has no overall deadline, so `totalTimeout` is ignored and `attemptTimeout` maps to read/write timeouts. GCP applies `attemptTimeout` only to gRPC RPCs; HTTP/JSON ignores it. |
 
 ### Performance Configuration
@@ -87,17 +87,17 @@ call out async-only behavior. A supported transfer does not imply every tuning o
 
 | Configuration | Feature Detail | GCP | AWS | ALI | Provider-Specific Exceptions |
 |---------------|----------------|-----|-----|-----|-----------------------------|
-| **Parallel Uploads** | `withParallelUploadsEnabled`: enable parallel uploads for large objects | ✅ Supported | ✅ Supported | ⚠️ Explicit multipart API | GCP configures GCS Transfer Manager parallel composite uploads. Alibaba ignores this async builder option; use explicit multipart APIs. |
-| **Part Buffer Size** | `withPartBufferSize`: configure part size or transfer buffers | ⚠️ Indirect | ✅ Supported | ⚠️ API-level only | GCP maps this to the GCS Transfer Manager per-worker buffer size. Alibaba ignores the async builder option; callers choose part sizes through multipart APIs. |
-| **Threshold Bytes** | `withThresholdBytes`: configure the multipart threshold | ❌ Not supported | ✅ Supported | ❌ Not supported | `AsyncBucketClient.Builder.withThresholdBytes` configures AWS multipart uploads. GCP/Alibaba ignore it; GCP transfer buffering is configured separately through `withPartBufferSize`. |
-| **Max Concurrency** | `withMaxConcurrency`: configure concurrent transfers | ❌ Not supported | ✅ CRT client only | ❌ Not supported | On `AsyncBucketClient.Builder`, this configures AWS CRT only and is ignored by GCP/Alibaba. GCP transfer workers can be configured with `withTransferManagerThreadPoolSize`. |
-| **Max Connections** | `withMaxConnections`: configure the HTTP connection pool | ✅ Supported | ✅ Supported | ✅ Supported | — |
+| **Parallel Uploads** | `withParallelUploadsEnabled`: enable parallel uploads for large objects | ✅ Supported | ✅ Supported | ⚠️ Ignored | GCP configures GCS Transfer Manager parallel composite uploads. Alibaba ignores this async builder option; use explicit multipart APIs. |
+| **Part Buffer Size** | `withPartBufferSize`: configure part size or transfer buffers | ⚠️ Indirect | ✅ Supported | ⚠️ Ignored | GCP maps this to the GCS Transfer Manager per-worker buffer size. Alibaba ignores the async builder option; callers choose part sizes through multipart APIs. |
+| **Threshold Bytes** | `withThresholdBytes`: configure the multipart threshold | ⚠️ Ignored | ✅ Supported | ⚠️ Ignored | `AsyncBucketClient.Builder.withThresholdBytes` configures AWS multipart uploads. GCP/Alibaba ignore it; GCP transfer buffering is configured separately through `withPartBufferSize`. |
+| **Max Concurrency** | `withMaxConcurrency`: configure concurrent transfers | ⚠️ Ignored | ✅ CRT client only | ⚠️ Ignored | On `AsyncBucketClient.Builder`, this configures AWS CRT only and is ignored by GCP/Alibaba. GCP transfer workers can be configured with `withTransferManagerThreadPoolSize`. |
+| **Max Connections** | `withMaxConnections`: configure the HTTP connection pool | ✅ Supported | ✅ Supported | ✅ Supported |  |
 | **Parallel Downloads** | `withParallelDownloadsEnabled` and request-level `parallelDownload` | ✅ Supported | ✅ Supported | ⚠️ Async client only | GCP uses GCS Transfer Manager for file/path downloads; stream and byte[] downloads use streaming reads. Alibaba ignores the async builder flag; set `DownloadRequest.parallelDownload` for whole-object File/Path downloads. Ranged downloads use the regular path. |
-| **Target Throughput (Gbps)** | `withTargetThroughputInGbps`: provide a throughput hint | ❌ Not supported | ✅ CRT client only | ❌ Not supported | AWS CRT only; ignored by GCP/Alibaba. |
-| **Max Native Memory Limit** | `withMaxNativeMemoryLimitInBytes`: cap native transfer memory | ❌ Not supported | ✅ CRT client only | ❌ Not supported | AWS CRT only; ignored by GCP/Alibaba. |
-| **Initial Read Buffer Size** | `AsyncBucketClient.Builder.withInitialReadBufferSizeInBytes` | ❌ Not supported | ✅ CRT client only | ❌ Not supported | Configures AWS CRT read buffering; ignored by GCP/Alibaba. |
-| **Transfer Manager Thread Pool Size** | `AsyncBucketClient.Builder.withTransferManagerThreadPoolSize` | ✅ Supported | ✅ Supported | ❌ Not supported | GCP maps this to GCS Transfer Manager workers; AWS configures its transfer executor. Alibaba ignores this builder option. |
-| **Directory Transfer Concurrency** | `AsyncBucketClient.Builder.withTransferDirectoryMaxConcurrency` | ❌ Not supported | ✅ Supported | ❌ Not supported | Configures AWS S3 Transfer Manager directory concurrency; ignored by GCP/Alibaba. |
+| **Target Throughput (Gbps)** | `withTargetThroughputInGbps`: provide a throughput hint | ⚠️ Ignored | ✅ CRT client only | ⚠️ Ignored | AWS CRT only; ignored by GCP/Alibaba. |
+| **Max Native Memory Limit** | `withMaxNativeMemoryLimitInBytes`: cap native transfer memory | ⚠️ Ignored | ✅ CRT client only | ⚠️ Ignored | AWS CRT only; ignored by GCP/Alibaba. |
+| **Initial Read Buffer Size** | `AsyncBucketClient.Builder.withInitialReadBufferSizeInBytes` | ⚠️ Ignored | ✅ CRT client only | ⚠️ Ignored | Configures AWS CRT read buffering; ignored by GCP/Alibaba. |
+| **Transfer Manager Thread Pool Size** | `AsyncBucketClient.Builder.withTransferManagerThreadPoolSize` | ✅ Supported | ✅ Supported | ⚠️ Ignored | GCP maps this to GCS Transfer Manager workers; AWS configures its transfer executor. Alibaba ignores this builder option. |
+| **Directory Transfer Concurrency** | `AsyncBucketClient.Builder.withTransferDirectoryMaxConcurrency` | ⚠️ Ignored | ✅ Supported | ⚠️ Ignored | Configures AWS S3 Transfer Manager directory concurrency; ignored by GCP/Alibaba. |
 
 ---
 
