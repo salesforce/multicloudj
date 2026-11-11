@@ -14,9 +14,11 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
+import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPublicKey;
@@ -97,6 +99,72 @@ class GcpStsVerifierTest {
 
     CallerIdentity identity = verifier().verifySignedAuthRequest(jwt, options);
     Assertions.assertEquals("my-project", identity.getAccountId());
+  }
+
+  @Test
+  void customClaimKeepsItsCaseThroughSignAndVerify() throws Exception {
+    String jwt =
+        localKeySigner()
+            .newCloudNativeAuthSignedRequest(
+                null, SignOptions.builder().withCustomHeader("X-Tenant", "t1").build())
+            .getSignedIdentity();
+    ValidateOptions options =
+        ValidateOptions.builder().withExpectedCustomHeader("X-Tenant", "t1").build();
+    ValidateOptions otherCase =
+        ValidateOptions.builder().withExpectedCustomHeader("x-tenant", "t1").build();
+
+    CallerIdentity identity = verifier().verifySignedAuthRequest(jwt, options);
+
+    Assertions.assertEquals(SERVICE_ACCOUNT, identity.getUserId());
+    // JWT claim names are case-sensitive.
+    Assertions.assertThrows(
+        InvalidArgumentException.class, () -> verifier().verifySignedAuthRequest(jwt, otherCase));
+  }
+
+  @Test
+  void audienceAndJwtIdCustomClaimsSignAndVerify() throws Exception {
+    String jwt =
+        localKeySigner()
+            .newCloudNativeAuthSignedRequest(
+                null,
+                SignOptions.builder()
+                    .withCustomHeader("aud", "https://service.example.com")
+                    .withCustomHeader("jti", "request-1")
+                    .build())
+            .getSignedIdentity();
+    ValidateOptions options =
+        ValidateOptions.builder()
+            .withExpectedCustomHeader("aud", "https://service.example.com")
+            .withExpectedCustomHeader("jti", "request-1")
+            .build();
+
+    CallerIdentity identity = verifier().verifySignedAuthRequest(jwt, options);
+
+    Assertions.assertEquals(SERVICE_ACCOUNT, identity.getUserId());
+  }
+
+  /** A real GcpStsUtilities whose IAM signJwt call is replaced by signing with the test key. */
+  private GcpStsUtilities localKeySigner() {
+    return new GcpStsUtilities.Builder()
+            .build(
+                (serviceAccountName, payload) -> {
+                  JsonWebToken.Payload claims =
+                      GsonFactory.getDefaultInstance()
+                          .createJsonParser(payload)
+                          .parse(JsonWebToken.Payload.class);
+                  JsonWebSignature.Header header =
+                      new JsonWebSignature.Header()
+                          .setAlgorithm("RS256")
+                          .setType("JWT")
+                          .setKeyId(KID);
+                  try {
+                    return JsonWebSignature.signUsingRsaSha256(
+                        keyPair.getPrivate(), GsonFactory.getDefaultInstance(), header, claims);
+                  } catch (GeneralSecurityException e) {
+                    throw new IOException(e);
+                  }
+                },
+                SERVICE_ACCOUNT);
   }
 
   @Test
