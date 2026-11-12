@@ -1654,6 +1654,14 @@ public class GcpBlobStore extends AbstractBlobStore {
     return ExceptionHandler.build(exceptionClass, source, GcpRetryClassifier.classify(source));
   }
 
+  /**
+   * Returns whether {@link #close()} closes the given Storage client, so a caller sharing the same
+   * instance can avoid closing it a second time.
+   */
+  public boolean closesStorage(Storage candidate) {
+    return candidate != null && (candidate == storage || candidate == httpStorage);
+  }
+
   /** Closes the underlying GCP Storage clients and releases any resources. */
   @Override
   public void close() {

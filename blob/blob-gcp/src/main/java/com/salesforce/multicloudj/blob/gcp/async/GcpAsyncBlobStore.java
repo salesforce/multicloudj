@@ -10,6 +10,7 @@ import com.salesforce.multicloudj.blob.gcp.GcpTransformerSupplier;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
 
 /** GCP implementation of AsyncBlobStore */
@@ -18,6 +19,7 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
   private final Storage storage;
   private final GcpTransformerSupplier transformerSupplier;
   private final boolean useTransferListener;
+  private final AtomicBoolean closed = new AtomicBoolean(false);
 
   /**
    * Creates a new async wrapper around the provided BlobStore.
@@ -48,16 +50,46 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
     this.useTransferListener = Boolean.TRUE.equals(useTransferListener);
   }
 
-  /** Closes the underlying GCP Storage client and wrapped blob store */
+  /**
+   * Closes the wrapped blob store, which releases its TransferManager workers, and then the
+   * directly supplied Storage client unless the wrapped store already closed that instance. Both
+   * are attempted even if the first fails; the first failure is thrown with later ones suppressed.
+   * The executor service is owned by the caller (or is the common pool) and is left running.
+   * Subsequent calls are no-ops.
+   */
   @Override
   public void close() {
-    try {
-      if (storage != null) {
-        storage.close();
-      }
-    } catch (Exception e) {
-      throw new SubstrateSdkException("Failed to close GCP Storage client", e);
+    if (!closed.compareAndSet(false, true)) {
+      return;
     }
+    Exception failure = null;
+    try {
+      super.close();
+    } catch (Exception e) {
+      failure = e;
+    }
+    if (storage != null && !wrappedStoreClosesStorage()) {
+      try {
+        storage.close();
+      } catch (Exception e) {
+        if (failure == null) {
+          failure = e;
+        } else {
+          failure.addSuppressed(e);
+        }
+      }
+    }
+    if (failure instanceof SubstrateSdkException) {
+      throw (SubstrateSdkException) failure;
+    }
+    if (failure != null) {
+      throw new SubstrateSdkException("Failed to close GCP async blob store", failure);
+    }
+  }
+
+  private boolean wrappedStoreClosesStorage() {
+    AbstractBlobStore wrapped = getBlobStore();
+    return wrapped instanceof GcpBlobStore && ((GcpBlobStore) wrapped).closesStorage(storage);
   }
 
   public static Builder builder() {
