@@ -112,6 +112,6 @@
   .feature-support td:nth-child(3)::before { content: "GCP"; }
   .feature-support td:nth-child(4)::before { content: "AWS"; }
   .feature-support td:nth-child(5)::before { content: "ALI"; }
-  .feature-support td:last-child::before { content: "Provider-Specific Exceptions"; }
+  .feature-support td:last-child::before { content: "Provider-Specific Notes"; }
   .feature-support td:last-child:empty { display: none; }
 }
