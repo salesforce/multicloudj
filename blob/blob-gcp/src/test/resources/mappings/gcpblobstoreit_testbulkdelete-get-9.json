@@ -1,5 +1,5 @@
 {
-  "id" : "31b3e637-e027-4b59-8a3e-4ed29e9af960",
+  "id" : "2f8ff8d3-c068-4620-80e5-0f05631feaa7",
   "name" : "GcpBlobStoreIT_testBulkDelete-GET-9",
   "request" : {
     "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
@@ -34,15 +34,17 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
-      "X-GUploader-UploadID" : "AFy3sg2p5QIRpH4NuoHWLSBjeo0K6NIX4M4O8iA_5P2Yt98dtdu2YAUBsuqNjCAXHbkUlYu2hMS9Sg",
+      "X-GUploader-UploadID" : "AFy3sg3tlJAAC0Ky5aAmHtTgaj47SI51AW-K887fEY83C4Y5Evbw1cms53JFCM23ITfrT7Q2U4ZfZuU",
       "Vary" : [ "Origin", "X-Origin" ],
-      "Expires" : "Wed, 04 Nov 2026 18:57:50 GMT",
-      "X-Goog-Gcs-Base-Ts" : "1a1a7ecb4e3",
-      "Date" : "Wed, 04 Nov 2026 18:57:50 GMT",
+      "Expires" : "Fri, 06 Nov 2026 22:11:18 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a1b2ea8f1d",
+      "Date" : "Fri, 06 Nov 2026 22:11:18 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "31b3e637-e027-4b59-8a3e-4ed29e9af960",
+  "uuid" : "2f8ff8d3-c068-4620-80e5-0f05631feaa7",
   "persistent" : true,
-  "insertionIndex" : 1345
+  "scenarioName" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o",
+  "requiredScenarioState" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-2",
+  "insertionIndex" : 1491
 }

@@ -36,8 +36,11 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -58,6 +61,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Comparator;
@@ -445,26 +449,10 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
     // If version ID is provided, delete only that version
     if (versionId != null) {
-      String versionedKey = baseKey + ":" + versionId;
-      STORAGE.remove(versionedKey);
-      TAGS.remove(versionedKey);
-      OBJECT_LOCKS.remove(versionedKey);
-
-      // A version-specific delete can also target a delete marker; remove it from the history so
-      // callers can clean up markers surfaced by listBlobVersions.
-      List<DeleteMarker> markers = DELETE_MARKERS.get(baseKey);
-      if (markers != null) {
-        markers.removeIf(marker -> versionId.equals(marker.getVersionId()));
-        if (markers.isEmpty()) {
-          DELETE_MARKERS.remove(baseKey);
-        }
+      if (isLegalHoldActive(baseKey + ":" + versionId)) {
+        throw legalHoldPrecondition(key, versionId);
       }
-
-      // If deleting the latest version, clear the latest version tracker
-      String latestVersion = LATEST_VERSIONS.get(baseKey);
-      if (versionId.equals(latestVersion)) {
-        LATEST_VERSIONS.remove(baseKey);
-      }
+      removeVersion(baseKey, versionId);
     } else {
       // Unqualified delete: record a delete marker that becomes the newest entry for this key and
       // clear the current-version tracker so the object reads as absent. Prior content versions are
@@ -477,11 +465,68 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
   }
 
+  private void removeVersion(String baseKey, String versionId) {
+    String versionedKey = baseKey + ":" + versionId;
+    STORAGE.remove(versionedKey);
+    TAGS.remove(versionedKey);
+    OBJECT_LOCKS.remove(versionedKey);
+
+    // A version-specific delete can also target a delete marker; remove it from the history so
+    // callers can clean up markers surfaced by listBlobVersions.
+    List<DeleteMarker> markers = DELETE_MARKERS.get(baseKey);
+    if (markers != null) {
+      markers.removeIf(marker -> versionId.equals(marker.getVersionId()));
+      if (markers.isEmpty()) {
+        DELETE_MARKERS.remove(baseKey);
+      }
+    }
+
+    // If deleting the latest version, clear the latest version tracker
+    if (versionId.equals(LATEST_VERSIONS.get(baseKey))) {
+      LATEST_VERSIONS.remove(baseKey);
+    }
+  }
+
   @Override
   protected void doDelete(Collection<BlobIdentifier> objects) {
+    validateBucketExists();
+    List<ItemFailure> failures = new ArrayList<>();
+    Set<List<String>> processed = new HashSet<>();
     for (BlobIdentifier obj : objects) {
-      doDelete(obj.getKey(), obj.getVersionId());
+      String key = obj.getKey();
+      String versionId = obj.getVersionId();
+      String baseKey = getStorageKey(key);
+      if (!processed.add(Arrays.asList(baseKey, versionId))) {
+        continue;
+      }
+      if (versionId == null) {
+        doDelete(key, null);
+      } else if (isLegalHoldActive(baseKey + ":" + versionId)) {
+        failures.add(
+            new ItemFailure(
+                key,
+                legalHoldPrecondition(key, versionId),
+                Map.of(BlobIdentifier.VERSION_ID_ATTRIBUTE, versionId)));
+      } else {
+        removeVersion(baseKey, versionId);
+      }
     }
+    if (!failures.isEmpty()) {
+      throw new BatchOperationException(failures);
+    }
+  }
+
+  private static boolean isLegalHoldActive(String versionedKey) {
+    ObjectLockInfo lock = OBJECT_LOCKS.get(versionedKey);
+    return lock != null && lock.isLegalHold();
+  }
+
+  private static FailedPreconditionException legalHoldPrecondition(String key, String versionId) {
+    return new FailedPreconditionException(
+        "Blob version is under legal hold and cannot be deleted: "
+            + key
+            + " version: "
+            + versionId);
   }
 
   @Override

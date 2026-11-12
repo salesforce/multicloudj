@@ -1,0 +1,37 @@
+{
+  "id" : "aeaad961-8d90-4eb1-a247-4f6d240f40bd",
+  "name" : "AwsBlobStoreIT_testBulkVersionedDelete_perObjectFailure_legalHold-POST-4",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "delete" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Object><Key>conformance-tests/bulkDeleteByVersion/legalhold-free</Key><VersionId>FuMqmixBftqu7ueSQYfZAgT2xy.aVS5J</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/legalhold-held</Key><VersionId>eBCWrn0.3c_aTUMc4TDTbwtKZvb_c_OJ</VersionId></Object></Delete>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Deleted><Key>conformance-tests/bulkDeleteByVersion/legalhold-free</Key><VersionId>FuMqmixBftqu7ueSQYfZAgT2xy.aVS5J</VersionId></Deleted><Error><Key>conformance-tests/bulkDeleteByVersion/legalhold-held</Key><VersionId>eBCWrn0.3c_aTUMc4TDTbwtKZvb_c_OJ</VersionId><Code>AccessDenied</Code><Message>Access Denied because object protected by object lock.</Message></Error></DeleteResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "4ZQQQDDM7WBNS4YA",
+      "x-amz-id-2" : "WAjGijeIK7v+c3CvLdWe9HOxOpcOGFjR7WQor3m++3I1U5UEZIVJjG/6xX7OHo13sqb1I/3k9jw=",
+      "Date" : "Fri, 06 Nov 2026 21:55:39 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "aeaad961-8d90-4eb1-a247-4f6d240f40bd",
+  "persistent" : true,
+  "insertionIndex" : 822
+}

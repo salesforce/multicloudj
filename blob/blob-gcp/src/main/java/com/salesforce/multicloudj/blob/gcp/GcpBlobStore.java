@@ -501,7 +501,12 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected void doDelete(Collection<BlobIdentifier> objects) {
-    validateBucketExists();
+    if (objects.isEmpty()) {
+      return;
+    }
+    // Probe with a key from the batch, not the bucket root: prefix-scoped credentials can list
+    // only under their allowed prefix, and every key the caller deletes is inside that scope.
+    validateBucketExists(objects.iterator().next().getKey());
     List<BlobId> blobIds =
         objects.stream()
             .map(obj -> transformer.toBlobId(bucket, obj.getKey(), obj.getVersionId()))
@@ -956,28 +961,6 @@ public class GcpBlobStore extends AbstractBlobStore {
   }
 
   /**
-   * Validates that the bucket is accessible by attempting to list objects.
-   *
-   * Performs a lightweight probe using {@code storage.list()} with {@code pageSize(1)}.
-   * This requires only {@code storage.objects.list} IAM permission, not
-   * {@code storage.buckets.get}.
-   *
-   * @throws ResourceNotFoundException if the list operation returns HTTP 404 (bucket does not
-   *     exist or caller lacks permission to see it)
-   * @throws UnknownException if the list operation fails with any other error
-   */
-  private void validateBucketExists() {
-    try {
-      storage.list(getBucket(), Storage.BlobListOption.pageSize(1));
-    } catch (StorageException e) {
-      if (e.getCode() == 404) {
-        throw new ResourceNotFoundException("Bucket not found: " + bucket, e);
-      }
-      throw new UnknownException("Failed to check bucket existence", e);
-    }
-  }
-
-  /**
    * Validates that the bucket is accessible by attempting to list objects with a prefix filter.
    *
    * Performs a lightweight probe using {@code storage.list()} with {@code pageSize(1)} and
@@ -1349,7 +1332,10 @@ public class GcpBlobStore extends AbstractBlobStore {
 
       List<FailedBlobDownload> failed = new ArrayList<>();
       if (blobInfos.isEmpty()) {
-        return DirectoryDownloadResponse.builder().failedTransfers(failed).build();
+        return DirectoryDownloadResponse.builder()
+            .failedTransfers(failed)
+            .totalBytesTransferred(0L)
+            .build();
       }
 
       ParallelDownloadConfig.Builder downloadConfigBuilder =
@@ -1362,8 +1348,14 @@ public class GcpBlobStore extends AbstractBlobStore {
 
       DownloadJob job = transferManager.downloadBlobs(blobInfos, downloadConfigBuilder.build());
 
+      // GCS TransferManager has no per-transfer listener and DownloadResult carries no byte
+      // count, so bytes are derived from the listed object size of each successful download.
+      long succeededBytes = 0L;
       for (DownloadResult result : job.getDownloadResults()) {
-        if (result.getStatus() != TransferStatus.SUCCESS) {
+        if (result.getStatus() == TransferStatus.SUCCESS) {
+          Long size = result.getInput().getSize();
+          succeededBytes += size != null ? size : 0L;
+        } else {
           // DownloadResult#getOutputDestination() throws when status is not SUCCESS,
           // so we always compute the destination from the blob name for failed transfers.
           String name = result.getInput().getName();
@@ -1380,7 +1372,10 @@ public class GcpBlobStore extends AbstractBlobStore {
         }
       }
 
-      return DirectoryDownloadResponse.builder().failedTransfers(failed).build();
+      return DirectoryDownloadResponse.builder()
+          .failedTransfers(failed)
+          .totalBytesTransferred(succeededBytes)
+          .build();
 
     } catch (Exception e) {
       throw new SubstrateSdkException("Failed to download directory", e);

@@ -1,5 +1,5 @@
 {
-  "id" : "9dce789a-99af-416c-8d15-a6f6c445a2fc",
+  "id" : "ff80f6fc-6674-4e64-b915-8f93ae16098c",
   "name" : "AliBlobStoreIT_testBulkVersionedDelete_happyPath-GET-4",
   "request" : {
     "url" : "/conformance-tests/bulkDeleteByVersion/happy2",
@@ -12,19 +12,19 @@
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6A0F7EBD598BE132359F3380</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>conformance-tests/bulkDeleteByVersion/happy2</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6AED2C18B6DF4E3439EDFE42</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>conformance-tests/bulkDeleteByVersion/happy2</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
     "headers" : {
-      "x-oss-version-id" : "CAEQigEYgYDAj.nSr_IZIiA2Zjc3ZmEzZTE2YTM0ODRiOGE0Y2QyODgwZGQ4YjQwNw--",
-      "x-oss-request-id" : "6A0F7EBD598BE132359F3380",
-      "x-oss-server-time" : "38",
+      "x-oss-version-id" : "CAEQkiQYq_mnnYLeuY0aIiA0YmYxYzliZjJiYTg0N2Y0YjA5N2QwZjQxZDEyYTg4Mw--",
+      "x-oss-request-id" : "6AED2C18B6DF4E3439EDFE42",
+      "x-oss-server-time" : "49",
       "Server" : "AliyunOSS",
       "x-oss-ec" : "0026-00000001",
       "x-oss-delete-marker" : "true",
-      "Date" : "Thu, 21 May 2026 21:53:01 GMT",
+      "Date" : "Fri, 06 Nov 2026 01:23:36 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "9dce789a-99af-416c-8d15-a6f6c445a2fc",
+  "uuid" : "ff80f6fc-6674-4e64-b915-8f93ae16098c",
   "persistent" : true,
-  "insertionIndex" : 72
+  "insertionIndex" : 730
 }

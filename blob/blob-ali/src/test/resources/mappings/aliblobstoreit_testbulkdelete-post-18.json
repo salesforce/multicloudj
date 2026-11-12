@@ -1,5 +1,5 @@
 {
-  "id" : "b2b01991-9c1c-420d-b215-3ee6a82794dc",
+  "id" : "ddbcb25f-0ae2-4171-9188-fbb6d77debee",
   "name" : "AliBlobStoreIT_testBulkDelete-POST-18",
   "request" : {
     "urlPath" : "/",
@@ -25,19 +25,21 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToXml" : "<Delete><Quiet>true</Quiet><Object><Key>conformance-tests/blob-for-bulk-delete_happy4</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy5</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy6</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_nonexisting2</Key></Object></Delete>"
+      "equalToXml" : "<Delete><Quiet>false</Quiet><Object><Key>conformance-tests/blob-for-bulk-delete_happy4</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy5</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy6</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_nonexisting2</Key></Object></Delete>"
     } ]
   },
   "response" : {
     "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult>\n  <EncodingType>url</EncodingType>\n  <Deleted>\n    <Key>conformance-tests%2Fblob-for-bulk-delete_happy4</Key>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests%2Fblob-for-bulk-delete_happy5</Key>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests%2Fblob-for-bulk-delete_happy6</Key>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests%2Fblob-for-bulk-delete_nonexisting2</Key>\n  </Deleted>\n</DeleteResult>\n",
     "headers" : {
-      "x-oss-request-id" : "6A0F7E993D204E3830329FCA",
-      "x-oss-server-time" : "142",
+      "x-oss-request-id" : "6AED2C0226F4193637939BEC",
+      "x-oss-server-time" : "82",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 21:52:25 GMT"
+      "Date" : "Fri, 06 Nov 2026 01:23:14 GMT",
+      "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "b2b01991-9c1c-420d-b215-3ee6a82794dc",
+  "uuid" : "ddbcb25f-0ae2-4171-9188-fbb6d77debee",
   "persistent" : true,
-  "insertionIndex" : 27
+  "insertionIndex" : 712
 }

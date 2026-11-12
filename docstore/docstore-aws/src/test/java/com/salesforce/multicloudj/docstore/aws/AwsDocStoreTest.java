@@ -887,6 +887,7 @@ public class AwsDocStoreTest {
     Assertions.assertFalse(docStore.hasFilter(null, ""));
     Query query = new Query(docStore).where("field", FilterOperation.EQUAL, "value");
     Assertions.assertFalse(docStore.hasFilter(query, "data"));
+    Assertions.assertFalse(docStore.hasFilter(query, null));
     Assertions.assertTrue(docStore.hasFilter(query, "field"));
     Assertions.assertTrue(docStore.hasEqualityFilter(query, "field"));
     query.where("size", FilterOperation.LESS_THAN, "5");
@@ -1054,6 +1055,20 @@ public class AwsDocStoreTest {
     Assertions.assertNotNull(queryRunner.getScanRequest());
     Assertions.assertEquals(limit, queryRunner.getScanRequest().limit());
     Assertions.assertTrue(queryRunner.getScanRequest().consistentRead());
+
+    AwsDocStore pkOnlyStore = pkOnlyDocStoreWithTableDescription();
+    Query queryPkOnlyTable =
+        new Query(pkOnlyStore).where("title", FilterOperation.EQUAL, "value");
+    queryRunner = pkOnlyStore.planQuery(queryPkOnlyTable);
+    Assertions.assertNull(queryRunner.getScanRequest());
+    Assertions.assertNotNull(queryRunner.getQueryRequest());
+    Assertions.assertEquals(
+        "#attrtitle = :value0", queryRunner.getQueryRequest().keyConditionExpression());
+    Assertions.assertEquals(
+        Map.of("#attrtitle", "title"), queryRunner.getQueryRequest().expressionAttributeNames());
+    Assertions.assertEquals(
+        Map.of(":value0", AttributeValue.builder().s("value").build()),
+        queryRunner.getQueryRequest().expressionAttributeValues());
   }
 
   @Test
@@ -1109,6 +1124,14 @@ public class AwsDocStoreTest {
     Assertions.assertNotNull(queryable);
     Assertions.assertNotNull(queryable.getKey());
     Assertions.assertNotNull(queryable.getIndexName());
+
+    AwsDocStore pkOnlyStore = pkOnlyDocStoreWithTableDescription();
+    Query queryPkOnlyTable =
+        new Query(pkOnlyStore).where("title", FilterOperation.EQUAL, "value");
+    queryable = pkOnlyStore.getBestQueryable(queryPkOnlyTable);
+    Assertions.assertNotNull(queryable);
+    Assertions.assertNotNull(queryable.getKey());
+    Assertions.assertNull(queryable.getIndexName());
   }
 
   @Test
@@ -1151,6 +1174,18 @@ public class AwsDocStoreTest {
     Query query2 = new Query(docStore).where("GsiHashKey", FilterOperation.EQUAL, "value");
     query2.initGet(List.of("SomeAttribute1", "SomeAttribute2"));
     Assertions.assertTrue(docStore.globalFieldIncluded(query2, gsi));
+  }
+
+  private AwsDocStore pkOnlyDocStoreWithTableDescription() {
+    AwsDocStore store = pkOnlyDocStore("title", mockedDDBClient);
+    try {
+      Field field = store.getClass().getDeclaredField("tableDescription");
+      field.setAccessible(true);
+      field.set(store, tableDescription);
+    } catch (Exception e) {
+      Assertions.fail("Failed to get field.");
+    }
+    return store;
   }
 
   private AwsDocStore pkOnlyDocStore(String pk, DynamoDbClient ddb) {
