@@ -131,7 +131,6 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -1714,7 +1713,6 @@ public class GcpBlobStore extends AbstractBlobStore {
     private MultipartUploadClient mpuClient;
     private TransferManager transferManager;
     private GcpTransformerSupplier transformerSupplier = new GcpTransformerSupplier();
-    @Getter(AccessLevel.NONE)
     private List<CloseableHttpClient> ownedHttpClients = new ArrayList<>();
 
     public Builder() {
