@@ -224,8 +224,6 @@ Every header listed in the signature must be present when the request is replaye
 
 #### Signing endpoint
 
-Requires multicloudj 0.4.16 or later.
-
 By default the signer uses the provider's regional endpoint. Use `withEndpoint` to sign for a different one, such as the AWS global, FIPS, or China-partition STS endpoint:
 
 ```java
@@ -278,7 +276,6 @@ The signing and validation APIs are identical across providers, but the mechanis
 - The verifier **replays** the presigned request against AWS STS to validate the SigV4 signature and parse the returned identity, so it requires outbound network access to AWS STS. The default AWS credential chain must resolve for the caller producing the signature.
 - Before replaying, the verifier requires an `https` scheme and confirms the host is a genuine AWS STS endpoint (`sts.amazonaws.com`, regional `sts.<region>.amazonaws.com`, FIPS variants, and the China partition `.amazonaws.com.cn`). A crafted `signedIdentity` cannot redirect the replay to an attacker-controlled server.
 - A region is required to sign.
-- The custom header rules below and the [Replacing a SigV4 signer](#replacing-a-sigv4-signer) recipe require multicloudj 0.4.16 or later.
 - Custom headers are canonicalized the way SigV4 requires before they are signed:
   - Names are lowercased. Two names that are equal after lowercasing are rejected.
   - Values are trimmed and runs of whitespace are collapsed to a single space. The value sent is the value signed.
