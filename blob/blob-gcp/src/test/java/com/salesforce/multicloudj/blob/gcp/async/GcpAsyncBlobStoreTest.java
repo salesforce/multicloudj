@@ -1,22 +1,28 @@
 package com.salesforce.multicloudj.blob.gcp.async;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.MultipartUploadClient;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.transfermanager.TransferManager;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
@@ -64,6 +70,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -928,5 +935,97 @@ class GcpAsyncBlobStoreTest {
     // Then - Verify providerId is GCP (not overridden by copyFrom)
     assertEquals(GcpConstants.PROVIDER_ID, asyncBlobStore.getProviderId());
     assertEquals(GcpConstants.PROVIDER_ID, asyncBlobStore.getBlobStore().getProviderId());
+  }
+
+  private GcpBlobStore realGcpBlobStore(Storage storage, TransferManager transferManager) {
+    GcpBlobStore.Builder builder = new GcpBlobStore.Builder();
+    builder.withBucket(TEST_BUCKET);
+    return new GcpBlobStore(
+        builder,
+        storage,
+        mock(MultipartUploadClient.class),
+        transferManager);
+  }
+
+  @Test
+  void testCloseClosesWrappedStoreAndDirectStorage() throws Exception {
+    gcpAsyncBlobStore.close();
+
+    verify(mockBlobStore).close();
+    verify(mockStorage).close();
+  }
+
+  @Test
+  void testCloseReleasesWrappedTransferManagerWithSharedStorage() throws Exception {
+    TransferManager transferManager = mock(TransferManager.class);
+    GcpBlobStore wrapped = realGcpBlobStore(mockStorage, transferManager);
+    GcpAsyncBlobStore asyncStore =
+        new GcpAsyncBlobStore(wrapped, executorService, mockStorage, mockTransformerSupplier);
+
+    assertDoesNotThrow(asyncStore::close);
+
+    verify(transferManager).close();
+    verify(mockStorage, atLeastOnce()).close();
+  }
+
+  @Test
+  void testCloseClosesDirectStorageNotOwnedByWrappedStore() throws Exception {
+    Storage wrappedStorage = mock(Storage.class);
+    TransferManager transferManager = mock(TransferManager.class);
+    GcpBlobStore wrapped = realGcpBlobStore(wrappedStorage, transferManager);
+    GcpAsyncBlobStore asyncStore =
+        new GcpAsyncBlobStore(wrapped, executorService, mockStorage, mockTransformerSupplier);
+
+    asyncStore.close();
+
+    verify(transferManager).close();
+    verify(wrappedStorage).close();
+    verify(mockStorage).close();
+  }
+
+  @Test
+  void testCloseStillClosesDirectStorageWhenWrappedCloseFails() throws Exception {
+    SubstrateSdkException wrappedFailure = new SubstrateSdkException("wrapped close failed");
+    RuntimeException storageFailure = new RuntimeException("storage close failed");
+    doThrow(wrappedFailure).when(mockBlobStore).close();
+    doThrow(storageFailure).when(mockStorage).close();
+
+    SubstrateSdkException thrown =
+        assertThrows(SubstrateSdkException.class, () -> gcpAsyncBlobStore.close());
+
+    assertSame(wrappedFailure, thrown);
+    assertArrayEquals(new Throwable[] {storageFailure}, thrown.getSuppressed());
+    verify(mockStorage).close();
+  }
+
+  @Test
+  void testCloseWrapsDirectStorageFailure() throws Exception {
+    Exception storageFailure = new Exception("storage close failed");
+    doThrow(storageFailure).when(mockStorage).close();
+
+    SubstrateSdkException thrown =
+        assertThrows(SubstrateSdkException.class, () -> gcpAsyncBlobStore.close());
+
+    assertSame(storageFailure, thrown.getCause());
+    verify(mockBlobStore).close();
+  }
+
+  @Test
+  void testRepeatedCloseDoesNotThrow() throws Exception {
+    gcpAsyncBlobStore.close();
+
+    assertDoesNotThrow(gcpAsyncBlobStore::close);
+  }
+
+  @Test
+  void testCloseLeavesSuppliedExecutorAndCommonPoolUsable() throws Exception {
+    gcpAsyncBlobStore.close();
+    new GcpAsyncBlobStore(mockBlobStore, null, mockStorage, mockTransformerSupplier).close();
+
+    assertFalse(executorService.isShutdown());
+    assertEquals(1, executorService.submit(() -> 1).get(5, TimeUnit.SECONDS));
+    assertEquals(
+        1,
+        CompletableFuture.supplyAsync(() -> 1, ForkJoinPool.commonPool()).get(5, TimeUnit.SECONDS));
   }
 }
