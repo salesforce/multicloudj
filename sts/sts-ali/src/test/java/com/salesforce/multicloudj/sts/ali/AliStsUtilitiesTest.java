@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.sts.ali;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.sts.client.StsUtilities;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -80,5 +81,97 @@ class AliStsUtilitiesTest {
     StsUtilities stsUtil = StsUtilities.builder("ali").withRegion(region).build();
     Assertions.assertThrows(
         UnAuthorizedException.class, () -> stsUtil.newCloudNativeAuthSignedRequest(fakeRequest));
+  }
+
+  @Test
+  void endpointOverrideSetsSigningDomain() {
+    StsUtilities stsUtil = endpointSigner("https://sts.cn-hangzhou.aliyuncs.com");
+
+    SignedAuthRequest signed = stsUtil.newCloudNativeAuthSignedRequest(null);
+
+    Assertions.assertEquals(
+        "sts.cn-hangzhou.aliyuncs.com", URI.create(signed.getSignedIdentity()).getHost());
+    Assertions.assertEquals("sts.cn-hangzhou.aliyuncs.com", signed.getRequest().uri().getHost());
+  }
+
+  @Test
+  void endpointOverrideWithRootPathIsAccepted() {
+    SignedAuthRequest signed =
+        endpointSigner("https://sts.aliyuncs.com/").newCloudNativeAuthSignedRequest(null);
+
+    Assertions.assertEquals("sts.aliyuncs.com", URI.create(signed.getSignedIdentity()).getHost());
+  }
+
+  @Test
+  void stsEndpointHostsAreAccepted() {
+    for (String endpoint :
+        new String[] {
+          "https://sts.aliyuncs.com",
+          "https://sts.cn-hangzhou.aliyuncs.com",
+          "https://sts-vpc.cn-hangzhou.aliyuncs.com",
+          "https://STS.AP-SOUTHEAST-1.ALIYUNCS.COM"
+        }) {
+      Assertions.assertDoesNotThrow(() -> endpointSigner(endpoint), endpoint);
+    }
+  }
+
+  @Test
+  void nonStsEndpointHostIsRejectedAtBuild() {
+    for (String endpoint :
+        new String[] {
+          "https://sts.example.com",
+          "https://ecs.cn-hangzhou.aliyuncs.com",
+          "https://sts.aliyuncs.com.evil.com",
+          "https://evil.com"
+        }) {
+      InvalidArgumentException e =
+          Assertions.assertThrows(
+              InvalidArgumentException.class, () -> endpointSigner(endpoint), endpoint);
+      Assertions.assertTrue(
+          e.getMessage().contains("not an Alibaba Cloud STS endpoint"), e.getMessage());
+    }
+  }
+
+  @Test
+  void noEndpointKeepsRegionalDefault() {
+    StsUtilities stsUtil = endpointSigner(null);
+
+    SignedAuthRequest signed = stsUtil.newCloudNativeAuthSignedRequest(null);
+
+    Assertions.assertEquals(
+        "sts.cn-shanghai.aliyuncs.com", URI.create(signed.getSignedIdentity()).getHost());
+  }
+
+  @Test
+  void endpointWithPathQueryFragmentOrHttpIsRejected() {
+    for (String endpoint :
+        new String[] {
+          "https://sts.example.com/proxy",
+          "https://sts.example.com/?a=b",
+          "https://sts.example.com/#frag",
+          "https://sts.example.com?a=b",
+          "http://sts.example.com",
+          "http://sts.example.com:443"
+        }) {
+      StsUtilities.StsUtilityBuilder builder = StsUtilities.builder("ali");
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> builder.withEndpoint(URI.create(endpoint)),
+          endpoint);
+    }
+  }
+
+  private static StsUtilities endpointSigner(String endpoint) {
+    StsUtilities.StsUtilityBuilder builder =
+        StsUtilities.builder("ali")
+            .withRegion("cn-shanghai")
+            .withCredentialsOverrider(
+                new CredentialsOverrider.Builder(CredentialsType.SESSION)
+                    .withSessionCredentials(credentials)
+                    .build());
+    if (endpoint != null) {
+      builder.withEndpoint(URI.create(endpoint));
+    }
+    return builder.build();
   }
 }

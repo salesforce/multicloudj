@@ -34,6 +34,7 @@ import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.math.BigInteger;
+import java.net.URI;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPublicKey;
@@ -67,6 +68,53 @@ class GcpStsUtilitiesTest {
   void builderAndDefaultBuildProduceGcpUtilities() {
     Assertions.assertEquals("gcp", new GcpStsUtilities().builder().build().getProviderId());
     Assertions.assertEquals("gcp", new GcpStsUtilities.Builder().build().getProviderId());
+  }
+
+  @Test
+  void endpointOverrideSetsIamCredentialsEndpoint() throws Exception {
+    GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+    builder.withEndpoint(URI.create("https://iamcredentials.example.com"));
+    GoogleCredentials creds = Mockito.mock(GoogleCredentials.class);
+
+    IamCredentialsSettings settings = builder.build().iamCredentialsSettings(creds);
+
+    Assertions.assertEquals("iamcredentials.example.com:443", settings.getEndpoint());
+  }
+
+  @Test
+  void endpointWithPathQueryFragmentOrHttpIsRejected() {
+    for (String endpoint :
+        new String[] {
+          "https://h/proxy", "https://h/?a=b", "https://h?a=b", "https://h/#frag", "http://h"
+        }) {
+      GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> builder.withEndpoint(URI.create(endpoint)),
+          endpoint);
+    }
+  }
+
+  @Test
+  void endpointWithRootPathIsAccepted() throws Exception {
+    GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+    builder.withEndpoint(URI.create("https://iamcredentials.example.com/"));
+
+    IamCredentialsSettings settings =
+        builder.build().iamCredentialsSettings(Mockito.mock(GoogleCredentials.class));
+
+    Assertions.assertEquals("iamcredentials.example.com:443", settings.getEndpoint());
+  }
+
+  @Test
+  void noEndpointKeepsDefaultIamCredentialsEndpoint() throws Exception {
+    GoogleCredentials creds = Mockito.mock(GoogleCredentials.class);
+
+    IamCredentialsSettings settings = new GcpStsUtilities().iamCredentialsSettings(creds);
+
+    Assertions.assertEquals(
+        IamCredentialsSettings.getDefaultEndpoint(), settings.getEndpoint());
   }
 
   @Test

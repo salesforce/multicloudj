@@ -60,7 +60,9 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.ByteArrayOutputStream;
@@ -409,11 +411,24 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   @Override
   protected CompletableFuture<Void> doDelete(
       Collection<BlobIdentifier> objects) {
+    return deleteChunk(objects).thenAccept(failures -> {
+      if (!failures.isEmpty()) {
+        throw new BatchOperationException(failures);
+      }
+    });
+  }
+
+  /**
+   * Deletes one batch of objects and resolves to its per-object failures. Resolves to an empty
+   * list when every object was confirmed deleted; fails only on a request-level error.
+   */
+  private CompletableFuture<List<ItemFailure>> deleteChunk(
+      Collection<BlobIdentifier> objects) {
     DeleteMultipleObjectsRequest request =
         transformer.toDeleteMultipleObjectsRequest(objects);
     return asyncClient
         .deleteMultipleObjectsAsync(request, OperationOptions.defaults())
-        .thenAccept(result -> {});
+        .thenApply(result -> transformer.toBatchDeleteFailures(objects, result));
   }
 
   @Override
@@ -910,7 +925,9 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
 
   @Override
   protected CompletableFuture<Void> doDeleteDirectory(String prefix) {
-    List<CompletableFuture<Void>> futures =
+    // Chunk order is preserved so the combined failures are deterministic regardless of the order
+    // in which the chunk deletes complete.
+    List<CompletableFuture<List<ItemFailure>>> deletes =
         Collections.synchronizedList(new ArrayList<>());
 
     Consumer<ListBlobsBatch> consumer =
@@ -918,14 +935,28 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
           List<List<BlobInfo>> partitionedBlobLists =
               transformer.partitionList(batch.getBlobs(), MAX_OBJECTS_PER_DELETE);
           for (List<BlobInfo> blobList : partitionedBlobLists) {
-            futures.add(doDelete(transformer.toBlobIdentifiers(blobList)));
+            deletes.add(deleteChunk(transformer.toBlobIdentifiers(blobList)));
           }
         };
-    CompletableFuture<Void> listFuture =
-        doList(ListBlobsRequest.builder().withPrefix(prefix).build(), consumer);
-    futures.add(listFuture);
-    return listFuture.thenCompose(v ->
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])));
+    // The full set of deletes is only known once listing completes. A request-level failure in
+    // any chunk fails allOf and so takes precedence over per-object failures from other chunks.
+    return doList(ListBlobsRequest.builder().withPrefix(prefix).build(), consumer)
+        .thenCompose(
+            ignored -> {
+              CompletableFuture<?>[] pending;
+              synchronized (deletes) {
+                pending = deletes.toArray(new CompletableFuture<?>[0]);
+              }
+              return CompletableFuture.allOf(pending);
+            })
+        .thenAccept(
+            ignored -> {
+              List<ItemFailure> failures = new ArrayList<>();
+              deletes.forEach(delete -> failures.addAll(delete.join()));
+              if (!failures.isEmpty()) {
+                throw new BatchOperationException(failures);
+              }
+            });
   }
 
   public static Builder builder() {

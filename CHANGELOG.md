@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.15](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.14...multicloudj-v0.4.15) (2026-11-07)
+
+
+### Blob Store
+
+* re-record GCP legal-hold bulk delete conformance fixture ([#753](https://github.com/salesforce/multicloudj/issues/753)) ([74697ef](https://github.com/salesforce/multicloudj/commit/74697ef806f25b4904d9d022d8888f5ad94fe676))
+* report per-object failures in Alibaba batch delete ([#743](https://github.com/salesforce/multicloudj/issues/743)) ([91480ab](https://github.com/salesforce/multicloudj/commit/91480abde5600e4450536ae90acb99ae5a2a553d))
+* scope GCP batch delete bucket check to a key prefix ([#744](https://github.com/salesforce/multicloudj/issues/744)) ([6c81ca0](https://github.com/salesforce/multicloudj/commit/6c81ca02f7d6b8a3f05da6874979b7711aa9118f))
+
 ## [0.4.14](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.13...multicloudj-v0.4.14) (2026-11-05)
 
 

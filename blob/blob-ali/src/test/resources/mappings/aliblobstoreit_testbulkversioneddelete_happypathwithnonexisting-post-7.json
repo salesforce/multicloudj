@@ -1,5 +1,5 @@
 {
-  "id" : "45a30637-1f9b-4171-8bda-64eeae0e39ac",
+  "id" : "41e3f6d3-6f2a-4f8f-acc8-5edbd5da96e4",
   "name" : "AliBlobStoreIT_testBulkVersionedDelete_happyPathWithNonExisting-POST-7",
   "request" : {
     "urlPath" : "/",
@@ -25,19 +25,21 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToXml" : "<Delete><Quiet>true</Quiet><Object><Key>conformance-tests/bulkDeleteByVersion/happy4</Key><VersionId>CAEQigEYgYDAxKmTsvIZIiBhYjliNjRmYWQwOWQ0OTdhYjQ3ZTY3NDQ4NDMxMDhlMA--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy5</Key><VersionId>CAEQigEYgYCAsqyTsvIZIiBjY2I5ZjQ5OTZiN2Q0ZGRmYjEyOGY5NTA2OTc4ZGFhNA--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy6</Key><VersionId>CAEQigEYgYCAuK.TsvIZIiBjYzRhYzkxMzMyOTg0OGZmOTMxZjQ4N2NiNGRjMjVkOQ--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/nonexisting2</Key></Object></Delete>"
+      "equalToXml" : "<Delete><Quiet>false</Quiet><Object><Key>conformance-tests/bulkDeleteByVersion/happy4</Key><VersionId>CAEQkiQY_5WLtM7puY0aIiBkYWNkNjIwZGQyMmU0ODZkOWM0N2JmMTFlNWIxMzhhNg--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy5</Key><VersionId>CAEQkiQYoMCxw9HpuY0aIiA5NTUwMjljZDFiMDI0NTAyODk1MTYyMzFiYjVkYjYwMA--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy6</Key><VersionId>CAEQkiQY1qnHhNfpuY0aIiBmNWU3NzE5NDBlYmI0ZDFmYTZmYTk4ZDZhNmJhNGRiZA--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/nonexisting2</Key></Object></Delete>"
     } ]
   },
   "response" : {
     "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult>\n  <EncodingType>url</EncodingType>\n  <Deleted>\n    <Key>conformance-tests%2FbulkDeleteByVersion%2Fhappy4</Key>\n    <VersionId>CAEQkiQY_5WLtM7puY0aIiBkYWNkNjIwZGQyMmU0ODZkOWM0N2JmMTFlNWIxMzhhNg--</VersionId>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests%2FbulkDeleteByVersion%2Fhappy5</Key>\n    <VersionId>CAEQkiQYoMCxw9HpuY0aIiA5NTUwMjljZDFiMDI0NTAyODk1MTYyMzFiYjVkYjYwMA--</VersionId>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests%2FbulkDeleteByVersion%2Fhappy6</Key>\n    <VersionId>CAEQkiQY1qnHhNfpuY0aIiBmNWU3NzE5NDBlYmI0ZDFmYTZmYTk4ZDZhNmJhNGRiZA--</VersionId>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests%2FbulkDeleteByVersion%2Fnonexisting2</Key>\n    <DeleteMarker>true</DeleteMarker>\n    <DeleteMarkerVersionId>CAEQkiQYlPyWoNrpuY0aIiBkN2Q3YzIyNDA1YWY0MmMzOTE4MzVhYjkyZjFmZTBiZg--</DeleteMarkerVersionId>\n  </Deleted>\n</DeleteResult>\n",
     "headers" : {
-      "x-oss-request-id" : "6A0F7F69EB205735324EC2C3",
-      "x-oss-server-time" : "22",
+      "x-oss-request-id" : "6AED2C4085ECD630343429A1",
+      "x-oss-server-time" : "43",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 21:55:53 GMT"
+      "Date" : "Fri, 06 Nov 2026 01:24:16 GMT",
+      "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "45a30637-1f9b-4171-8bda-64eeae0e39ac",
+  "uuid" : "41e3f6d3-6f2a-4f8f-acc8-5edbd5da96e4",
   "persistent" : true,
-  "insertionIndex" : 352
+  "insertionIndex" : 781
 }

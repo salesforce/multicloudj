@@ -3,6 +3,8 @@ package com.salesforce.multicloudj.blob.ali.async;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -31,6 +33,7 @@ import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsResult;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectResult;
+import com.aliyun.sdk.service.oss2.models.DeletedInfo;
 import com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectResult;
@@ -88,6 +91,8 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -106,6 +111,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -395,7 +402,7 @@ public class AliAsyncBlobStoreTest {
   @Test
   void testDeleteMultipleObjects() throws Exception {
     DeleteMultipleObjectsResult mockResult =
-        mock(DeleteMultipleObjectsResult.class);
+        deleteResultOf(deletedInfo("key1", null), deletedInfo("key2", "v1"));
     when(mockAsyncClient.deleteMultipleObjectsAsync(
         any(DeleteMultipleObjectsRequest.class),
         any(OperationOptions.class)))
@@ -405,6 +412,63 @@ public class AliAsyncBlobStoreTest {
         new BlobIdentifier("key1", null),
         new BlobIdentifier("key2", "v1"));
     store.delete(objects).get();
+  }
+
+  @Test
+  void testDeleteMultipleObjectsReportsPerObjectFailures() {
+    DeleteMultipleObjectsResult mockResult = deleteResultOf(deletedInfo("key1", null));
+    when(mockAsyncClient.deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    List<BlobIdentifier> objects = List.of(
+        new BlobIdentifier("key1", null),
+        new BlobIdentifier("held", "v1"),
+        new BlobIdentifier("denied", null));
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.delete(objects).get());
+
+    BatchOperationException batch =
+        assertInstanceOf(BatchOperationException.class, ex.getCause());
+    assertEquals(List.of("held", "denied"), failedKeys(batch.getFailures()));
+    assertEquals(Map.of(BlobIdentifier.VERSION_ID_ATTRIBUTE, "v1"),
+        batch.getFailures().get(0).getAttributes());
+    assertTrue(batch.getFailures().get(1).getAttributes().isEmpty());
+  }
+
+  private static DeletedInfo deletedInfo(String key, String versionId) {
+    return DeletedInfo.newBuilder().key(key).versionId(versionId).build();
+  }
+
+  private static DeleteMultipleObjectsResult deleteResultOf(DeletedInfo... deleted) {
+    return deleteResultOf(List.of(deleted));
+  }
+
+  private static DeleteMultipleObjectsResult deleteResultOf(List<DeletedInfo> deleted) {
+    DeleteMultipleObjectsResult result = mock(DeleteMultipleObjectsResult.class);
+    when(result.deletedObjects()).thenReturn(deleted);
+    return result;
+  }
+
+  private static List<String> failedKeys(List<ItemFailure> failures) {
+    return failures.stream().map(ItemFailure::getItemId).collect(Collectors.toList());
+  }
+
+  private static ListObjectsV2Result listResultOf(String keyPrefix, int from, int to,
+      String nextToken) {
+    List<ObjectSummary> contents = new ArrayList<>();
+    for (int i = from; i < to; i++) {
+      ObjectSummary summary = mock(ObjectSummary.class);
+      when(summary.key()).thenReturn(keyPrefix + i);
+      contents.add(summary);
+    }
+    ListObjectsV2Result result = mock(ListObjectsV2Result.class);
+    when(result.contents()).thenReturn(contents);
+    when(result.commonPrefixes()).thenReturn(null);
+    when(result.isTruncated()).thenReturn(nextToken != null);
+    when(result.nextContinuationToken()).thenReturn(nextToken);
+    return result;
   }
 
   @Test
@@ -1824,7 +1888,7 @@ public class AliAsyncBlobStoreTest {
         .thenReturn(CompletableFuture.completedFuture(listResult));
 
     DeleteMultipleObjectsResult deleteResult =
-        mock(DeleteMultipleObjectsResult.class);
+        deleteResultOf(deletedInfo("dir/file1.txt", null), deletedInfo("dir/file2.txt", null));
     when(mockAsyncClient.deleteMultipleObjectsAsync(
         any(DeleteMultipleObjectsRequest.class),
         any(OperationOptions.class)))
@@ -1879,12 +1943,14 @@ public class AliAsyncBlobStoreTest {
         .thenReturn(CompletableFuture.completedFuture(firstPage))
         .thenReturn(CompletableFuture.completedFuture(secondPage));
 
-    DeleteMultipleObjectsResult deleteResult =
-        mock(DeleteMultipleObjectsResult.class);
+    DeleteMultipleObjectsResult firstDeleted = deleteResultOf(deletedInfo("dir/page1.txt", null));
+    DeleteMultipleObjectsResult secondDeleted = deleteResultOf(deletedInfo("dir/page2.txt", null));
     when(mockAsyncClient.deleteMultipleObjectsAsync(
         any(DeleteMultipleObjectsRequest.class),
         any(OperationOptions.class)))
-        .thenReturn(CompletableFuture.completedFuture(deleteResult));
+        .thenReturn(
+            CompletableFuture.completedFuture(firstDeleted),
+            CompletableFuture.completedFuture(secondDeleted));
 
     store.deleteDirectory("dir/").get();
 
@@ -1954,6 +2020,93 @@ public class AliAsyncBlobStoreTest {
     ExecutionException ex = assertThrows(ExecutionException.class,
         () -> store.deleteDirectory("dir/").get());
     assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testDeleteDirectoryReportsFailuresFromEveryChunkInChunkOrder() throws Exception {
+    ListObjectsV2Result firstPage = listResultOf("dir/f", 0, 1500, "token1");
+    ListObjectsV2Result secondPage = listResultOf("dir/f", 1500, 2200, null);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(
+            CompletableFuture.completedFuture(firstPage),
+            CompletableFuture.completedFuture(secondPage));
+
+    List<CompletableFuture<DeleteMultipleObjectsResult>> chunkFutures = new ArrayList<>();
+    when(mockAsyncClient.deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class), any(OperationOptions.class)))
+        .thenAnswer(invocation -> {
+          CompletableFuture<DeleteMultipleObjectsResult> future = new CompletableFuture<>();
+          chunkFutures.add(future);
+          return future;
+        });
+
+    CompletableFuture<Void> deletion = store.deleteDirectory("dir/");
+
+    // Pages of 1500 and 700 objects partition into chunks of 1000, 500 and 700.
+    assertEquals(3, chunkFutures.size());
+    assertFalse(deletion.isDone());
+
+    // The last chunk completes first, and only reports a failure for its own object.
+    chunkFutures.get(2).complete(deleteResultOf(
+        IntStream.range(1500, 2200)
+            .filter(i -> i != 2100)
+            .mapToObj(i -> deletedInfo("dir/f" + i, null))
+            .collect(Collectors.toList())));
+    assertFalse(deletion.isDone());
+    chunkFutures.get(1).complete(deleteResultOf(
+        IntStream.range(1000, 1500)
+            .filter(i -> i != 1200)
+            .mapToObj(i -> deletedInfo("dir/f" + i, null))
+            .collect(Collectors.toList())));
+    chunkFutures.get(0).complete(deleteResultOf(
+        IntStream.range(0, 1000)
+            .filter(i -> i != 5 && i != 6)
+            .mapToObj(i -> deletedInfo("dir/f" + i, null))
+            .collect(Collectors.toList())));
+
+    ExecutionException ex = assertThrows(ExecutionException.class, deletion::get);
+    BatchOperationException batch =
+        assertInstanceOf(BatchOperationException.class, ex.getCause());
+    assertEquals(List.of("dir/f5", "dir/f6", "dir/f1200", "dir/f2100"),
+        failedKeys(batch.getFailures()));
+  }
+
+  @Test
+  void testDeleteDirectoryRequestLevelFailureTakesPrecedenceOverPerObjectFailures() {
+    ListObjectsV2Result page = listResultOf("dir/f", 0, 2500, null);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(page));
+
+    RuntimeException requestFailure = new RuntimeException("request rejected");
+    DeleteMultipleObjectsResult noneDeleted = deleteResultOf();
+    when(mockAsyncClient.deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class), any(OperationOptions.class)))
+        .thenReturn(
+            CompletableFuture.completedFuture(noneDeleted),
+            CompletableFuture.failedFuture(requestFailure),
+            CompletableFuture.completedFuture(noneDeleted));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.deleteDirectory("dir/").get());
+
+    assertEquals(requestFailure, ex.getCause());
+  }
+
+  @Test
+  void testDeleteDirectoryCompletesWhenAllObjectsDeleted() throws Exception {
+    ListObjectsV2Result page = listResultOf("dir/f", 0, 3, null);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(page));
+    DeleteMultipleObjectsResult allDeleted = deleteResultOf(
+        deletedInfo("dir/f0", null), deletedInfo("dir/f1", null), deletedInfo("dir/f2", null));
+    when(mockAsyncClient.deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(allDeleted));
+
+    store.deleteDirectory("dir/").get();
   }
 
   @Test

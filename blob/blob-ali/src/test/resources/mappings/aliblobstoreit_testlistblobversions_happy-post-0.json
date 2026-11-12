@@ -1,5 +1,5 @@
 {
-  "id" : "ac145611-1664-4378-863f-2ce36828c925",
+  "id" : "2193a8ef-72ca-4f63-be82-8c9890414728",
   "name" : "AliBlobStoreIT_testListBlobVersions_happy-POST-0",
   "request" : {
     "urlPath" : "/",
@@ -25,19 +25,21 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToXml" : "<Delete><Quiet>true</Quiet><Object><Key>conformance-tests/list-object-versions/exact-three-versions-blob</Key><VersionId>CAEQ6wYYiZflyrmH1fMZIiA3OGU0ZTQyNDNhYmE0NTMyYWM2ZjA2MDZhMzAzODI0ZA--</VersionId></Object><Object><Key>conformance-tests/list-object-versions/exact-three-versions-blob</Key><VersionId>CAEQ6wYYnJjqtbaH1fMZIiBjNDQxODFlZGU0OGQ0YjIwODEzZDU5NWNjMjI2MzI4OA--</VersionId></Object><Object><Key>conformance-tests/list-object-versions/exact-three-versions-blob</Key><VersionId>CAEQ6wYYo8S6kLOH1fMZIiA5NjcyNzg0Yjc5ODk0OTNjODQyNzRhNTE4OWZmY2Y0NA--</VersionId></Object></Delete>"
+      "equalToXml" : "<Delete><Quiet>false</Quiet><Object><Key>conformance-tests/list-object-versions/exact-three-versions-blob</Key><VersionId>CAEQkiQY.q2Bmo3puY0aIiA3ZGRhMmRhMTU2M2M0MWU2OWYzOGQ2ODA3MWI2MmMyOA--</VersionId></Object><Object><Key>conformance-tests/list-object-versions/exact-three-versions-blob</Key><VersionId>CAEQkiQYgZ_8l4XpuY0aIiBiMmIxMWRiY2UxOWM0NWViODczZjIwNGJmYmZiMzZlMA--</VersionId></Object><Object><Key>conformance-tests/list-object-versions/exact-three-versions-blob</Key><VersionId>CAEQkiQY3cC73YHpuY0aIiA0NTFkOWE4NmUzN2M0M2VkYWRmNDIyNDlmYzk3YTYxMA--</VersionId></Object></Delete>"
     } ]
   },
   "response" : {
     "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult>\n  <EncodingType>url</EncodingType>\n  <Deleted>\n    <Key>conformance-tests%2Flist-object-versions%2Fexact-three-versions-blob</Key>\n    <VersionId>CAEQkiQY.q2Bmo3puY0aIiA3ZGRhMmRhMTU2M2M0MWU2OWYzOGQ2ODA3MWI2MmMyOA--</VersionId>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests%2Flist-object-versions%2Fexact-three-versions-blob</Key>\n    <VersionId>CAEQkiQYgZ_8l4XpuY0aIiBiMmIxMWRiY2UxOWM0NWViODczZjIwNGJmYmZiMzZlMA--</VersionId>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests%2Flist-object-versions%2Fexact-three-versions-blob</Key>\n    <VersionId>CAEQkiQY3cC73YHpuY0aIiA0NTFkOWE4NmUzN2M0M2VkYWRmNDIyNDlmYzk3YTYxMA--</VersionId>\n  </Deleted>\n</DeleteResult>\n",
     "headers" : {
-      "x-oss-request-id" : "6A19EC7EDA12F9393995097E",
-      "x-oss-server-time" : "58",
+      "x-oss-request-id" : "6AED2C311017793836F13828",
+      "x-oss-server-time" : "49",
       "Server" : "AliyunOSS",
-      "Date" : "Fri, 29 May 2026 19:43:58 GMT"
+      "Date" : "Fri, 06 Nov 2026 01:24:01 GMT",
+      "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "ac145611-1664-4378-863f-2ce36828c925",
+  "uuid" : "2193a8ef-72ca-4f63-be82-8c9890414728",
   "persistent" : true,
-  "insertionIndex" : 769
+  "insertionIndex" : 752
 }

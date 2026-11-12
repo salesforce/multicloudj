@@ -1,5 +1,5 @@
 {
-  "id" : "2655f88e-4cf2-4351-a709-115cc1e4e42d",
+  "id" : "387ed6eb-8516-42cf-a8f9-ec2afa751248",
   "name" : "AliBlobStoreIT_testBulkDelete-DELETE-6",
   "request" : {
     "url" : "/conformance-tests/blob-for-bulk-delete_happy2",
@@ -13,13 +13,13 @@
   "response" : {
     "status" : 204,
     "headers" : {
-      "x-oss-request-id" : "6A0F7EA224FA4D33360C0704",
-      "x-oss-server-time" : "39",
+      "x-oss-request-id" : "6AED2C0CF40CB634366CABFC",
+      "x-oss-server-time" : "35",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 21:52:34 GMT"
+      "Date" : "Fri, 06 Nov 2026 01:23:24 GMT"
     }
   },
-  "uuid" : "2655f88e-4cf2-4351-a709-115cc1e4e42d",
+  "uuid" : "387ed6eb-8516-42cf-a8f9-ec2afa751248",
   "persistent" : true,
-  "insertionIndex" : 15
+  "insertionIndex" : 700
 }

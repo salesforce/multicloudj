@@ -140,10 +140,15 @@ public class AwsStsVerifier extends AbstractStsVerifier {
           "signed identity must target an https STS endpoint, got scheme: " + scheme);
     }
     String host = identityUri.getHost();
-    if (host == null || !STS_HOST_PATTERN.matcher(host.toLowerCase(Locale.ROOT)).matches()) {
+    if (!isStsHost(host)) {
       throw new UnAuthorizedException(
           "signed identity does not target a recognized AWS STS endpoint: " + host);
     }
+  }
+
+  /** Returns whether {@code host} is a genuine AWS STS endpoint host. The signer uses it too. */
+  static boolean isStsHost(String host) {
+    return host != null && STS_HOST_PATTERN.matcher(host.toLowerCase(Locale.ROOT)).matches();
   }
 
   private static void verifyExpectedCustomHeaders(
@@ -152,12 +157,16 @@ public class AwsStsVerifier extends AbstractStsVerifier {
       return;
     }
     for (Map.Entry<String, String> expected : options.getExpectedCustomHeaders().entrySet()) {
-      String actual = params.get(expected.getKey());
+      // The signer lowercases header names, as SigV4 requires, so look the expected name up the
+      // same way.
+      String actual = params.get(expected.getKey().toLowerCase(Locale.ROOT));
       if (actual == null) {
         throw new InvalidArgumentException(
             "expected custom header \"" + expected.getKey() + "\" not found in signed request");
       }
-      if (!actual.equals(expected.getValue())) {
+      // The signer normalizes header values as SigV4 does, so compare the normalized forms.
+      if (!AwsStsUtilities.canonicalHeaderValue(actual)
+          .equals(AwsStsUtilities.canonicalHeaderValue(expected.getValue()))) {
         throw new InvalidArgumentException(
             "custom header \"" + expected.getKey() + "\" has an unexpected value");
       }

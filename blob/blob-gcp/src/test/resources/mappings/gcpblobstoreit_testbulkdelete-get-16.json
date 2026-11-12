@@ -1,5 +1,5 @@
 {
-  "id" : "05e0dc93-5c6b-4ba2-b4a6-204504505357",
+  "id" : "b4d3e1dc-f53e-4635-b753-0ccbbed4daca",
   "name" : "GcpBlobStoreIT_testBulkDelete-GET-16",
   "request" : {
     "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-bulk-delete_happy8",
@@ -24,16 +24,16 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AFy3sg0SFQ3KqPmzqG3WtbvENmU_Wad6SDqjXCYalvvTuiag5zNfx5cQMPMr8N7ayOnZMqQqiWFo0Q",
+      "X-GUploader-UploadID" : "AFy3sg0pk1XIKwaATGU2laL-4oP7B3dCuaY-J0dMkW6SjY38zde8nCIaWh5oEaERCD4-7cm5rWVbtNENjSX5lQ",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "X-Goog-Gcs-Base-Ts" : "1a1a7ecae57",
-      "Date" : "Wed, 04 Nov 2026 18:57:48 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a1b2ea8764",
+      "Date" : "Fri, 06 Nov 2026 22:11:16 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "05e0dc93-5c6b-4ba2-b4a6-204504505357",
+  "uuid" : "b4d3e1dc-f53e-4635-b753-0ccbbed4daca",
   "persistent" : true,
-  "insertionIndex" : 1352
+  "insertionIndex" : 1498
 }
