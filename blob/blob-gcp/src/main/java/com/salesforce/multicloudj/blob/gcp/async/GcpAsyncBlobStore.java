@@ -52,8 +52,9 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
 
   /**
    * Closes the wrapped blob store, which releases its TransferManager workers, and then the
-   * directly supplied Storage client unless the wrapped store already closed that instance. Both
-   * are attempted even if the first fails; the first failure is thrown with later ones suppressed.
+   * directly supplied Storage client. The Storage client may be the same instance the wrapped store
+   * just closed; Storage.close() is safe to repeat. Both are attempted even if the first fails; the
+   * first failure is thrown with later ones suppressed.
    * The executor service is owned by the caller (or is the common pool) and is left running.
    * Subsequent calls are no-ops.
    */
@@ -68,7 +69,7 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
     } catch (Exception e) {
       failure = e;
     }
-    if (storage != null && !wrappedStoreClosesStorage()) {
+    if (storage != null) {
       try {
         storage.close();
       } catch (Exception e) {
@@ -85,11 +86,6 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
     if (failure != null) {
       throw new SubstrateSdkException("Failed to close GCP async blob store", failure);
     }
-  }
-
-  private boolean wrappedStoreClosesStorage() {
-    AbstractBlobStore wrapped = getBlobStore();
-    return wrapped instanceof GcpBlobStore && ((GcpBlobStore) wrapped).closesStorage(storage);
   }
 
   public static Builder builder() {
