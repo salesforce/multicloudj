@@ -10,7 +10,6 @@ import com.salesforce.multicloudj.blob.gcp.GcpTransformerSupplier;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
 
 /** GCP implementation of AsyncBlobStore */
@@ -19,7 +18,6 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
   private final Storage storage;
   private final GcpTransformerSupplier transformerSupplier;
   private final boolean useTransferListener;
-  private final AtomicBoolean closed = new AtomicBoolean(false);
 
   /**
    * Creates a new async wrapper around the provided BlobStore.
@@ -54,15 +52,11 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
    * Closes the wrapped blob store, which releases its TransferManager workers, and then the
    * directly supplied Storage client. The Storage client may be the same instance the wrapped store
    * just closed; Storage.close() is safe to repeat. Both are attempted even if the first fails; the
-   * first failure is thrown with later ones suppressed.
-   * The executor service is owned by the caller (or is the common pool) and is left running.
-   * Subsequent calls are no-ops.
+   * first failure is thrown with later ones suppressed. The executor service is owned by the
+   * caller (or is the common pool) and is left running.
    */
   @Override
   public void close() {
-    if (!closed.compareAndSet(false, true)) {
-      return;
-    }
     Exception failure = null;
     try {
       super.close();
