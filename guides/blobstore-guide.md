@@ -24,8 +24,9 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 
 MultiCloudJ provides a shared API across providers. Feature Detail describes that API;
 Provider-Specific Notes explains the workarounds that preserve shared behavior and any
-critical limitations or configuration requirements. An empty cell means no additional
-provider-specific guidance is needed for that feature.
+critical limitations or configuration requirements. Supported indicates an SDK capability,
+including native implementations and workarounds; the notes qualify client and option scope.
+An empty cell means no additional provider-specific guidance is needed for that feature.
 
 ### Core API Features
 
@@ -58,11 +59,11 @@ provider-specific guidance is needed for that feature.
 | Feature Name | Feature Detail | GCP | AWS | ALI | Provider-Specific Notes |
 |--------------|----------------|-----|-----|-----|-----------------------------|
 | **Get Object Lock** | `getObjectLock`: retrieve mode, retain-until date, and legal hold | ✅ Supported | ✅ Supported | ✅ Supported | GCP derives the SDK legal-hold status from temporary and event-based object holds; either active hold is reported as a legal hold. |
-| **Update Object Retention** | `updateObjectRetention`: change an existing retention mode and/or expiration date | ✅ Supported | ✅ Supported | ⚠️ Partial | GCP updates retention through object metadata. Alibaba cannot upgrade an existing object from GOVERNANCE to COMPLIANCE; choose the required mode at upload. AWS and GCP allow the upgrade with governance bypass. See [retention rules](#rules-table). |
+| **Update Object Retention** | `updateObjectRetention`: change an existing retention mode and/or expiration date | ✅ Supported | ✅ Supported | ✅ Supported | GCP updates retention through object metadata. Alibaba cannot upgrade an existing object from GOVERNANCE to COMPLIANCE; choose the required mode at upload. AWS and GCP allow the upgrade with governance bypass. See [retention rules](#rules-table). |
 | **Retention Mode Support** | `RetentionMode.GOVERNANCE` and `RetentionMode.COMPLIANCE` | ✅ Supported | ✅ Supported | ⚠️ Partial | GCP maps GOVERNANCE to `Unlocked` and COMPLIANCE to `Locked`. These are per-object retention settings, separate from a bucket retention policy. For Alibaba mode-change limitations, see **Update Object Retention**. |
 | **Bypass Governance Retention** | `ObjectRetentionConfig.bypassGovernanceRetention`: explicitly allow shortening GOVERNANCE retention | ✅ Supported | ✅ Supported | ✅ Supported | <!-- --> |
 | **Update Legal Hold** | `updateLegalHold`: enable or disable a hold | ✅ Supported | ✅ Supported | ✅ Supported | GCP maps legal holds to temporary object holds by default, or updates an existing event-based hold. On upload, `useEventBasedHold` selects the event-based form. Event-based holds cannot coexist with per-object retention; releasing one restarts any bucket retention period. |
-| **Object Lock on Upload** | `ObjectLockConfiguration`: set retention and/or a legal hold at upload time | ✅ Supported | ✅ Supported | ⚠️ Partial | AWS requires Object Lock and versioning enabled on the bucket; GCP requires Object Retention Lock enabled (versioning is optional). Alibaba synchronous uploads apply locks after writing, so a lock-update failure can leave an incompletely protected object. Alibaba async single, multipart, and directory uploads ignore `ObjectLockConfiguration`. |
+| **Object Lock on Upload** | `ObjectLockConfiguration`: set retention and/or a legal hold at upload time | ✅ Supported | ✅ Supported | ✅ Supported | AWS requires Object Lock and versioning enabled on the bucket; GCP requires Object Retention Lock enabled (versioning is optional). Alibaba synchronous uploads apply locks after writing, so a lock-update failure can leave an incompletely protected object. Alibaba async single, multipart, and directory uploads ignore `ObjectLockConfiguration`. |
 
 ### Advanced Features
 
@@ -93,12 +94,12 @@ and critical notes below identify their scope.
 
 | Configuration | Feature Detail | GCP | AWS | ALI | Provider-Specific Notes |
 |---------------|----------------|-----|-----|-----|-----------------------------|
-| **Parallel Uploads** | `withParallelUploadsEnabled`: enable parallel uploads for large objects | ✅ Supported | ✅ Supported | ⚠️ Ignored | On GCP, this flag affects directory uploads only. On AWS, it affects the standard async client; the CRT client selected by `withParallelDownloadsEnabled(true)` ignores it. Alibaba ignores the flag; use explicit multipart APIs. |
+| **Parallel Uploads** | `withParallelUploadsEnabled`: enable parallel uploads for large objects | ✅ Supported | ✅ Supported | ✅ Supported | On GCP, this flag affects directory uploads only. On AWS, it affects the standard async client; the CRT client selected by `withParallelDownloadsEnabled(true)` ignores it. Alibaba ignores the flag; use explicit multipart APIs. |
 | **Part Buffer Size** | `withPartBufferSize`: configure part size or transfer buffers | ⚠️ Indirect | ✅ Supported | ⚠️ Ignored | <!-- --> |
 | **Threshold Bytes** | `withThresholdBytes`: configure the multipart threshold | ⚠️ Ignored | ✅ Supported | ⚠️ Ignored | <!-- --> |
-| **Max Concurrency** | `withMaxConcurrency`: configure concurrent transfers | ⚠️ Ignored | ✅ CRT client only | ⚠️ Ignored | On AWS, this setting requires the CRT client selected by `withParallelDownloadsEnabled(true)`; the standard client ignores it. For GCP transfer workers, use `withTransferManagerThreadPoolSize`. |
+| **Max Concurrency** | Concurrent transfers; `withMaxConcurrency` where applicable | ✅ Supported | ✅ Supported | ✅ Supported | On AWS, `withMaxConcurrency` applies to the CRT client selected by `withParallelDownloadsEnabled(true)`; the standard client ignores it. GCP and Alibaba ignore this builder setting. Configure GCP transfer workers with `withTransferManagerThreadPoolSize`. |
 | **Max Connections** | `withMaxConnections`: configure the HTTP connection pool | ✅ Supported | ✅ Supported | ✅ Supported | <!-- --> |
-| **Parallel Downloads** | `withParallelDownloadsEnabled` and request-level `parallelDownload` | ✅ Supported | ✅ Supported | ⚠️ Async client only | For GCP and Alibaba, request parallel download explicitly for a whole-object File/Path destination. Ranged and stream downloads use the regular path. Alibaba supports parallel download only through `AsyncBucketClient` and ignores the builder flag. |
+| **Parallel Downloads** | `withParallelDownloadsEnabled` and request-level `parallelDownload` | ✅ Supported | ✅ Supported | ✅ Supported | For GCP and Alibaba, request parallel download explicitly for a whole-object File/Path destination. Ranged and stream downloads use the regular path. Alibaba supports parallel download only through `AsyncBucketClient` and ignores the builder flag. |
 | **Target Throughput (Gbps)** | `withTargetThroughputInGbps`: provide a throughput hint | ⚠️ Ignored | ✅ CRT client only | ⚠️ Ignored | <!-- --> |
 | **Max Native Memory Limit** | `withMaxNativeMemoryLimitInBytes`: cap native transfer memory | ⚠️ Ignored | ✅ CRT client only | ⚠️ Ignored | <!-- --> |
 | **Initial Read Buffer Size** | `AsyncBucketClient.Builder.withInitialReadBufferSizeInBytes` | ⚠️ Ignored | ✅ CRT client only | ⚠️ Ignored | <!-- --> |
