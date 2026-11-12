@@ -35,14 +35,14 @@ Cloud Native Auth is a special case that goes beyond the standard `StsClient` AP
 |--------------|-----|-----|-----|----------|
 | **Sign identity** (`StsUtilities`) | ✅ Supported | ✅ Supported | ✅ Supported | Produce a portable `signedIdentity` proving the caller's own cloud identity |
 | **Validate identity** (`StsVerifier`) | ✅ Supported | ✅ Supported | ✅ Supported | Verify a `signedIdentity` and recover the caller's `CallerIdentity` |
-| **Custom signed headers** | ✅ Supported | ✅ Supported | ✅ Supported | Bind extra context (tenant, request source, ...) into the signed proof and assert it on validation |
+| **Custom signed headers** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Bind extra context (tenant, request source, ...) into the signed proof and assert it on validation. The Alibaba Cloud signer does not apply `SignOptions` yet |
 
 ### Configuration Options
 
 | Configuration | GCP | AWS | ALI | Comments |
 |---------------|-----|-----|-----|----------|
 | **Region Support** | ✅ Supported | ✅ Supported | ✅ Supported | All providers support region-specific operations |
-| **Endpoint Override** | ✅ Supported | ✅ Supported | ✅ Supported | Custom endpoint configuration |
+| **Endpoint Override** | ✅ Supported | ✅ Supported | ✅ Supported | Custom endpoint configuration for `StsClient`, and the signing endpoint for `StsUtilities` (see [Signing endpoint](#signing-endpoint)) |
 | **Proxy Support** | ✅ Supported | ✅ Supported | ✅ Supported | Explicit proxy endpoint or system/environment proxy values |
 
 ### Provider IDs
@@ -220,6 +220,31 @@ String signedIdentity = signed.getSignedIdentity();
 | `withExcludeContentTypeHeader(boolean)` | Omit the content type header from the signed request |
 | `withActionInQueryString(boolean)` | Sign the STS action/version as URL query parameters over an empty body, so the request validates on replay from URL and headers alone |
 
+Every header listed in the signature must be present when the request is replayed. If the receiver replays the request with a fixed set of headers (for example only `Authorization`, `X-Amz-Date` and `X-Amz-Security-Token`), exclude the request hash and content type headers so the signer does not sign headers the receiver will not send.
+
+#### Signing endpoint
+
+By default the signer uses the provider's regional endpoint. Use `withEndpoint` to sign for a different one, such as the AWS global, FIPS, or China-partition STS endpoint:
+
+```java
+StsUtilities signer = StsUtilities.builder("aws")
+    .withRegion("us-east-1")
+    .withEndpoint(URI.create("https://sts-fips.us-east-1.amazonaws.com"))
+    .build();
+```
+
+On AWS, the credential scope uses the region passed to `withRegion`; the endpoint only supplies the signed `host` and the `signedIdentity` URL. The signer does not check that the two match, so pass the region the endpoint belongs to.
+
+The endpoint must be an absolute `https` URI with a host, and must not have user info, a port, a query, a fragment, or a path other than `/`. These shared rules are checked in `withEndpoint`; the AWS and Alibaba Cloud host rules in the table below are checked in `build()`. Either way an invalid endpoint throws `InvalidArgumentException`. How the host is used depends on the provider:
+
+| Provider | Accepted hosts | Use |
+|----------|----------------|-----|
+| AWS | AWS STS hosts only: `sts[-fips][.<region>].amazonaws.com[.cn]` | The signed `host` and the `signedIdentity` URL |
+| GCP | Any host | The IAM Credentials endpoint used for `SignJwt`, on port 443 |
+| ALI | Alibaba Cloud STS hosts only: `sts[-vpc][.<region>].aliyuncs.com` | The signing domain and the `signedIdentity` URL |
+
+AWS and Alibaba Cloud accept the same hosts their verifiers accept, so a signer cannot produce an identity its verifier would reject.
+
 ### Validate (server side)
 
 Build an `StsVerifier` for the same provider and validate the `signedIdentity`. Supply `ValidateOptions` with the custom headers you expect; validation fails if any expected header is missing or has a different value:
@@ -250,18 +275,65 @@ The signing and validation APIs are identical across providers, but the mechanis
 - The `signedIdentity` is a presigned `GetCallerIdentity` request URL rooted at an AWS STS endpoint, signed with SigV4. Its query string carries the STS action, version, and every signed request header.
 - The verifier **replays** the presigned request against AWS STS to validate the SigV4 signature and parse the returned identity, so it requires outbound network access to AWS STS. The default AWS credential chain must resolve for the caller producing the signature.
 - Before replaying, the verifier requires an `https` scheme and confirms the host is a genuine AWS STS endpoint (`sts.amazonaws.com`, regional `sts.<region>.amazonaws.com`, FIPS variants, and the China partition `.amazonaws.com.cn`). A crafted `signedIdentity` cannot redirect the replay to an attacker-controlled server.
-- Custom header names must be **lowercase**, because AWS SigV4 signs canonical (lowercase) header names.
+- A region is required to sign.
+- Custom headers are canonicalized the way SigV4 requires before they are signed:
+  - Names are lowercased. Two names that are equal after lowercasing are rejected.
+  - Values are trimmed and runs of whitespace are collapsed to a single space. The value sent is the value signed.
+  - The verifier looks up expected custom headers by their lowercase name and compares values in the same normalized form.
+- These custom headers are rejected with `InvalidArgumentException` before signing:
+  - `host`, `x-amz-date`, `x-amz-security-token` and `authorization`, which the signer owns
+  - names that are not valid HTTP header tokens
+  - names the JDK HTTP client does not allow: `connection`, `content-length`, `expect`, `upgrade`
+  - null names or values
+- A custom `content-type` or `x-request-hash` header replaces the value the signer would generate.
+- Header names on `getRequest()` and in the `signedIdentity` are lowercase. HTTP header names are case-insensitive, so read them with `getRequest().headers().firstValue(...)`, which ignores case.
+
+##### Replacing a SigV4 signer
+
+To move an existing SigV4 identity proof (for example one built with the AWS SDK's `Aws4Signer`) to `StsUtilities` without breaking the receiver, sign exactly the headers the receiver replays:
+
+```java
+StsUtilities signer = StsUtilities.builder("aws")
+    .withRegion("us-east-1")
+    // Only if the receiver expects a specific STS endpoint.
+    .withEndpoint(URI.create("https://sts.us-east-1.amazonaws.com"))
+    .build();
+
+SignedAuthRequest signed = signer.newCloudNativeAuthSignedRequest(request,
+    SignOptions.builder()
+        // The receiver replays only Authorization / X-Amz-Date / X-Amz-Security-Token,
+        // so don't sign headers it won't send.
+        .withExcludeRequestHashHeader(true)
+        .withExcludeContentTypeHeader(true)
+        // A header the receiver requires to be signed, such as a server ID.
+        .withCustomHeader("X-Server-ID", "auth.example.com")
+        .build());
+// SignedHeaders=host;x-amz-date;x-amz-security-token;x-server-id
+```
+
+- Compare `SignedHeaders` in the old and new `Authorization` headers. Every name listed except `host` must be sent by whatever replays the request. `host` is signed but not set on `getRequest()`, because the JDK HTTP client does not allow it; it is the STS endpoint host in the `signedIdentity` URL, which HTTP clients send as `Host` automatically.
+- If the receiver looks headers up by exact name, write those names when building its token:
+
+```java
+for (String name : List.of("Authorization", "X-Amz-Date", "X-Amz-Security-Token")) {
+    signed.getRequest().headers().firstValue(name).ifPresent(v -> token.put(name, v));
+}
+```
 
 #### GCP
 
 - The `signedIdentity` is a JWT produced by a service account via the IAM `SignJwt` API.
 - The verifier validates the JWT **offline** by verifying its RSA signature against the service account's Google-managed public keys (published as a JWKS document at `https://www.googleapis.com/service_accounts/v1/metadata/jwk/{serviceAccountEmail}`). It selects the key by the JWT `kid`, enforces the `exp`/`iat` time bounds with a small clock-skew tolerance, and returns the identity from the token's `iss`/`sub` claims. Public keys are cached to avoid repeated fetches.
+- Custom headers are added to the JWT as claims. JWT claim names are case-sensitive, so names are kept exactly as given, and the verifier matches them exactly.
+- `withEndpoint` on the signer sets the IAM Credentials endpoint used to call `SignJwt`. See [Signing endpoint](#signing-endpoint).
 
 #### Alibaba Cloud
 
 - The `signedIdentity` is a fully signed `GetCallerIdentity` STS URL whose query string carries the action, version, every signed parameter, and the RPC signature.
 - The verifier **replays** the request against Alibaba Cloud STS to validate the signature and parse the returned identity, so it requires outbound network access to Alibaba Cloud STS. Because Alibaba Cloud RPC signatures cover the HTTP method, the request is replayed with the same `GET` method used to sign it.
 - Before replaying, the verifier requires an `https` scheme and confirms the host is a genuine Alibaba Cloud STS endpoint (`sts.aliyuncs.com`, regional `sts.<region>.aliyuncs.com`, and VPC variants). A crafted `signedIdentity` cannot redirect the replay to an attacker-controlled server.
+- The signer does not apply `SignOptions` yet, so custom headers are not signed into the request.
+- `withEndpoint` on the signer sets the signing domain, and only Alibaba Cloud STS hosts are accepted. See [Signing endpoint](#signing-endpoint).
 
 ---
 
