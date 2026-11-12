@@ -76,4 +76,12 @@ Learn how to write and run conformance tests for multi-cloud applications.
 
 ---
 
+## Application Resilience
+
+Wrap SDK calls with an application-owned circuit breaker using cloud-agnostic exception signals.
+
+- [Circuit Breakers](circuit-breaker-guide.html)
+
+---
+
 Explore these guides to master the MultiCloudJ SDK and build robust multi-cloud Java applications with ease.
