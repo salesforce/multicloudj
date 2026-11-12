@@ -14,6 +14,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -87,7 +88,7 @@ class GcpBlobStoreTransportCloseTest {
 
         clients.assertStopped();
         for (CloseableHttpClient client : clients.clients) {
-          verify(client).close();
+          verify(client, times(2)).close();
         }
       }
     }
@@ -254,10 +255,34 @@ class GcpBlobStoreTransportCloseTest {
       assertSame(storageFailure, managerFailure.getSuppressed()[0]);
       assertSame(httpFailure, managerFailure.getSuppressed()[1]);
       clients.assertStopped();
-      store.close();
-      verify(manager).close();
-      verify(storage).close();
-      verify(clients.clients.get(0)).close();
+      InOrder order = inOrder(manager, storage, clients.clients.get(0));
+      order.verify(manager).close();
+      order.verify(storage).close();
+      order.verify(clients.clients.get(0)).close();
+    }
+  }
+
+  @Test
+  void closeRetriesCleanupAfterFailure() throws Exception {
+    Storage storage = mock(Storage.class);
+    TransferManager manager = mock(TransferManager.class);
+    IOException failure = new IOException("manager cleanup failed");
+    doThrow(failure).doNothing().when(manager).close();
+    try (HttpClients clients = new HttpClients()) {
+      GcpBlobStore.Builder builder = builder();
+      builder.withStorage(storage);
+      builder.withTransferManager(manager);
+      try (GcpBlobStore store = builder.build()) {
+        SubstrateSdkException thrown = assertThrows(SubstrateSdkException.class, store::close);
+        assertSame(failure, thrown.getCause());
+
+        store.close();
+
+        verify(manager, times(2)).close();
+        verify(storage, times(2)).close();
+        verify(clients.clients.get(0), times(2)).close();
+        clients.assertStopped();
+      }
     }
   }
 

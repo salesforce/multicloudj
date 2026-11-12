@@ -132,7 +132,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -154,7 +153,6 @@ public class GcpBlobStore extends AbstractBlobStore {
   private final MultipartUploadClient multipartUploadClient;
   private final TransferManager transferManager;
   private final List<AutoCloseable> ownedResources;
-  private final AtomicBoolean closed = new AtomicBoolean();
   private final GcpTransformer transformer;
   private final GcpAccessTokenSigner accessTokenSigner = new GcpAccessTokenSigner();
   private static final String TAG_PREFIX = "gcp-tag-";
@@ -190,7 +188,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     this.multipartUploadClient = mpuClient;
     this.transferManager = transferManager;
     this.transformer = builder.transformerSupplier.get(bucket);
-    this.ownedResources = List.copyOf(builder.ownedResources);
+    this.ownedResources = builder.ownedResources;
   }
 
   @Override
@@ -1659,9 +1657,6 @@ public class GcpBlobStore extends AbstractBlobStore {
   /** Closes the underlying GCP Storage clients and releases any resources. */
   @Override
   public void close() {
-    if (!closed.compareAndSet(false, true)) {
-      return;
-    }
     List<AutoCloseable> resources = new ArrayList<>(ownedResources);
     resources.add(httpStorage);
     resources.add(storage);
