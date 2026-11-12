@@ -131,6 +131,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -1706,12 +1707,14 @@ public class GcpBlobStore extends AbstractBlobStore {
     throw new SubstrateSdkException("Failed to close GCP storage clients", failure);
   }
 
+  @Getter
   public static class Builder extends AbstractBlobStore.Builder<GcpBlobStore, Builder> {
 
-    @Getter private Storage storage;
-    @Getter private MultipartUploadClient mpuClient;
-    @Getter private TransferManager transferManager;
-    @Getter private GcpTransformerSupplier transformerSupplier = new GcpTransformerSupplier();
+    private Storage storage;
+    private MultipartUploadClient mpuClient;
+    private TransferManager transferManager;
+    private GcpTransformerSupplier transformerSupplier = new GcpTransformerSupplier();
+    @Getter(AccessLevel.NONE)
     private List<CloseableHttpClient> ownedHttpClients = new ArrayList<>();
 
     public Builder() {
@@ -2032,66 +2035,40 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     @Override
-    public synchronized GcpBlobStore build() {
-      List<CloseableHttpClient> previousHttpClients = ownedHttpClients;
+    public GcpBlobStore build() {
       ownedHttpClients = new ArrayList<>();
-      Storage storage = this.storage;
-      Storage httpStorage = null;
-      TransferManager transferManager = this.transferManager;
-      boolean createStorage = storage == null;
-      boolean createTransferManager = transferManager == null;
       try {
+        Storage storage = this.storage;
         MultipartUploadClient mpuClient = this.mpuClient;
-        if (createStorage) {
+        TransferManager transferManager = this.transferManager;
+        if (storage == null) {
           storage = buildStorage(this);
         }
-        // HTTP-only operations need a distinct fallback when the main transport is gRPC.
-        httpStorage = Boolean.TRUE.equals(getGrpcEnabled()) ? buildHttpStorage(this) : storage;
+        // Operations the gRPC transport does not implement (signed URLs, batch/collection delete)
+        // run on an HTTP/JSON client. When gRPC is not enabled the main client already uses
+        // HTTP/JSON, so reuse it instead of opening a second client.
+        Storage httpStorage =
+            Boolean.TRUE.equals(getGrpcEnabled()) ? buildHttpStorage(this) : storage;
         if (mpuClient == null) {
           mpuClient = buildMultipartUploadClient(this);
         }
-        if (createTransferManager) {
+        if (transferManager == null) {
           transferManager = buildTransferManager(this, storage);
         }
         return new GcpBlobStore(this, storage, httpStorage, mpuClient, transferManager);
       } catch (RuntimeException | Error failure) {
-        List<AutoCloseable> resources = new ArrayList<>();
-        if (createTransferManager) {
-          resources.add(transferManager);
-        }
-        if (createStorage) {
-          resources.add(storage);
-        }
-        if (httpStorage != storage) {
-          resources.add(httpStorage);
-        }
-        resources.addAll(ownedHttpClients);
-        Throwable cleanupFailure = null;
-        boolean interrupted = false;
-        for (AutoCloseable resource : resources) {
-          if (resource == null) {
-            continue;
-          }
+        for (CloseableHttpClient httpClient : ownedHttpClients) {
           try {
-            resource.close();
-          } catch (Throwable t) {
-            interrupted |= t instanceof InterruptedException;
-            if (cleanupFailure == null) {
-              cleanupFailure = t;
-            } else if (cleanupFailure != t) {
-              cleanupFailure.addSuppressed(t);
+            httpClient.close();
+          } catch (Throwable cleanupFailure) {
+            if (failure != cleanupFailure) {
+              failure.addSuppressed(cleanupFailure);
             }
           }
         }
-        if (interrupted) {
-          Thread.currentThread().interrupt();
-        }
-        if (cleanupFailure != null && failure != cleanupFailure) {
-          failure.addSuppressed(cleanupFailure);
-        }
         throw failure;
       } finally {
-        ownedHttpClients = previousHttpClients;
+        ownedHttpClients = new ArrayList<>();
       }
     }
   }

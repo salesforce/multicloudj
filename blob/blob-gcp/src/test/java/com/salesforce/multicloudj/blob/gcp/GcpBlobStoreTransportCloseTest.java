@@ -177,6 +177,27 @@ class GcpBlobStoreTransportCloseTest {
   }
 
   @Test
+  void directConstructionDoesNotOwnSubsequentBuildTransports() throws Exception {
+    try (HttpClients clients = new HttpClients()) {
+      GcpBlobStore.Builder builder = builder();
+      try (GcpBlobStore direct =
+              new GcpBlobStore(builder, mock(Storage.class),
+                  mock(MultipartUploadClient.class), mock(TransferManager.class));
+          GcpBlobStore built = builder.build()) {
+        assertEquals(2, clients.evictors.size());
+
+        direct.close();
+
+        for (Thread evictor : clients.evictors) {
+          assertTrue(evictor.isAlive(), "another store must retain its HTTP evictor");
+        }
+        built.close();
+        clients.assertStopped();
+      }
+    }
+  }
+
+  @Test
   void multipartConstructionFailureClosesAlreadyCreatedTransports() throws Exception {
     IllegalStateException failure = new IllegalStateException("multipart construction failed");
     try (HttpClients clients = new HttpClients();
