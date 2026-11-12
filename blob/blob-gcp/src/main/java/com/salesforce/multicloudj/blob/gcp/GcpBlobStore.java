@@ -131,7 +131,6 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -1687,29 +1686,6 @@ public class GcpBlobStore extends AbstractBlobStore {
         failures.add(t);
       }
     }
-    try {
-      throwCloseFailures(failures);
-    } catch (Exception e) {
-      throw new SubstrateSdkException("Failed to close GCP storage clients", e);
-    }
-  }
-
-  private static void closeResources(List<? extends AutoCloseable> resources) throws Exception {
-    List<Throwable> failures = new ArrayList<>();
-    for (AutoCloseable resource : resources) {
-      if (resource == null) {
-        continue;
-      }
-      try {
-        resource.close();
-      } catch (Throwable t) {
-        failures.add(t);
-      }
-    }
-    throwCloseFailures(failures);
-  }
-
-  private static void throwCloseFailures(List<Throwable> failures) throws Exception {
     if (failures.isEmpty()) {
       return;
     }
@@ -1727,17 +1703,15 @@ public class GcpBlobStore extends AbstractBlobStore {
     if (failure instanceof Error) {
       throw (Error) failure;
     }
-    throw (Exception) failure;
+    throw new SubstrateSdkException("Failed to close GCP storage clients", failure);
   }
 
-  @Getter
   public static class Builder extends AbstractBlobStore.Builder<GcpBlobStore, Builder> {
 
-    private Storage storage;
-    private MultipartUploadClient mpuClient;
-    private TransferManager transferManager;
-    private GcpTransformerSupplier transformerSupplier = new GcpTransformerSupplier();
-    @Getter(AccessLevel.NONE)
+    @Getter private Storage storage;
+    @Getter private MultipartUploadClient mpuClient;
+    @Getter private TransferManager transferManager;
+    @Getter private GcpTransformerSupplier transformerSupplier = new GcpTransformerSupplier();
     private List<CloseableHttpClient> ownedHttpClients = new ArrayList<>();
 
     public Builder() {
@@ -2092,12 +2066,28 @@ public class GcpBlobStore extends AbstractBlobStore {
           resources.add(httpStorage);
         }
         resources.addAll(ownedHttpClients);
-        try {
-          closeResources(resources);
-        } catch (Throwable cleanupFailure) {
-          if (failure != cleanupFailure) {
-            failure.addSuppressed(cleanupFailure);
+        Throwable cleanupFailure = null;
+        boolean interrupted = false;
+        for (AutoCloseable resource : resources) {
+          if (resource == null) {
+            continue;
           }
+          try {
+            resource.close();
+          } catch (Throwable t) {
+            interrupted |= t instanceof InterruptedException;
+            if (cleanupFailure == null) {
+              cleanupFailure = t;
+            } else if (cleanupFailure != t) {
+              cleanupFailure.addSuppressed(t);
+            }
+          }
+        }
+        if (interrupted) {
+          Thread.currentThread().interrupt();
+        }
+        if (cleanupFailure != null && failure != cleanupFailure) {
+          failure.addSuppressed(cleanupFailure);
         }
         throw failure;
       } finally {
