@@ -201,6 +201,8 @@ public class GcpSts extends AbstractSts {
       case "PutObject":
         return "inRole:roles/storage.objectCreator";
       case "DeleteObject":
+        // No predefined role grants delete alone; objectUser also grants create, update, get and
+        // list, so a DeleteObject-scoped token can also write objects.
         return "inRole:roles/storage.objectUser";
       case "ListBucket":
         return "inRole:roles/storage.objectViewer";
