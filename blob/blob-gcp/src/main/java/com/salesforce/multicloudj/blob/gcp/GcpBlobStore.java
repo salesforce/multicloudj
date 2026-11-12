@@ -123,13 +123,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -152,7 +150,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   private final Storage httpStorage;
   private final MultipartUploadClient multipartUploadClient;
   private final TransferManager transferManager;
-  private final List<AutoCloseable> ownedResources;
+  private final List<CloseableHttpClient> ownedHttpClients;
   private final GcpTransformer transformer;
   private final GcpAccessTokenSigner accessTokenSigner = new GcpAccessTokenSigner();
   private static final String TAG_PREFIX = "gcp-tag-";
@@ -188,7 +186,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     this.multipartUploadClient = mpuClient;
     this.transferManager = transferManager;
     this.transformer = builder.transformerSupplier.get(bucket);
-    this.ownedResources = builder.ownedResources;
+    this.ownedHttpClients = builder.ownedHttpClients;
   }
 
   @Override
@@ -1657,10 +1655,11 @@ public class GcpBlobStore extends AbstractBlobStore {
   /** Closes the underlying GCP Storage clients and releases any resources. */
   @Override
   public void close() {
-    List<AutoCloseable> resources = new ArrayList<>(ownedResources);
-    resources.add(httpStorage);
-    resources.add(storage);
-    resources.add(transferManager);
+    List<AutoCloseable> resources = new ArrayList<>(Arrays.asList(transferManager, storage));
+    if (httpStorage != storage) {
+      resources.add(httpStorage);
+    }
+    resources.addAll(ownedHttpClients);
     try {
       closeResources(resources);
     } catch (Exception e) {
@@ -1669,13 +1668,10 @@ public class GcpBlobStore extends AbstractBlobStore {
   }
 
   private static void closeResources(List<? extends AutoCloseable> resources) throws Exception {
-    Set<AutoCloseable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
     Throwable failure = null;
     boolean interrupted = false;
-    // Reverse order releases dependent work before the underlying transports.
-    for (int i = resources.size() - 1; i >= 0; i--) {
-      AutoCloseable resource = resources.get(i);
-      if (resource == null || !seen.add(resource)) {
+    for (AutoCloseable resource : resources) {
+      if (resource == null) {
         continue;
       }
       try {
@@ -1708,7 +1704,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     private TransferManager transferManager;
     private GcpTransformerSupplier transformerSupplier = new GcpTransformerSupplier();
     @Getter(AccessLevel.NONE)
-    private List<AutoCloseable> ownedResources = new ArrayList<>();
+    private List<CloseableHttpClient> ownedHttpClients = new ArrayList<>();
 
     public Builder() {
       providerId(GcpConstants.PROVIDER_ID);
@@ -1808,16 +1804,13 @@ public class GcpBlobStore extends AbstractBlobStore {
     /** Creates HttpTransportOptions with ApacheHttpTransport */
     private static HttpTransportOptions buildTransportOptions(Builder builder) {
       CloseableHttpClient httpClient = buildHttpClient(builder);
-      builder.ownedResources.add(httpClient);
       ApacheHttpTransport transport = new ApacheHttpTransport(httpClient);
       return HttpTransportOptions.newBuilder().setHttpTransportFactory(() -> transport).build();
     }
 
     /** Helper function for generating the Storage client */
     private static Storage buildStorage(Builder builder) {
-      Storage storage = buildStorageOptions(builder).getService();
-      builder.ownedResources.add(storage);
-      return storage;
+      return buildStorageOptions(builder).getService();
     }
 
     /**
@@ -1838,9 +1831,7 @@ public class GcpBlobStore extends AbstractBlobStore {
      * transport is selected for the main client.
      */
     private static Storage buildHttpStorage(Builder builder) {
-      Storage storage = buildHttpStorageOptions(builder).getService();
-      builder.ownedResources.add(storage);
-      return storage;
+      return buildHttpStorageOptions(builder).getService();
     }
 
     /** Builds HTTP/JSON transport StorageOptions for the main storage client. */
@@ -1938,9 +1929,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       if (options == null) {
         return null;
       }
-      TransferManager manager = buildTransferManagerConfig(builder, options).getService();
-      builder.ownedResources.add(manager);
-      return manager;
+      return buildTransferManagerConfig(builder, options).getService();
     }
 
     static TransferManagerConfig buildTransferManagerConfig(
@@ -2013,7 +2002,9 @@ public class GcpBlobStore extends AbstractBlobStore {
         httpClientBuilder.evictIdleConnections(
             builder.getIdleConnectionTimeout().toMillis(), TimeUnit.MILLISECONDS);
       }
-      return httpClientBuilder.build();
+      CloseableHttpClient httpClient = httpClientBuilder.build();
+      builder.ownedHttpClients.add(httpClient);
+      return httpClient;
     }
 
     private static RequestConfig buildRequestConfig(Builder builder) {
@@ -2034,28 +2025,41 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     @Override
     public synchronized GcpBlobStore build() {
-      List<AutoCloseable> previousResources = ownedResources;
-      ownedResources = new ArrayList<>();
+      List<CloseableHttpClient> previousHttpClients = ownedHttpClients;
+      ownedHttpClients = new ArrayList<>();
+      Storage storage = this.storage;
+      Storage httpStorage = null;
+      TransferManager transferManager = this.transferManager;
+      boolean createStorage = storage == null;
+      boolean createTransferManager = transferManager == null;
       try {
-        Storage storage = this.storage;
         MultipartUploadClient mpuClient = this.mpuClient;
-        TransferManager transferManager = this.transferManager;
-        if (storage == null) {
+        if (createStorage) {
           storage = buildStorage(this);
         }
         // HTTP-only operations need a distinct fallback when the main transport is gRPC.
-        Storage httpStorage =
-            Boolean.TRUE.equals(getGrpcEnabled()) ? buildHttpStorage(this) : storage;
+        httpStorage = Boolean.TRUE.equals(getGrpcEnabled()) ? buildHttpStorage(this) : storage;
         if (mpuClient == null) {
           mpuClient = buildMultipartUploadClient(this);
         }
-        if (transferManager == null) {
+        if (createTransferManager) {
           transferManager = buildTransferManager(this, storage);
         }
         return new GcpBlobStore(this, storage, httpStorage, mpuClient, transferManager);
       } catch (RuntimeException | Error failure) {
+        List<AutoCloseable> resources = new ArrayList<>();
+        if (createTransferManager) {
+          resources.add(transferManager);
+        }
+        if (createStorage) {
+          resources.add(storage);
+        }
+        if (httpStorage != storage) {
+          resources.add(httpStorage);
+        }
+        resources.addAll(ownedHttpClients);
         try {
-          closeResources(ownedResources);
+          closeResources(resources);
         } catch (Throwable cleanupFailure) {
           if (failure != cleanupFailure) {
             failure.addSuppressed(cleanupFailure);
@@ -2063,7 +2067,7 @@ public class GcpBlobStore extends AbstractBlobStore {
         }
         throw failure;
       } finally {
-        ownedResources = previousResources;
+        ownedHttpClients = previousHttpClients;
       }
     }
   }
