@@ -312,20 +312,18 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testBuildTransferManagerConfig_namesPartsUnderDestinationObject() throws Exception {
-    try (GcpBlobStore.BuildResources resources = new GcpBlobStore.BuildResources()) {
-      GcpBlobStore.Builder builder =
-          (GcpBlobStore.Builder)
-              new GcpBlobStore.Builder().withBucket(TEST_BUCKET).withParallelUploadsEnabled(true);
+  void testBuildTransferManagerConfig_namesPartsUnderDestinationObject() {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withBucket(TEST_BUCKET).withParallelUploadsEnabled(true);
 
-      TransferManagerConfig config =
-          GcpBlobStore.Builder.buildTransferManagerConfig(
-              builder, GcpBlobStore.Builder.buildStorageOptions(builder, resources));
+    TransferManagerConfig config =
+        GcpBlobStore.Builder.buildTransferManagerConfig(
+            builder, GcpBlobStore.Builder.buildStorageOptions(builder));
 
-      assertEquals(
-          PartNamingStrategy.useObjectNameAsPrefix(),
-          config.getParallelCompositeUploadPartNamingStrategy());
-    }
+    assertEquals(
+        PartNamingStrategy.useObjectNameAsPrefix(),
+        config.getParallelCompositeUploadPartNamingStrategy());
   }
 
   @Test
@@ -342,64 +340,55 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testBuildStorageOptions_defaultsToHttpTransport() throws Exception {
-    try (GcpBlobStore.BuildResources resources = new GcpBlobStore.BuildResources()) {
-      // Existing callers do not set grpcEnabled, so the storage client must keep the HTTP/JSON
-      // transport (HttpStorageOptions) and see no behavior change.
-      GcpBlobStore.Builder builder =
-          (GcpBlobStore.Builder) new GcpBlobStore.Builder().withBucket(TEST_BUCKET);
+  void testBuildStorageOptions_defaultsToHttpTransport() {
+    // Existing callers do not set grpcEnabled, so the storage client must keep the HTTP/JSON
+    // transport (HttpStorageOptions) and see no behavior change.
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder) new GcpBlobStore.Builder().withBucket(TEST_BUCKET);
 
-      StorageOptions options = GcpBlobStore.Builder.buildStorageOptions(builder, resources);
+    StorageOptions options = GcpBlobStore.Builder.buildStorageOptions(builder);
 
-      assertInstanceOf(HttpStorageOptions.class, options);
-    }
+    assertInstanceOf(HttpStorageOptions.class, options);
   }
 
   @Test
-  void testBuildStorageOptions_grpcEnabledSelectsGrpcTransport() throws Exception {
-    try (GcpBlobStore.BuildResources resources = new GcpBlobStore.BuildResources()) {
-      // With grpcEnabled=true the main storage client must be built on the gRPC transport.
-      GcpBlobStore.Builder builder =
-          (GcpBlobStore.Builder)
-              new GcpBlobStore.Builder().withBucket(TEST_BUCKET).withGrpcEnabled(true);
+  void testBuildStorageOptions_grpcEnabledSelectsGrpcTransport() {
+    // With grpcEnabled=true the main storage client must be built on the gRPC transport.
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withBucket(TEST_BUCKET).withGrpcEnabled(true);
 
-      StorageOptions options = GcpBlobStore.Builder.buildStorageOptions(builder, resources);
+    StorageOptions options = GcpBlobStore.Builder.buildStorageOptions(builder);
 
-      assertInstanceOf(GrpcStorageOptions.class, options);
-    }
+    assertInstanceOf(GrpcStorageOptions.class, options);
   }
 
   @Test
-  void testBuildStorageOptions_grpcDisabledUsesHttpTransport() throws Exception {
-    try (GcpBlobStore.BuildResources resources = new GcpBlobStore.BuildResources()) {
-      // Explicitly disabling gRPC must keep the HTTP/JSON transport.
-      GcpBlobStore.Builder builder =
-          (GcpBlobStore.Builder)
-              new GcpBlobStore.Builder().withBucket(TEST_BUCKET).withGrpcEnabled(false);
+  void testBuildStorageOptions_grpcDisabledUsesHttpTransport() {
+    // Explicitly disabling gRPC must keep the HTTP/JSON transport.
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder().withBucket(TEST_BUCKET).withGrpcEnabled(false);
 
-      StorageOptions options = GcpBlobStore.Builder.buildStorageOptions(builder, resources);
+    StorageOptions options = GcpBlobStore.Builder.buildStorageOptions(builder);
 
-      assertInstanceOf(HttpStorageOptions.class, options);
-    }
+    assertInstanceOf(HttpStorageOptions.class, options);
   }
 
   @Test
-  void testGrpcEnabledPropagatesToSyncBuilderFromAsyncBuilder() throws Exception {
-    try (GcpBlobStore.BuildResources resources = new GcpBlobStore.BuildResources()) {
-      // The async builder delegates storage construction to GcpBlobStore.Builder via
-      // copyFrom. Verify the gRPC toggle propagates through that reflection-based copy so async
-      // callers get the same transport selection.
-      GcpAsyncBlobStore.Builder asyncBuilder =
-          (GcpAsyncBlobStore.Builder) GcpAsyncBlobStore.builder().withBucket(TEST_BUCKET);
-      asyncBuilder.withGrpcEnabled(true);
+  void testGrpcEnabledPropagatesToSyncBuilderFromAsyncBuilder() {
+    // The async builder delegates storage-client construction to the sync GcpBlobStore.Builder via
+    // copyFrom. Verify the gRPC toggle propagates through that reflection-based copy so async
+    // callers get the same transport selection.
+    GcpAsyncBlobStore.Builder asyncBuilder =
+        (GcpAsyncBlobStore.Builder) GcpAsyncBlobStore.builder().withBucket(TEST_BUCKET);
+    asyncBuilder.withGrpcEnabled(true);
 
-      GcpBlobStore.Builder syncBuilder = new GcpBlobStore.Builder().copyFrom(asyncBuilder);
+    GcpBlobStore.Builder syncBuilder = new GcpBlobStore.Builder().copyFrom(asyncBuilder);
 
-      assertEquals(Boolean.TRUE, syncBuilder.getGrpcEnabled());
-      assertInstanceOf(
-          GrpcStorageOptions.class,
-          GcpBlobStore.Builder.buildStorageOptions(syncBuilder, resources));
-    }
+    assertEquals(Boolean.TRUE, syncBuilder.getGrpcEnabled());
+    assertInstanceOf(
+        GrpcStorageOptions.class, GcpBlobStore.Builder.buildStorageOptions(syncBuilder));
   }
 
   /**
