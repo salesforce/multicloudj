@@ -47,7 +47,9 @@ import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.URI;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -329,15 +331,21 @@ public class GcpSts extends AbstractSts {
 
       // Get the downscoped access token
       downscopedCredentials.refreshIfExpired();
-      AccessToken accessToken = downscopedCredentials.getAccessToken();
-      return new StsCredentials(
-          StringUtils.EMPTY, StringUtils.EMPTY, accessToken.getTokenValue());
+      return toStsCredentials(downscopedCredentials.getAccessToken());
     }
 
     // No downscoping - refresh and return the credentials
     sourceCredentials.refreshIfExpired();
-    AccessToken accessToken = sourceCredentials.getAccessToken();
-    return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, accessToken.getTokenValue());
+    return toStsCredentials(sourceCredentials.getAccessToken());
+  }
+
+  private static StsCredentials toStsCredentials(AccessToken accessToken) {
+    Instant expiration =
+        accessToken.getExpirationTime() == null
+            ? null
+            : accessToken.getExpirationTime().toInstant();
+    return new StsCredentials(
+        StringUtils.EMPTY, StringUtils.EMPTY, accessToken.getTokenValue(), expiration);
   }
 
   @Override
@@ -369,10 +377,7 @@ public class GcpSts extends AbstractSts {
           () -> {
             GoogleCredentials credentials = getCredentials();
             credentials.refreshIfExpired();
-            return new StsCredentials(
-                StringUtils.EMPTY,
-                StringUtils.EMPTY,
-                credentials.getAccessToken().getTokenValue());
+            return toStsCredentials(credentials.getAccessToken());
           });
     } catch (IOException e) {
       throw new SubstrateSdkException("Could not create credentials in given environment", e);
@@ -403,14 +408,13 @@ public class GcpSts extends AbstractSts {
       tokenRequest.set("subjectTokenType", "urn:ietf:params:oauth:token-type:jwt");
       tokenRequest.set("scope", SCOPE);
 
-      String accessToken = retrier.execute(() -> exchangeToken(tokenRequest));
-      return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, accessToken);
+      return retrier.execute(() -> exchangeToken(tokenRequest));
     } catch (IOException e) {
       throw new SubstrateSdkException("Failed to exchange OIDC token for GCP access token", e);
     }
   }
 
-  private String exchangeToken(GenericJson tokenRequest) throws IOException {
+  private StsCredentials exchangeToken(GenericJson tokenRequest) throws IOException {
     HttpTransport transport =
         httpTransportFactory != null ? httpTransportFactory.create() : new NetHttpTransport();
     JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
@@ -420,11 +424,20 @@ public class GcpSts extends AbstractSts {
             .buildPostRequest(
                 new GenericUrl(STS_ENDPOINT),
                 new ByteArrayContent("application/json", jsonFactory.toByteArray(tokenRequest)));
+    // expires_in counts from when the token was issued; measuring from before the request keeps
+    // the computed expiry at or before the real one.
+    Instant requestedAt = Instant.now();
     com.google.api.client.http.HttpResponse response = httpRequest.execute();
     GenericJson responseData =
         jsonFactory.fromInputStream(
             response.getContent(), response.getContentCharset(), GenericJson.class);
-    return String.valueOf(responseData.get("access_token"));
+    String accessToken = String.valueOf(responseData.get("access_token"));
+    Object expiresIn = responseData.get("expires_in");
+    Instant expiration =
+        expiresIn == null
+            ? null
+            : requestedAt.plusSeconds(new BigDecimal(String.valueOf(expiresIn)).longValue());
+    return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, accessToken, expiration);
   }
 
   @Override
