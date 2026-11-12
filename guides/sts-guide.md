@@ -224,6 +224,8 @@ Every header listed in the signature must be present when the request is replaye
 
 #### Signing endpoint
 
+Requires multicloudj 0.4.16 or later.
+
 By default the signer uses the provider's regional endpoint. Use `withEndpoint` to sign for a different one, such as the AWS global, FIPS, or China-partition STS endpoint:
 
 ```java
@@ -233,7 +235,9 @@ StsUtilities signer = StsUtilities.builder("aws")
     .build();
 ```
 
-The endpoint is validated when the builder is configured, and an invalid one throws `InvalidArgumentException`. It must be an absolute `https` URI with a host, and must not have user info, a port, a query, a fragment, or a path other than `/`. How the host is used depends on the provider:
+On AWS, the credential scope uses the region passed to `withRegion`; the endpoint only supplies the signed `host` and the `signedIdentity` URL. The signer does not check that the two match, so pass the region the endpoint belongs to.
+
+The endpoint must be an absolute `https` URI with a host, and must not have user info, a port, a query, a fragment, or a path other than `/`. These shared rules are checked in `withEndpoint`; the AWS and Alibaba Cloud host rules in the table below are checked in `build()`. Either way an invalid endpoint throws `InvalidArgumentException`. How the host is used depends on the provider:
 
 | Provider | Accepted hosts | Use |
 |----------|----------------|-----|
@@ -274,6 +278,7 @@ The signing and validation APIs are identical across providers, but the mechanis
 - The verifier **replays** the presigned request against AWS STS to validate the SigV4 signature and parse the returned identity, so it requires outbound network access to AWS STS. The default AWS credential chain must resolve for the caller producing the signature.
 - Before replaying, the verifier requires an `https` scheme and confirms the host is a genuine AWS STS endpoint (`sts.amazonaws.com`, regional `sts.<region>.amazonaws.com`, FIPS variants, and the China partition `.amazonaws.com.cn`). A crafted `signedIdentity` cannot redirect the replay to an attacker-controlled server.
 - A region is required to sign.
+- The custom header rules below and the [Replacing a SigV4 signer](#replacing-a-sigv4-signer) recipe require multicloudj 0.4.16 or later.
 - Custom headers are canonicalized the way SigV4 requires before they are signed:
   - Names are lowercased. Two names that are equal after lowercasing are rejected.
   - Values are trimmed and runs of whitespace are collapsed to a single space. The value sent is the value signed.
@@ -309,7 +314,7 @@ SignedAuthRequest signed = signer.newCloudNativeAuthSignedRequest(request,
 // SignedHeaders=host;x-amz-date;x-amz-security-token;x-server-id
 ```
 
-- Compare `SignedHeaders` in the old and new `Authorization` headers. Every name listed must be sent by whatever replays the request.
+- Compare `SignedHeaders` in the old and new `Authorization` headers. Every name listed except `host` must be sent by whatever replays the request. `host` is signed but not set on `getRequest()`, because the JDK HTTP client does not allow it; it is the STS endpoint host in the `signedIdentity` URL, which HTTP clients send as `Host` automatically.
 - If the receiver looks headers up by exact name, write those names when building its token:
 
 ```java
