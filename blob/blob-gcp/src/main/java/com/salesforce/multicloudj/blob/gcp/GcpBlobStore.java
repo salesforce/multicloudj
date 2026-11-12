@@ -1655,21 +1655,47 @@ public class GcpBlobStore extends AbstractBlobStore {
   /** Closes the underlying GCP Storage clients and releases any resources. */
   @Override
   public void close() {
-    List<AutoCloseable> resources = new ArrayList<>(Arrays.asList(transferManager, storage));
-    if (httpStorage != storage) {
-      resources.add(httpStorage);
-    }
-    resources.addAll(ownedHttpClients);
+    List<Throwable> failures = new ArrayList<>();
     try {
-      closeResources(resources);
+      if (transferManager != null) {
+        transferManager.close();
+      }
+    } catch (Throwable t) {
+      failures.add(t);
+    }
+    try {
+      if (storage != null) {
+        storage.close();
+      }
+    } catch (Throwable t) {
+      failures.add(t);
+    }
+    // When the gRPC transport is selected, httpStorage is a distinct client backing the
+    // operations gRPC does not implement; close it too. Otherwise it is the same instance as
+    // storage (already closed above).
+    try {
+      if (httpStorage != null && httpStorage != storage) {
+        httpStorage.close();
+      }
+    } catch (Throwable t) {
+      failures.add(t);
+    }
+    for (CloseableHttpClient httpClient : ownedHttpClients) {
+      try {
+        httpClient.close();
+      } catch (Throwable t) {
+        failures.add(t);
+      }
+    }
+    try {
+      throwCloseFailures(failures);
     } catch (Exception e) {
       throw new SubstrateSdkException("Failed to close GCP storage clients", e);
     }
   }
 
   private static void closeResources(List<? extends AutoCloseable> resources) throws Exception {
-    Throwable failure = null;
-    boolean interrupted = false;
+    List<Throwable> failures = new ArrayList<>();
     for (AutoCloseable resource : resources) {
       if (resource == null) {
         continue;
@@ -1677,12 +1703,22 @@ public class GcpBlobStore extends AbstractBlobStore {
       try {
         resource.close();
       } catch (Throwable t) {
-        interrupted |= t instanceof InterruptedException;
-        if (failure == null) {
-          failure = t;
-        } else if (failure != t) {
-          failure.addSuppressed(t);
-        }
+        failures.add(t);
+      }
+    }
+    throwCloseFailures(failures);
+  }
+
+  private static void throwCloseFailures(List<Throwable> failures) throws Exception {
+    if (failures.isEmpty()) {
+      return;
+    }
+    Throwable failure = failures.get(0);
+    boolean interrupted = false;
+    for (Throwable t : failures) {
+      interrupted |= t instanceof InterruptedException;
+      if (failure != t) {
+        failure.addSuppressed(t);
       }
     }
     if (interrupted) {
@@ -1691,9 +1727,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     if (failure instanceof Error) {
       throw (Error) failure;
     }
-    if (failure != null) {
-      throw (Exception) failure;
-    }
+    throw (Exception) failure;
   }
 
   @Getter
