@@ -577,8 +577,34 @@ public class GcpStsTest {
         sts.assumeRole(AssumedRoleRequest.newBuilder().withCredentialScope(scope).build());
 
     Assertions.assertEquals("downscoped-token", credentials.getSecurityToken());
+    Assertions.assertNotNull(credentials.getExpiration());
     Assertions.assertEquals(1, requestedUrls.size());
     Assertions.assertTrue(requestedUrls.get(0).contains("sts.googleapis.com"));
+  }
+
+  @Test
+  public void testAssumeRoleWithWebIdentityWithNonNumericExpiresIn() {
+    MockHttpTransport mockHttpTransport =
+        new MockHttpTransport.Builder()
+            .setLowLevelHttpResponse(
+                new MockLowLevelHttpResponse()
+                    .setContentType("application/json")
+                    .setContent(
+                        "{\"access_token\":\"test-access-token\",\"expires_in\":\"not-a-number\"}"))
+            .build();
+    GcpSts sts = new GcpSts().builder().build(() -> mockHttpTransport);
+    AssumeRoleWebIdentityRequest request =
+        AssumeRoleWebIdentityRequest.builder()
+            .role(
+                "//iam.googleapis.com/projects/test-project/locations/global"
+                + "/workloadIdentityPools/test-pool/providers/test-provider")
+            .webIdentityToken("test-oidc-token")
+            .build();
+
+    StsCredentials credentials = sts.assumeRoleWithWebIdentity(request);
+
+    Assertions.assertEquals("test-access-token", credentials.getSecurityToken());
+    Assertions.assertNull(credentials.getExpiration());
   }
 
   @Test

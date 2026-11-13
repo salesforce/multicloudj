@@ -433,10 +433,17 @@ public class GcpSts extends AbstractSts {
             response.getContent(), response.getContentCharset(), GenericJson.class);
     String accessToken = String.valueOf(responseData.get("access_token"));
     Object expiresIn = responseData.get("expires_in");
-    Instant expiration =
-        expiresIn == null
-            ? null
-            : requestedAt.plusSeconds(new BigDecimal(String.valueOf(expiresIn)).longValue());
+    // An absent or non-numeric expires_in leaves the expiry unknown rather than failing an
+    // otherwise successful exchange.
+    Instant expiration = null;
+    if (expiresIn != null) {
+      try {
+        expiration =
+            requestedAt.plusSeconds(new BigDecimal(String.valueOf(expiresIn)).longValue());
+      } catch (NumberFormatException e) {
+        expiration = null;
+      }
+    }
     return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, accessToken, expiration);
   }
 
