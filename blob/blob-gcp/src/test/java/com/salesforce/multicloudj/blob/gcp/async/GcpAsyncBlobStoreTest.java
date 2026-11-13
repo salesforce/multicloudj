@@ -999,6 +999,35 @@ class GcpAsyncBlobStoreTest {
   }
 
   @Test
+  void testCloseStillClosesDirectStorageWhenWrappedCloseThrowsError() throws Exception {
+    AssertionError wrappedFailure = new AssertionError("wrapped close failed");
+    RuntimeException storageFailure = new RuntimeException("storage close failed");
+    doThrow(wrappedFailure).when(mockBlobStore).close();
+    doThrow(storageFailure).when(mockStorage).close();
+
+    AssertionError thrown = assertThrows(AssertionError.class, () -> gcpAsyncBlobStore.close());
+
+    assertSame(wrappedFailure, thrown);
+    assertArrayEquals(new Throwable[] {storageFailure}, thrown.getSuppressed());
+    verify(mockStorage).close();
+  }
+
+  @Test
+  void testClosePreservesWrappedFailureWhenDirectStorageThrowsError() throws Exception {
+    SubstrateSdkException wrappedFailure = new SubstrateSdkException("wrapped close failed");
+    AssertionError storageFailure = new AssertionError("storage close failed");
+    doThrow(wrappedFailure).when(mockBlobStore).close();
+    doThrow(storageFailure).when(mockStorage).close();
+
+    SubstrateSdkException thrown =
+        assertThrows(SubstrateSdkException.class, () -> gcpAsyncBlobStore.close());
+
+    assertSame(wrappedFailure, thrown);
+    assertArrayEquals(new Throwable[] {storageFailure}, thrown.getSuppressed());
+    verify(mockStorage).close();
+  }
+
+  @Test
   void testCloseWrapsDirectStorageFailure() throws Exception {
     Exception storageFailure = new Exception("storage close failed");
     doThrow(storageFailure).when(mockStorage).close();

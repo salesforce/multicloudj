@@ -149,6 +149,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   private final Storage httpStorage;
   private final MultipartUploadClient multipartUploadClient;
   private final TransferManager transferManager;
+  private final CloseableHttpClient ownedHttpClient;
   private final GcpTransformer transformer;
   private final GcpAccessTokenSigner accessTokenSigner = new GcpAccessTokenSigner();
   private static final String TAG_PREFIX = "gcp-tag-";
@@ -184,6 +185,8 @@ public class GcpBlobStore extends AbstractBlobStore {
     this.multipartUploadClient = mpuClient;
     this.transferManager = transferManager;
     this.transformer = builder.transformerSupplier.get(bucket);
+    this.ownedHttpClient = builder.ownedHttpClient;
+    builder.ownedHttpClient = null;
   }
 
   @Override
@@ -1652,22 +1655,56 @@ public class GcpBlobStore extends AbstractBlobStore {
   /** Closes the underlying GCP Storage clients and releases any resources. */
   @Override
   public void close() {
+    List<Throwable> failures = new ArrayList<>();
     try {
       if (transferManager != null) {
         transferManager.close();
       }
+    } catch (Throwable t) {
+      failures.add(t);
+    }
+    try {
       if (storage != null) {
         storage.close();
       }
-      // When the gRPC transport is selected, httpStorage is a distinct client backing the
-      // operations gRPC does not implement; close it too. Otherwise it is the same instance as
-      // storage (already closed above).
+    } catch (Throwable t) {
+      failures.add(t);
+    }
+    // When the gRPC transport is selected, httpStorage is a distinct client backing the
+    // operations gRPC does not implement; close it too. Otherwise it is the same instance as
+    // storage (already closed above).
+    try {
       if (httpStorage != null && httpStorage != storage) {
         httpStorage.close();
       }
-    } catch (Exception e) {
-      throw new SubstrateSdkException("Failed to close GCP storage clients", e);
+    } catch (Throwable t) {
+      failures.add(t);
     }
+    try {
+      if (ownedHttpClient != null) {
+        ownedHttpClient.close();
+      }
+    } catch (Throwable t) {
+      failures.add(t);
+    }
+    if (failures.isEmpty()) {
+      return;
+    }
+    Throwable failure = failures.get(0);
+    boolean interrupted = false;
+    for (Throwable t : failures) {
+      interrupted |= t instanceof InterruptedException;
+      if (failure != t) {
+        failure.addSuppressed(t);
+      }
+    }
+    if (interrupted) {
+      Thread.currentThread().interrupt();
+    }
+    if (failure instanceof Error) {
+      throw (Error) failure;
+    }
+    throw new SubstrateSdkException("Failed to close GCP storage clients", failure);
   }
 
   @Getter
@@ -1677,6 +1714,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     private MultipartUploadClient mpuClient;
     private TransferManager transferManager;
     private GcpTransformerSupplier transformerSupplier = new GcpTransformerSupplier();
+    private CloseableHttpClient ownedHttpClient;
 
     public Builder() {
       providerId(GcpConstants.PROVIDER_ID);
@@ -1775,8 +1813,10 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     /** Creates HttpTransportOptions with ApacheHttpTransport */
     private static HttpTransportOptions buildTransportOptions(Builder builder) {
-      CloseableHttpClient httpClient = buildHttpClient(builder);
-      ApacheHttpTransport transport = new ApacheHttpTransport(httpClient);
+      if (builder.ownedHttpClient == null) {
+        builder.ownedHttpClient = buildHttpClient(builder);
+      }
+      ApacheHttpTransport transport = new ApacheHttpTransport(builder.ownedHttpClient);
       return HttpTransportOptions.newBuilder().setHttpTransportFactory(() -> transport).build();
     }
 
@@ -1995,6 +2035,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     @Override
     public GcpBlobStore build() {
+      ownedHttpClient = null;
       Storage storage = this.storage;
       MultipartUploadClient mpuClient = this.mpuClient;
       TransferManager transferManager = this.transferManager;

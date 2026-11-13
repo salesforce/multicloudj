@@ -57,22 +57,26 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
    */
   @Override
   public void close() {
-    Exception failure = null;
+    Throwable failure = null;
     try {
       super.close();
-    } catch (Exception e) {
+    } catch (Throwable e) {
       failure = e;
-    }
-    if (storage != null) {
-      try {
-        storage.close();
-      } catch (Exception e) {
-        if (failure == null) {
-          failure = e;
-        } else {
-          failure.addSuppressed(e);
+    } finally {
+      if (storage != null) {
+        try {
+          storage.close();
+        } catch (Throwable e) {
+          if (failure == null) {
+            failure = e;
+          } else if (failure != e) {
+            failure.addSuppressed(e);
+          }
         }
       }
+    }
+    if (failure instanceof Error) {
+      throw (Error) failure;
     }
     if (failure instanceof SubstrateSdkException) {
       throw (SubstrateSdkException) failure;
