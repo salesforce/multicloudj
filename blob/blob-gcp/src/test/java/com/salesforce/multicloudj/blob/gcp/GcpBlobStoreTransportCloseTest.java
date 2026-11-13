@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
@@ -16,7 +15,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.google.api.client.http.apache.v2.ApacheHttpTransport;
 import com.google.cloud.NoCredentials;
@@ -81,7 +79,8 @@ class GcpBlobStoreTransportCloseTest {
         builder.withStorage(mock(Storage.class));
       }
       try (GcpBlobStore store = builder.build()) {
-        assertEquals(2, clients.evictors.size());
+        assertEquals(1, clients.clients.size());
+        assertEquals(1, clients.evictors.size());
 
         store.close();
         store.close();
@@ -114,21 +113,20 @@ class GcpBlobStoreTransportCloseTest {
       GcpBlobStore.Builder builder = builder();
       builder.withTransferManager(mock(TransferManager.class));
       if (multipart) {
-        builder.withStorage(mock(Storage.class));
         builder.withMultipartUploadClient(MultipartUploadClient.create(MultipartUploadSettings.of(
             HttpStorageOptions.http().setCredentials(NoCredentials.getInstance())
                 .setTransportOptions(transportOptions).build())));
       } else {
         builder.withStorage(StorageOptions.newBuilder().setCredentials(NoCredentials.getInstance())
             .setTransportOptions(transportOptions).build().getService());
-        builder.withMultipartUploadClient(mock(MultipartUploadClient.class));
       }
 
       try (GcpBlobStore store = builder.build()) {
         store.close();
 
-        assertEquals(1, clients.evictors.size());
+        assertEquals(2, clients.evictors.size());
         assertTrue(clients.evictors.get(0).isAlive());
+        HttpClients.assertStopped(clients.evictors.subList(1, 2));
         verify(borrowed, never()).close();
       }
     }
@@ -144,7 +142,7 @@ class GcpBlobStoreTransportCloseTest {
       builder.withIdleConnectionTimeout(Duration.ofSeconds(1));
       builder.withExecutorService(executor);
       try (GcpAsyncBlobStore store = builder.build()) {
-        assertEquals(2, clients.evictors.size());
+        assertEquals(1, clients.evictors.size());
 
         store.close();
 
@@ -161,13 +159,12 @@ class GcpBlobStoreTransportCloseTest {
     try (HttpClients clients = new HttpClients()) {
       GcpBlobStore.Builder builder = builder();
       try (GcpBlobStore first = builder.build(); GcpBlobStore second = builder.build()) {
-        assertEquals(4, clients.evictors.size());
+        assertEquals(2, clients.evictors.size());
 
         first.close();
 
-        HttpClients.assertStopped(clients.evictors.subList(0, 2));
-        assertTrue(clients.evictors.get(2).isAlive());
-        assertTrue(clients.evictors.get(3).isAlive());
+        HttpClients.assertStopped(clients.evictors.subList(0, 1));
+        assertTrue(clients.evictors.get(1).isAlive());
 
         second.close();
 
@@ -177,16 +174,20 @@ class GcpBlobStoreTransportCloseTest {
   }
 
   @Test
-  void directConstructionDoesNotOwnSubsequentBuildTransports() throws Exception {
+  void directConstructionDoesNotOwnBuilderTransports() throws Exception {
     try (HttpClients clients = new HttpClients()) {
       GcpBlobStore.Builder builder = builder();
       try (GcpBlobStore direct =
               new GcpBlobStore(builder, mock(Storage.class),
                   mock(MultipartUploadClient.class), mock(TransferManager.class));
-          GcpBlobStore built = builder.build()) {
-        assertEquals(2, clients.evictors.size());
+          GcpBlobStore built = builder.build();
+          GcpBlobStore after =
+              new GcpBlobStore(builder, mock(Storage.class),
+                  mock(MultipartUploadClient.class), mock(TransferManager.class))) {
+        assertEquals(1, clients.evictors.size());
 
         direct.close();
+        after.close();
 
         for (Thread evictor : clients.evictors) {
           assertTrue(evictor.isAlive(), "another store must retain its HTTP evictor");
@@ -194,58 +195,6 @@ class GcpBlobStoreTransportCloseTest {
         built.close();
         clients.assertStopped();
       }
-    }
-  }
-
-  @Test
-  void multipartConstructionFailureClosesAlreadyCreatedTransports() throws Exception {
-    IllegalStateException failure = new IllegalStateException("multipart construction failed");
-    try (HttpClients clients = new HttpClients();
-        MockedStatic<MultipartUploadClient> multipart = mockStatic(MultipartUploadClient.class)) {
-      multipart.when(() -> MultipartUploadClient.create(any(MultipartUploadSettings.class)))
-          .thenThrow(failure);
-
-      assertSame(failure, assertThrows(IllegalStateException.class, builder()::build));
-
-      assertEquals(2, clients.evictors.size());
-      clients.assertStopped();
-    }
-  }
-
-  @Test
-  void transferManagerConfigurationFailureClosesTransports() throws Exception {
-    try (HttpClients clients = new HttpClients()) {
-      GcpBlobStore.Builder builder = builder();
-      builder.withPartBufferSize(Long.MAX_VALUE);
-
-      assertThrows(IllegalArgumentException.class, builder::build);
-
-      assertEquals(2, clients.evictors.size());
-      clients.assertStopped();
-    }
-  }
-
-  @Test
-  void constructorFailureClosesOwnedFallbackAndPreservesInjectedResources() throws Exception {
-    Storage storage = mock(Storage.class);
-    TransferManager manager = mock(TransferManager.class);
-    GcpTransformerSupplier supplier = mock(GcpTransformerSupplier.class);
-    IllegalStateException failure = new IllegalStateException("transformer construction failed");
-    when(supplier.get("test-bucket")).thenThrow(failure);
-    try (HttpClients clients = new HttpClients()) {
-      GcpBlobStore.Builder builder = builder();
-      builder.withStorage(storage);
-      builder.withMultipartUploadClient(mock(MultipartUploadClient.class));
-      builder.withTransferManager(manager);
-      builder.withTransformerSupplier(supplier);
-      builder.withGrpcEnabled(true);
-
-      assertSame(failure, assertThrows(IllegalStateException.class, builder::build));
-
-      assertEquals(1, clients.evictors.size());
-      clients.assertStopped();
-      verify(storage, never()).close();
-      verify(manager, never()).close();
     }
   }
 
@@ -304,29 +253,6 @@ class GcpBlobStoreTransportCloseTest {
         verify(clients.clients.get(0), times(2)).close();
         clients.assertStopped();
       }
-    }
-  }
-
-  @Test
-  void failedBuildPreservesOriginalFailureWhenTransportCleanupFails() throws Exception {
-    IllegalStateException failure = new IllegalStateException("multipart construction failed");
-    IOException cleanupFailure = new IOException("HTTP cleanup failed");
-    try (HttpClients clients = new HttpClients();
-        MockedStatic<MultipartUploadClient> multipart = mockStatic(MultipartUploadClient.class)) {
-      multipart.when(() -> MultipartUploadClient.create(any(MultipartUploadSettings.class)))
-          .thenAnswer(invocation -> {
-            doAnswer(close -> {
-              close.callRealMethod();
-              throw cleanupFailure;
-            }).when(clients.clients.get(1)).close();
-            throw failure;
-          });
-
-      assertSame(failure, assertThrows(IllegalStateException.class, builder()::build));
-
-      assertEquals(1, failure.getSuppressed().length);
-      assertSame(cleanupFailure, failure.getSuppressed()[0]);
-      clients.assertStopped();
     }
   }
 

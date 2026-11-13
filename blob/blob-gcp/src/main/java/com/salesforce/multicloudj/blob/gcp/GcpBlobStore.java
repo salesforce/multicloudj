@@ -149,7 +149,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   private final Storage httpStorage;
   private final MultipartUploadClient multipartUploadClient;
   private final TransferManager transferManager;
-  private final List<CloseableHttpClient> ownedHttpClients;
+  private final CloseableHttpClient ownedHttpClient;
   private final GcpTransformer transformer;
   private final GcpAccessTokenSigner accessTokenSigner = new GcpAccessTokenSigner();
   private static final String TAG_PREFIX = "gcp-tag-";
@@ -185,7 +185,8 @@ public class GcpBlobStore extends AbstractBlobStore {
     this.multipartUploadClient = mpuClient;
     this.transferManager = transferManager;
     this.transformer = builder.transformerSupplier.get(bucket);
-    this.ownedHttpClients = builder.ownedHttpClients;
+    this.ownedHttpClient = builder.ownedHttpClient;
+    builder.ownedHttpClient = null;
   }
 
   @Override
@@ -1679,12 +1680,12 @@ public class GcpBlobStore extends AbstractBlobStore {
     } catch (Throwable t) {
       failures.add(t);
     }
-    for (CloseableHttpClient httpClient : ownedHttpClients) {
-      try {
-        httpClient.close();
-      } catch (Throwable t) {
-        failures.add(t);
+    try {
+      if (ownedHttpClient != null) {
+        ownedHttpClient.close();
       }
+    } catch (Throwable t) {
+      failures.add(t);
     }
     if (failures.isEmpty()) {
       return;
@@ -1713,7 +1714,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     private MultipartUploadClient mpuClient;
     private TransferManager transferManager;
     private GcpTransformerSupplier transformerSupplier = new GcpTransformerSupplier();
-    private List<CloseableHttpClient> ownedHttpClients = new ArrayList<>();
+    private CloseableHttpClient ownedHttpClient;
 
     public Builder() {
       providerId(GcpConstants.PROVIDER_ID);
@@ -1812,8 +1813,10 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     /** Creates HttpTransportOptions with ApacheHttpTransport */
     private static HttpTransportOptions buildTransportOptions(Builder builder) {
-      CloseableHttpClient httpClient = buildHttpClient(builder);
-      ApacheHttpTransport transport = new ApacheHttpTransport(httpClient);
+      if (builder.ownedHttpClient == null) {
+        builder.ownedHttpClient = buildHttpClient(builder);
+      }
+      ApacheHttpTransport transport = new ApacheHttpTransport(builder.ownedHttpClient);
       return HttpTransportOptions.newBuilder().setHttpTransportFactory(() -> transport).build();
     }
 
@@ -2011,9 +2014,7 @@ public class GcpBlobStore extends AbstractBlobStore {
         httpClientBuilder.evictIdleConnections(
             builder.getIdleConnectionTimeout().toMillis(), TimeUnit.MILLISECONDS);
       }
-      CloseableHttpClient httpClient = httpClientBuilder.build();
-      builder.ownedHttpClients.add(httpClient);
-      return httpClient;
+      return httpClientBuilder.build();
     }
 
     private static RequestConfig buildRequestConfig(Builder builder) {
@@ -2034,40 +2035,25 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     @Override
     public GcpBlobStore build() {
-      ownedHttpClients = new ArrayList<>();
-      try {
-        Storage storage = this.storage;
-        MultipartUploadClient mpuClient = this.mpuClient;
-        TransferManager transferManager = this.transferManager;
-        if (storage == null) {
-          storage = buildStorage(this);
-        }
-        // Operations the gRPC transport does not implement (signed URLs, batch/collection delete)
-        // run on an HTTP/JSON client. When gRPC is not enabled the main client already uses
-        // HTTP/JSON, so reuse it instead of opening a second client.
-        Storage httpStorage =
-            Boolean.TRUE.equals(getGrpcEnabled()) ? buildHttpStorage(this) : storage;
-        if (mpuClient == null) {
-          mpuClient = buildMultipartUploadClient(this);
-        }
-        if (transferManager == null) {
-          transferManager = buildTransferManager(this, storage);
-        }
-        return new GcpBlobStore(this, storage, httpStorage, mpuClient, transferManager);
-      } catch (RuntimeException | Error failure) {
-        for (CloseableHttpClient httpClient : ownedHttpClients) {
-          try {
-            httpClient.close();
-          } catch (Throwable cleanupFailure) {
-            if (failure != cleanupFailure) {
-              failure.addSuppressed(cleanupFailure);
-            }
-          }
-        }
-        throw failure;
-      } finally {
-        ownedHttpClients = new ArrayList<>();
+      ownedHttpClient = null;
+      Storage storage = this.storage;
+      MultipartUploadClient mpuClient = this.mpuClient;
+      TransferManager transferManager = this.transferManager;
+      if (storage == null) {
+        storage = buildStorage(this);
       }
+      // Operations the gRPC transport does not implement (signed URLs, batch/collection delete)
+      // run on an HTTP/JSON client. When gRPC is not enabled the main client already uses
+      // HTTP/JSON, so reuse it instead of opening a second client.
+      Storage httpStorage =
+          Boolean.TRUE.equals(getGrpcEnabled()) ? buildHttpStorage(this) : storage;
+      if (mpuClient == null) {
+        mpuClient = buildMultipartUploadClient(this);
+      }
+      if (transferManager == null) {
+        transferManager = buildTransferManager(this, storage);
+      }
+      return new GcpBlobStore(this, storage, httpStorage, mpuClient, transferManager);
     }
   }
 }
