@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.4.16](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.15...multicloudj-v0.4.16) (2026-11-13)
+
+
+### Bug Fixes
+
+* **blobstore:** close owned GCP HTTP transports ([#764](https://github.com/salesforce/multicloudj/issues/764)) ([5143b1d](https://github.com/salesforce/multicloudj/commit/5143b1de26746dd822a4e44c6311b2ef2961251d))
+
+
+### Blob Store
+
+* close wrapped GCP store and TransferManager on async close ([#763](https://github.com/salesforce/multicloudj/issues/763)) ([2d1265a](https://github.com/salesforce/multicloudj/commit/2d1265a5722079c1eefd078d841b6329e0965cb9))
+* report total bytes transferred from GCP downloadDirectory ([#742](https://github.com/salesforce/multicloudj/issues/742)) ([9851221](https://github.com/salesforce/multicloudj/commit/98512215fea0893ae4540deca9a4e75212cb09c6))
+
+
+### Document Store
+
+* guard against a null sort key in AWS hasFilter ([#756](https://github.com/salesforce/multicloudj/issues/756)) ([3fc78c0](https://github.com/salesforce/multicloudj/commit/3fc78c0841804d217a1e5227d9ec7150ef16a73f))
+
+
+### STS
+
+* cloud native auth signing interop for header names and signing endpoint ([#718](https://github.com/salesforce/multicloudj/issues/718)) ([94e5a13](https://github.com/salesforce/multicloudj/commit/94e5a1320800ffff208764fcbce8fefe5cf40e41))
+
 ## [0.4.15](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.14...multicloudj-v0.4.15) (2026-11-07)
 
 
