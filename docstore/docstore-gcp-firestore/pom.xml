@@ -378,7 +378,7 @@
         <dependency>
             <groupId>org.checkerframework</groupId>
             <artifactId>checker-qual</artifactId>
-            <version>3.39.0</version>
+            <version>4.4.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
