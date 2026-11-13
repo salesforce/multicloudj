@@ -26,6 +26,27 @@ The optional [Resilience4j](https://resilience4j.readme.io/docs/circuitbreaker) 
 **consumer-application code**, illustrating one way to wrap the public SDK calls. They are not
 MultiCloudJ APIs, SDK defaults, or a recommendation to choose Resilience4j over other options.
 
+## Why circuit breaking stays in the consuming application
+
+Circuit breaking is an application resilience policy, rather than a cloud abstraction. The
+consumer decides which dependencies to isolate, which failures matter, when to stop making calls,
+and how to recover or fall back. Those decisions can live in a library or in infrastructure such
+as a service mesh or Envoy; they do not require a circuit breaker implementation in MultiCloudJ.
+
+Bundling a fault tolerance framework into `blob-client` or `sts-client` would impose that
+framework and its transitive dependencies on every consumer. Keeping the SDK independent lets
+consumers use their existing resilience solution and change it without changing the cloud API.
+Provider-native retries and backoff remain available through the SDK's retry configuration.
+
+The SDK's responsibility is the layer immediately below the breaker: a normalized, documented
+exception taxonomy. For example, consumers can treat `DeadlineExceededException`,
+`ResourceExhaustedException`, and `UnknownException` as dependency failure signals, while excluding
+`InvalidArgumentException` and `ResourceNotFoundException` from breaker metrics. The
+[failure-policy example below](#use-the-exception-taxonomy-to-choose-your-failure-policy) explains
+how to adapt those signals to an application's needs across providers. If an SDK limitation
+blocks integration with a consumer's chosen solution, the SDK should address that limitation
+without taking ownership of the consumer's circuit breaker.
+
 ## Configure SDK retries and application circuit breaking separately
 
 MultiCloudJ's existing
