@@ -94,7 +94,7 @@ and critical notes below identify their scope.
 
 | Configuration | Feature Detail | GCP | AWS | ALI | Provider-Specific Notes |
 |---------------|----------------|-----|-----|-----|-----------------------------|
-| **Parallel Uploads** | `withParallelUploadsEnabled`: enable parallel uploads for large objects | ✅ Supported | ✅ Supported | ✅ Supported | On GCP, this flag affects directory uploads only. On AWS, it affects the standard async client; the CRT client selected by `withParallelDownloadsEnabled(true)` ignores it. Alibaba ignores the flag; use explicit multipart APIs. |
+| **Parallel Uploads** | Parallel uploads for large objects; `withParallelUploadsEnabled` where applicable | ✅ Supported | ✅ Supported | ✅ Supported | On GCP, this flag affects directory uploads only. On AWS, it affects the standard async client; the CRT client selected by `withParallelDownloadsEnabled(true)` ignores it. Alibaba ignores the flag; use explicit multipart APIs. |
 | **Part Buffer Size** | `withPartBufferSize`: configure part size or transfer buffers | ⚠️ Indirect | ✅ Supported | ⚠️ Ignored | <!-- --> |
 | **Threshold Bytes** | `withThresholdBytes`: configure the multipart threshold | ⚠️ Ignored | ✅ Supported | ⚠️ Ignored | <!-- --> |
 | **Max Concurrency** | Concurrent transfers; `withMaxConcurrency` where applicable | ✅ Supported | ✅ Supported | ✅ Supported | On AWS, `withMaxConcurrency` applies to the CRT client selected by `withParallelDownloadsEnabled(true)`; the standard client ignores it. GCP and Alibaba ignore this builder setting. Configure GCP transfer workers with `withTransferManagerThreadPoolSize`. |
