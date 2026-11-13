@@ -1,20 +1,30 @@
 ---
 layout: default
-title: Circuit Breakers
+title: Client-side Circuit Breaking
 nav_order: 10
 parent: Usage Guides
 ---
 
-# Use a circuit breaker with MultiCloudJ
+# Use your application's circuit breaker with MultiCloudJ
 
-A circuit breaker lets an application stop calling a failing dependency temporarily and probe it
-again later. Apply your preferred resilience library around MultiCloudJ's public client calls.
-The application owns the breaker, its lifecycle, and its failure policy; MultiCloudJ supplies
-cloud-agnostic [exceptions](../design/errors.html) at the client boundary.
+Circuit breaking is a concern of the consuming application or its infrastructure. Consumers choose
+their own approach, such as Resilience4j, Failsafe, MicroProfile Fault Tolerance, or a service-mesh
+policy. MultiCloudJ does not select a framework, implement a circuit breaker, or add a fault
+tolerance library as an SDK dependency.
 
-This guide uses [Resilience4j](https://resilience4j.readme.io/docs/circuitbreaker) as one example.
-The same approach works with other libraries that can wrap a Java supplier. There is no circuit
-breaker configuration on the SDK clients and no resilience library dependency in the SDK modules.
+MultiCloudJ owns the cloud abstraction below that layer: normalized
+[exceptions](../design/errors.html) and configuration of provider-native retries. This guide
+explains how consumers can use those existing signals with a resilience solution of their choice.
+
+| Responsibility | Owner |
+| --- | --- |
+| Cloud-agnostic exception types and retryability signals | MultiCloudJ |
+| Configuration of provider-native retries through `RetryConfig` | MultiCloudJ |
+| Circuit breaker framework, failure policy, thresholds, lifecycle, and fallback | Consuming application or its infrastructure |
+
+The optional [Resilience4j](https://resilience4j.readme.io/docs/circuitbreaker) snippets below are
+**consumer-application code**, illustrating one way to wrap the public SDK calls. They are not
+MultiCloudJ APIs, SDK defaults, or a recommendation to choose Resilience4j over other options.
 
 ## Configure SDK retries and application circuit breaking separately
 
@@ -36,7 +46,7 @@ Provider support for individual settings differs: Alibaba STS applies `attemptTi
 request connect/read timeouts but does not apply `totalTimeout` as an overall deadline.
 
 Define this retry configuration once and reuse it in the Blob and STS examples below. The sample
-values are in milliseconds; tune them for your workload.
+timing values are in milliseconds; tune them for your workload.
 
 ```java
 import com.salesforce.multicloudj.common.retries.RetryConfig;
@@ -52,7 +62,7 @@ RetryConfig retryConfig = RetryConfig.builder()
     .build();
 ```
 
-## Add an application dependency
+## Optional example: add a dependency to your application
 
 Add the circuit breaker library to **your application's** Maven dependencies, alongside the
 MultiCloudJ client and provider modules you already use. This example uses Resilience4j 2.4.0,
@@ -66,10 +76,15 @@ which [targets Java 17](https://github.com/resilience4j/resilience4j/blob/v2.4.0
 </dependency>
 ```
 
-## Choose which failures count
+## Use the exception taxonomy to choose your failure policy
+
+The SDK's normalized exception types let consumers distinguish dependency failure signals, such as
+`DeadlineExceededException`, `ResourceExhaustedException`, and `UnknownException`, from caller or
+resource errors such as `InvalidArgumentException` and `ResourceNotFoundException`. Consumers own
+the decision about which failures should affect their breaker.
 
 `SubstrateSdkException.isRetryable()` indicates whether an operation might succeed on retry.
-The example uses it as a starting policy for dependency failures:
+The optional application example uses that existing signal as a starting policy:
 
 | Exception or failure | Default example policy |
 | --- | --- |
@@ -114,12 +129,13 @@ static CircuitBreaker newCircuitBreaker(String name) {
 }
 ```
 
-These values demonstrate a small count-based window; tune them for your traffic and recovery
+The helper above belongs in the consuming application; it is not provided by MultiCloudJ.
+These values demonstrate a small count-based window; choose them for your traffic and recovery
 objectives. With this configuration, the failure rate is evaluated after five recorded calls.
 A rate of at least 50% opens the breaker. Successful and failed recorded calls contribute to the
 window; ignored exceptions do not.
 
-## Wrap Blob operations
+## Optional application example: wrap Blob operations
 
 Build and reuse your client and breaker at application startup. Keep separate breaker instances
 for dependencies whose failures should be isolated, such as different services, regions, or
@@ -156,7 +172,7 @@ example, the Alibaba Blob implementation does not apply `totalTimeout` as an ove
 Omit `withRetryConfig(...)` to retain the native SDK retry defaults.
 See the [Blob guide](blobstore-guide.html) for client configuration and other operations.
 
-## Wrap STS operations
+## Optional application example: wrap STS operations
 
 Use a separate breaker for credential acquisition so that a Blob outage does not block STS calls.
 Create and reuse the following objects in the application component that obtains credentials,
