@@ -20,8 +20,9 @@ breaker configuration on the SDK clients and no resilience library dependency in
 
 MultiCloudJ's existing
 [`RetryConfig`](https://github.com/salesforce/multicloudj/blob/main/multicloudj-common/src/main/java/com/salesforce/multicloudj/common/retries/RetryConfig.java)
-exposes retry settings that provider implementations translate to their native SDKs. For Blob,
-pass it to `BucketClient.builder(...).withRetryConfig(...)`, as shown below.
+exposes retry settings that provider implementations translate to their native SDKs. Both
+`BucketClient.builder(...)` and `StsClient.builder(...)` accept `withRetryConfig(...)`.
+STS retry configuration requires MultiCloudJ 0.4.15 or later.
 
 | Mechanism | Purpose |
 | --- | --- |
@@ -31,8 +32,25 @@ pass it to `BucketClient.builder(...).withRetryConfig(...)`, as shown below.
 
 An application can use SDK retries with or without a circuit breaker. Choose the resilience
 framework or service-mesh policy that fits your application; the SDK does not select one.
-The `StsClient` builder currently has no `withRetryConfig` method; its example below wraps the
-public STS operation and leaves native retry behavior unchanged.
+Provider support for individual settings differs: Alibaba STS applies `attemptTimeout` to
+request connect/read timeouts but does not apply `totalTimeout` as an overall deadline.
+
+Define this retry configuration once and reuse it in the Blob and STS examples below. The sample
+values are in milliseconds; tune them for your workload.
+
+```java
+import com.salesforce.multicloudj.common.retries.RetryConfig;
+
+RetryConfig retryConfig = RetryConfig.builder()
+    .mode(RetryConfig.Mode.EXPONENTIAL)
+    .maxAttempts(3)
+    .initialDelayMillis(100L)
+    .multiplier(2.0)
+    .maxDelayMillis(1000L)
+    .attemptTimeout(2000L)
+    .totalTimeout(10000L)
+    .build();
+```
 
 ## Add an application dependency
 
@@ -110,20 +128,10 @@ endpoints. Give each instance a useful name for metrics.
 ```java
 import com.salesforce.multicloudj.blob.client.BucketClient;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
-import com.salesforce.multicloudj.common.retries.RetryConfig;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 
 // providerId, region, bucketName, and key come from application configuration.
-// Sample settings in milliseconds; tune them for your workload.
-RetryConfig retryConfig = RetryConfig.builder()
-    .mode(RetryConfig.Mode.EXPONENTIAL)
-    .maxAttempts(3)
-    .initialDelayMillis(100L)
-    .multiplier(2.0)
-    .maxDelayMillis(1000L)
-    .attemptTimeout(2000L)
-    .totalTimeout(10000L)
-    .build();
+// Reuse retryConfig from the shared retry configuration above.
 CircuitBreaker blobBreaker = newCircuitBreaker("blob-metadata");
 try (BucketClient bucketClient = BucketClient.builder(providerId)
         .withRegion(region)
@@ -151,7 +159,8 @@ See the [Blob guide](blobstore-guide.html) for client configuration and other op
 ## Wrap STS operations
 
 Use a separate breaker for credential acquisition so that a Blob outage does not block STS calls.
-Create and reuse the following objects in the application component that obtains credentials:
+Create and reuse the following objects in the application component that obtains credentials,
+using the same `retryConfig` defined above:
 
 ```java
 import com.salesforce.multicloudj.sts.client.StsClient;
@@ -159,7 +168,10 @@ import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 
 CircuitBreaker stsBreaker = newCircuitBreaker("sts-assume-role");
-StsClient stsClient = StsClient.builder(providerId).withRegion(region).build();
+StsClient stsClient = StsClient.builder(providerId)
+    .withRegion(region)
+    .withRetryConfig(retryConfig)
+    .build();
 AssumedRoleRequest request = AssumedRoleRequest.newBuilder()
     .withRole(role)
     .withSessionName("circuit-breaker-example")
@@ -189,8 +201,8 @@ failure history. Monitor state changes, rejected calls, failure rates, and ignor
 do not automatically treat every rejected call as another backend failure.
 
 Provider SDK retry and timeout settings, including supported `RetryConfig` settings, apply inside
-each wrapped SDK call. The breaker
-sees the final result after those retries, not each network attempt, and it does not cancel a
+each wrapped SDK call. The breaker sees the final result after those retries, not each network
+attempt, and it does not cancel a
 call already in progress. Configure timeouts and retry budgets separately. Adding an application
 retry loop can multiply attempts; do not retry an open circuit in a tight loop. Retrying writes
 also requires an idempotency strategy.

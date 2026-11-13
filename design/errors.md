@@ -28,14 +28,6 @@ The SDK wraps all exceptions from cloud providers in a standardized wrapper base
 
 ---
 
-## Using Exceptions with Application Resilience
-
-`SubstrateSdkException.isRetryable()` reports whether a failed operation may succeed if retried.
-`DeadlineExceededException`, `ResourceExhaustedException`, and `UnknownException` default to
-retryable; provider hints can override those defaults. Applications can use this signal when
-configuring their own resilience library, while tailoring the policy to the dependency.
-See [Circuit Breakers](../guides/circuit-breaker-guide.html) for Blob and STS examples.
-
 ## How Does Exception Handling Work for Provider Implementations?
 
 ### Handling Server-Side Exceptions
