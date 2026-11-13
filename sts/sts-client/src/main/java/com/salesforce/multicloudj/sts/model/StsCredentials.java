@@ -33,8 +33,8 @@ public class StsCredentials {
   }
 
   /**
-   * Returns the time at which the provider reports these credentials expire, or {@code null} when
-   * the provider did not report an expiry.
+   * Returns when these credentials expire, or {@code null} if unknown (not reported or
+   * unparseable). {@code null} does not mean the credentials never expire.
    */
   public Instant getExpiration() {
     return expiration;
