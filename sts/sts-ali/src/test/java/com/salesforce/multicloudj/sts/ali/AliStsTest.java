@@ -34,6 +34,7 @@ import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
+import java.time.Instant;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,7 @@ public class AliStsTest {
     credentials.setAccessKeyId("testKeyId");
     credentials.setAccessKeySecret("testSecret");
     credentials.setSecurityToken("testToken");
+    credentials.setExpiration("2030-01-01T00:00:00Z");
 
     AssumeRoleResponse mockResponse = new AssumeRoleResponse();
     mockResponse.setCredentials(credentials);
@@ -122,6 +124,8 @@ public class AliStsTest {
     Assertions.assertEquals("testKeyId", credentials.getAccessKeyId());
     Assertions.assertEquals("testSecret", credentials.getAccessKeySecret());
     Assertions.assertEquals("testToken", credentials.getSecurityToken());
+    Assertions.assertEquals(
+        Instant.parse("2030-01-01T00:00:00Z"), credentials.getExpiration());
   }
 
   @Test
@@ -132,6 +136,7 @@ public class AliStsTest {
     creds.setAccessKeyId("oidcKeyId");
     creds.setAccessKeySecret("oidcSecret");
     creds.setSecurityToken("oidcToken");
+    creds.setExpiration("2030-01-01T00:00:00Z");
     AssumeRoleWithOIDCResponse response = new AssumeRoleWithOIDCResponse();
     response.setCredentials(creds);
     Mockito.when(client.getAcsResponse(any(AssumeRoleWithOIDCRequest.class))).thenReturn(response);
@@ -150,6 +155,8 @@ public class AliStsTest {
     Assertions.assertEquals("oidcKeyId", credentials.getAccessKeyId());
     Assertions.assertEquals("oidcSecret", credentials.getAccessKeySecret());
     Assertions.assertEquals("oidcToken", credentials.getSecurityToken());
+    Assertions.assertEquals(
+        Instant.parse("2030-01-01T00:00:00Z"), credentials.getExpiration());
 
     // Verify the cloud-agnostic request was wired to the Aliyun OIDC request correctly.
     ArgumentCaptor<AssumeRoleWithOIDCRequest> captor =
@@ -160,6 +167,13 @@ public class AliStsTest {
     Assertions.assertEquals("testOidcToken", sent.getOIDCToken());
     Assertions.assertEquals("testSession", sent.getRoleSessionName());
     Assertions.assertEquals("acs:ram::123:oidc-provider/test", sent.getOIDCProviderArn());
+  }
+
+  @Test
+  public void testParseExpirationAbsentOrMalformedIsUnknown() {
+    Assertions.assertNull(AliSts.parseExpiration(null));
+    Assertions.assertNull(AliSts.parseExpiration(""));
+    Assertions.assertNull(AliSts.parseExpiration("not-a-timestamp"));
   }
 
   @Test

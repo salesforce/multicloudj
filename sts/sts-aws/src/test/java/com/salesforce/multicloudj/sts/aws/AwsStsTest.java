@@ -19,6 +19,7 @@ import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
+import java.time.Instant;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,7 @@ import software.amazon.awssdk.services.sts.model.GetSessionTokenResponse;
 
 public class AwsStsTest {
 
+  private static final Instant EXPIRATION = Instant.parse("2030-01-01T00:00:00Z");
   private static StsClient mockStsClient;
 
   @BeforeAll
@@ -49,6 +51,7 @@ public class AwsStsTest {
             .accessKeyId("testKeyId")
             .secretAccessKey("testSecret")
             .sessionToken("testToken")
+            .expiration(EXPIRATION)
             .build();
     AssumeRoleResponse mockResponse = AssumeRoleResponse.builder().credentials(credentials).build();
     AssumeRoleWithWebIdentityResponse webIdentityResponse =
@@ -86,6 +89,7 @@ public class AwsStsTest {
     Assertions.assertEquals("testKeyId", credentials.getAccessKeyId());
     Assertions.assertEquals("testSecret", credentials.getAccessKeySecret());
     Assertions.assertEquals("testToken", credentials.getSecurityToken());
+    Assertions.assertEquals(EXPIRATION, credentials.getExpiration());
   }
 
   @Test
@@ -97,6 +101,7 @@ public class AwsStsTest {
     Assertions.assertEquals("testKeyId", credentials.getAccessKeyId());
     Assertions.assertEquals("testSecret", credentials.getAccessKeySecret());
     Assertions.assertEquals("testToken", credentials.getSecurityToken());
+    Assertions.assertEquals(EXPIRATION, credentials.getExpiration());
   }
 
   @Test
@@ -123,6 +128,7 @@ public class AwsStsTest {
     Assertions.assertEquals("testKeyId", credentials.getAccessKeyId());
     Assertions.assertEquals("testSecret", credentials.getAccessKeySecret());
     Assertions.assertEquals("testToken", credentials.getSecurityToken());
+    Assertions.assertEquals(EXPIRATION, credentials.getExpiration());
   }
 
   @Test

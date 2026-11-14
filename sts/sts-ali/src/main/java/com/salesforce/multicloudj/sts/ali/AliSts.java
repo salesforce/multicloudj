@@ -37,6 +37,8 @@ import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -316,7 +318,8 @@ public class AliSts extends AbstractSts {
       return new StsCredentials(
           credentials.getAccessKeyId(),
           credentials.getAccessKeySecret(),
-          credentials.getSecurityToken());
+          credentials.getSecurityToken(),
+          parseExpiration(credentials.getExpiration()));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -535,9 +538,26 @@ public class AliSts extends AbstractSts {
       return new StsCredentials(
           credentials.getAccessKeyId(),
           credentials.getAccessKeySecret(),
-          credentials.getSecurityToken());
+          credentials.getSecurityToken(),
+          parseExpiration(credentials.getExpiration()));
     } catch (ClientException e) {
       throw mapException(e);
+    }
+  }
+
+  /**
+   * Parses the UTC ISO-8601 expiry (for example {@code 2015-04-09T11:52:19Z}) that Alibaba STS
+   * returns with temporary credentials. An absent or unparseable value is reported as unknown
+   * rather than failing an otherwise successful credential request.
+   */
+  static Instant parseExpiration(String expiration) {
+    if (expiration == null || expiration.isEmpty()) {
+      return null;
+    }
+    try {
+      return Instant.parse(expiration);
+    } catch (DateTimeParseException e) {
+      return null;
     }
   }
 
