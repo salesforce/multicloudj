@@ -627,9 +627,6 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         && !rawPrefix.endsWith("/"))
         ? rawPrefix + "/" : rawPrefix;
 
-    List<String> prefixesToExclude =
-        directoryDownloadRequest.getPrefixesToExclude();
-
     List<BlobInfo> blobInfos = Collections.synchronizedList(new ArrayList<>());
     AtomicLong totalBytes = new AtomicLong(0L);
     // Accumulated during listing — sum of object sizes for blobs that pass the filter.
@@ -654,7 +651,7 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
             batch -> {
               for (BlobInfo blob : batch.getBlobs()) {
                 if (isFolderMarker(blob)
-                    || isExcluded(blob.getKey(), prefixesToExclude)) {
+                    || directoryDownloadRequest.isExcluded(blob.getKey())) {
                   continue;
                 }
                 blobInfos.add(blob);
@@ -763,18 +760,6 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
 
   private boolean isFolderMarker(BlobInfo blob) {
     return blob.getKey().endsWith("/") && blob.getObjectSize() == 0;
-  }
-
-  private boolean isExcluded(String key, List<String> prefixesToExclude) {
-    if (prefixesToExclude == null || prefixesToExclude.isEmpty()) {
-      return false;
-    }
-    for (String excludePrefix : prefixesToExclude) {
-      if (key.startsWith(excludePrefix)) {
-        return true;
-      }
-    }
-    return false;
   }
 
   @Override

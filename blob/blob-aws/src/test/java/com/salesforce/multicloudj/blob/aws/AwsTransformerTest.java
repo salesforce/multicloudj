@@ -1323,16 +1323,20 @@ public class AwsTransformerTest {
 
   @Test
   void testGetPrefixExclusionsFilter() {
-    List<String> prefixesToExclude = List.of("files/images", "files/personal");
-    DownloadFilter downloadFilter = transformer.getPrefixExclusionsFilter(prefixesToExclude);
+    DownloadFilter downloadFilter =
+        transformer.getPrefixExclusionsFilter(
+            DirectoryDownloadRequest.builder()
+                .prefixesToExclude(List.of("files/images", "files/personal"))
+                .build());
     assertFalse(downloadFilter.test(S3Object.builder().key("files/images/image1.jpg").build()));
     assertFalse(
         downloadFilter.test(S3Object.builder().key("files/imagesFromVacation/image1.jpg").build()));
     assertFalse(downloadFilter.test(S3Object.builder().key("files/personal/taxes.csv").build()));
     assertTrue(downloadFilter.test(S3Object.builder().key("files/documents/business.doc").build()));
 
-    prefixesToExclude = List.of();
-    downloadFilter = transformer.getPrefixExclusionsFilter(prefixesToExclude);
+    downloadFilter =
+        transformer.getPrefixExclusionsFilter(
+            DirectoryDownloadRequest.builder().prefixesToExclude(List.of()).build());
     assertTrue(downloadFilter.test(S3Object.builder().key("files/images/image1.jpg").build()));
     assertTrue(
         downloadFilter.test(S3Object.builder().key("files/imagesFromVacation/image1.jpg").build()));
