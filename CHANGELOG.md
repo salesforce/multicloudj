@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.17](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.16...multicloudj-v0.4.17) (2026-11-14)
+
+
+### Blob Store
+
+* honor prefixesToExclude in GCP directory downloads ([#727](https://github.com/salesforce/multicloudj/issues/727)) ([874ef37](https://github.com/salesforce/multicloudj/commit/874ef373df9b1774d7245fc5a0cde913a3fb94a5))
+
 ## [0.4.16](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.15...multicloudj-v0.4.16) (2026-11-13)
 
 
