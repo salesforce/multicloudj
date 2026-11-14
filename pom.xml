@@ -5,7 +5,7 @@
     <artifactId>multicloudj-parent</artifactId>
     <packaging>pom</packaging>
     <description>Salesforce Multi-substrate Java SDK</description>
-    <version>0.4.14-SNAPSHOT</version>
+    <version>0.4.17-SNAPSHOT</version>
     <name>multicloudj</name>
     <url>https://github.com/salesforce/multicloudj</url>
 
@@ -71,7 +71,7 @@
         <jmh.version>1.37</jmh.version>
         <netty.version>4.1.136.Final</netty.version>
         <jackson.version>2.19.0</jackson.version>
-        <aws-sdk.version>2.57.1</aws-sdk.version>
+        <aws-sdk.version>2.57.8</aws-sdk.version>
         <commons-codec.version>1.16.0</commons-codec.version>
         <wiremock-grpc.version>0.11.0</wiremock-grpc.version>
         <protobuf.version>4.36.2</protobuf.version>

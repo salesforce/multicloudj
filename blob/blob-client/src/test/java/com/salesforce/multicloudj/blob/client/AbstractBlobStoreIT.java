@@ -36,8 +36,10 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -1720,6 +1722,95 @@ public abstract class AbstractBlobStoreIT {
     } finally {
       // Delete our blob to clean up the test
       safeDeleteBlobs(bucketClient, keysToCleanup.toArray(new String[0]));
+    }
+  }
+
+  /**
+   * A batch with one deletable and one legal-held object throws a BatchOperationException naming
+   * only the held object, with the free object deleted and the held object intact.
+   */
+  @Test
+  public void testBulkVersionedDelete_perObjectFailure_legalHold() throws IOException {
+    String keyPrefix = "conformance-tests/bulkDeleteByVersion/";
+    String heldKey = keyPrefix + "legalhold-held";
+    String freeKey = keyPrefix + "legalhold-free";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String heldVersion = null;
+    String freeVersion = null;
+    boolean freeDeleted = false;
+    try {
+      byte[] content = "per-object failure".getBytes(StandardCharsets.UTF_8);
+      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+        heldVersion =
+            bucketClient
+                .upload(
+                    new UploadRequest.Builder()
+                        .withKey(heldKey)
+                        .withContentLength(content.length)
+                        .withChecksumValue(harness.computeChecksum(content))
+                        .withObjectLock(ObjectLockConfiguration.builder().legalHold(true).build())
+                        .build(),
+                    inputStream)
+                .getVersionId();
+      }
+      Assertions.assertNotNull(heldVersion, "the versioned bucket must return a version id");
+      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+        freeVersion =
+            bucketClient
+                .upload(
+                    new UploadRequest.Builder()
+                        .withKey(freeKey)
+                        .withContentLength(content.length)
+                        .build(),
+                    inputStream)
+                .getVersionId();
+      }
+      Assertions.assertNotNull(freeVersion, "the versioned bucket must return a version id");
+
+      final String heldVer = heldVersion;
+      final String freeVer = freeVersion;
+      BatchOperationException batchException =
+          Assertions.assertThrows(
+              BatchOperationException.class,
+              () ->
+                  bucketClient.delete(
+                      List.of(
+                          new BlobIdentifier(freeKey, freeVer),
+                          new BlobIdentifier(heldKey, heldVer))));
+
+      Assertions.assertEquals(1, batchException.getFailures().size());
+      Assertions.assertEquals(List.of(heldKey), batchException.getFailedItemIds());
+      ItemFailure failure = batchException.getFailures().get(0);
+      Assertions.assertEquals(
+          heldVer, failure.getAttributes().get(BlobIdentifier.VERSION_ID_ATTRIBUTE));
+      Assertions.assertNotNull(failure.getException());
+      Assertions.assertFalse(failure.isRetryable());
+
+      Assertions.assertThrows(
+          ResourceNotFoundException.class, () -> bucketClient.getMetadata(freeKey, freeVer));
+      freeDeleted = true;
+      Assertions.assertEquals(heldVer, bucketClient.getMetadata(heldKey, heldVer).getVersionId());
+    } finally {
+      if (heldVersion != null) {
+        try {
+          bucketClient.updateLegalHold(heldKey, heldVersion, false);
+        } catch (Exception ignored) {
+          // Best-effort: the hold may never have been applied or may already be released.
+        }
+        deleteVersionQuietly(bucketClient, heldKey, heldVersion);
+      }
+      if (freeVersion != null && !freeDeleted) {
+        deleteVersionQuietly(bucketClient, freeKey, freeVersion);
+      }
+    }
+  }
+
+  private void deleteVersionQuietly(BucketClient bucketClient, String key, String versionId) {
+    try {
+      bucketClient.delete(key, versionId);
+    } catch (Exception ignored) {
+      // Best-effort cleanup; the version may already be deleted.
     }
   }
 
@@ -6259,6 +6350,9 @@ public abstract class AbstractBlobStoreIT {
         "file1.txt content should match");
     Assertions.assertEquals(content2, downloadedContent2,
         "subdir/file2.txt content should match");
+    Assertions.assertEquals(
+        (long) (content1.length() + content2.length()),
+        downloadResponse.getTotalBytesTransferred());
 
     // Cleanup
     safeDeleteBlobs(bucketClient, prefix + "/file1.txt", prefix + "/subdir/file2.txt");

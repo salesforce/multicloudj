@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.ali;
 
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
@@ -30,6 +31,7 @@ public class ErrorCodeMapping {
     ERROR_MAPPING.put("ServerError", UnknownException.class);
     ERROR_MAPPING.put("NoSuchBucket", InvalidArgumentException.class);
     ERROR_MAPPING.put("NoSuchKey", ResourceNotFoundException.class);
+    ERROR_MAPPING.put("NoSuchVersion", ResourceNotFoundException.class);
     ERROR_MAPPING.put("InvalidRequest", InvalidArgumentException.class);
     ERROR_MAPPING.put("SignatureDoesNotMatch", UnAuthorizedException.class);
     ERROR_MAPPING.put("BucketAlreadyExists", InvalidArgumentException.class);
@@ -37,6 +39,7 @@ public class ErrorCodeMapping {
     ERROR_MAPPING.put("MissingArgument", InvalidArgumentException.class);
     ERROR_MAPPING.put("InvalidDigest", InvalidArgumentException.class);
     ERROR_MAPPING.put("FileAlreadyExists", ResourceAlreadyExistsException.class);
+    ERROR_MAPPING.put("FileImmutable", FailedPreconditionException.class);
   }
 
   static Class<? extends SubstrateSdkException> getException(String errorCode) {

@@ -7,6 +7,7 @@ import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.Credentials;
 import com.google.auto.service.AutoService;
+import com.google.cloud.BatchResult;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
@@ -22,6 +23,7 @@ import com.google.cloud.storage.MultipartUploadSettings;
 import com.google.cloud.storage.ParallelCompositeUploadBlobWriteSessionConfig.PartNamingStrategy;
 import com.google.cloud.storage.RequestBody;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageBatch;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import com.google.cloud.storage.multipartupload.model.AbortMultipartUploadRequest;
@@ -84,9 +86,11 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
@@ -145,6 +149,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   private final Storage httpStorage;
   private final MultipartUploadClient multipartUploadClient;
   private final TransferManager transferManager;
+  private final CloseableHttpClient ownedHttpClient;
   private final GcpTransformer transformer;
   private final GcpAccessTokenSigner accessTokenSigner = new GcpAccessTokenSigner();
   private static final String TAG_PREFIX = "gcp-tag-";
@@ -180,6 +185,8 @@ public class GcpBlobStore extends AbstractBlobStore {
     this.multipartUploadClient = mpuClient;
     this.transferManager = transferManager;
     this.transformer = builder.transformerSupplier.get(bucket);
+    this.ownedHttpClient = builder.ownedHttpClient;
+    builder.ownedHttpClient = null;
   }
 
   @Override
@@ -497,13 +504,60 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected void doDelete(Collection<BlobIdentifier> objects) {
-    validateBucketExists();
+    if (objects.isEmpty()) {
+      return;
+    }
+    // Probe with a key from the batch, not the bucket root: prefix-scoped credentials can list
+    // only under their allowed prefix, and every key the caller deletes is inside that scope.
+    validateBucketExists(objects.iterator().next().getKey());
     List<BlobId> blobIds =
         objects.stream()
             .map(obj -> transformer.toBlobId(bucket, obj.getKey(), obj.getVersionId()))
             .collect(Collectors.toList());
-    // Batch delete is a JSON-API feature with no gRPC equivalent, so it runs on the HTTP client.
-    httpStorage.delete(blobIds);
+    List<ItemFailure> failures = deleteBatch(blobIds);
+    if (!failures.isEmpty()) {
+      throw new BatchOperationException(failures);
+    }
+  }
+
+  /**
+   * Deletes the given blobs with batch requests and returns the per-object failures. A blob that
+   * does not exist is reported by the batch result as {@code false} and counts as deleted.
+   *
+   * <p>Batch delete is a JSON-API feature with no gRPC equivalent, so it runs on the HTTP client.
+   * The client splits the batch into multiple HTTP requests when it exceeds the per-request call
+   * limit.
+   */
+  private List<ItemFailure> deleteBatch(List<BlobId> blobIds) {
+    List<ItemFailure> failures = new ArrayList<>();
+    if (blobIds.isEmpty()) {
+      return failures;
+    }
+    StorageBatch batch = httpStorage.batch();
+    for (BlobId blobId : blobIds) {
+      batch
+          .delete(blobId)
+          .notify(
+              new BatchResult.Callback<Boolean, StorageException>() {
+                @Override
+                public void success(Boolean deleted) {}
+
+                @Override
+                public void error(StorageException e) {
+                  failures.add(
+                      new ItemFailure(
+                          blobId.getName(),
+                          mapException(e),
+                          blobId.getGeneration() == null
+                              ? null
+                              : Map.of(
+                                  BlobIdentifier.VERSION_ID_ATTRIBUTE,
+                                  String.valueOf(blobId.getGeneration()))));
+                }
+              });
+    }
+    batch.submit();
+    return failures;
   }
 
   @Override
@@ -910,28 +964,6 @@ public class GcpBlobStore extends AbstractBlobStore {
   }
 
   /**
-   * Validates that the bucket is accessible by attempting to list objects.
-   *
-   * Performs a lightweight probe using {@code storage.list()} with {@code pageSize(1)}.
-   * This requires only {@code storage.objects.list} IAM permission, not
-   * {@code storage.buckets.get}.
-   *
-   * @throws ResourceNotFoundException if the list operation returns HTTP 404 (bucket does not
-   *     exist or caller lacks permission to see it)
-   * @throws UnknownException if the list operation fails with any other error
-   */
-  private void validateBucketExists() {
-    try {
-      storage.list(getBucket(), Storage.BlobListOption.pageSize(1));
-    } catch (StorageException e) {
-      if (e.getCode() == 404) {
-        throw new ResourceNotFoundException("Bucket not found: " + bucket, e);
-      }
-      throw new UnknownException("Failed to check bucket existence", e);
-    }
-  }
-
-  /**
    * Validates that the bucket is accessible by attempting to list objects with a prefix filter.
    *
    * Performs a lightweight probe using {@code storage.list()} with {@code pageSize(1)} and
@@ -1304,7 +1336,10 @@ public class GcpBlobStore extends AbstractBlobStore {
 
       List<FailedBlobDownload> failed = new ArrayList<>();
       if (blobInfos.isEmpty()) {
-        return DirectoryDownloadResponse.builder().failedTransfers(failed).build();
+        return DirectoryDownloadResponse.builder()
+            .failedTransfers(failed)
+            .totalBytesTransferred(0L)
+            .build();
       }
 
       ParallelDownloadConfig.Builder downloadConfigBuilder =
@@ -1317,8 +1352,14 @@ public class GcpBlobStore extends AbstractBlobStore {
 
       DownloadJob job = transferManager.downloadBlobs(blobInfos, downloadConfigBuilder.build());
 
+      // GCS TransferManager has no per-transfer listener and DownloadResult carries no byte
+      // count, so bytes are derived from the listed object size of each successful download.
+      long succeededBytes = 0L;
       for (DownloadResult result : job.getDownloadResults()) {
-        if (result.getStatus() != TransferStatus.SUCCESS) {
+        if (result.getStatus() == TransferStatus.SUCCESS) {
+          Long size = result.getInput().getSize();
+          succeededBytes += size != null ? size : 0L;
+        } else {
           // DownloadResult#getOutputDestination() throws when status is not SUCCESS,
           // so we always compute the destination from the blob name for failed transfers.
           String name = result.getInput().getName();
@@ -1335,7 +1376,10 @@ public class GcpBlobStore extends AbstractBlobStore {
         }
       }
 
-      return DirectoryDownloadResponse.builder().failedTransfers(failed).build();
+      return DirectoryDownloadResponse.builder()
+          .failedTransfers(failed)
+          .totalBytesTransferred(succeededBytes)
+          .build();
 
     } catch (Exception e) {
       throw new SubstrateSdkException("Failed to download directory", e);
@@ -1344,30 +1388,28 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected void doDeleteDirectory(String prefix) {
-    try {
-      // List all blobs with the given prefix and delete them in batches
-      Storage.BlobListOption[] options =
-          prefix != null
-              ? new Storage.BlobListOption[] {Storage.BlobListOption.prefix(prefix)}
-              : new Storage.BlobListOption[0];
+    // List all blobs with the given prefix and delete them in batches
+    Storage.BlobListOption[] options =
+        prefix != null
+            ? new Storage.BlobListOption[] {Storage.BlobListOption.prefix(prefix)}
+            : new Storage.BlobListOption[0];
 
-      // Delete while listing to bound memory; later pages resume after the last listed name,
-      // so deleting earlier objects does not skip any.
-      List<BlobId> batch = new ArrayList<>(MAX_OBJECTS_PER_BATCH_DELETE);
-      for (Blob blob : storage.list(getBucket(), options).iterateAll()) {
-        batch.add(BlobId.of(getBucket(), blob.getName()));
-        if (batch.size() == MAX_OBJECTS_PER_BATCH_DELETE) {
-          // Batch delete is a JSON-API feature with no gRPC equivalent; run it on the HTTP client.
-          httpStorage.delete(batch);
-          batch = new ArrayList<>(MAX_OBJECTS_PER_BATCH_DELETE);
-        }
+    List<ItemFailure> failures = new ArrayList<>();
+    // Delete while listing to bound memory; later pages resume after the last listed name,
+    // so deleting earlier objects does not skip any.
+    List<BlobId> batch = new ArrayList<>(MAX_OBJECTS_PER_BATCH_DELETE);
+    for (Blob blob : storage.list(getBucket(), options).iterateAll()) {
+      batch.add(BlobId.of(getBucket(), blob.getName()));
+      if (batch.size() == MAX_OBJECTS_PER_BATCH_DELETE) {
+        failures.addAll(deleteBatch(batch));
+        batch = new ArrayList<>(MAX_OBJECTS_PER_BATCH_DELETE);
       }
-      if (!batch.isEmpty()) {
-        httpStorage.delete(batch);
-      }
-
-    } catch (Exception e) {
-      throw new SubstrateSdkException("Failed to delete directory", e);
+    }
+    if (!batch.isEmpty()) {
+      failures.addAll(deleteBatch(batch));
+    }
+    if (!failures.isEmpty()) {
+      throw new BatchOperationException(failures);
     }
   }
 
@@ -1614,22 +1656,56 @@ public class GcpBlobStore extends AbstractBlobStore {
   /** Closes the underlying GCP Storage clients and releases any resources. */
   @Override
   public void close() {
+    List<Throwable> failures = new ArrayList<>();
     try {
       if (transferManager != null) {
         transferManager.close();
       }
+    } catch (Throwable t) {
+      failures.add(t);
+    }
+    try {
       if (storage != null) {
         storage.close();
       }
-      // When the gRPC transport is selected, httpStorage is a distinct client backing the
-      // operations gRPC does not implement; close it too. Otherwise it is the same instance as
-      // storage (already closed above).
+    } catch (Throwable t) {
+      failures.add(t);
+    }
+    // When the gRPC transport is selected, httpStorage is a distinct client backing the
+    // operations gRPC does not implement; close it too. Otherwise it is the same instance as
+    // storage (already closed above).
+    try {
       if (httpStorage != null && httpStorage != storage) {
         httpStorage.close();
       }
-    } catch (Exception e) {
-      throw new SubstrateSdkException("Failed to close GCP storage clients", e);
+    } catch (Throwable t) {
+      failures.add(t);
     }
+    try {
+      if (ownedHttpClient != null) {
+        ownedHttpClient.close();
+      }
+    } catch (Throwable t) {
+      failures.add(t);
+    }
+    if (failures.isEmpty()) {
+      return;
+    }
+    Throwable failure = failures.get(0);
+    boolean interrupted = false;
+    for (Throwable t : failures) {
+      interrupted |= t instanceof InterruptedException;
+      if (failure != t) {
+        failure.addSuppressed(t);
+      }
+    }
+    if (interrupted) {
+      Thread.currentThread().interrupt();
+    }
+    if (failure instanceof Error) {
+      throw (Error) failure;
+    }
+    throw new SubstrateSdkException("Failed to close GCP storage clients", failure);
   }
 
   @Getter
@@ -1639,6 +1715,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     private MultipartUploadClient mpuClient;
     private TransferManager transferManager;
     private GcpTransformerSupplier transformerSupplier = new GcpTransformerSupplier();
+    private CloseableHttpClient ownedHttpClient;
 
     public Builder() {
       providerId(GcpConstants.PROVIDER_ID);
@@ -1737,8 +1814,10 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     /** Creates HttpTransportOptions with ApacheHttpTransport */
     private static HttpTransportOptions buildTransportOptions(Builder builder) {
-      CloseableHttpClient httpClient = buildHttpClient(builder);
-      ApacheHttpTransport transport = new ApacheHttpTransport(httpClient);
+      if (builder.ownedHttpClient == null) {
+        builder.ownedHttpClient = buildHttpClient(builder);
+      }
+      ApacheHttpTransport transport = new ApacheHttpTransport(builder.ownedHttpClient);
       return HttpTransportOptions.newBuilder().setHttpTransportFactory(() -> transport).build();
     }
 
@@ -1957,6 +2036,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     @Override
     public GcpBlobStore build() {
+      ownedHttpClient = null;
       Storage storage = this.storage;
       MultipartUploadClient mpuClient = this.mpuClient;
       TransferManager transferManager = this.transferManager;

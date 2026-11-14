@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.4.16](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.15...multicloudj-v0.4.16) (2026-11-13)
+
+
+### Bug Fixes
+
+* **blobstore:** close owned GCP HTTP transports ([#764](https://github.com/salesforce/multicloudj/issues/764)) ([5143b1d](https://github.com/salesforce/multicloudj/commit/5143b1de26746dd822a4e44c6311b2ef2961251d))
+
+
+### Blob Store
+
+* close wrapped GCP store and TransferManager on async close ([#763](https://github.com/salesforce/multicloudj/issues/763)) ([2d1265a](https://github.com/salesforce/multicloudj/commit/2d1265a5722079c1eefd078d841b6329e0965cb9))
+* report total bytes transferred from GCP downloadDirectory ([#742](https://github.com/salesforce/multicloudj/issues/742)) ([9851221](https://github.com/salesforce/multicloudj/commit/98512215fea0893ae4540deca9a4e75212cb09c6))
+
+
+### Document Store
+
+* guard against a null sort key in AWS hasFilter ([#756](https://github.com/salesforce/multicloudj/issues/756)) ([3fc78c0](https://github.com/salesforce/multicloudj/commit/3fc78c0841804d217a1e5227d9ec7150ef16a73f))
+
+
+### STS
+
+* cloud native auth signing interop for header names and signing endpoint ([#718](https://github.com/salesforce/multicloudj/issues/718)) ([94e5a13](https://github.com/salesforce/multicloudj/commit/94e5a1320800ffff208764fcbce8fefe5cf40e41))
+
+## [0.4.15](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.14...multicloudj-v0.4.15) (2026-11-07)
+
+
+### Blob Store
+
+* re-record GCP legal-hold bulk delete conformance fixture ([#753](https://github.com/salesforce/multicloudj/issues/753)) ([74697ef](https://github.com/salesforce/multicloudj/commit/74697ef806f25b4904d9d022d8888f5ad94fe676))
+* report per-object failures in Alibaba batch delete ([#743](https://github.com/salesforce/multicloudj/issues/743)) ([91480ab](https://github.com/salesforce/multicloudj/commit/91480abde5600e4450536ae90acb99ae5a2a553d))
+* scope GCP batch delete bucket check to a key prefix ([#744](https://github.com/salesforce/multicloudj/issues/744)) ([6c81ca0](https://github.com/salesforce/multicloudj/commit/6c81ca02f7d6b8a3f05da6874979b7711aa9118f))
+
+## [0.4.14](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.13...multicloudj-v0.4.14) (2026-11-05)
+
+
+### Blob Store
+
+* apply client endpoint override to AWS S3Presigner and omit empty tagging ([#732](https://github.com/salesforce/multicloudj/issues/732)) ([de6bcc0](https://github.com/salesforce/multicloudj/commit/de6bcc0338b507f098f0f2b701a6715b1be96f33))
+* delete objects from every listing page in GCP deleteDirectory ([#734](https://github.com/salesforce/multicloudj/issues/734)) ([20a7746](https://github.com/salesforce/multicloudj/commit/20a774689bca732045dbf80ca07af9ef1fa0543b))
+* report per-object failures in batch delete for AWS and GCP ([#738](https://github.com/salesforce/multicloudj/issues/738)) ([8f3db4c](https://github.com/salesforce/multicloudj/commit/8f3db4c0f68da23d71c75c83c416b6580b472b7c))
+* URL-encode tag keys and values in the Ali x-oss-tagging header ([#726](https://github.com/salesforce/multicloudj/issues/726)) ([e788246](https://github.com/salesforce/multicloudj/commit/e7882467009f99ee17e576ddd8de8e2792bf0fce))
+
 ## [0.4.13](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.12...multicloudj-v0.4.13) (2026-11-02)
 
 

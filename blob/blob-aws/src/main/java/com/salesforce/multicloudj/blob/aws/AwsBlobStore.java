@@ -33,8 +33,10 @@ import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.AwsRetryStrategies;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ItemFailure;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import java.io.File;
@@ -329,7 +331,12 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
    */
   @Override
   protected void doDelete(Collection<BlobIdentifier> objects) {
-    s3Client.deleteObjects(transformer.toDeleteRequests(objects));
+    List<ItemFailure> failures =
+        transformer.toBatchDeleteFailures(
+            s3Client.deleteObjects(transformer.toDeleteRequests(objects)));
+    if (!failures.isEmpty()) {
+      throw new BatchOperationException(failures);
+    }
   }
 
   /**
@@ -540,12 +547,15 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
    * @return Returns an S3Presigner for the current credentials
    */
   protected S3Presigner getPresigner() {
-    return S3Presigner.builder()
+    S3Presigner.Builder builder = S3Presigner.builder()
         .credentialsProvider(s3Client.serviceClientConfiguration().credentialsProvider())
         .region(Region.of(getRegion()))
         .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
-        .s3Client(s3Client)
-        .build();
+        .s3Client(s3Client);
+    // The presigner does not inherit the client's endpoint; without this, URLs for custom
+    // endpoints are signed against s3.amazonaws.com.
+    s3Client.serviceClientConfiguration().endpointOverride().ifPresent(builder::endpointOverride);
+    return builder.build();
   }
 
   /**
