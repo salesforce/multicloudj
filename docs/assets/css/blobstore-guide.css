@@ -1,0 +1,117 @@
+/* Loaded only by the Blob store guide. */
+@media (min-width: 66.5rem) {
+  .side-bar {
+    width: 16.5rem;
+  }
+
+  .side-bar + .main {
+    max-width: 80rem;
+    margin-right: auto;
+    margin-left: 16.5rem;
+  }
+}
+
+.feature-support {
+  container-type: inline-size;
+}
+
+.feature-support table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.feature-support th,
+.feature-support td {
+  min-width: 0;
+  padding: 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.feature-support th:first-child {
+  width: 14%;
+}
+
+.feature-support th:nth-child(2) {
+  width: 20%;
+}
+
+.feature-support th:nth-child(n+3):nth-child(-n+5),
+.feature-support td:nth-child(n+3):nth-child(-n+5) {
+  width: 5rem;
+  padding-right: 0.25rem;
+  padding-left: 0.25rem;
+  text-align: center;
+}
+
+.feature-support code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Keep the same row content readable when six columns no longer fit. */
+@container (max-width: 40rem) {
+  .feature-support .table-wrapper {
+    overflow: visible;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .feature-support table,
+  .feature-support tbody {
+    display: block;
+  }
+
+  .feature-support thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .feature-support tbody tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-bottom: 1rem;
+    border: 1px solid #eeebee;
+    border-radius: 4px;
+  }
+
+  .feature-support td {
+    min-width: 0;
+    border: 0;
+  }
+
+  .feature-support td:first-child,
+  .feature-support td:nth-child(2),
+  .feature-support td:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .feature-support td:first-child {
+    padding-bottom: 0;
+  }
+
+  .feature-support td:nth-child(n+3):nth-child(-n+5) {
+    width: auto;
+    font-size: 0.875rem;
+    border-top: 1px solid #eeebee;
+    border-bottom: 1px solid #eeebee;
+  }
+
+  .feature-support td::before {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+  }
+
+  .feature-support td:nth-child(3)::before { content: "GCP"; }
+  .feature-support td:nth-child(4)::before { content: "AWS"; }
+  .feature-support td:nth-child(5)::before { content: "ALI"; }
+  .feature-support td:last-child::before { content: "Provider-Specific Notes"; }
+  .feature-support td:last-child:empty { display: none; }
+}
