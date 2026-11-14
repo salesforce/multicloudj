@@ -920,9 +920,7 @@ public class AwsTransformer {
     boolean hasExclusions =
         request.getPrefixesToExclude() != null && !request.getPrefixesToExclude().isEmpty();
     if (hasExclusions || totalBytesRequested != null) {
-      builder.filter(getPrefixExclusionsFilter(
-          request.getPrefixesToExclude(),
-          totalBytesRequested));
+      builder.filter(getPrefixExclusionsFilter(request, totalBytesRequested));
     }
 
     // Symmetric to toUploadDirectoryRequest: only attach the listener when the caller
@@ -937,8 +935,8 @@ public class AwsTransformer {
   }
 
   // Return false if we want to exclude this blob from the download.
-  protected DownloadFilter getPrefixExclusionsFilter(List<String> prefixesToExclude) {
-    return getPrefixExclusionsFilter(prefixesToExclude, null);
+  protected DownloadFilter getPrefixExclusionsFilter(DirectoryDownloadRequest request) {
+    return getPrefixExclusionsFilter(request, null);
   }
 
   /**
@@ -952,13 +950,10 @@ public class AwsTransformer {
    * of deduplicating by key would re-introduce the heap pressure this PR exists to avoid.
    */
   protected DownloadFilter getPrefixExclusionsFilter(
-      List<String> prefixesToExclude, AtomicLong totalBytesRequested) {
-    List<String> excludes = prefixesToExclude != null ? prefixesToExclude : List.of();
+      DirectoryDownloadRequest request, AtomicLong totalBytesRequested) {
     return s3Object -> {
-      for (String prefixToExclude : excludes) {
-        if (s3Object.key().startsWith(prefixToExclude)) {
-          return false;
-        }
+      if (request.isExcluded(s3Object.key())) {
+        return false;
       }
       if (totalBytesRequested != null) {
         totalBytesRequested.addAndGet(s3Object.size());
