@@ -351,6 +351,70 @@ public abstract class AbstractPubsubIT {
   }
 
   @Test
+  public void testDeliveryCounterSystemMetadataOnRedelivery() throws Exception {
+    Duration nackVisibilityTimeout = Duration.ofSeconds(5);
+    try (AbstractTopic topic = harness.createTopicDriver();
+        AbstractSubscription subscription =
+            harness.createSubscriptionDriver(nackVisibilityTimeout)) {
+
+      topic.send(
+          Message.builder()
+              .withBody("it-delivery-counter".getBytes())
+              .withMetadata(Map.of("case", "delivery-counter"))
+              .build());
+
+      Message first = receiveWithRetry(subscription, 50);
+      Assertions.assertNotNull(first, "Should receive the sent message");
+      int firstCount = requireDeliveryCounter(first);
+
+      subscription.sendNacks(List.of(first.getAckID())).join();
+
+      Message second = receiveWithRetry(subscription, 150);
+      Assertions.assertNotNull(second, "Should receive the message again after nack");
+      int secondCount = requireDeliveryCounter(second);
+
+      Assertions.assertNotNull(first.getLoggableID(), "Received message must have an ID");
+      Assertions.assertEquals(
+          first.getLoggableID(),
+          second.getLoggableID(),
+          "Redelivery must be the same message as the first delivery");
+      Assertions.assertTrue(
+          secondCount > firstCount,
+          "Delivery counter should increase on redelivery. First: "
+              + firstCount
+              + ", second: "
+              + secondCount);
+
+      subscription.sendAck(second.getAckID());
+    }
+  }
+
+  private Message receiveWithRetry(AbstractSubscription subscription, int attempts)
+      throws Exception {
+    for (int i = 0; i < attempts; i++) {
+      Message received = subscription.receive();
+      if (received != null) {
+        return received;
+      }
+      TimeUnit.MILLISECONDS.sleep(200);
+    }
+    return null;
+  }
+
+  /** Asserts the message carries a positive integer delivery counter and returns it. */
+  private int requireDeliveryCounter(Message message) {
+    Map<String, String> systemMetadata = message.getSystemMetadata();
+    Assertions.assertNotNull(systemMetadata, "System metadata must not be null");
+    Assertions.assertTrue(
+        systemMetadata.containsKey(Message.SystemMetadataKeys.DELIVERY_COUNTER),
+        "System metadata must contain the delivery counter, got: " + systemMetadata);
+    String raw = systemMetadata.get(Message.SystemMetadataKeys.DELIVERY_COUNTER);
+    int count = Assertions.assertDoesNotThrow(() -> Integer.parseInt(raw));
+    Assertions.assertTrue(count > 0, "Delivery counter must be positive, got: " + count);
+    return count;
+  }
+
+  @Test
   public void testAckNullThrows() throws Exception {
     try (AbstractSubscription subscription = harness.createSubscriptionDriver()) {
       Assertions.assertThrows(InvalidArgumentException.class, () -> subscription.sendAck(null));
