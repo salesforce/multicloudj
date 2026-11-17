@@ -1,0 +1,46 @@
+{
+  "id" : "4788fb9c-8d90-493b-8aab-73e2bb94ea9c",
+  "name" : "AliPubsubQueueIT_testDeliveryCounterSystemMetadataOnRedelivery-GET-4",
+  "request" : {
+    "urlPath" : "/queues/test-smq-conf-q-testDeliveryCounterSystemMetadataOnRedelivery/messages",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "numOfMessages" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "waitseconds" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" ?>\n<Messages xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Message>\n    <MessageId>FDD08F9533FD7FB37FB0555D9B568A25</MessageId>\n    <MessageBodyMD5>16D12B1E81B619FDD48F73B8B81E905D</MessageBodyMD5>\n    <MessageBody>it-delivery-counter</MessageBody>\n    <ReceiptHandle>FDD08F9533FD7FB37FB0555D9B568A25-MCAxNzk0ODk0NTk5MDI0IDMwMDAwIDEgMCBtbnMtYnJva2VyLXNoZWxldmVuLWFzaWItMCAwIDB8Mm1YTFZQ</ReceiptHandle>\n    <EnqueueTime>1794894597984</EnqueueTime>\n    <FirstDequeueTime>1794894599024</FirstDequeueTime>\n    <NextVisibleTime>1794894629024</NextVisibleTime>\n    <DequeueCount>1</DequeueCount>\n    <Priority>8</Priority>\n    <UserProperties>\n      <PropertyValue>\n        <Name>case</Name>\n        <Value>delivery-counter</Value>\n        <Type>STRING</Type>\n      </PropertyValue>\n    </UserProperties>\n  </Message>\n</Messages>",
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "183",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6AFBEB063943350F00162756",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Tue, 17 Nov 2026 05:49:59 GMT",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "4788fb9c-8d90-493b-8aab-73e2bb94ea9c",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-queues-test-smq-conf-q-testDeliveryCounterSystemMetadataOnRedelivery-messages",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-queues-test-smq-conf-q-testDeliveryCounterSystemMetadataOnRedelivery-messages-2",
+  "insertionIndex" : 175
+}

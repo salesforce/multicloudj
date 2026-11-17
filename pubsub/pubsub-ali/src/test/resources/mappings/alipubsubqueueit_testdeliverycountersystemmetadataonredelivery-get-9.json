@@ -1,0 +1,29 @@
+{
+  "id" : "3142aa8e-f807-4205-96c1-f214fd7c8746",
+  "name" : "AliPubsubQueueIT_testDeliveryCounterSystemMetadataOnRedelivery-GET-9",
+  "request" : {
+    "url" : "/queues/test-smq-conf-q-testDeliveryCounterSystemMetadataOnRedelivery",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" ?>\n<Queue xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <QueueName>test-smq-conf-q-testDeliveryCounterSystemMetadataOnRedelivery</QueueName>\n  <DelaySeconds>0</DelaySeconds>\n  <MaximumMessageSize>65536</MaximumMessageSize>\n  <MessageRetentionPeriod>345600</MessageRetentionPeriod>\n  <VisibilityTimeout>30</VisibilityTimeout>\n  <CreateTime>1794894588</CreateTime>\n  <LastModifyTime>1794894588</LastModifyTime>\n  <PollingWaitSeconds>0</PollingWaitSeconds>\n  <ActiveMessages>0</ActiveMessages>\n  <InactiveMessages>0</InactiveMessages>\n  <DelayMessages>0</DelayMessages>\n  <LoggingEnabled>False</LoggingEnabled>\n  <MessageType>0</MessageType>\n  <EnableSSE>False</EnableSSE>\n</Queue>",
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "31",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6AFBEAFF3832450F009B850E",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Tue, 17 Nov 2026 05:49:51 GMT",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "3142aa8e-f807-4205-96c1-f214fd7c8746",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-queues-test-smq-conf-q-testDeliveryCounterSystemMetadataOnRedelivery",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-2-queues-test-smq-conf-q-testDeliveryCounterSystemMetadataOnRedelivery-2",
+  "insertionIndex" : 180
+}
