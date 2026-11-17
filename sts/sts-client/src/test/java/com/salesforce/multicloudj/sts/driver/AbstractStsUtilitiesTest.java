@@ -2,13 +2,16 @@ package com.salesforce.multicloudj.sts.driver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.net.URI;
 import java.net.http.HttpRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -86,5 +89,48 @@ class AbstractStsUtilitiesTest {
     SignedAuthRequest signedAuthRequest = stsUtilities.newCloudNativeAuthSignedRequest(request);
     assertNotNull(signedAuthRequest.getRequest());
     assertEquals(signedAuthRequest.getCredentials(), credentials);
+  }
+
+  @Test
+  void endpointIsPropagatedToDriver() {
+    URI endpoint = URI.create("https://sts.example.com");
+    stsUtilitiesDriver.withEndpoint(endpoint);
+
+    TestStsUtilities stsUtilities = stsUtilitiesDriver.build();
+
+    assertEquals(endpoint, stsUtilities.endpoint);
+  }
+
+  @Test
+  void driverBuilderRejectsInvalidEndpoint() {
+    for (String endpoint :
+        new String[] {
+          "sts.example.com",
+          "https:///x",
+          "https://user:secret@sts.example.com",
+          "ftp://sts.example.com",
+          "http://sts.example.com",
+          "http://sts.example.com:80",
+          "https://sts.example.com/proxy",
+          "https://sts.example.com/?a=b",
+          "https://sts.example.com?a=b",
+          "https://sts.example.com/#frag",
+          "https://sts.example.com:8443",
+          "https://sts.example.com:443"
+        }) {
+      assertThrows(
+          InvalidArgumentException.class,
+          () -> stsUtilitiesDriver.withEndpoint(URI.create(endpoint)),
+          endpoint);
+    }
+    assertThrows(InvalidArgumentException.class, () -> stsUtilitiesDriver.withEndpoint(null));
+  }
+
+  @Test
+  void driverBuilderAcceptsHostWithOptionalRootPath() {
+    for (String endpoint : new String[] {"https://sts.example.com", "HTTPS://sts.example.com/"}) {
+      stsUtilitiesDriver.withEndpoint(URI.create(endpoint));
+      assertEquals(URI.create(endpoint), stsUtilitiesDriver.build().endpoint, endpoint);
+    }
   }
 }

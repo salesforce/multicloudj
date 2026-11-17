@@ -23,13 +23,17 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
@@ -51,6 +55,16 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
       DateTimeFormatter.ofPattern("yyyyMMdd").withLocale(Locale.US);
   private static final String REQUEST_HASH_HEADER = "x-request-hash";
   private static final String CONTENT_TYPE_HEADER = "content-type";
+  // Headers that carry the signing date, credentials, or host. content-type and x-request-hash are
+  // not listed: a caller may supply its own value, which replaces the generated one.
+  private static final Set<String> SIGNER_OWNED_HEADERS =
+      Set.of("host", "x-amz-date", "x-amz-security-token", "authorization");
+  // An HTTP header name is an RFC 7230 token; names are lowercased first, so only lowercase letters
+  // are listed. The JDK HTTP client also refuses to set the restricted names below (host is already
+  // signer owned). Both are checked before signing, so a bad name is reported as invalid input.
+  private static final Pattern HEADER_NAME_TOKEN = Pattern.compile("[!#$%&'*+.^_`|~0-9a-z-]+");
+  private static final Set<String> CLIENT_RESTRICTED_HEADERS =
+      Set.of("connection", "content-length", "expect", "upgrade");
   private static final String CONTENT_TYPE_VALUE =
       "application/x-www-form-urlencoded; charset=utf-8";
 
@@ -59,12 +73,24 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
   // than rebuilt every request.
   private volatile DefaultCredentialsProvider defaultCredentialsProvider;
 
+  private final Clock clock;
+
   public AwsStsUtilities(Builder builder) {
-    super(builder);
+    this(builder, Clock.systemUTC());
   }
 
   public AwsStsUtilities() {
-    super(new Builder());
+    this(new Builder(), Clock.systemUTC());
+  }
+
+  // Lets tests pin the signing time.
+  AwsStsUtilities(Builder builder, Clock clock) {
+    super(builder);
+    // Only an identity signed for a genuine STS endpoint can be verified.
+    if (endpoint != null && !AwsStsVerifier.isStsHost(endpoint.getHost())) {
+      throw new InvalidArgumentException("endpoint is not an AWS STS endpoint: " + endpoint);
+    }
+    this.clock = clock;
   }
 
   @Override
@@ -85,8 +111,11 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
       options = SignOptions.builder().build();
     }
 
-    String stsEndpoint = String.format(SIGN_STS_ENDPOINT, region);
-    URI uri = URI.create(stsEndpoint);
+    if (region == null || region.isBlank()) {
+      throw new InvalidArgumentException("region is required");
+    }
+    URI uri = signingUri();
+    String stsEndpoint = uri.toString();
 
     // The request is optional. When one is supplied we sign its body; otherwise there is no service
     // payload and we sign a bare GetCallerIdentity.
@@ -110,7 +139,7 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
     // Assemble the canonical header set. host, the signing date, and the session token (when the
     // credentials are temporary) are always signed. Header names must be lowercase per the SigV4
     // canonical rules; the TreeMap keeps them sorted.
-    Instant now = Instant.now();
+    Instant now = clock.instant();
     String amzDate = AMZ_DATE_FORMAT.format(now.atOffset(ZoneOffset.UTC));
     String dateStamp = AMZ_DATESTAMP_FORMAT.format(now.atOffset(ZoneOffset.UTC));
 
@@ -130,9 +159,30 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
       headers.put(REQUEST_HASH_HEADER, getSha256Hash(payload));
     }
     // Caller supplied custom headers (e.g. a federation target resource) are always signed. Names
-    // must already be lowercase to satisfy the SigV4 canonical rules.
+    // are lowercased, as the SigV4 canonical rules require, so two names that differ only by case
+    // are rejected. Names the signer sets itself are rejected so a caller cannot replace the
+    // signing date, credentials, or host. A custom content-type or x-request-hash replaces the
+    // generated value. Values are normalized the way SigV4 canonicalizes them, so the value sent,
+    // the value signed, and the value a verifier recomputes from are the same.
+    Set<String> customNames = new HashSet<>();
     for (Map.Entry<String, String> header : options.getCustomHeaders().entrySet()) {
-      headers.put(header.getKey(), header.getValue());
+      if (header.getKey() == null || header.getValue() == null) {
+        throw new InvalidArgumentException("custom header name and value must not be null");
+      }
+      String name = header.getKey().toLowerCase(Locale.ROOT);
+      if (SIGNER_OWNED_HEADERS.contains(name)) {
+        throw new InvalidArgumentException(
+            "custom header \"" + name + "\" is reserved by the signer");
+      }
+      if (!HEADER_NAME_TOKEN.matcher(name).matches() || CLIENT_RESTRICTED_HEADERS.contains(name)) {
+        throw new InvalidArgumentException(
+            "custom header \"" + name + "\" is not a valid request header name");
+      }
+      if (!customNames.add(name)) {
+        throw new InvalidArgumentException(
+            "custom header \"" + name + "\" is specified more than once");
+      }
+      headers.put(name, canonicalHeaderValue(header.getValue()));
     }
 
     // Authorization is not itself a signed header, so it is added after signing. host was signed
@@ -148,6 +198,8 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
         hasBody
             ? HttpRequest.BodyPublishers.ofByteArray(payload)
             : HttpRequest.BodyPublishers.noBody();
+    // Header names stay in the lowercase form they were signed with. HTTP header names are
+    // case-insensitive, so readers should look them up that way, e.g. headers().firstValue(..).
     HttpRequest.Builder builder = HttpRequest.newBuilder(signedUri).method("POST", bodyPublisher);
     headers.forEach(builder::setHeader);
 
@@ -156,6 +208,27 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
     String signedIdentity = buildSignedIdentity(uri, headers);
 
     return new SignedAuthRequest(builder.build(), signingCredentials, signedIdentity);
+  }
+
+  /**
+   * Trims a header value and collapses each run of whitespace to a single space, as the SigV4
+   * canonical header rules require.
+   */
+  static String canonicalHeaderValue(String value) {
+    return value.trim().replaceAll("\\s+", " ");
+  }
+
+  /**
+   * Returns the root URI the request is signed against: the configured endpoint, or the regional
+   * default. The builder has already rejected an endpoint path, query, or fragment.
+   */
+  private URI signingUri() {
+    if (endpoint == null) {
+      return URI.create(String.format(SIGN_STS_ENDPOINT, region));
+    }
+    // Built from the host alone so the URI and the signed host header cannot differ. The builder
+    // only accepts https with no port.
+    return URI.create("https://" + endpoint.getHost() + "/");
   }
 
   /**

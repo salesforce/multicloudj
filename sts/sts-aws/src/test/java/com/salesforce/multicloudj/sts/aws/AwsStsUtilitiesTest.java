@@ -1,22 +1,47 @@
 package com.salesforce.multicloudj.sts.aws;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.client.StsUtilities;
+import com.salesforce.multicloudj.sts.driver.FlowCollector;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.net.http.HttpRequest;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.auth.signer.Aws4Signer;
+import software.amazon.awssdk.auth.signer.params.Aws4SignerParams;
+import software.amazon.awssdk.http.SdkHttpFullRequest;
+import software.amazon.awssdk.http.SdkHttpMethod;
+import software.amazon.awssdk.regions.Region;
 
 class AwsStsUtilitiesTest {
+
+  private static final Clock FIXED_CLOCK =
+      Clock.fixed(Instant.parse("2026-10-30T12:00:00Z"), ZoneOffset.UTC);
+  private static final String REGION = "us-west-2";
+  private static final StsCredentials CREDS =
+      new StsCredentials(
+          "AKIDEXAMPLE", "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY", "FAKE_SESSION_TOKEN");
 
   private static StsCredentials credentials;
   private static String region;
@@ -43,6 +68,369 @@ class AwsStsUtilitiesTest {
         credentials.getAccessKeySecret(), signed.getCredentials().getAccessKeySecret());
     Assertions.assertEquals(
         credentials.getSecurityToken(), signed.getCredentials().getSecurityToken());
+  }
+
+  @Test
+  void defaultSignatureMatchesAwsSdkSigner() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(
+        awsSdkAuthorization(signed),
+        signed.getRequest().headers().firstValue("authorization").orElseThrow());
+  }
+
+  @Test
+  void excludedHashAndContentTypeSignatureMatchesAwsSdkSigner() {
+    SignOptions options =
+        SignOptions.builder()
+            .withExcludeRequestHashHeader(true)
+            .withExcludeContentTypeHeader(true)
+            .build();
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+    String authorization = signed.getRequest().headers().firstValue("authorization").orElseThrow();
+    Assertions.assertTrue(
+        authorization.contains("SignedHeaders=host;x-amz-date;x-amz-security-token,"));
+    Assertions.assertEquals(
+        awsSdkAuthorization(signed), authorization);
+  }
+
+  @Test
+  void mixedCaseCustomHeaderIsSignedCanonically() {
+    SignOptions options =
+        SignOptions.builder()
+            .withCustomHeader("X-Vault-AWS-IAM-Server-ID", "vault.example.com")
+            .build();
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+    String authorization = signed.getRequest().headers().firstValue("authorization").orElseThrow();
+    Assertions.assertTrue(
+        authorization.contains(
+            "SignedHeaders=content-type;host;x-amz-date;x-amz-security-token;"
+                + "x-request-hash;x-vault-aws-iam-server-id,"),
+        authorization);
+    Assertions.assertEquals(
+        awsSdkAuthorization(signed), authorization);
+  }
+
+  @Test
+  void customHeaderValueWhitespaceIsNormalizedLikeAwsSdkSigner() {
+    String[][] cases = {
+      {"a  b", "a b"}, {" lead", "lead"}, {"trail ", "trail"}, {"a\tb", "a b"}, {"a\r\n b", "a b"}
+    };
+    for (String[] c : cases) {
+      SignOptions options = SignOptions.builder().withCustomHeader("x-foo", c[0]).build();
+      SignedAuthRequest signed =
+          signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+      Assertions.assertEquals(
+          awsSdkAuthorization(signed),
+          signed.getRequest().headers().firstValue("authorization").orElseThrow(),
+          c[0]);
+      Assertions.assertEquals(
+          c[1], signed.getRequest().headers().firstValue("x-foo").orElseThrow(), c[0]);
+      Assertions.assertEquals(
+          c[1],
+          parseQuery(URI.create(signed.getSignedIdentity()).getRawQuery()).get("x-foo"),
+          c[0]);
+    }
+  }
+
+  @Test
+  void customHeaderCollidingWithSignerHeaderIsRejected() {
+    for (String name :
+        new String[] {
+          "X-Amz-Date",
+          "host",
+          "Authorization",
+          "x-amz-security-token"
+        }) {
+      SignOptions options = SignOptions.builder().withCustomHeader(name, "v").build();
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options),
+          name);
+    }
+  }
+
+  @Test
+  void invalidOrClientRestrictedHeaderNameIsRejectedBeforeSigning() {
+    for (String name :
+        new String[] {
+          "x foo", "x:foo", "x(foo)", "xé", "Connection", "content-length", "expect", "upgrade"
+        }) {
+      SignOptions options = SignOptions.builder().withCustomHeader(name, "v").build();
+      InvalidArgumentException e =
+          Assertions.assertThrows(
+              InvalidArgumentException.class,
+              () -> signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options),
+              name);
+      Assertions.assertTrue(e.getMessage().contains("not a valid request header name"), name);
+    }
+  }
+
+  @Test
+  void blankNullOrCaseDuplicateHeaderNamesAreRejected() {
+    SignOptions[] invalid = {
+      SignOptions.builder().withCustomHeader(" ", "v").build(),
+      SignOptions.builder().withCustomHeader(null, "v").build(),
+      SignOptions.builder().withCustomHeader("x-a", null).build(),
+      SignOptions.builder().withCustomHeader("X-A", "1").withCustomHeader("x-a", "2").build()
+    };
+    for (SignOptions options : invalid) {
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options),
+          options.getCustomHeaders().toString());
+    }
+  }
+
+  @Test
+  void invalidHeaderNameIsInvalidArgumentThroughPublicApi() {
+    SignOptions options = SignOptions.builder().withCustomHeader("x foo", "v").build();
+
+    Assertions.assertThrows(
+        InvalidArgumentException.class,
+        () -> stsUtil().newCloudNativeAuthSignedRequest(sampleRequest(), options));
+  }
+
+  @Test
+  void tokenPunctuationIsAllowedInHeaderNames() {
+    SignOptions options =
+        SignOptions.builder().withCustomHeader("x-a_b.c!#$%&'*+^`|~1", "v").build();
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+    Assertions.assertEquals(
+        "v", signed.getRequest().headers().firstValue("x-a_b.c!#$%&'*+^`|~1").orElseThrow());
+    Assertions.assertEquals(
+        awsSdkAuthorization(signed),
+        signed.getRequest().headers().firstValue("authorization").orElseThrow());
+  }
+
+  @Test
+  void customContentTypeAndRequestHashReplaceGeneratedValues() {
+    SignOptions options =
+        SignOptions.builder()
+            .withCustomHeader("Content-Type", "application/x-www-form-urlencoded")
+            .withCustomHeader("X-Request-Hash", "caller-hash")
+            .build();
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+    Map<String, List<String>> headers = signed.getRequest().headers().map();
+    Assertions.assertEquals(
+        List.of("application/x-www-form-urlencoded"), headers.get("content-type"));
+    Assertions.assertEquals(List.of("caller-hash"), headers.get("x-request-hash"));
+    Assertions.assertEquals(
+        awsSdkAuthorization(signed),
+        signed.getRequest().headers().firstValue("authorization").orElseThrow());
+  }
+
+  @Test
+  void signedRequestUsesLowercaseHeaderNames() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    List<String> names = new ArrayList<>(signed.getRequest().headers().map().keySet());
+    Assertions.assertEquals(
+        List.of(
+            "authorization",
+            "content-type",
+            "x-amz-date",
+            "x-amz-security-token",
+            "x-request-hash"),
+        names);
+    // Lookups are case-insensitive, so a reader asking for the conventional name still finds it.
+    Assertions.assertEquals(
+        awsSdkAuthorization(signed),
+        signed.getRequest().headers().firstValue("Authorization").orElseThrow());
+  }
+
+  @Test
+  void excludedOptionsEmitOnlyAuthorizationDateAndToken() {
+    SignOptions options =
+        SignOptions.builder()
+            .withExcludeRequestHashHeader(true)
+            .withExcludeContentTypeHeader(true)
+            .build();
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+    List<String> names = new ArrayList<>(signed.getRequest().headers().map().keySet());
+    Assertions.assertEquals(3, names.size(), names.toString());
+    Assertions.assertTrue(
+        names.containsAll(List.of("authorization", "x-amz-date", "x-amz-security-token")),
+        names.toString());
+    Assertions.assertEquals(
+        awsSdkAuthorization(signed),
+        signed.getRequest().headers().firstValue("Authorization").orElseThrow());
+  }
+
+  @Test
+  void customHeaderKeepsLowercaseNameOnRequest() {
+    SignOptions options = SignOptions.builder().withCustomHeader("X-Foo", "bar").build();
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), options);
+
+    // The header map is case-insensitive, so compare against a plain list of the stored names.
+    List<String> names = new ArrayList<>(signed.getRequest().headers().map().keySet());
+    Assertions.assertTrue(names.contains("x-foo"), names.toString());
+    Assertions.assertFalse(names.contains("X-Foo"), names.toString());
+  }
+
+  @Test
+  void signedIdentityKeepsLowercaseHeaderKeys() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Map<String, String> params =
+        parseQuery(URI.create(signed.getSignedIdentity()).getRawQuery());
+    Assertions.assertTrue(params.containsKey("authorization"), params.keySet().toString());
+    Assertions.assertTrue(params.containsKey("x-amz-date"), params.keySet().toString());
+    Assertions.assertFalse(params.containsKey("Authorization"), params.keySet().toString());
+  }
+
+  @Test
+  void endpointOverrideSetsSignedHostAndIdentityRoot() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK, REGION, URI.create("https://sts.amazonaws.com"))
+            .newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(URI.create("https://sts.amazonaws.com/"), signed.getRequest().uri());
+    Assertions.assertTrue(
+        signed.getSignedIdentity().startsWith("https://sts.amazonaws.com/?"),
+        signed.getSignedIdentity());
+    Assertions.assertEquals(
+        awsSdkAuthorization(signed),
+        signed.getRequest().headers().firstValue("authorization").orElseThrow());
+  }
+
+  @Test
+  void httpEndpointIsRejected() {
+    for (String endpoint : new String[] {"http://localhost", "http://localhost:80"}) {
+      AwsStsUtilities.Builder builder = new AwsStsUtilities.Builder();
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> builder.withEndpoint(URI.create(endpoint)),
+          endpoint);
+    }
+  }
+
+  @Test
+  void endpointWithPathQueryOrFragmentIsRejected() {
+    for (String endpoint : new String[] {"https://h/proxy", "https://h/?a=b", "https://h/#frag"}) {
+      AwsStsUtilities.Builder builder = new AwsStsUtilities.Builder();
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> builder.withEndpoint(URI.create(endpoint)),
+          endpoint);
+    }
+  }
+
+  @Test
+  void endpointWithRootPathIsAccepted() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK, REGION, URI.create("https://sts.amazonaws.com/"))
+            .newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(URI.create("https://sts.amazonaws.com/"), signed.getRequest().uri());
+  }
+
+  @Test
+  void stsEndpointHostsAreAccepted() {
+    for (String endpoint :
+        new String[] {
+          "https://sts.amazonaws.com",
+          "https://sts.us-west-2.amazonaws.com",
+          "https://sts-fips.us-east-1.amazonaws.com",
+          "https://sts.cn-north-1.amazonaws.com.cn",
+          "https://STS.US-WEST-2.AMAZONAWS.COM"
+        }) {
+      Assertions.assertDoesNotThrow(
+          () -> signer(FIXED_CLOCK, REGION, URI.create(endpoint)), endpoint);
+    }
+  }
+
+  @Test
+  void nonStsEndpointHostIsRejectedAtBuild() {
+    for (String endpoint :
+        new String[] {
+          "https://example.com",
+          "https://sts.amazonaws.com.evil.com",
+          "https://s3.us-west-2.amazonaws.com",
+          "https://evil-sts.amazonaws.com"
+        }) {
+      InvalidArgumentException e =
+          Assertions.assertThrows(
+              InvalidArgumentException.class,
+              () -> signer(FIXED_CLOCK, REGION, URI.create(endpoint)),
+              endpoint);
+      Assertions.assertTrue(e.getMessage().contains("not an AWS STS endpoint"), e.getMessage());
+    }
+  }
+
+  @Test
+  void missingRegionIsRejected() {
+    for (String blank : new String[] {null, "", "  "}) {
+      AwsStsUtilities utilities = signer(FIXED_CLOCK, blank, null);
+      InvalidArgumentException e =
+          Assertions.assertThrows(
+              InvalidArgumentException.class,
+              () -> utilities.newCloudNativeAuthSignedRequest(formRequest(), null));
+      Assertions.assertTrue(e.getMessage().contains("region is required"), e.getMessage());
+    }
+  }
+
+  @Test
+  void missingRegionIsRejectedEvenWithEndpointOverride() {
+    AwsStsUtilities utilities =
+        signer(FIXED_CLOCK, null, URI.create("https://sts.amazonaws.com"));
+    Assertions.assertThrows(
+        InvalidArgumentException.class,
+        () -> utilities.newCloudNativeAuthSignedRequest(formRequest(), null));
+  }
+
+  @Test
+  void noEndpointKeepsRegionalDefault() {
+    SignedAuthRequest signed =
+        signer(FIXED_CLOCK).newCloudNativeAuthSignedRequest(formRequest(), null);
+
+    Assertions.assertEquals(
+        URI.create("https://sts.us-west-2.amazonaws.com/"), signed.getRequest().uri());
+    Assertions.assertTrue(
+        signed.getSignedIdentity().startsWith("https://sts.us-west-2.amazonaws.com/?"),
+        signed.getSignedIdentity());
+  }
+
+  private static AwsStsUtilities signer(Clock clock) {
+    return signer(clock, REGION, null);
+  }
+
+  private static AwsStsUtilities signer(Clock clock, String signerRegion, URI endpoint) {
+    AwsStsUtilities.Builder builder = new AwsStsUtilities.Builder();
+    if (signerRegion != null) {
+      builder.withRegion(signerRegion);
+    }
+    if (endpoint != null) {
+      builder.withEndpoint(endpoint);
+    }
+    builder.withCredentialsOverrider(
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(CREDS)
+            .build());
+    return new AwsStsUtilities(builder, clock);
+  }
+
+  private static HttpRequest formRequest() {
+    return HttpRequest.newBuilder()
+        .POST(HttpRequest.BodyPublishers.ofString("Action=GetCallerIdentity&Version=2011-06-15"))
+        .uri(URI.create("https://sts.us-west-2.amazonaws.com/"))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .build();
   }
 
   private static StsUtilities stsUtil() {
@@ -252,6 +640,70 @@ class AwsStsUtilitiesTest {
       restoreProperty("aws.accessKeyId", priorAccessKey);
       restoreProperty("aws.secretAccessKey", priorSecretKey);
     }
+  }
+
+  /**
+   * Returns the Authorization header value the AWS SDK's own SigV4 signer computes for a request
+   * produced by the signer under test, so tests can assert the two signatures are equal. All
+   * signing is delegated to the SDK.
+   *
+   * <p>{@link Aws4Signer} is deprecated, but it is the SDK signer that signs only the headers
+   * present on the request. Its replacement, {@code AwsV4HttpSigner}, always adds and signs an
+   * {@code x-amz-content-sha256} header, so its signature could never match.
+   */
+  @SuppressWarnings("deprecation")
+  private static String awsSdkAuthorization(SignedAuthRequest signed) {
+    HttpRequest request = signed.getRequest();
+    SdkHttpFullRequest.Builder sdkRequest =
+        SdkHttpFullRequest.builder()
+            .method(SdkHttpMethod.fromValue(request.method()))
+            .uri(request.uri());
+    // The SDK signer derives the date, session token, and Authorization headers itself.
+    Set<String> signerOutputs = Set.of("authorization", "x-amz-date", "x-amz-security-token");
+    request
+        .headers()
+        .map()
+        .forEach(
+            (name, values) -> {
+              if (!signerOutputs.contains(name.toLowerCase(Locale.ROOT))) {
+                sdkRequest.putHeader(name, values);
+              }
+            });
+    byte[] body = bodyOf(request);
+    sdkRequest.contentStreamProvider(() -> new ByteArrayInputStream(body));
+
+    SdkHttpFullRequest result =
+        Aws4Signer.create()
+            .sign(
+                sdkRequest.build(),
+                Aws4SignerParams.builder()
+                    .awsCredentials(
+                        AwsSessionCredentials.create(
+                            CREDS.getAccessKeyId(),
+                            CREDS.getAccessKeySecret(),
+                            CREDS.getSecurityToken()))
+                    .signingName("sts")
+                    .signingRegion(Region.of(REGION))
+                    .signingClockOverride(FIXED_CLOCK)
+                    .build());
+    return result.firstMatchingHeader("Authorization").orElseThrow();
+  }
+
+  private static byte[] bodyOf(HttpRequest request) {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    request
+        .bodyPublisher()
+        .ifPresent(
+            publisher -> {
+              FlowCollector<ByteBuffer> collector = new FlowCollector<>();
+              publisher.subscribe(collector);
+              for (ByteBuffer buffer : collector.items().join()) {
+                byte[] chunk = new byte[buffer.remaining()];
+                buffer.get(chunk);
+                out.writeBytes(chunk);
+              }
+            });
+    return out.toByteArray();
   }
 
   private static void restoreProperty(String key, String priorValue) {

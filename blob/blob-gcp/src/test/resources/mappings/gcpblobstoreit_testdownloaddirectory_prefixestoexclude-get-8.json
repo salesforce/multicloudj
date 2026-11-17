@@ -1,0 +1,48 @@
+{
+  "id" : "08dd0a7c-872b-425b-80e5-971945098fe9",
+  "name" : "GcpBlobStoreIT_testDownloadDirectory_prefixesToExclude-GET-8",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "fields" : {
+        "hasExactly" : [ {
+          "equalTo" : "nextPageToken,prefixes,items/bucket,items/name,items/size,items/generation"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/directory/download-exclude-v1/"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"items\": [\n    {\n      \"name\": \"conformance-tests/directory/download-exclude-v1/file1.txt\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n      \"generation\": \"1793650222528460\",\n      \"size\": \"6\"\n    },\n    {\n      \"name\": \"conformance-tests/directory/download-exclude-v1/logs/app.log\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n      \"generation\": \"1793650222529552\",\n      \"size\": \"4\"\n    },\n    {\n      \"name\": \"conformance-tests/directory/download-exclude-v1/subdir/file2.txt\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n      \"generation\": \"1793650222565894\",\n      \"size\": \"6\"\n    }\n  ]\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AFy3sg2GKsTyO_e1ZPWltJT6tt-nLGYaOYha8SXbJxlTh2JtHLH_iKRnck_3iNhV1jvdbUBR",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 02 Nov 2026 20:10:23 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a19de26821",
+      "Date" : "Mon, 02 Nov 2026 20:10:23 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "08dd0a7c-872b-425b-80e5-971945098fe9",
+  "persistent" : true,
+  "insertionIndex" : 1581
+}

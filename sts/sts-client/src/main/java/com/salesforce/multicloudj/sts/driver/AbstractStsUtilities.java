@@ -1,9 +1,11 @@
 package com.salesforce.multicloudj.sts.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
+import java.net.URI;
 import java.net.http.HttpRequest;
 import lombok.Getter;
 
@@ -11,11 +13,13 @@ public abstract class AbstractStsUtilities<T extends AbstractStsUtilities<T>> im
   protected final String providerId;
   protected final String region;
   protected final CredentialsOverrider credentialsOverrider;
+  protected final URI endpoint;
 
   public AbstractStsUtilities(AbstractStsUtilities.Builder<T> builder) {
     this.providerId = builder.providerId;
     this.region = builder.region;
     this.credentialsOverrider = builder.credentialsOverrider;
+    this.endpoint = builder.endpoint;
   }
 
   /** {@inheritDoc} */
@@ -53,6 +57,7 @@ public abstract class AbstractStsUtilities<T extends AbstractStsUtilities<T>> im
     protected String providerId;
     protected String region;
     protected CredentialsOverrider credentialsOverrider;
+    protected URI endpoint;
 
     /**
      * Method to supply region
@@ -75,6 +80,51 @@ public abstract class AbstractStsUtilities<T extends AbstractStsUtilities<T>> im
         CredentialsOverrider credentialsOverrider) {
       this.credentialsOverrider = credentialsOverrider;
       return this;
+    }
+
+    /**
+     * Sets the endpoint the provider uses to produce the signed identity.
+     *
+     * @param endpoint The absolute https endpoint to set: a host, with no port and no path other
+     *     than {@code /}.
+     * @return An instance of self
+     * @throws InvalidArgumentException if the endpoint is null, not absolute, has no host, carries
+     *     user info, uses a scheme other than https, or has a port, path, query, or fragment.
+     */
+    public AbstractStsUtilities.Builder withEndpoint(URI endpoint) {
+      validateEndpoint(endpoint);
+      this.endpoint = endpoint;
+      return this;
+    }
+
+    /**
+     * Checks the rules every provider shares. Only https is accepted: the verifiers reject signed
+     * identities for any other scheme, and the signed request carries credentials. STS endpoints
+     * are served on the https default port, so a port is rejected. No provider can carry an
+     * endpoint path: the SigV4 canonical URI is fixed at {@code /}, and the other providers take a
+     * bare host. A query or fragment would not be covered by the signature.
+     */
+    private static void validateEndpoint(URI endpoint) {
+      if (endpoint == null || !endpoint.isAbsolute() || endpoint.getHost() == null) {
+        throw new InvalidArgumentException("endpoint must be an absolute URI with a host");
+      }
+      if (!"https".equalsIgnoreCase(endpoint.getScheme())) {
+        throw new InvalidArgumentException("endpoint scheme must be https: " + endpoint);
+      }
+      // User info in an endpoint would leak credentials into logs and request URLs.
+      if (endpoint.getRawUserInfo() != null) {
+        throw new InvalidArgumentException("endpoint must not contain user info");
+      }
+      if (endpoint.getPort() != -1) {
+        throw new InvalidArgumentException("endpoint must not have a port: " + endpoint);
+      }
+      String path = endpoint.getRawPath();
+      if ((path != null && !path.isEmpty() && !"/".equals(path))
+          || endpoint.getRawQuery() != null
+          || endpoint.getRawFragment() != null) {
+        throw new InvalidArgumentException(
+            "endpoint must not have a path, query, or fragment: " + endpoint);
+      }
     }
 
     @Override
