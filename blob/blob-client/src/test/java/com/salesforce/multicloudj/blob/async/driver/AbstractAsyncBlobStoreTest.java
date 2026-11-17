@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -524,6 +525,19 @@ public class AbstractAsyncBlobStoreTest {
   }
 
   @Test
+  void testDownloadDirectory_EmptyExclusionPrefixRejectedBeforeProvider() {
+    DirectoryDownloadRequest request =
+        DirectoryDownloadRequest.builder()
+            .prefixToDownload("prefix-1")
+            .localDestinationDirectory("/home/files")
+            .prefixesToExclude(List.of("abc", ""))
+            .build();
+
+    assertThrows(IllegalArgumentException.class, () -> mockBlobStore.downloadDirectory(request));
+    verify(mockBlobStore, never()).doDownloadDirectory(any());
+  }
+
+  @Test
   void testDoDeleteDirectory() {
     mockBlobStore.deleteDirectory("files");
 
@@ -708,7 +722,8 @@ public class AbstractAsyncBlobStoreTest {
   @Test
   void testDownloadDirectory_UnsupportedOperation() {
     ((TestAsyncBlobStore) mockBlobStore).setThrowUnsupportedOperation(true);
-    DirectoryDownloadRequest request = mock(DirectoryDownloadRequest.class);
+    DirectoryDownloadRequest request =
+        DirectoryDownloadRequest.builder().localDestinationDirectory("/home/files").build();
     assertThrows(
         UnsupportedOperationException.class,
         () -> {

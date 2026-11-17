@@ -253,6 +253,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<DirectoryDownloadResponse> downloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
+    validator.validate(directoryDownloadRequest);
     return doDownloadDirectory(directoryDownloadRequest);
   }
 
