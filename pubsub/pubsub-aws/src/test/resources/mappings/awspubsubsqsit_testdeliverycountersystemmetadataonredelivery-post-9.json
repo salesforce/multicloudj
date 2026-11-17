@@ -1,0 +1,30 @@
+{
+  "id" : "00413b5e-bbc3-4211-8a61-b5db7820b593",
+  "name" : "AwsPubsubSqsIT_testDeliveryCounterSystemMetadataOnRedelivery-POST-9",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.CreateQueue"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueName\":\"test-sqs-testDeliveryCounterSystemMetadataOnRedelivery\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-sqs-testDeliveryCounterSystemMetadataOnRedelivery\"}",
+    "headers" : {
+      "x-amzn-RequestId" : "6be93705-dbd2-5283-9207-54703e5b9ead",
+      "Date" : "Tue, 17 Nov 2026 05:16:57 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "00413b5e-bbc3-4211-8a61-b5db7820b593",
+  "persistent" : true,
+  "insertionIndex" : 52
+}

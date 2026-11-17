@@ -1,5 +1,5 @@
 {
-  "id" : "faccf765-0cfa-4cba-b491-41c325fe4d77",
+  "id" : "fcc4fc7d-a11f-40a8-807d-4b26398d39de",
   "name" : "AwsPubsubSqsIT_testBatchAck-POST-0",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-sqs-testBatchAck\",\"Entries\":[{\"Id\":\"0\",\"ReceiptHandle\":\"AQEBuEcADHtkXDsqCKNhUe8VptPaV/0e8N0VZYKQvXaO20KgqYvKho4SVSMIUO+Lcy3mTyCyKLoMkIfxg7G5slOGOamBuwQskyufu8IaVdeEKp5VW19ZmYkKDTq2ypZGjULql5+JrWs2vm3sgpYmcoTECtpGvuaxw7tG0+KyHko+6FYlGyRahVi51kiKc3y2FoCVk/nIX+/mUJxBFepNywLWln0Q+Ml/XDh0hvLlilOxo/mxMNm5SxcyKl0rgvgu2Hl8M1G/1eJ7NmxhuEh+j+mfSvUxv1wDoYxALlKzIwyR66Vy8qV73S2gYTxnE5Vt5bJQk8y9cNF/qNv97Mlj+3rDQCMAtLjO8VQjIMDdj+G+PFghtaPsJA4lv6rL0srAicGkum4arkvjqrYxsnQHiCrFcw==\"}]}",
+      "equalToJson" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-sqs-testBatchAck\",\"Entries\":[{\"Id\":\"0\",\"ReceiptHandle\":\"AQEBztxJdrJCDkl4X2Po/HyOXU41favLSq5AD0Sz3/EgdFZp7fKwBO+bwLik6oDbjsr3qtrhindny17eEwuw2hSD6s505aBPM8Pa8udoHNH807Qz8RGKbTLH6qk3RTyq/6NKjj5k5406/Nsoa6XwGWt+PjSi/K4/adObAhEZNsTvu+nTT8BZ/WCPd17i8s++ILXM1S+9F0L/kY4FZopF6YFYk9QXaX445vuPYTMzGK2dbqBns93ViW66JEm5+DlQDRCHek3u2qO7LPv5LA3CVvjMSVP9yAzV19fnfkefentE7E8ipuVTqHhp+0uQJOmPr/SMOefOGZbsGLGCMDyMY3s0ahxl742MjXKJw6qDwwQdgTk8QvHE9JTT2Hss5DUeHe5gz6mP8edHNRSsiD3IWHGZNg==\"}]}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -19,12 +19,12 @@
     "status" : 200,
     "body" : "{\"Successful\":[{\"Id\":\"0\"}]}",
     "headers" : {
-      "x-amzn-RequestId" : "55a78925-3094-5d12-91d1-eb11c6e5c19d",
-      "Date" : "Wed, 18 Mar 2026 18:51:29 GMT",
+      "x-amzn-RequestId" : "62f64010-64b5-5c9f-91c1-23658137f8ea",
+      "Date" : "Tue, 17 Nov 2026 05:16:50 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "faccf765-0cfa-4cba-b491-41c325fe4d77",
+  "uuid" : "fcc4fc7d-a11f-40a8-807d-4b26398d39de",
   "persistent" : true,
-  "insertionIndex" : 55
+  "insertionIndex" : 6
 }
