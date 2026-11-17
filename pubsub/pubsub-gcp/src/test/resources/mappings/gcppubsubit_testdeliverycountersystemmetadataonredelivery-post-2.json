@@ -1,0 +1,45 @@
+{
+  "id" : "f8727e50-18bf-4c44-ad7c-7b98cc57504b",
+  "name" : "GcpPubsubIT_testDeliveryCounterSystemMetadataOnRedelivery-POST-2",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/sub-testDeliveryCounterSystemMetadataOnRedelivery:pull",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"returnImmediately\":true,\"maxMessages\":1}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Tue, 17 Nov 2026 02:38:50 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "f8727e50-18bf-4c44-ad7c-7b98cc57504b",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-subscriptions-sub-testDeliveryCounterSystemMetadataOnRedelivery:pull",
+  "requiredScenarioState" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-subscriptions-sub-testDeliveryCounterSystemMetadataOnRedelivery:pull-3",
+  "newScenarioState" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-subscriptions-sub-testDeliveryCounterSystemMetadataOnRedelivery:pull-4",
+  "insertionIndex" : 29
+}
