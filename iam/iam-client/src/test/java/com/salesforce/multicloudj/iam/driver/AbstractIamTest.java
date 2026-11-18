@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.iam.driver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -108,6 +109,15 @@ public class AbstractIamTest {
     TestIam.Builder builder = new TestIam.Builder();
 
     assertThrows(InvalidArgumentException.class, () -> builder.withRetryConfig(retryConfig));
+  }
+
+  @Test
+  void testBuilderWithNullRetryConfig() {
+    TestIam.Builder builder = new TestIam.Builder();
+
+    builder.withRetryConfig(null);
+
+    assertNull(builder.getRetryConfig());
   }
 
   @Test

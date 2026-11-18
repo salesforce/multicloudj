@@ -902,4 +902,16 @@ public class AwsIamTest {
       assertEquals(Duration.ofMillis(10000), config.apiCallTimeout().get());
     }
   }
+
+  @Test
+  void testBuildIamClientWithoutRetryConfigKeepsSdkTimeouts() {
+    AwsIam.Builder builder = new AwsIam.Builder();
+
+    try (IamClient client = AwsIam.Builder.buildIamClient(builder)) {
+      ClientOverrideConfiguration config =
+          client.serviceClientConfiguration().overrideConfiguration();
+      assertTrue(config.apiCallAttemptTimeout().isEmpty());
+      assertTrue(config.apiCallTimeout().isEmpty());
+    }
+  }
 }

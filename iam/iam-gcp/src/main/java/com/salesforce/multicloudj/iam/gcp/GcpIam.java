@@ -633,6 +633,12 @@ public class GcpIam extends AbstractIam {
       }
     }
 
+    /**
+     * Applies {@code retryConfig} to the retry settings of every unary IAMClient method. Each
+     * method keeps its SDK-defined retryable status codes, and the SDK defines none for
+     * createServiceAccount, getIamPolicy and setIamPolicy, so those calls are attempted once and
+     * only the timeouts in {@code retryConfig} apply to them.
+     */
     static IAMSettings buildIamSettings(RetryConfig retryConfig) throws IOException {
       IAMSettings.Builder settings = IAMSettings.newBuilder();
       if (retryConfig != null) {
@@ -658,6 +664,12 @@ public class GcpIam extends AbstractIam {
       }
     }
 
+    /**
+     * Applies {@code retryConfig} to the retry settings of every unary ProjectsClient method. Each
+     * method keeps its SDK-defined retryable status codes, and the SDK defines none for
+     * setIamPolicy, so that call is attempted once and only the timeouts in {@code retryConfig}
+     * apply to it.
+     */
     static ProjectsSettings buildProjectsSettings(RetryConfig retryConfig) throws IOException {
       ProjectsSettings.Builder settings = ProjectsSettings.newBuilder();
       if (retryConfig != null) {
