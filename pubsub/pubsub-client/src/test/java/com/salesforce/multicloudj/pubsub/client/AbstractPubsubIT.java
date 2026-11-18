@@ -150,14 +150,7 @@ public abstract class AbstractPubsubIT {
               .build();
       topic.send(toSend);
 
-      Message received = null;
-      for (int i = 0; i < 50; i++) {
-        received = subscription.receive();
-        if (received != null) {
-          break;
-        }
-        TimeUnit.MILLISECONDS.sleep(200);
-      }
+      Message received = receiveWithRetry(subscription, 50);
 
       Assertions.assertNotNull(received, "Should receive a message within timeout");
       Assertions.assertNotNull(received.getBody(), "Received message body should not be null");
@@ -178,14 +171,7 @@ public abstract class AbstractPubsubIT {
               .build();
       topic.send(toSend);
 
-      Message received = null;
-      for (int i = 0; i < 50; i++) {
-        received = subscription.receive();
-        if (received != null) {
-          break;
-        }
-        TimeUnit.MILLISECONDS.sleep(200);
-      }
+      Message received = receiveWithRetry(subscription, 50);
 
       Assertions.assertNotNull(received, "Should receive a message to ack");
       Assertions.assertNotNull(received.getAckID(), "AckID must not be null");
@@ -207,14 +193,7 @@ public abstract class AbstractPubsubIT {
               .build();
       topic.send(toSend);
 
-      Message received = null;
-      for (int i = 0; i < 50; i++) {
-        received = subscription.receive();
-        if (received != null) {
-          break;
-        }
-        TimeUnit.MILLISECONDS.sleep(200);
-      }
+      Message received = receiveWithRetry(subscription, 50);
 
       Assertions.assertNotNull(received, "Should receive a message to nack");
       Assertions.assertNotNull(received.getAckID(), "AckID must not be null");
@@ -353,14 +332,7 @@ public abstract class AbstractPubsubIT {
               .build();
       topic.send(toSend);
 
-      Message received = null;
-      for (int i = 0; i < 50; i++) {
-        received = subscription.receive();
-        if (received != null) {
-          break;
-        }
-        TimeUnit.MILLISECONDS.sleep(200);
-      }
+      Message received = receiveWithRetry(subscription, 50);
 
       Assertions.assertNotNull(received, "Should receive a message to nack");
       Assertions.assertNotNull(received.getAckID(), "AckID must not be null");
