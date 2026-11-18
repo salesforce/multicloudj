@@ -15,6 +15,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.iam.client.TestIam;
 import com.salesforce.multicloudj.iam.model.Action;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
@@ -84,6 +85,29 @@ public class AbstractIamTest {
 
     assertEquals(TEST_PROVIDER_ID, iam.getProviderId());
     assertEquals(TEST_REGION, iam.region);
+  }
+
+  @Test
+  void testBuilderWithRetryConfig() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(3)
+            .fixedDelayMillis(100)
+            .build();
+    TestIam.Builder builder = new TestIam.Builder();
+
+    builder.withRetryConfig(retryConfig);
+
+    assertEquals(retryConfig, builder.getRetryConfig());
+  }
+
+  @Test
+  void testBuilderWithInvalidRetryConfig() {
+    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(0).build();
+    TestIam.Builder builder = new TestIam.Builder();
+
+    assertThrows(InvalidArgumentException.class, () -> builder.withRetryConfig(retryConfig));
   }
 
   @Test

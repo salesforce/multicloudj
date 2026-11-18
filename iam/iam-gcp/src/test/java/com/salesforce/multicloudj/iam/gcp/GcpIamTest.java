@@ -18,11 +18,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.AlreadyExistsException;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.cloud.iam.admin.v1.IAMClient;
+import com.google.cloud.iam.admin.v1.IAMSettings;
 import com.google.cloud.resourcemanager.v3.ProjectsClient;
+import com.google.cloud.resourcemanager.v3.ProjectsSettings;
 import com.google.iam.admin.v1.CreateServiceAccountRequest;
 import com.google.iam.admin.v1.DeleteServiceAccountRequest;
 import com.google.iam.admin.v1.GetServiceAccountRequest;
@@ -41,6 +44,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.iam.model.Action;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.ComputeActions;
@@ -55,6 +59,7 @@ import com.salesforce.multicloudj.iam.model.Statement;
 import com.salesforce.multicloudj.iam.model.StorageActions;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Assertions;
@@ -1931,5 +1936,54 @@ public class GcpIamTest {
 
     assertTrue(roles.contains("roles/storage.objectViewer"));
     assertTrue(roles.contains("roles/compute.instanceAdmin.v1"));
+  }
+
+  @Test
+  void testBuildIamSettingsAppliesRetryConfig() throws IOException {
+    RetrySettings retrySettings =
+        GcpIam.Builder.buildIamSettings(fixedRetryConfig())
+            .getServiceAccountSettings()
+            .getRetrySettings();
+
+    assertFixedRetrySettings(retrySettings);
+  }
+
+  @Test
+  void testBuildProjectsSettingsAppliesRetryConfig() throws IOException {
+    RetrySettings retrySettings =
+        GcpIam.Builder.buildProjectsSettings(fixedRetryConfig())
+            .getIamPolicySettings()
+            .getRetrySettings();
+
+    assertFixedRetrySettings(retrySettings);
+  }
+
+  @Test
+  void testBuildSettingsWithoutRetryConfigKeepsClientDefaults() throws IOException {
+    assertEquals(
+        IAMSettings.newBuilder().build().getServiceAccountSettings().getRetrySettings(),
+        GcpIam.Builder.buildIamSettings(null).getServiceAccountSettings().getRetrySettings());
+    assertEquals(
+        ProjectsSettings.newBuilder().build().getIamPolicySettings().getRetrySettings(),
+        GcpIam.Builder.buildProjectsSettings(null).getIamPolicySettings().getRetrySettings());
+  }
+
+  private static RetryConfig fixedRetryConfig() {
+    return RetryConfig.builder()
+        .mode(RetryConfig.Mode.FIXED)
+        .maxAttempts(4)
+        .fixedDelayMillis(100)
+        .attemptTimeout(2000L)
+        .totalTimeout(10000L)
+        .build();
+  }
+
+  private static void assertFixedRetrySettings(RetrySettings retrySettings) {
+    assertEquals(4, retrySettings.getMaxAttempts());
+    assertEquals(Duration.ofMillis(100), retrySettings.getInitialRetryDelayDuration());
+    assertEquals(Duration.ofMillis(100), retrySettings.getMaxRetryDelayDuration());
+    assertEquals(1.0, retrySettings.getRetryDelayMultiplier());
+    assertEquals(Duration.ofMillis(2000), retrySettings.getInitialRpcTimeoutDuration());
+    assertEquals(Duration.ofMillis(10000), retrySettings.getTotalTimeoutDuration());
   }
 }

@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.iam.client;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
@@ -244,6 +245,17 @@ public class IamClient implements AutoCloseable {
      */
     public IamClientBuilder withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
       this.iamBuilder.withCredentialsOverrider(credentialsOverrider);
+      return this;
+    }
+
+    /**
+     * Sets the retry configuration for the IAM client.
+     *
+     * @param retryConfig the retry configuration to use for retrying failed requests
+     * @return this IamClientBuilder instance
+     */
+    public IamClientBuilder withRetryConfig(RetryConfig retryConfig) {
+      this.iamBuilder.withRetryConfig(retryConfig);
       return this;
     }
 

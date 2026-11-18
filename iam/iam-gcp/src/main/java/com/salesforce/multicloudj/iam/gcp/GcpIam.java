@@ -6,7 +6,9 @@ import com.google.api.gax.rpc.AlreadyExistsException;
 import com.google.api.gax.rpc.ApiException;
 import com.google.auto.service.AutoService;
 import com.google.cloud.iam.admin.v1.IAMClient;
+import com.google.cloud.iam.admin.v1.IAMSettings;
 import com.google.cloud.resourcemanager.v3.ProjectsClient;
+import com.google.cloud.resourcemanager.v3.ProjectsSettings;
 import com.google.iam.admin.v1.CreateServiceAccountRequest;
 import com.google.iam.admin.v1.DeleteServiceAccountRequest;
 import com.google.iam.admin.v1.GetServiceAccountRequest;
@@ -22,6 +24,8 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
+import com.salesforce.multicloudj.common.gcp.GcpRetrySettings;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.Action;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
@@ -623,10 +627,22 @@ public class GcpIam extends AbstractIam {
      */
     private IAMClient buildIamClient() {
       try {
-        return IAMClient.create();
+        return IAMClient.create(buildIamSettings(getRetryConfig()));
       } catch (Exception e) {
         throw new SubstrateSdkException("Could not create IAMClient", e);
       }
+    }
+
+    static IAMSettings buildIamSettings(RetryConfig retryConfig) throws IOException {
+      IAMSettings.Builder settings = IAMSettings.newBuilder();
+      if (retryConfig != null) {
+        settings.applyToAllUnaryMethods(
+            call -> {
+              call.setRetrySettings(GcpRetrySettings.apply(call.getRetrySettings(), retryConfig));
+              return null;
+            });
+      }
+      return settings.build();
     }
 
     @Override
@@ -636,10 +652,22 @@ public class GcpIam extends AbstractIam {
 
     private static ProjectsClient buildProjectsClient(Builder builder) {
       try {
-        return ProjectsClient.create();
+        return ProjectsClient.create(buildProjectsSettings(builder.getRetryConfig()));
       } catch (IOException e) {
         throw new SubstrateSdkException("Could not create ProjectsClient", e);
       }
+    }
+
+    static ProjectsSettings buildProjectsSettings(RetryConfig retryConfig) throws IOException {
+      ProjectsSettings.Builder settings = ProjectsSettings.newBuilder();
+      if (retryConfig != null) {
+        settings.applyToAllUnaryMethods(
+            call -> {
+              call.setRetrySettings(GcpRetrySettings.apply(call.getRetrySettings(), retryConfig));
+              return null;
+            });
+      }
+      return settings.build();
     }
 
     @Override
