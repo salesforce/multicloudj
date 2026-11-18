@@ -2993,11 +2993,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testGetObjectLock_afterUploadWithRetentionGovernance() throws IOException {
-    // Ali: OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE was bumped forward, but the Ali code path and its
-    // stubs were not re-recorded as part of that change, so the recorded body no longer matches
-    // the outgoing request. This test remains skipped for Ali until its stubs are regenerated.
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
-
     String key = "conformance-tests/objectlock/retention-governance";
     byte[] content = "Object lock retention governance test".getBytes(StandardCharsets.UTF_8);
     Instant retainUntil = OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE;
@@ -3035,12 +3030,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testGetObjectLock_afterUploadWithRetentionCompliance() throws IOException {
-    // Ali: OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE was previously in the past, which OSS rejected in
-    // record mode. The constant has been bumped forward, but the Ali code path and its stubs
-    // were not re-recorded as part of that change, so this test remains skipped for Ali until
-    // its stubs are regenerated.
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
-
     String key = "conformance-tests/objectlock/retention-compliance";
     byte[] content = "Object lock retention compliance test".getBytes(StandardCharsets.UTF_8);
     Instant retainUntil = OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE;

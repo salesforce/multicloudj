@@ -1,5 +1,5 @@
 {
-  "id" : "3cbad419-9a48-4bcc-aabd-bae9975aa9ab",
+  "id" : "6edd492e-7256-43b5-a375-7aa4121aa217",
   "name" : "AliBlobStoreIT_testGetObjectLock_afterUploadWithRetentionGovernance-PUT-4",
   "request" : {
     "url" : "/conformance-tests/objectlock/retention-governance",
@@ -16,17 +16,17 @@
   "response" : {
     "status" : 200,
     "headers" : {
-      "x-oss-version-id" : "CAEQjAkY3t3er5iL1fQZIiA3ZGFiNTEzOTdiMTE0ZDA1OTYzYmNhNjUzMTQzZDc4OA--",
-      "x-oss-request-id" : "6A221E1AE05A523738DCE1C4",
-      "x-oss-server-time" : "41",
+      "x-oss-version-id" : "CAEQlCQYzoq69JCtsI8aIiBiNTQ5YWI4ZmQ1MDk0MzE1OTc2ZjQxYmNkYmIxZjcwNA--",
+      "x-oss-request-id" : "6AFCF358A79166323990F3EE",
+      "x-oss-server-time" : "106",
       "Server" : "AliyunOSS",
       "x-oss-hash-crc64ecma" : "4303325961431456286",
       "ETag" : "\"7E7CEE74A915A322EF6C75C3AB034D4F\"",
-      "Date" : "Fri, 05 Jun 2026 00:53:46 GMT",
+      "Date" : "Wed, 18 Nov 2026 00:37:44 GMT",
       "Content-MD5" : "fnzudKkVoyLvbHXDqwNNTw=="
     }
   },
-  "uuid" : "3cbad419-9a48-4bcc-aabd-bae9975aa9ab",
+  "uuid" : "6edd492e-7256-43b5-a375-7aa4121aa217",
   "persistent" : true,
-  "insertionIndex" : 1214
+  "insertionIndex" : 803
 }

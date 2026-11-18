@@ -1,5 +1,5 @@
 {
-  "id" : "dadbb9cd-408e-433b-b449-cd9ceb37a426",
+  "id" : "c84c02f4-f7ff-4fc4-973f-901349d637f1",
   "name" : "AliBlobStoreIT_testGetObjectLock_afterUploadWithRetentionGovernance-GET-1",
   "request" : {
     "urlPath" : "/conformance-tests/objectlock/retention-governance",
@@ -22,16 +22,16 @@
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchObjectLegalHoldConfiguration</Code>\n  <Message>The specified object does not have an object legal hold configuration.</Message>\n  <RequestId>6A221E1E26F41933348F7A95</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <ObjectName>conformance-tests/objectlock/retention-governance</ObjectName>\n</Error>\n",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchObjectLegalHoldConfiguration</Code>\n  <Message>The specified object does not have an object legal hold configuration.</Message>\n  <RequestId>6AFCF35B3D204E3237FF73FC</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <ObjectName>conformance-tests/objectlock/retention-governance</ObjectName>\n</Error>\n",
     "headers" : {
-      "x-oss-request-id" : "6A221E1E26F41933348F7A95",
-      "x-oss-server-time" : "6",
+      "x-oss-request-id" : "6AFCF35B3D204E3237FF73FC",
+      "x-oss-server-time" : "28",
       "Server" : "AliyunOSS",
-      "Date" : "Fri, 05 Jun 2026 00:53:50 GMT",
+      "Date" : "Wed, 18 Nov 2026 00:37:47 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "dadbb9cd-408e-433b-b449-cd9ceb37a426",
+  "uuid" : "c84c02f4-f7ff-4fc4-973f-901349d637f1",
   "persistent" : true,
-  "insertionIndex" : 1211
+  "insertionIndex" : 800
 }
