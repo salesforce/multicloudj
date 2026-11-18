@@ -1,6 +1,6 @@
 {
-  "id" : "0bbbb5c3-23cf-4949-a810-1e78dfd7d104",
-  "name" : "AliPubsubQueueIT_testNackAfterReceive-PUT-8",
+  "id" : "ff07e0e0-e880-4f94-b2c7-a69a20fe23b9",
+  "name" : "AliPubsubQueueIT_testNackAfterReceive-PUT-10",
   "request" : {
     "url" : "/queues/test-smq-conf-q-testNackAfterReceive",
     "method" : "PUT",
@@ -12,21 +12,20 @@
     "status" : 204,
     "headers" : {
       "x-mns-response-format" : "xml",
-      "x-mns-netty-total-time" : "1",
+      "x-mns-netty-total-time" : "2",
       "x-mns-account-type" : "",
       "x-mns-version" : "2015-06-06",
       "Server" : "AliyunMQS",
-      "x-mns-request-id" : "6ABAB9024439450F003B6537",
+      "x-mns-request-id" : "6AFE0CB84343300F003BD0C6",
       "x-mns-threadpool-wait-time" : "0",
-      "Date" : "Mon, 28 Sep 2026 18:59:14 GMT",
+      "Date" : "Wed, 18 Nov 2026 20:38:16 GMT",
       "Location" : "http://account-id.mns.cn-shanghai.aliyuncs.com/queues/test-smq-conf-q-testNackAfterReceive",
       "Content-Type" : "text/xml;charset=utf-8"
     }
   },
-  "uuid" : "0bbbb5c3-23cf-4949-a810-1e78dfd7d104",
+  "uuid" : "ff07e0e0-e880-4f94-b2c7-a69a20fe23b9",
   "persistent" : true,
-  "scenarioName" : "scenario-3-queues-test-smq-conf-q-testNackAfterReceive",
-  "requiredScenarioState" : "Started",
-  "newScenarioState" : "scenario-3-queues-test-smq-conf-q-testNackAfterReceive-2",
-  "insertionIndex" : 55
+  "scenarioName" : "scenario-4-queues-test-smq-conf-q-testNackAfterReceive",
+  "requiredScenarioState" : "scenario-4-queues-test-smq-conf-q-testNackAfterReceive-2",
+  "insertionIndex" : 158
 }
