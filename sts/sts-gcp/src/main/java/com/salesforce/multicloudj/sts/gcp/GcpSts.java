@@ -49,6 +49,7 @@ import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
+import java.time.DateTimeException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -433,14 +434,16 @@ public class GcpSts extends AbstractSts {
             response.getContent(), response.getContentCharset(), GenericJson.class);
     String accessToken = String.valueOf(responseData.get("access_token"));
     Object expiresIn = responseData.get("expires_in");
-    // An absent or non-numeric expires_in leaves the expiry unknown rather than failing an
-    // otherwise successful exchange.
+    // An absent, non-numeric, or out-of-range expires_in leaves the expiry unknown rather than
+    // failing an otherwise successful exchange. longValueExact rejects values that do not fit in
+    // a long instead of silently truncating them to an arbitrary expiry.
     Instant expiration = null;
     if (expiresIn != null) {
       try {
         expiration =
-            requestedAt.plusSeconds(new BigDecimal(String.valueOf(expiresIn)).longValue());
-      } catch (NumberFormatException e) {
+            requestedAt.plusSeconds(
+                new BigDecimal(String.valueOf(expiresIn)).toBigInteger().longValueExact());
+      } catch (NumberFormatException | ArithmeticException | DateTimeException e) {
         expiration = null;
       }
     }
