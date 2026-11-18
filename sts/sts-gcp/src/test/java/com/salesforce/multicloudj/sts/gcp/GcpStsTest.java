@@ -666,13 +666,13 @@ public class GcpStsTest {
         "//storage.googleapis.com/projects/_/buckets/test-bucket",
         boundaryRule.getAvailableResource());
 
-    // Verify permission conversion: storage:GetObject -> inRole:roles/storage.objectViewer,
-    // storage:PutObject -> inRole:roles/storage.objectCreator
-    Assertions.assertEquals(4, boundaryRule.getAvailablePermissions().size());
-    Assertions.assertTrue(
-        boundaryRule.getAvailablePermissions().contains("inRole:roles/storage.objectViewer"));
-    Assertions.assertTrue(
-        boundaryRule.getAvailablePermissions().contains("inRole:roles/storage.objectCreator"));
+    Assertions.assertEquals(
+        List.of(
+            "inRole:roles/storage.objectViewer",
+            "inRole:roles/storage.objectCreator",
+            "inRole:roles/storage.objectUser",
+            "inRole:roles/storage.objectViewer"),
+        boundaryRule.getAvailablePermissions());
 
     // Verify condition conversion
     CredentialAccessBoundary.AccessBoundaryRule.AvailabilityCondition gcpCondition =

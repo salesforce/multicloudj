@@ -1325,10 +1325,11 @@ public class GcpBlobStore extends AbstractBlobStore {
       for (Blob blob :
           storage.list(getBucket(), listOptions.toArray(new Storage.BlobListOption[0]))
               .iterateAll()) {
-        // Skip folder markers (matches AWS default). GCS TransferManager has no
-        // built-in filter and would otherwise create a 0-byte file at the marker's
-        // path, blocking the real files inside that virtual folder.
-        if (!isFolderMarker(blob)) {
+        // GCS TransferManager has no filter hook, so folder markers and excluded keys
+        // are dropped here before it sees the list. A folder marker would otherwise
+        // become a 0-byte file at the marker's path, blocking the real files inside
+        // that virtual folder.
+        if (!isFolderMarker(blob) && !req.isExcluded(blob.getName())) {
           blobInfos.add(blob);
         }
       }
