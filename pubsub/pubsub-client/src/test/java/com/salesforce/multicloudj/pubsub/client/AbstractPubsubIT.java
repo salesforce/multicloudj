@@ -195,7 +195,7 @@ public abstract class AbstractPubsubIT {
   }
 
   @Test
-  @Timeout(30) // Integration test that calls receive() - fail fast if recordings are missing
+  @Timeout(60) // Integration test that receives twice - fail fast if recordings are missing
   public void testNackAfterReceive() throws Exception {
     try (AbstractTopic topic = harness.createTopicDriver();
         AbstractSubscription subscription = harness.createSubscriptionDriver()) {
@@ -218,8 +218,27 @@ public abstract class AbstractPubsubIT {
 
       Assertions.assertNotNull(received, "Should receive a message to nack");
       Assertions.assertNotNull(received.getAckID(), "AckID must not be null");
+      int firstCount = requireDeliveryCounter(received);
 
       subscription.sendNack(received.getAckID());
+
+      // The nack is batched and asynchronous, so the redelivery is polled for.
+      Message redelivered = receiveWithRetry(subscription, 50);
+      Assertions.assertNotNull(redelivered, "Should receive the message again after nack");
+      Assertions.assertNotNull(received.getLoggableID(), "Received message must have an ID");
+      Assertions.assertEquals(
+          received.getLoggableID(),
+          redelivered.getLoggableID(),
+          "Redelivery must be the same message as the first delivery");
+      int secondCount = requireDeliveryCounter(redelivered);
+      Assertions.assertTrue(
+          secondCount > firstCount,
+          "Delivery counter should increase on redelivery. First: "
+              + firstCount
+              + ", second: "
+              + secondCount);
+
+      subscription.sendAck(redelivered.getAckID());
     }
   }
 
@@ -347,45 +366,6 @@ public abstract class AbstractPubsubIT {
       Assertions.assertNotNull(received.getAckID(), "AckID must not be null");
 
       subscription.sendNacks(List.of(received.getAckID())).join();
-    }
-  }
-
-  @Test
-  public void testDeliveryCounterSystemMetadataOnRedelivery() throws Exception {
-    Duration nackVisibilityTimeout = Duration.ofSeconds(5);
-    try (AbstractTopic topic = harness.createTopicDriver();
-        AbstractSubscription subscription =
-            harness.createSubscriptionDriver(nackVisibilityTimeout)) {
-
-      topic.send(
-          Message.builder()
-              .withBody("it-delivery-counter".getBytes())
-              .withMetadata(Map.of("case", "delivery-counter"))
-              .build());
-
-      Message first = receiveWithRetry(subscription, 50);
-      Assertions.assertNotNull(first, "Should receive the sent message");
-      int firstCount = requireDeliveryCounter(first);
-
-      subscription.sendNacks(List.of(first.getAckID())).join();
-
-      Message second = receiveWithRetry(subscription, 150);
-      Assertions.assertNotNull(second, "Should receive the message again after nack");
-      int secondCount = requireDeliveryCounter(second);
-
-      Assertions.assertNotNull(first.getLoggableID(), "Received message must have an ID");
-      Assertions.assertEquals(
-          first.getLoggableID(),
-          second.getLoggableID(),
-          "Redelivery must be the same message as the first delivery");
-      Assertions.assertTrue(
-          secondCount > firstCount,
-          "Delivery counter should increase on redelivery. First: "
-              + firstCount
-              + ", second: "
-              + secondCount);
-
-      subscription.sendAck(second.getAckID());
     }
   }
 
