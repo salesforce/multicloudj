@@ -1,0 +1,45 @@
+{
+  "id" : "fa24e526-9611-4352-8f45-51bf145df991",
+  "name" : "GcpPubsubIT_testNackAfterReceive-POST-3",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/sub-testNackAfterReceive:pull",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"returnImmediately\":true,\"maxMessages\":1}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"receivedMessages\": [\n    {\n      \"ackId\": \"RVNEUAYWLF1GSFE3GQhoUQ5PXiM_NSAoRREFCBQFfH1yWUp1XDN1B1ENGXMsYCNqXkcBARcAdF9RGx9ZXES1uZnqL1BcY3ZuWhQHBEJad1hcGg9qXlVd5oT_l7i2yG1wYSvBvI20SH-b3LBjZiE9XxJLLD5-Ny1FQV5AEkw8GERJUytDCypYEU4EISE-MD4\",\n      \"message\": {\n        \"data\": \"aXQtbmFjay10ZXN0\",\n        \"attributes\": {\n          \"case\": \"nack\"\n        },\n        \"messageId\": \"23407667997712229\",\n        \"publishTime\": \"2026-11-18T20:15:41.515Z\"\n      },\n      \"deliveryAttempt\": 1\n    }\n  ]\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 18 Nov 2026 20:15:44 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "fa24e526-9611-4352-8f45-51bf145df991",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-subscriptions-sub-testNackAfterReceive:pull",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-subscriptions-sub-testNackAfterReceive:pull-2",
+  "insertionIndex" : 27
+}
