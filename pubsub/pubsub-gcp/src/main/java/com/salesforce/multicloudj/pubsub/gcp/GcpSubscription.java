@@ -35,6 +35,7 @@ import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.AckInfo;
 import com.salesforce.multicloudj.pubsub.driver.Message;
+import com.salesforce.multicloudj.pubsub.driver.Message.SystemMetadataKeys;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -322,12 +323,21 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
 
     AckID ackID = new GcpAckID(ackId);
 
-    return Message.builder()
-        .withBody(pubsubMessage.getData().toByteArray())
-        .withMetadata(pubsubMessage.getAttributesMap())
-        .withAckID(ackID)
-        .withLoggableID(pubsubMessage.getMessageId())
-        .build();
+    Message.Builder builder =
+        Message.builder()
+            .withBody(pubsubMessage.getData().toByteArray())
+            .withMetadata(pubsubMessage.getAttributesMap())
+            .withAckID(ackID)
+            .withLoggableID(pubsubMessage.getMessageId());
+
+    // Pub/Sub reports a delivery attempt of 0 when the subscription has no dead-letter policy,
+    // meaning attempts are not tracked, so the delivery counter is omitted in that case.
+    int deliveryAttempt = receivedMessage.getDeliveryAttempt();
+    if (deliveryAttempt > 0) {
+      builder.withSystemMetadata(
+          Map.of(SystemMetadataKeys.DELIVERY_COUNTER, Integer.toString(deliveryAttempt)));
+    }
+    return builder.build();
   }
 
   /** GCP-specific implementation of AckID that wraps the acknowledgment ID string. */

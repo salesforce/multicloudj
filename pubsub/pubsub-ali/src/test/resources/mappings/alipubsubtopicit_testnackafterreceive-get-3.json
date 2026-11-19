@@ -1,28 +1,46 @@
 {
-  "id" : "38e22e91-33c8-46c5-a95c-2bef3ebd1204",
+  "id" : "a2beb2d0-24ab-4119-94c8-a73e990a8ad9",
   "name" : "AliPubsubTopicIT_testNackAfterReceive-GET-3",
   "request" : {
-    "url" : "/queues/test-smq-conf-tq-testNackAfterReceive",
-    "method" : "GET"
+    "urlPath" : "/queues/test-smq-conf-tq-testNackAfterReceive/messages",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "numOfMessages" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "waitseconds" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      }
+    }
   },
   "response" : {
-    "status" : 200,
-    "body" : "<?xml version=\"1.0\" ?>\n<Queue xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <QueueName>test-smq-conf-tq-testNackAfterReceive</QueueName>\n  <DelaySeconds>0</DelaySeconds>\n  <MaximumMessageSize>65536</MaximumMessageSize>\n  <MessageRetentionPeriod>345600</MessageRetentionPeriod>\n  <VisibilityTimeout>30</VisibilityTimeout>\n  <CreateTime>1790184725</CreateTime>\n  <LastModifyTime>1790184725</LastModifyTime>\n  <PollingWaitSeconds>0</PollingWaitSeconds>\n  <ActiveMessages>0</ActiveMessages>\n  <InactiveMessages>0</InactiveMessages>\n  <DelayMessages>0</DelayMessages>\n  <LoggingEnabled>False</LoggingEnabled>\n  <MessageType>0</MessageType>\n  <EnableSSE>False</EnableSSE>\n</Queue>",
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" ?>\n<Error xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Code>MessageNotExist</Code>\n  <Message>Message not exist.</Message>\n  <RequestId>6AFE0CAF3034410F00B4B864</RequestId>\n  <HostId>http://account-id.mns.cn-shanghai.aliyuncs.com</HostId>\n</Error>",
     "headers" : {
       "x-mns-response-format" : "xml",
-      "x-mns-netty-total-time" : "22",
+      "x-mns-netty-total-time" : "866",
       "x-mns-account-type" : "",
       "x-mns-version" : "2015-06-06",
       "Server" : "AliyunMQS",
-      "x-mns-request-id" : "6ABABA364343300F00B6110F",
+      "x-mns-request-id" : "6AFE0CAF3034410F00B4B864",
       "x-mns-threadpool-wait-time" : "0",
-      "Date" : "Mon, 28 Sep 2026 19:04:23 GMT",
+      "Date" : "Wed, 18 Nov 2026 20:38:08 GMT",
       "Content-Type" : "text/xml;charset=utf-8"
     }
   },
-  "uuid" : "38e22e91-33c8-46c5-a95c-2bef3ebd1204",
+  "uuid" : "a2beb2d0-24ab-4119-94c8-a73e990a8ad9",
   "persistent" : true,
-  "scenarioName" : "scenario-1-queues-test-smq-conf-tq-testNackAfterReceive",
-  "requiredScenarioState" : "scenario-1-queues-test-smq-conf-tq-testNackAfterReceive-2",
-  "insertionIndex" : 129
+  "scenarioName" : "scenario-1-queues-test-smq-conf-tq-testNackAfterReceive-messages",
+  "requiredScenarioState" : "scenario-1-queues-test-smq-conf-tq-testNackAfterReceive-messages-3",
+  "newScenarioState" : "scenario-1-queues-test-smq-conf-tq-testNackAfterReceive-messages-4",
+  "insertionIndex" : 133
 }

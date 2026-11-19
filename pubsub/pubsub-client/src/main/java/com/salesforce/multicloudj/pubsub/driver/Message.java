@@ -14,6 +14,7 @@ public class Message {
   private String loggableID;
   private byte[] body;
   private Map<String, String> metadata;
+  private Map<String, String> systemMetadata;
   private AckID ackID;
   private Function<Object, Boolean> asFunc;
   private Function<Function<Object, Boolean>, Exception> beforeSend;
@@ -51,6 +52,16 @@ public class Message {
   }
 
   /**
+   * Gets the read-only system metadata attached to a received message. See {@link
+   * SystemMetadataKeys} for the well-known keys.
+   *
+   * @return A map of system metadata key-value pairs, or null if no system metadata
+   */
+  public Map<String, String> getSystemMetadata() {
+    return systemMetadata;
+  }
+
+  /**
    * Gets the acknowledgment ID for this message. This is only set for received messages.
    *
    * @return The ack ID, or null if not set
@@ -67,6 +78,23 @@ public class Message {
    */
   public boolean as(Object target) {
     return asFunc != null && asFunc.apply(target);
+  }
+
+  /**
+   * Well-known keys of the system metadata exposed by {@link Message#getSystemMetadata()}.
+   *
+   * <p>System metadata is read-only on received messages and is ignored when a message is sent. An
+   * absent key means the value is not available for that delivery.
+   */
+  public static final class SystemMetadataKeys {
+
+    private SystemMetadataKeys() {}
+
+    /**
+     * Number of times the message has been delivered, including the current delivery. The value is
+     * a base-10 positive integer string, 1-based (the first delivery is "1"), and approximate.
+     */
+    public static final String DELIVERY_COUNTER = "deliveryCounter";
   }
 
   /** Builder for creating Message instances. */
@@ -118,6 +146,17 @@ public class Message {
         message.metadata = new java.util.HashMap<>();
       }
       message.metadata.put(key, value);
+      return this;
+    }
+
+    /**
+     * Sets the system metadata (typically used internally by drivers).
+     *
+     * @param systemMetadata A map of system metadata key-value pairs
+     * @return This builder instance
+     */
+    public Builder withSystemMetadata(Map<String, String> systemMetadata) {
+      message.systemMetadata = systemMetadata;
       return this;
     }
 
