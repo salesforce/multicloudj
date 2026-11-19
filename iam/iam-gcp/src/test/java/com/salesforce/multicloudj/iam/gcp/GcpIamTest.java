@@ -1959,6 +1959,32 @@ public class GcpIamTest {
   }
 
   @Test
+  void testBuildPassesRetryConfigToClientFactories() throws IOException {
+    try (MockedStatic<ProjectsClient> mockedProjectsClient = mockStatic(ProjectsClient.class);
+        MockedStatic<IAMClient> mockedIamClient = mockStatic(IAMClient.class)) {
+      mockedProjectsClient
+          .when(() -> ProjectsClient.create(any(ProjectsSettings.class)))
+          .thenReturn(mock(ProjectsClient.class));
+      mockedIamClient
+          .when(() -> IAMClient.create(any(IAMSettings.class)))
+          .thenReturn(mock(IAMClient.class));
+
+      new GcpIam.Builder().withRetryConfig(fixedRetryConfig()).build();
+
+      ArgumentCaptor<IAMSettings> iamSettings = ArgumentCaptor.forClass(IAMSettings.class);
+      mockedIamClient.verify(() -> IAMClient.create(iamSettings.capture()));
+      assertFixedRetrySettings(
+          iamSettings.getValue().getServiceAccountSettings().getRetrySettings());
+
+      ArgumentCaptor<ProjectsSettings> projectsSettings =
+          ArgumentCaptor.forClass(ProjectsSettings.class);
+      mockedProjectsClient.verify(() -> ProjectsClient.create(projectsSettings.capture()));
+      assertFixedRetrySettings(
+          projectsSettings.getValue().getIamPolicySettings().getRetrySettings());
+    }
+  }
+
+  @Test
   void testBuildSettingsWithoutRetryConfigKeepsClientDefaults() throws IOException {
     assertEquals(
         IAMSettings.newBuilder().build().getServiceAccountSettings().getRetrySettings(),
