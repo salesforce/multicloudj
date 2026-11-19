@@ -21,6 +21,7 @@ import com.aliyun.sdk.service.oss2.retry.Retryer;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
+import com.aliyun.sdk.service.oss2.transport.HttpClientOptions;
 import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5AsyncHttpClientBuilder;
 import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClientBuilder;
 import com.salesforce.multicloudj.blob.ali.AliSdkService;
@@ -990,11 +991,18 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
             this,
             creds,
             retryer,
-            (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) ->
-                Apache5AsyncHttpClientBuilder.create()
-                    .options(AliTransformer.toHttpClientOptions(
-                        proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout))
-                    .build());
+            (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) -> {
+              HttpClientOptions options = AliTransformer.toHttpClientOptions(
+                  proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout);
+              var httpClientBuilder = Apache5AsyncHttpClientBuilder.create().options(options);
+              if (getConnectionAcquisitionTimeout() != null) {
+                httpClientBuilder.connectionRequestTimeout(
+                    Math.toIntExact(getConnectionAcquisitionTimeout().toMillis()));
+                httpClientBuilder.connectionManager(
+                    new AcquisitionTimeoutConnectionManager(options));
+              }
+              return httpClientBuilder.build();
+            });
         async = asyncBuilder.build();
       }
 
@@ -1006,11 +1014,19 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
             this,
             creds,
             retryer,
-            (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) ->
-                Apache5HttpClientBuilder.create()
+            (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) -> {
+              var httpClientBuilder = Apache5HttpClientBuilder.create()
                     .options(AliTransformer.toHttpClientOptions(
-                        proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout))
-                    .build());
+                        proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout));
+              if (getConnectionAcquisitionTimeout() != null) {
+                httpClientBuilder.connectionRequestTimeout(
+                    Math.toIntExact(getConnectionAcquisitionTimeout().toMillis()));
+                if (maxConnections != null) {
+                  httpClientBuilder.maxConnections(maxConnections);
+                }
+              }
+              return httpClientBuilder.build();
+            });
         sync = syncBuilder.build();
       }
 

@@ -74,6 +74,7 @@ import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartResult;
 import com.aliyun.sdk.service.oss2.models.VersioningConfiguration;
 import com.aliyun.sdk.service.oss2.paginator.ListObjectVersionsIterable;
+import com.aliyun.sdk.service.oss2.transport.RequestException;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -106,6 +107,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
+import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ItemFailure;
@@ -142,8 +144,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.hc.core5.http.ConnectionRequestTimeoutException;
+import org.apache.hc.core5.util.Deadline;
+import org.apache.hc.core5.util.DeadlineTimeoutException;
+import org.apache.hc.core5.util.Timeout;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -234,6 +241,32 @@ public class AliBlobStoreTest {
     SubstrateSdkException mapped = ali.mapException(missingVersion);
     assertInstanceOf(ResourceNotFoundException.class, mapped);
     assertFalse(mapped.isRetryable());
+  }
+
+  @Test
+  void testMapConnectionAcquisitionTimeout() {
+    OperationException failure = new OperationException("GetObject",
+        new RequestException("send failed",
+            new ConnectionRequestTimeoutException("pool exhausted")));
+
+    SubstrateSdkException mapped = ali.mapException(failure);
+
+    assertInstanceOf(DeadlineExceededException.class, mapped);
+    assertSame(failure, mapped.getCause());
+    assertTrue(mapped.isRetryable());
+  }
+
+  @Test
+  void testMapAsyncConnectionAcquisitionTimeout() {
+    OperationException failure = new OperationException("GetObject",
+        new CompletionException(DeadlineTimeoutException.from(
+            Deadline.calculate(Timeout.ofMilliseconds(1)))));
+
+    SubstrateSdkException mapped = ali.mapException(failure);
+
+    assertInstanceOf(DeadlineExceededException.class, mapped);
+    assertSame(failure, mapped.getCause());
+    assertTrue(mapped.isRetryable());
   }
 
   @Test

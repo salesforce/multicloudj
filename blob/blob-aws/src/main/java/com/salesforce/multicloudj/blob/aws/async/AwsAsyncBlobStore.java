@@ -699,6 +699,10 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
       // Use CRT-based client for parallel downloads, standard client otherwise
       if (Boolean.TRUE.equals(builder.getParallelDownloadsEnabled())) {
+        if (builder.getConnectionAcquisitionTimeout() != null) {
+          throw new IllegalArgumentException(
+              "Connection acquisition timeout is not supported by the AWS CRT transport");
+        }
         return buildCrtS3Client(builder, regionObj);
       } else {
         return buildStandardS3Client(builder, regionObj);
@@ -762,6 +766,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       if (config.getProxyEndpoint() != null
           || config.getMaxConnections() != null
           || config.getSocketTimeout() != null
+          || config.getConnectionAcquisitionTimeout() != null
           || config.getIdleConnectionTimeout() != null
           || config.getUseSystemPropertyProxyValues() != null
           || config.getUseEnvironmentVariableProxyValues() != null) {
@@ -800,12 +805,16 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           httpClientBuilder.readTimeout(config.getSocketTimeout());
         }
 
+        if (config.getConnectionAcquisitionTimeout() != null) {
+          httpClientBuilder.connectionAcquisitionTimeout(config.getConnectionAcquisitionTimeout());
+        }
+
         // Configure idle connection timeout if specified
         if (config.getIdleConnectionTimeout() != null) {
           httpClientBuilder.connectionMaxIdleTime(config.getIdleConnectionTimeout());
         }
 
-        builder.httpClient(httpClientBuilder.build());
+        builder.httpClientBuilder(httpClientBuilder);
       }
 
       // Configure multipart configuration (common for both clients)

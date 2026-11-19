@@ -109,6 +109,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -2213,5 +2214,22 @@ public class AliAsyncBlobStoreTest {
     AliAsyncBlobStore.Builder builder = newRealClientBuilder();
     builder.withIdleConnectionTimeout(Duration.ofSeconds(45));
     assertNotNull(builder.build());
+  }
+
+  @Test
+  void testOnlyConnectionAcquisitionTimeoutCreatesAndClosesOwnedWatcher() throws Exception {
+    Set<Thread> existingThreads = Thread.getAllStackTraces().keySet();
+    AliAsyncBlobStore.Builder builder = newRealClientBuilder();
+    builder.withConnectionAcquisitionTimeout(Duration.ofMillis(100));
+    Thread watcher;
+    try (AsyncBlobStore built = builder.build()) {
+      watcher = Thread.getAllStackTraces().keySet().stream()
+          .filter(thread -> !existingThreads.contains(thread))
+          .filter(thread -> thread.getName().equals("multicloudj-ali-acquisition-timeout"))
+          .findFirst().orElseThrow();
+    }
+
+    watcher.join(2000);
+    assertFalse(watcher.isAlive());
   }
 }

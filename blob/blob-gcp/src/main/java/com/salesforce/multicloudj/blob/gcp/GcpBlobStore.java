@@ -87,6 +87,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
+import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -135,7 +136,10 @@ import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.http.HttpHost;
+import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.conn.ConnectionPoolTimeoutException;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 
@@ -1631,6 +1635,10 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   public SubstrateSdkException mapException(Throwable t) {
+    if ((!(t instanceof SubstrateSdkException) || t.getClass() == SubstrateSdkException.class)
+        && ExceptionUtils.throwableOfType(t, ConnectionPoolTimeoutException.class) != null) {
+      return new DeadlineExceededException(t, true);
+    }
     // google-http-client reports non-2xx responses as the checked HttpResponseException, which
     // arrives wrapped in a generic SubstrateSdkException. Only the generic type is classified by
     // the response status; specific subtypes are already classified and pass through unchanged.
@@ -1808,6 +1816,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     private static boolean shouldConfigureHttpClient(Builder builder) {
       return builder.getProxyEndpoint() != null
           || builder.getMaxConnections() != null
+          || builder.getConnectionAcquisitionTimeout() != null
           || builder.getSocketTimeout() != null
           || builder.getIdleConnectionTimeout() != null;
     }
@@ -1998,6 +2007,18 @@ public class GcpBlobStore extends AbstractBlobStore {
     private static CloseableHttpClient buildHttpClient(Builder builder) {
       HttpClientBuilder httpClientBuilder = ApacheHttpTransport.newDefaultHttpClientBuilder();
       httpClientBuilder.setDefaultRequestConfig(buildRequestConfig(builder));
+      if (builder.getConnectionAcquisitionTimeout() != null) {
+        int timeoutMillis = (int) builder.getConnectionAcquisitionTimeout().toMillis();
+        // Google supplies request-specific configs, so apply the timeout to the active context.
+        httpClientBuilder.addInterceptorLast(
+            (HttpRequestInterceptor) (request, context) -> {
+              HttpClientContext clientContext = HttpClientContext.adapt(context);
+              clientContext.setRequestConfig(
+                  RequestConfig.copy(clientContext.getRequestConfig())
+                      .setConnectionRequestTimeout(timeoutMillis)
+                      .build());
+            });
+      }
       // Performance note (directory / many-small-object workloads): GCS traffic all targets a
       // single host, so it maps to one Apache HTTP route whose default per-route connection cap
       // is 20. The TransferManager used for directory operations spawns 2 x availableProcessors
@@ -2036,6 +2057,12 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     @Override
     public GcpBlobStore build() {
+      if (storage == null
+          && Boolean.TRUE.equals(getGrpcEnabled())
+          && getConnectionAcquisitionTimeout() != null) {
+        throw new IllegalArgumentException(
+            "connectionAcquisitionTimeout is not supported with gRPC transport");
+      }
       ownedHttpClient = null;
       Storage storage = this.storage;
       MultipartUploadClient mpuClient = this.mpuClient;

@@ -3,11 +3,15 @@ package com.salesforce.multicloudj.blob.ali;
 import com.aliyun.sdk.service.oss2.exceptions.OperationException;
 import com.aliyun.sdk.service.oss2.exceptions.ServiceException;
 import com.salesforce.multicloudj.common.ali.AliRetryClassifier;
+import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.service.SdkService;
+import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.hc.core5.http.ConnectionRequestTimeoutException;
+import org.apache.hc.core5.util.DeadlineTimeoutException;
 
 public interface AliSdkService extends SdkService {
 
@@ -20,6 +24,10 @@ public interface AliSdkService extends SdkService {
       ServiceException service = (ServiceException) target;
       exceptionClass = ErrorCodeMapping.getException(service.errorCode());
       retryableHint = AliRetryClassifier.classifyByStatusCode(service.statusCode());
+    } else if (ExceptionUtils.getThrowableList(target).stream().anyMatch(cause ->
+        cause instanceof ConnectionRequestTimeoutException
+            || cause instanceof DeadlineTimeoutException)) {
+      exceptionClass = DeadlineExceededException.class;
     } else if (t instanceof IllegalArgumentException) {
       exceptionClass = InvalidArgumentException.class;
     } else {

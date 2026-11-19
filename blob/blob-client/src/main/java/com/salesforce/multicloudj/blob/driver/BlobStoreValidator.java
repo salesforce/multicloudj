@@ -151,6 +151,17 @@ public class BlobStoreValidator {
     }
   }
 
+  /** Validates a finite acquisition timeout representable in whole milliseconds. */
+  public void validateConnectionAcquisitionTimeout(Duration duration) {
+    if (duration == null || duration.compareTo(Duration.ofMillis(1)) < 0
+        || duration.compareTo(Duration.ofMillis(Integer.MAX_VALUE)) > 0
+        || duration.getNano() % 1_000_000 != 0) {
+      throw new IllegalArgumentException(
+          "Connection acquisition timeout must be whole milliseconds between 1 and "
+              + Integer.MAX_VALUE + ". Duration was '" + duration + "'");
+    }
+  }
+
   /**
    * Validates that the presigned operation is not null
    *

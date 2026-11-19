@@ -245,6 +245,19 @@ public class BlobStoreValidatorTest {
   }
 
   @Test
+  void testValidateConnectionAcquisitionTimeout() {
+    validator.validateConnectionAcquisitionTimeout(Duration.ofMillis(1));
+    validator.validateConnectionAcquisitionTimeout(Duration.ofMillis(Integer.MAX_VALUE));
+
+    for (Duration timeout : Arrays.asList(null, Duration.ZERO, Duration.ofMillis(-1),
+        Duration.ofNanos(1), Duration.ofNanos(1_500_000),
+        Duration.ofMillis((long) Integer.MAX_VALUE + 1), Duration.ofSeconds(Long.MAX_VALUE))) {
+      assertThrows(IllegalArgumentException.class,
+          () -> validator.validateConnectionAcquisitionTimeout(timeout));
+    }
+  }
+
+  @Test
   void testValidatePresignedOperationType() {
     validator.validatePresignedOperationType(PresignedOperation.UPLOAD);
     validator.validatePresignedOperationType(PresignedOperation.DOWNLOAD);

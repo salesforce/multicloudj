@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Answers.RETURNS_SELF;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -49,6 +50,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
+import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ItemFailure;
@@ -80,9 +82,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.http.conn.ConnectTimeoutException;
+import org.apache.http.conn.ConnectionPoolTimeoutException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -100,7 +106,9 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
+import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.SdkHttpResponse;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -170,6 +178,7 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
+import software.amazon.awssdk.utils.AttributeMap;
 
 public class AwsBlobStoreTest {
 
@@ -311,6 +320,96 @@ public class AwsBlobStoreTest {
             .withRegion("us-east-2");
     assertFalse(
         AwsBlobStore.shouldConfigureHttpClient((AwsBlobStore.Builder) builderWithNoOverrides));
+  }
+
+  @Test
+  void testConnectionAcquisitionTimeoutConfiguresHttpClient() {
+    var builder = new AwsBlobStore.Builder();
+    builder.withBucket("bucket-1");
+    builder.withRegion("us-east-2");
+    builder.withConnectionAcquisitionTimeout(Duration.ofMillis(250));
+
+    assertTrue(AwsBlobStore.shouldConfigureHttpClient(builder));
+    ApacheHttpClient.Builder httpBuilder = mock(ApacheHttpClient.Builder.class, RETURNS_SELF);
+    try (MockedStatic<ApacheHttpClient> httpFactory = mockStatic(ApacheHttpClient.class)) {
+      httpFactory.when(ApacheHttpClient::builder).thenReturn(httpBuilder);
+
+      builder.build();
+
+      verify(httpBuilder).connectionAcquisitionTimeout(Duration.ofMillis(250));
+      verify(S3Client.builder()).httpClientBuilder(httpBuilder);
+    }
+  }
+
+  @Test
+  void testClosingStoreClosesOwnedApacheClient() {
+    s3Client.close();
+    s3Client = null;
+    var httpBuilder = mock(ApacheHttpClient.Builder.class, RETURNS_SELF);
+    var httpClient = mock(SdkHttpClient.class);
+    when(httpClient.clientName()).thenReturn("Apache");
+    when(httpBuilder.build()).thenReturn(httpClient);
+    when(httpBuilder.buildWithDefaults(any(AttributeMap.class))).thenReturn(httpClient);
+    var credentials =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(new StsCredentials("key-1", "secret-1", "token-1"))
+            .build();
+    var builder = new AwsBlobStore.Builder();
+    builder.withBucket("bucket-1");
+    builder.withRegion("us-east-2");
+    builder.withCredentialsOverrider(credentials);
+    builder.withConnectionAcquisitionTimeout(Duration.ofMillis(250));
+
+    try (var httpFactory = mockStatic(ApacheHttpClient.class)) {
+      httpFactory.when(ApacheHttpClient::builder).thenReturn(httpBuilder);
+      builder.build().close();
+    }
+
+    verify(httpClient).close();
+  }
+
+  @Test
+  void testApacheConnectionAcquisitionTimeoutMapsToDeadlineExceeded() {
+    var timeout = new ConnectionPoolTimeoutException("Timeout waiting for connection from pool");
+    var failure = SdkClientException.create("Unable to execute HTTP request", timeout);
+
+    SubstrateSdkException mapped = aws.mapException(failure);
+
+    assertInstanceOf(DeadlineExceededException.class, mapped);
+    assertSame(failure, mapped.getCause());
+    assertTrue(mapped.isRetryable());
+  }
+
+  @Test
+  void testNettyConnectionAcquisitionTimeoutMapsToDeadlineExceeded() {
+    var timeout = new TimeoutException("Acquire operation took longer than 250 milliseconds.");
+    var failure =
+        SdkClientException.create("Unable to execute HTTP request", new IOException(timeout));
+
+    SubstrateSdkException mapped = aws.mapException(failure);
+
+    assertInstanceOf(DeadlineExceededException.class, mapped);
+    assertSame(failure, mapped.getCause());
+    assertTrue(mapped.isRetryable());
+  }
+
+  @Test
+  void testConnectTimeoutKeepsExistingMapping() {
+    var failure =
+        SdkClientException.create("Unable to execute HTTP request", new ConnectTimeoutException());
+
+    assertInstanceOf(InvalidArgumentException.class, aws.mapException(failure));
+  }
+
+  @Test
+  void testWrappedSdkClientFailureKeepsExistingMapping() {
+    var failure =
+        new CompletionException(SdkClientException.create("Connection reset", new IOException()));
+
+    SubstrateSdkException mapped = aws.mapException(failure);
+
+    assertInstanceOf(UnknownException.class, mapped);
+    assertSame(failure, mapped.getCause());
   }
 
   @Test

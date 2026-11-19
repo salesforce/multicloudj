@@ -103,6 +103,18 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
   }
 
   /**
+   * Bounds the wait for pooled HTTP capacity per attempt; omitted values preserve defaults.
+   *
+   * @param timeout Whole milliseconds from 1 through {@link Integer#MAX_VALUE}. Configure below
+   *     the attempt timeout. Unsupported transports reject this setting.
+   * @return An instance of self
+   */
+  public BlobClientBuilder<C, S> withConnectionAcquisitionTimeout(Duration timeout) {
+    this.storeBuilder.withConnectionAcquisitionTimeout(timeout);
+    return this;
+  }
+
+  /**
    * Method to supply an idle connection timeout
    *
    * @param idleConnectionTimeout The maximum amount of time that a connection should be allowed to

@@ -49,12 +49,10 @@ public final class OssClientFactory {
 
   /**
    * Applies the shared MultiCloudJ → OSS SDK configuration to {@code clientBuilder}: region,
-   * credentials, optional endpoint/proxy/retryer, and the read-write timeout. Connection-pool size
-   * and idle-connection timeout are only settable via {@code HttpClientOptions}, not on the client
-   * builder, so when the caller sets either we build an explicit transport client from those
-   * options (carrying proxyHost + readWriteTimeout forward so nothing the builder would otherwise
-   * set is lost); when neither is set we leave the SDK to construct its own default client and set
-   * readWriteTimeout directly.
+   * credentials, optional endpoint/proxy/retryer, and the read-write timeout. Connection-pool
+   * settings require an explicit transport client, carrying proxyHost and readWriteTimeout forward
+   * because supplying the transport bypasses the SDK's derivation of those settings. When no pool
+   * settings are supplied, the SDK constructs its default transport.
    *
    * @param clientBuilder the SDK sync or async client builder to configure
    * @param mcjBuilder the MultiCloudJ builder carrying the user configuration
@@ -89,12 +87,10 @@ public final class OssClientFactory {
     Duration readWriteTimeout =
         resolveReadWriteTimeout(mcjBuilder.getRetryConfig(), mcjBuilder.getSocketTimeout());
 
-    // Connection-pool size and idle-connection timeout are only settable via HttpClientOptions,
-    // not on the OSS client builder. When the caller sets either, build an explicit transport
-    // client from those options (carrying proxyHost + readWriteTimeout forward so nothing the
-    // builder would otherwise set is lost). When neither is set, leave the SDK to construct its
-    // own default client and set readWriteTimeout directly, preserving the prior behavior.
-    if (mcjBuilder.getMaxConnections() != null || mcjBuilder.getIdleConnectionTimeout() != null) {
+    // Proxy and read/write settings must accompany the explicit transport because supplying it
+    // bypasses the SDK's derivation of those settings.
+    if (mcjBuilder.getMaxConnections() != null || mcjBuilder.getIdleConnectionTimeout() != null
+        || mcjBuilder.getConnectionAcquisitionTimeout() != null) {
       clientBuilder.httpClient(
           httpClientFactory.create(
               proxyHost,

@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BlobStoreBuilder;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningConfiguration;
 import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -261,6 +262,19 @@ public abstract class AbstractBlobStoreIT {
   @AfterEach
   public void cleanupTestEnvironment() {
     TestsUtil.stopWireMockRecording();
+  }
+
+  @Test
+  public void testConnectionAcquisitionTimeoutConfiguration() throws Exception {
+    try (AbstractBlobStore blobStore = harness.createBlobStore(true, true, false)) {
+      BlobStoreBuilder<?> builder = (BlobStoreBuilder<?>) blobStore.builder();
+      Duration timeout = Duration.ofMillis(200);
+      Assertions.assertSame(builder, builder.withConnectionAcquisitionTimeout(timeout));
+      Assertions.assertEquals(timeout, builder.getConnectionAcquisitionTimeout());
+      Assertions.assertThrows(IllegalArgumentException.class,
+          () -> builder.withConnectionAcquisitionTimeout(Duration.ZERO));
+      Assertions.assertEquals(timeout, builder.getConnectionAcquisitionTimeout());
+    }
   }
 
   @Test
