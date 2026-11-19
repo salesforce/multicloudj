@@ -1,0 +1,32 @@
+{
+  "id" : "e35f0da3-12a2-4031-911f-bbb61717fa90",
+  "name" : "AliBlobStoreIT_testGetObjectLock_afterUploadWithRetentionCompliance-PUT-4",
+  "request" : {
+    "url" : "/conformance-tests/objectlock/retention-compliance",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "T2JqZWN0IGxvY2sgcmV0ZW50aW9uIGNvbXBsaWFuY2UgdGVzdA=="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-version-id" : "CAEQlCQYjee0mIS2sI8aIiA3NjllZWQ2OTZiYWM0YjJkOGRiNGI2YzU4OTkyZGQ2MQ--",
+      "x-oss-request-id" : "6AFCF47B00A1C23832114E5B",
+      "x-oss-server-time" : "71",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "283050546162025298",
+      "ETag" : "\"A0D246AFC0F8BAF1E7DD602C80EFD967\"",
+      "Date" : "Wed, 18 Nov 2026 00:42:35 GMT",
+      "Content-MD5" : "oNJGr8D4uvHn3WAsgO/ZZw=="
+    }
+  },
+  "uuid" : "e35f0da3-12a2-4031-911f-bbb61717fa90",
+  "persistent" : true,
+  "insertionIndex" : 803
+}

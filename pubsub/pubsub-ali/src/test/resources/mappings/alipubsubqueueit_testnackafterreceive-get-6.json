@@ -1,29 +1,46 @@
 {
-  "id" : "52305fc5-d869-4b0f-af76-a39dd4ac69a0",
+  "id" : "59699bd8-9cd6-4f59-b8cf-992d6044f221",
   "name" : "AliPubsubQueueIT_testNackAfterReceive-GET-6",
   "request" : {
-    "url" : "/queues/test-smq-conf-q-testNackAfterReceive",
-    "method" : "GET"
+    "urlPath" : "/queues/test-smq-conf-q-testNackAfterReceive/messages",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "numOfMessages" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "waitseconds" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      }
+    }
   },
   "response" : {
     "status" : 200,
-    "body" : "<?xml version=\"1.0\" ?>\n<Queue xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <QueueName>test-smq-conf-q-testNackAfterReceive</QueueName>\n  <DelaySeconds>0</DelaySeconds>\n  <MaximumMessageSize>65536</MaximumMessageSize>\n  <MessageRetentionPeriod>345600</MessageRetentionPeriod>\n  <VisibilityTimeout>30</VisibilityTimeout>\n  <CreateTime>1790184296</CreateTime>\n  <LastModifyTime>1790184296</LastModifyTime>\n  <PollingWaitSeconds>0</PollingWaitSeconds>\n  <ActiveMessages>0</ActiveMessages>\n  <InactiveMessages>0</InactiveMessages>\n  <DelayMessages>0</DelayMessages>\n  <LoggingEnabled>False</LoggingEnabled>\n  <MessageType>0</MessageType>\n  <EnableSSE>False</EnableSSE>\n</Queue>",
+    "body" : "<?xml version=\"1.0\" ?>\n<Messages xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Message>\n    <MessageId>ACD0B43933FD7FB37FB05DB147FDEBA9</MessageId>\n    <MessageBodyMD5>33D8878FEAF1056A67BEA773AC5D5001</MessageBodyMD5>\n    <MessageBody>it-nack-test</MessageBody>\n    <ReceiptHandle>ACD0B43933FD7FB37FB05DB147FDEBA9-NSAxNzk1MDM0MzAwMzUwIDMwMDAwIDYgMCBzaG1xbmluZTRzbXEtMTEgMCA1fDE4VXdiOQ==</ReceiptHandle>\n    <EnqueueTime>1795034299389</EnqueueTime>\n    <FirstDequeueTime>1795034300350</FirstDequeueTime>\n    <NextVisibleTime>1795034330350</NextVisibleTime>\n    <DequeueCount>1</DequeueCount>\n    <Priority>8</Priority>\n    <UserProperties>\n      <PropertyValue>\n        <Name>case</Name>\n        <Value>nack</Value>\n        <Type>STRING</Type>\n      </PropertyValue>\n    </UserProperties>\n  </Message>\n</Messages>",
     "headers" : {
       "x-mns-response-format" : "xml",
-      "x-mns-netty-total-time" : "20",
+      "x-mns-netty-total-time" : "192",
       "x-mns-account-type" : "",
       "x-mns-version" : "2015-06-06",
       "Server" : "AliyunMQS",
-      "x-mns-request-id" : "6ABAB9044343300F00A90C8B",
+      "x-mns-request-id" : "6AFE0CBC3736370F006F4BBC",
       "x-mns-threadpool-wait-time" : "0",
-      "Date" : "Mon, 28 Sep 2026 18:59:17 GMT",
+      "Date" : "Wed, 18 Nov 2026 20:38:20 GMT",
       "Content-Type" : "text/xml;charset=utf-8"
     }
   },
-  "uuid" : "52305fc5-d869-4b0f-af76-a39dd4ac69a0",
+  "uuid" : "59699bd8-9cd6-4f59-b8cf-992d6044f221",
   "persistent" : true,
-  "scenarioName" : "scenario-1-queues-test-smq-conf-q-testNackAfterReceive",
+  "scenarioName" : "scenario-1-queues-test-smq-conf-q-testNackAfterReceive-messages",
   "requiredScenarioState" : "Started",
-  "newScenarioState" : "scenario-1-queues-test-smq-conf-q-testNackAfterReceive-2",
-  "insertionIndex" : 53
+  "newScenarioState" : "scenario-1-queues-test-smq-conf-q-testNackAfterReceive-messages-2",
+  "insertionIndex" : 154
 }

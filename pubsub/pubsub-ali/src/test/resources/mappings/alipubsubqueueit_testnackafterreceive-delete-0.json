@@ -1,0 +1,28 @@
+{
+  "id" : "56ac5e82-959a-4c49-b2bb-41288025628f",
+  "name" : "AliPubsubQueueIT_testNackAfterReceive-DELETE-0",
+  "request" : {
+    "url" : "/queues/test-smq-conf-q-testNackAfterReceive/messages",
+    "method" : "DELETE",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><ReceiptHandles xmlns=\"http://mns.aliyuncs.com/doc/v1\"><ReceiptHandle>ACD0B43933FD7FB37FB05DB147FDEBA9-NCAxNzk1MDM0MzA2MTQxIDMwMDAwIDYgMSBzaG1xbmluZTRzbXEtMTEgMCA0fDE4VXdiOQ==</ReceiptHandle></ReceiptHandles>"
+    } ]
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-mns-response-format" : "xml",
+      "x-mns-netty-total-time" : "6",
+      "x-mns-account-type" : "",
+      "x-mns-version" : "2015-06-06",
+      "Server" : "AliyunMQS",
+      "x-mns-request-id" : "6AFE0CC33646380F00D7C7FE",
+      "x-mns-threadpool-wait-time" : "0",
+      "Date" : "Wed, 18 Nov 2026 20:38:27 GMT",
+      "Content-Type" : "text/xml;charset=utf-8"
+    }
+  },
+  "uuid" : "56ac5e82-959a-4c49-b2bb-41288025628f",
+  "persistent" : true,
+  "insertionIndex" : 148
+}
