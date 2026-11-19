@@ -49,10 +49,12 @@ public final class OssClientFactory {
 
   /**
    * Applies the shared MultiCloudJ → OSS SDK configuration to {@code clientBuilder}: region,
-   * credentials, optional endpoint/proxy/retryer, and the read-write timeout. Connection-pool
-   * settings require an explicit transport client, carrying proxyHost and readWriteTimeout forward
-   * because supplying the transport bypasses the SDK's derivation of those settings. When no pool
-   * settings are supplied, the SDK constructs its default transport.
+   * credentials, optional endpoint/proxy/retryer, and the read-write timeout. Connection-pool size
+   * and idle-connection timeout are only settable via {@code HttpClientOptions}, not on the client
+   * builder, so when pool settings are supplied we build an explicit transport client from those
+   * options (carrying proxyHost + readWriteTimeout forward so nothing the builder would otherwise
+   * set is lost); otherwise we leave the SDK to construct its own default client and set
+   * readWriteTimeout directly.
    *
    * @param clientBuilder the SDK sync or async client builder to configure
    * @param mcjBuilder the MultiCloudJ builder carrying the user configuration
@@ -87,8 +89,11 @@ public final class OssClientFactory {
     Duration readWriteTimeout =
         resolveReadWriteTimeout(mcjBuilder.getRetryConfig(), mcjBuilder.getSocketTimeout());
 
-    // Proxy and read/write settings must accompany the explicit transport because supplying it
-    // bypasses the SDK's derivation of those settings.
+    // Connection-pool size and idle-connection timeout are only settable via HttpClientOptions,
+    // not on the OSS client builder. When pool settings are supplied, build an explicit transport
+    // client from those options (carrying proxyHost + readWriteTimeout forward so nothing the
+    // builder would otherwise set is lost). Otherwise, leave the SDK to construct its
+    // own default client and set readWriteTimeout directly, preserving the prior behavior.
     if (mcjBuilder.getMaxConnections() != null || mcjBuilder.getIdleConnectionTimeout() != null
         || mcjBuilder.getConnectionAcquisitionTimeout() != null) {
       clientBuilder.httpClient(

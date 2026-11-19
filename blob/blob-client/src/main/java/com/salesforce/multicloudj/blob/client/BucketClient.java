@@ -1162,10 +1162,9 @@ public class BucketClient implements AutoCloseable {
     }
 
     /**
-     * Bounds the wait for pooled HTTP capacity per attempt; omitted values preserve defaults.
+     * Sets the connection-acquisition timeout for supported HTTP transports.
      *
-     * @param timeout Whole milliseconds from 1 through {@link Integer#MAX_VALUE}. Configure below
-     *     the attempt timeout. Unsupported transports reject this setting.
+     * @param timeout A positive duration. Omission preserves native transport defaults.
      * @return An instance of self
      */
     public BlobBuilder withConnectionAcquisitionTimeout(Duration timeout) {

@@ -118,7 +118,6 @@ import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStore;
 import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStoreProvider;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
-import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ItemFailure;
@@ -165,7 +164,6 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.http.conn.ConnectionPoolTimeoutException;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -375,29 +373,6 @@ class GcpBlobStoreTest {
     StorageOptions options = GcpBlobStore.Builder.buildStorageOptions(builder);
 
     assertInstanceOf(HttpStorageOptions.class, options);
-  }
-
-  @Test
-  void testBuildRejectsConnectionAcquisitionTimeoutWithGrpc() {
-    GcpBlobStore.Builder builder = new GcpBlobStore.Builder();
-    builder.withBucket(TEST_BUCKET);
-    builder.withGrpcEnabled(true);
-    builder.withConnectionAcquisitionTimeout(Duration.ofMillis(250));
-
-    IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, builder::build);
-
-    assertTrue(failure.getMessage().contains("connectionAcquisitionTimeout"));
-    assertTrue(failure.getMessage().contains("gRPC"));
-  }
-
-  @Test
-  void testConnectionAcquisitionTimeoutPropagatesFromAsyncBuilder() {
-    GcpAsyncBlobStore.Builder asyncBuilder = GcpAsyncBlobStore.builder();
-    asyncBuilder.withConnectionAcquisitionTimeout(Duration.ofMillis(250));
-
-    GcpBlobStore.Builder syncBuilder = new GcpBlobStore.Builder().copyFrom(asyncBuilder);
-
-    assertEquals(Duration.ofMillis(250), syncBuilder.getConnectionAcquisitionTimeout());
   }
 
   @Test
@@ -2314,50 +2289,6 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testMapException_WithStoragePoolTimeoutIsRetryableDeadline() {
-    StorageException failure = new StorageException(0, "pool timeout",
-        new ConnectionPoolTimeoutException("Timeout waiting for connection from pool"));
-    assertFalse(failure.isRetryable());
-
-    SubstrateSdkException mapped = gcpBlobStore.mapException(failure);
-
-    assertInstanceOf(DeadlineExceededException.class, mapped);
-    assertSame(failure, mapped.getCause());
-    assertTrue(mapped.isRetryable());
-  }
-
-  @Test
-  void testMapException_WithWrappedPoolTimeoutIsRetryableDeadline() {
-    SubstrateSdkException failure = new SubstrateSdkException("failed",
-        new ConnectionPoolTimeoutException("Timeout waiting for connection from pool"));
-
-    SubstrateSdkException mapped = gcpBlobStore.mapException(failure);
-
-    assertInstanceOf(DeadlineExceededException.class, mapped);
-    assertSame(failure, mapped.getCause());
-    assertTrue(mapped.isRetryable());
-  }
-
-  @Test
-  void testMapException_DoesNotReclassifyOtherStorageClientFailures() {
-    StorageException failure = new StorageException(0, "connection reset",
-        new IOException("connection reset"));
-
-    SubstrateSdkException mapped = gcpBlobStore.mapException(failure);
-
-    assertInstanceOf(UnknownException.class, mapped);
-    assertSame(failure, mapped.getCause());
-  }
-
-  @Test
-  void testMapException_PreservesSpecificExceptionWithPoolTimeoutCause() {
-    InvalidArgumentException failure = new InvalidArgumentException("bad input",
-        new ConnectionPoolTimeoutException("Timeout waiting for connection from pool"));
-
-    assertSame(failure, gcpBlobStore.mapException(failure));
-  }
-
-  @Test
   void testMapException_WithUnknownException() {
     RuntimeException runtimeException = new RuntimeException("Test");
     SubstrateSdkException mapped = gcpBlobStore.mapException(runtimeException);
@@ -3260,14 +3191,6 @@ class GcpBlobStoreTest {
     GcpBlobStore.Builder builder =
         (GcpBlobStore.Builder)
             new GcpBlobStore.Builder().withSocketTimeout(Duration.ofSeconds(5));
-    assertTrue(invokeShouldConfigureHttpClient(builder));
-  }
-
-  @Test
-  void testShouldConfigureHttpClient_trueWhenConnectionAcquisitionTimeoutSet() throws Exception {
-    GcpBlobStore.Builder builder = new GcpBlobStore.Builder();
-    builder.withConnectionAcquisitionTimeout(Duration.ofMillis(250));
-
     assertTrue(invokeShouldConfigureHttpClient(builder));
   }
 

@@ -699,10 +699,6 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
       // Use CRT-based client for parallel downloads, standard client otherwise
       if (Boolean.TRUE.equals(builder.getParallelDownloadsEnabled())) {
-        if (builder.getConnectionAcquisitionTimeout() != null) {
-          throw new IllegalArgumentException(
-              "Connection acquisition timeout is not supported by the AWS CRT transport");
-        }
         return buildCrtS3Client(builder, regionObj);
       } else {
         return buildStandardS3Client(builder, regionObj);

@@ -15,7 +15,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.google.api.client.http.apache.v2.ApacheHttpTransport;
 import com.google.cloud.NoCredentials;
@@ -97,21 +96,6 @@ class GcpBlobStoreTransportCloseTest {
   @Test
   void closePreservesTransportOfInjectedStorage() throws Exception {
     assertInjectedTransportRemainsUsable(false);
-  }
-
-  @Test
-  void acquisitionTimeoutPreservesInjectedStorageWithGrpcFlag() throws Exception {
-    Storage storage = mock(Storage.class);
-    GcpBlobStore.Builder builder = builder();
-    builder.withStorage(storage);
-    builder.withGrpcEnabled(true);
-    builder.withConnectionAcquisitionTimeout(Duration.ofMillis(250));
-    builder.withTransferManager(mock(TransferManager.class));
-
-    try (HttpClients clients = new HttpClients(); GcpBlobStore store = builder.build()) {
-      assertEquals(1, clients.clients.size());
-      verifyNoInteractions(storage);
-    }
   }
 
   @Test

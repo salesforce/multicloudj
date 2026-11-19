@@ -1036,9 +1036,6 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
             if (builder.getConnectionAcquisitionTimeout() != null) {
               httpClientBuilder.connectionRequestTimeout(
                   Math.toIntExact(builder.getConnectionAcquisitionTimeout().toMillis()));
-              if (maxConnections != null) {
-                httpClientBuilder.maxConnections(maxConnections);
-              }
             }
             return httpClientBuilder.build();
           });

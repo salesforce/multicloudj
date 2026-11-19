@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Answers.RETURNS_SELF;
@@ -20,7 +19,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.salesforce.multicloudj.blob.async.client.AsyncBucketClient;
 import com.salesforce.multicloudj.blob.aws.AwsTransformerSupplier;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -52,7 +50,6 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
-import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -82,7 +79,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -90,7 +86,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
@@ -115,8 +110,6 @@ import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.internal.async.ByteArrayAsyncResponseTransformer;
 import software.amazon.awssdk.core.internal.async.InputStreamResponseTransformer;
 import software.amazon.awssdk.http.SdkHttpResponse;
-import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
-import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
@@ -184,7 +177,6 @@ import software.amazon.awssdk.transfer.s3.model.FailedFileDownload;
 import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 import software.amazon.awssdk.transfer.s3.progress.TransferListener;
 import software.amazon.awssdk.transfer.s3.progress.TransferProgressSnapshot;
-import software.amazon.awssdk.utils.AttributeMap;
 
 public class AwsAsyncBlobStoreTest {
 
@@ -2446,119 +2438,6 @@ public class AwsAsyncBlobStoreTest {
     assertNotNull(store);
     assertInstanceOf(AwsAsyncBlobStore.class, store);
     assertEquals(BUCKET, store.getBucket());
-  }
-
-  @Test
-  void testConnectionAcquisitionTimeoutConfiguresNettyClient() throws Exception {
-    var builder = new AwsAsyncBlobStore.Builder();
-    builder.withBucket(BUCKET);
-    builder.withRegion(REGION);
-    builder.withTransferManager(mockS3TransferManager);
-    builder.withConnectionAcquisitionTimeout(Duration.ofMillis(250));
-    var httpBuilder = mock(NettyNioAsyncHttpClient.Builder.class, RETURNS_SELF);
-
-    try (var httpFactory = mockStatic(NettyNioAsyncHttpClient.class)) {
-      httpFactory.when(NettyNioAsyncHttpClient::builder).thenReturn(httpBuilder);
-      try (var store = builder.build()) {
-        verify(httpBuilder).connectionAcquisitionTimeout(Duration.ofMillis(250));
-        verify(S3AsyncClient.builder()).httpClientBuilder(httpBuilder);
-      }
-    }
-  }
-
-  @Test
-  void testClosingStoreClosesOwnedNettyClient() throws Exception {
-    s3Client.close();
-    s3Client = null;
-    var httpBuilder = mock(NettyNioAsyncHttpClient.Builder.class, RETURNS_SELF);
-    var httpClient = mock(SdkAsyncHttpClient.class);
-    when(httpClient.clientName()).thenReturn("NettyNio");
-    when(httpBuilder.build()).thenReturn(httpClient);
-    when(httpBuilder.buildWithDefaults(any(AttributeMap.class))).thenReturn(httpClient);
-    var credentials =
-        new CredentialsOverrider.Builder(CredentialsType.SESSION)
-            .withSessionCredentials(new StsCredentials("key-1", "secret-1", "token-1"))
-            .build();
-    var builder = new AwsAsyncBlobStore.Builder();
-    builder.withBucket(BUCKET);
-    builder.withRegion(REGION);
-    builder.withCredentialsOverrider(credentials);
-    builder.withTransferManager(mockS3TransferManager);
-    builder.withConnectionAcquisitionTimeout(Duration.ofMillis(250));
-
-    try (var httpFactory = mockStatic(NettyNioAsyncHttpClient.class)) {
-      httpFactory.when(NettyNioAsyncHttpClient::builder).thenReturn(httpBuilder);
-      builder.build().close();
-    }
-
-    verify(httpClient).close();
-  }
-
-  @Test
-  void testConnectionAcquisitionTimeoutRejectsCrtBeforeClientCreation() {
-    var builder = new AwsAsyncBlobStore.Builder();
-    builder.withBucket(BUCKET);
-    builder.withRegion(REGION);
-    builder.withParallelDownloadsEnabled(true);
-    builder.withConnectionAcquisitionTimeout(Duration.ofMillis(250));
-
-    assertThrows(IllegalArgumentException.class, builder::build);
-
-    s3Client.verify(S3AsyncClient::crtBuilder, never());
-    s3Client.verify(S3AsyncClient::builder, never());
-  }
-
-  @Test
-  void testConnectionAcquisitionTimeoutDoesNotReconfigureSuppliedClient() throws Exception {
-    var builder = new AwsAsyncBlobStore.Builder();
-    builder.withBucket(BUCKET);
-    builder.withRegion(REGION);
-    builder.withS3Client(mockS3Client);
-    builder.withTransferManager(mockS3TransferManager);
-    builder.withParallelDownloadsEnabled(true);
-    builder.withConnectionAcquisitionTimeout(Duration.ofMillis(250));
-
-    try (var store = builder.build()) {
-      s3Client.verify(S3AsyncClient::crtBuilder, never());
-      s3Client.verify(S3AsyncClient::builder, never());
-    }
-  }
-
-  @Test
-  void testPublicDownloadMapsWrappedConnectionAcquisitionTimeout() throws Exception {
-    var timeout = new TimeoutException("Acquire operation took longer than 250 milliseconds.");
-    var failure = SdkClientException.create("Unable to execute HTTP request", timeout);
-    when(mockS3Client.getObject(any(GetObjectRequest.class), any(AsyncResponseTransformer.class)))
-        .thenReturn(CompletableFuture.failedFuture(failure));
-    var request = new DownloadRequest.Builder().withKey("object-1").build();
-
-    try (var bucket = new AsyncBucketClient(aws) {}) {
-      CompletionException completion =
-          assertThrows(CompletionException.class, () -> bucket.download(request).join());
-      var mapped = assertInstanceOf(DeadlineExceededException.class, completion.getCause());
-
-      assertTrue(mapped.isRetryable());
-      assertInstanceOf(CompletionException.class, mapped.getCause());
-      assertSame(failure, mapped.getCause().getCause());
-    }
-  }
-
-  @Test
-  void testPublicDoesObjectExistMapsDeeplyWrappedConnectionAcquisitionTimeout() throws Exception {
-    var timeout = new TimeoutException("Acquire operation took longer than 250 milliseconds.");
-    var failure =
-        SdkClientException.create("Unable to execute HTTP request", new IOException(timeout));
-    when(mockS3Client.headObject(any(HeadObjectRequest.class)))
-        .thenReturn(CompletableFuture.failedFuture(failure));
-
-    try (var bucket = new AsyncBucketClient(aws) {}) {
-      CompletionException completion =
-          assertThrows(
-              CompletionException.class, () -> bucket.doesObjectExist("object-1", null).join());
-      var mapped = assertInstanceOf(DeadlineExceededException.class, completion.getCause());
-
-      assertTrue(mapped.isRetryable());
-    }
   }
 
   @Test

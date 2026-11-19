@@ -123,14 +123,13 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   }
 
   /**
-   * Bounds the wait for pooled HTTP capacity per attempt. Omission preserves transport defaults.
+   * Sets the connection-acquisition timeout for supported HTTP transports.
    *
-   * @param timeout Whole milliseconds from 1 through {@link Integer#MAX_VALUE}. Configure below
-   *     the attempt timeout to distinguish pool exhaustion. Unsupported transports reject it.
+   * @param timeout A positive duration. Omission preserves native transport defaults.
    * @return An instance of self
    */
   public BlobStoreBuilder<T> withConnectionAcquisitionTimeout(Duration timeout) {
-    validator.validateConnectionAcquisitionTimeout(timeout);
+    validator.validateDuration(timeout);
     this.connectionAcquisitionTimeout = timeout;
     return this;
   }
