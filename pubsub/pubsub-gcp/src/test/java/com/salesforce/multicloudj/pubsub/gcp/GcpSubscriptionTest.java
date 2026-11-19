@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -44,6 +45,7 @@ import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.AckInfo;
 import com.salesforce.multicloudj.pubsub.driver.Message;
+import com.salesforce.multicloudj.pubsub.driver.Message.SystemMetadataKeys;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -127,6 +129,33 @@ public class GcpSubscriptionTest {
     assertEquals("test-ack-id", result.getAckID().toString());
     assertEquals("value1", result.getMetadata().get("key1"));
     assertEquals("value2", result.getMetadata().get("key2"));
+  }
+
+  @Test
+  void testConvertToMessageSetsDeliveryCounterWhenDeliveryAttemptPositive() {
+    ReceivedMessage receivedMessage =
+        ReceivedMessage.newBuilder()
+            .setMessage(PubsubMessage.newBuilder().setMessageId("id").build())
+            .setAckId("test-ack-id")
+            .setDeliveryAttempt(4)
+            .build();
+
+    Message result = subscription.convertToMessage(receivedMessage);
+
+    assertEquals(Map.of(SystemMetadataKeys.DELIVERY_COUNTER, "4"), result.getSystemMetadata());
+  }
+
+  @Test
+  void testConvertToMessageOmitsDeliveryCounterWhenDeliveryAttemptUnset() {
+    ReceivedMessage receivedMessage =
+        ReceivedMessage.newBuilder()
+            .setMessage(PubsubMessage.newBuilder().setMessageId("id").build())
+            .setAckId("test-ack-id")
+            .build();
+
+    Message result = subscription.convertToMessage(receivedMessage);
+
+    assertNull(result.getSystemMetadata());
   }
 
   @Test

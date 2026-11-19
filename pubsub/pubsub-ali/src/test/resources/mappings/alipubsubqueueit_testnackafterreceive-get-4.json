@@ -1,5 +1,5 @@
 {
-  "id" : "25dfa1c2-b984-4eb1-8aeb-595fb8a15c46",
+  "id" : "58a70398-926f-4204-9833-8289a38d1084",
   "name" : "AliPubsubQueueIT_testNackAfterReceive-GET-4",
   "request" : {
     "urlPath" : "/queues/test-smq-conf-q-testNackAfterReceive/messages",
@@ -12,7 +12,7 @@
     "queryParameters" : {
       "numOfMessages" : {
         "hasExactly" : [ {
-          "equalTo" : "16"
+          "equalTo" : "1"
         } ]
       },
       "waitseconds" : {
@@ -24,22 +24,23 @@
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" ?>\n<Error xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Code>MessageNotExist</Code>\n  <Message>Message not exist.</Message>\n  <RequestId>6ABAB9064643320F00834D2C</RequestId>\n  <HostId>http://account-id.mns.cn-shanghai.aliyuncs.com</HostId>\n</Error>",
+    "body" : "<?xml version=\"1.0\" ?>\n<Error xmlns=\"http://mns.aliyuncs.com/doc/v1\">\n  <Code>MessageNotExist</Code>\n  <Message>Message not exist.</Message>\n  <RequestId>6AFE0CBD3234370F0080AF2A</RequestId>\n  <HostId>http://account-id.mns.cn-shanghai.aliyuncs.com</HostId>\n</Error>",
     "headers" : {
       "x-mns-response-format" : "xml",
-      "x-mns-netty-total-time" : "933",
+      "x-mns-netty-total-time" : "825",
       "x-mns-account-type" : "",
       "x-mns-version" : "2015-06-06",
       "Server" : "AliyunMQS",
-      "x-mns-request-id" : "6ABAB9064643320F00834D2C",
+      "x-mns-request-id" : "6AFE0CBD3234370F0080AF2A",
       "x-mns-threadpool-wait-time" : "0",
-      "Date" : "Mon, 28 Sep 2026 18:59:19 GMT",
+      "Date" : "Wed, 18 Nov 2026 20:38:21 GMT",
       "Content-Type" : "text/xml;charset=utf-8"
     }
   },
-  "uuid" : "25dfa1c2-b984-4eb1-8aeb-595fb8a15c46",
+  "uuid" : "58a70398-926f-4204-9833-8289a38d1084",
   "persistent" : true,
-  "scenarioName" : "scenario-2-queues-test-smq-conf-q-testNackAfterReceive-messages",
-  "requiredScenarioState" : "scenario-2-queues-test-smq-conf-q-testNackAfterReceive-messages-2",
-  "insertionIndex" : 51
+  "scenarioName" : "scenario-1-queues-test-smq-conf-q-testNackAfterReceive-messages",
+  "requiredScenarioState" : "scenario-1-queues-test-smq-conf-q-testNackAfterReceive-messages-2",
+  "newScenarioState" : "scenario-1-queues-test-smq-conf-q-testNackAfterReceive-messages-3",
+  "insertionIndex" : 152
 }

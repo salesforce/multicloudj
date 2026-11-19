@@ -150,14 +150,7 @@ public abstract class AbstractPubsubIT {
               .build();
       topic.send(toSend);
 
-      Message received = null;
-      for (int i = 0; i < 50; i++) {
-        received = subscription.receive();
-        if (received != null) {
-          break;
-        }
-        TimeUnit.MILLISECONDS.sleep(200);
-      }
+      Message received = receiveWithRetry(subscription, 50);
 
       Assertions.assertNotNull(received, "Should receive a message within timeout");
       Assertions.assertNotNull(received.getBody(), "Received message body should not be null");
@@ -178,14 +171,7 @@ public abstract class AbstractPubsubIT {
               .build();
       topic.send(toSend);
 
-      Message received = null;
-      for (int i = 0; i < 50; i++) {
-        received = subscription.receive();
-        if (received != null) {
-          break;
-        }
-        TimeUnit.MILLISECONDS.sleep(200);
-      }
+      Message received = receiveWithRetry(subscription, 50);
 
       Assertions.assertNotNull(received, "Should receive a message to ack");
       Assertions.assertNotNull(received.getAckID(), "AckID must not be null");
@@ -195,7 +181,7 @@ public abstract class AbstractPubsubIT {
   }
 
   @Test
-  @Timeout(30) // Integration test that calls receive() - fail fast if recordings are missing
+  @Timeout(60) // Integration test that receives twice - fail fast if recordings are missing
   public void testNackAfterReceive() throws Exception {
     try (AbstractTopic topic = harness.createTopicDriver();
         AbstractSubscription subscription = harness.createSubscriptionDriver()) {
@@ -207,19 +193,31 @@ public abstract class AbstractPubsubIT {
               .build();
       topic.send(toSend);
 
-      Message received = null;
-      for (int i = 0; i < 50; i++) {
-        received = subscription.receive();
-        if (received != null) {
-          break;
-        }
-        TimeUnit.MILLISECONDS.sleep(200);
-      }
+      Message received = receiveWithRetry(subscription, 50);
 
       Assertions.assertNotNull(received, "Should receive a message to nack");
       Assertions.assertNotNull(received.getAckID(), "AckID must not be null");
+      int firstCount = requireDeliveryCounter(received);
 
       subscription.sendNack(received.getAckID());
+
+      // The nack is batched and asynchronous, so the redelivery is polled for.
+      Message redelivered = receiveWithRetry(subscription, 50);
+      Assertions.assertNotNull(redelivered, "Should receive the message again after nack");
+      Assertions.assertNotNull(received.getLoggableID(), "Received message must have an ID");
+      Assertions.assertEquals(
+          received.getLoggableID(),
+          redelivered.getLoggableID(),
+          "Redelivery must be the same message as the first delivery");
+      int secondCount = requireDeliveryCounter(redelivered);
+      Assertions.assertTrue(
+          secondCount > firstCount,
+          "Delivery counter should increase on redelivery. First: "
+              + firstCount
+              + ", second: "
+              + secondCount);
+
+      subscription.sendAck(redelivered.getAckID());
     }
   }
 
@@ -334,20 +332,38 @@ public abstract class AbstractPubsubIT {
               .build();
       topic.send(toSend);
 
-      Message received = null;
-      for (int i = 0; i < 50; i++) {
-        received = subscription.receive();
-        if (received != null) {
-          break;
-        }
-        TimeUnit.MILLISECONDS.sleep(200);
-      }
+      Message received = receiveWithRetry(subscription, 50);
 
       Assertions.assertNotNull(received, "Should receive a message to nack");
       Assertions.assertNotNull(received.getAckID(), "AckID must not be null");
 
       subscription.sendNacks(List.of(received.getAckID())).join();
     }
+  }
+
+  private Message receiveWithRetry(AbstractSubscription subscription, int attempts)
+      throws Exception {
+    for (int i = 0; i < attempts; i++) {
+      Message received = subscription.receive();
+      if (received != null) {
+        return received;
+      }
+      TimeUnit.MILLISECONDS.sleep(200);
+    }
+    return null;
+  }
+
+  /** Asserts the message carries a positive integer delivery counter and returns it. */
+  private int requireDeliveryCounter(Message message) {
+    Map<String, String> systemMetadata = message.getSystemMetadata();
+    Assertions.assertNotNull(systemMetadata, "System metadata must not be null");
+    Assertions.assertTrue(
+        systemMetadata.containsKey(Message.SystemMetadataKeys.DELIVERY_COUNTER),
+        "System metadata must contain the delivery counter, got: " + systemMetadata);
+    String raw = systemMetadata.get(Message.SystemMetadataKeys.DELIVERY_COUNTER);
+    int count = Assertions.assertDoesNotThrow(() -> Integer.parseInt(raw));
+    Assertions.assertTrue(count > 0, "Delivery counter must be positive, got: " + count);
+    return count;
   }
 
   @Test

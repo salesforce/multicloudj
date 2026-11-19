@@ -17,6 +17,7 @@ import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.AckInfo;
 import com.salesforce.multicloudj.pubsub.driver.Message;
+import com.salesforce.multicloudj.pubsub.driver.Message.SystemMetadataKeys;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -40,6 +41,7 @@ import software.amazon.awssdk.services.sqs.model.GetQueueAttributesResponse;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
+import software.amazon.awssdk.services.sqs.model.MessageSystemAttributeName;
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
@@ -185,7 +187,8 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         ReceiveMessageRequest.builder()
             .queueUrl(subscriptionUrl)
             .maxNumberOfMessages(Math.min(batchSize, 10)) // SQS supports max 10 messages
-            .messageAttributeNames("All");
+            .messageAttributeNames("All")
+            .messageSystemAttributeNames(MessageSystemAttributeName.APPROXIMATE_RECEIVE_COUNT);
 
     if (waitTimeSeconds > 0) {
       requestBuilder.waitTimeSeconds((int) waitTimeSeconds);
@@ -274,9 +277,31 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
     return Message.builder()
         .withBody(bodyBytes)
         .withMetadata(attrs)
+        .withSystemMetadata(extractSystemMetadata(sqsMessage))
         .withAckID(new AwsAckID(sqsMessage.receiptHandle()))
         .withLoggableID(sqsMessage.messageId())
         .build();
+  }
+
+  /**
+   * Reports the delivery counter only when SQS returns a positive integer receive count; returns
+   * null otherwise.
+   */
+  private static Map<String, String> extractSystemMetadata(
+      software.amazon.awssdk.services.sqs.model.Message sqsMessage) {
+    String receiveCount =
+        sqsMessage.attributes().get(MessageSystemAttributeName.APPROXIMATE_RECEIVE_COUNT);
+    if (receiveCount == null) {
+      return null;
+    }
+    try {
+      int count = Integer.parseInt(receiveCount.trim());
+      return count > 0
+          ? Map.of(SystemMetadataKeys.DELIVERY_COUNTER, Integer.toString(count))
+          : null;
+    } catch (NumberFormatException e) {
+      return null;
+    }
   }
 
   /**

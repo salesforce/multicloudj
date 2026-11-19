@@ -42,6 +42,7 @@ import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.AckInfo;
 import com.salesforce.multicloudj.pubsub.driver.Message;
+import com.salesforce.multicloudj.pubsub.driver.Message.SystemMetadataKeys;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.time.Duration;
@@ -211,6 +212,39 @@ public class AliSubscriptionTest {
     assertArrayEquals("aGk=".getBytes(UTF_8), received.getBody());
     assertEquals("aGk=", new String(received.getBody(), UTF_8));
     assertNotEquals("hi", new String(received.getBody(), UTF_8));
+  }
+
+  @Test
+  void doReceiveBatchSurfacesPositiveDequeueCountAsDeliveryCounter() throws Exception {
+    Message received = receiveWithDequeueCount(2);
+
+    assertEquals(
+        Map.of(SystemMetadataKeys.DELIVERY_COUNTER, "2"), received.getSystemMetadata());
+  }
+
+  @Test
+  void doReceiveBatchOmitsDeliveryCounterWhenDequeueCountAbsent() throws Exception {
+    Message received = receiveWithDequeueCount(null);
+
+    assertNull(received.getSystemMetadata());
+  }
+
+  @Test
+  void doReceiveBatchOmitsDeliveryCounterWhenDequeueCountIsZero() throws Exception {
+    Message received = receiveWithDequeueCount(0);
+
+    assertNull(received.getSystemMetadata());
+  }
+
+  private Message receiveWithDequeueCount(Integer dequeueCount) throws Exception {
+    CloudQueue queue = mock(CloudQueue.class);
+    com.aliyun.mns.model.Message raw = mock(com.aliyun.mns.model.Message.class);
+    when(raw.getMessageBodyAsRawBytes()).thenReturn("hi".getBytes(UTF_8));
+    when(raw.getReceiptHandle()).thenReturn("rh-1");
+    when(raw.getMessageId()).thenReturn("mid-1");
+    when(raw.getDequeueCount()).thenReturn(dequeueCount);
+    when(queue.batchPopMessage(anyInt())).thenReturn(List.of(raw));
+    return subscription(queue).doReceiveBatch(10).get(0);
   }
 
   @Test
