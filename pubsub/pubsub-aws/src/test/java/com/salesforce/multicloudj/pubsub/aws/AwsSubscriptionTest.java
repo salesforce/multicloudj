@@ -28,6 +28,7 @@ import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.AckInfo;
 import com.salesforce.multicloudj.pubsub.driver.Message;
+import com.salesforce.multicloudj.pubsub.driver.Message.SystemMetadataKeys;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -63,6 +64,7 @@ import software.amazon.awssdk.services.sqs.model.GetQueueAttributesResponse;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
+import software.amazon.awssdk.services.sqs.model.MessageSystemAttributeName;
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
@@ -535,6 +537,70 @@ public class AwsSubscriptionTest {
     assertNotNull(result);
     // Should fall back to using raw message as UTF-8 bytes
     assertEquals(invalidBase64Body, new String(result.getBody(), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void testDoReceiveBatchRequestsApproximateReceiveCount() {
+    subscription = builder.build();
+
+    ArgumentCaptor<ReceiveMessageRequest> requestCaptor =
+        ArgumentCaptor.forClass(ReceiveMessageRequest.class);
+    when(mockSqsClient.receiveMessage(requestCaptor.capture()))
+        .thenReturn(ReceiveMessageResponse.builder().build());
+
+    subscription.doReceiveBatch(5);
+
+    assertTrue(
+        requestCaptor
+            .getValue()
+            .messageSystemAttributeNames()
+            .contains(MessageSystemAttributeName.APPROXIMATE_RECEIVE_COUNT));
+  }
+
+  @Test
+  void testConvertToMessage_WithReceiveCount() {
+    subscription = builder.build();
+
+    Message result = subscription.convertToMessage(sqsMessageWithReceiveCount("3"));
+
+    assertEquals(Map.of(SystemMetadataKeys.DELIVERY_COUNTER, "3"), result.getSystemMetadata());
+  }
+
+  @Test
+  void testConvertToMessage_WithoutReceiveCount() {
+    subscription = builder.build();
+
+    software.amazon.awssdk.services.sqs.model.Message sqsMessage =
+        software.amazon.awssdk.services.sqs.model.Message.builder()
+            .body("body")
+            .messageId("id")
+            .receiptHandle("handle")
+            .build();
+
+    Message result = subscription.convertToMessage(sqsMessage);
+
+    assertNull(result.getSystemMetadata());
+  }
+
+  @Test
+  void testConvertToMessage_InvalidReceiveCountOmitsDeliveryCounter() {
+    subscription = builder.build();
+
+    for (String invalid : List.of("0", "-1", "abc", "")) {
+      Message result = subscription.convertToMessage(sqsMessageWithReceiveCount(invalid));
+
+      assertNull(result.getSystemMetadata(), "receive count '" + invalid + "' should be omitted");
+    }
+  }
+
+  private static software.amazon.awssdk.services.sqs.model.Message sqsMessageWithReceiveCount(
+      String receiveCount) {
+    return software.amazon.awssdk.services.sqs.model.Message.builder()
+        .body("body")
+        .messageId("id")
+        .receiptHandle("handle")
+        .attributes(Map.of(MessageSystemAttributeName.APPROXIMATE_RECEIVE_COUNT, receiveCount))
+        .build();
   }
 
   @Test

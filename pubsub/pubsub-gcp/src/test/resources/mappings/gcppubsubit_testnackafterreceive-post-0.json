@@ -1,13 +1,25 @@
 {
-  "id" : "244a94c2-a39b-4304-bc1e-81ccb3a2a5f0",
+  "id" : "d2a3e396-073c-416b-9304-c65ca4391854",
   "name" : "GcpPubsubIT_testNackAfterReceive-POST-0",
   "request" : {
-    "url" : "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/sub-testNackAfterReceive:modifyAckDeadline?$alt=json;enum-encoding%3Dint",
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/sub-testNackAfterReceive:acknowledge",
     "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
     "bodyPatterns" : [ {
-      "matchesJsonPath" : "$.ackIds"
-    }, {
-      "matchesJsonPath" : "$.ackIds[*]"
+      "equalToJson" : "{\"ackIds\":[\"U0RQBhYsXUZIUTcZCGhRDk9eIz81IChFEQUIFAV8fXJZSnVcM3UHUQ0ZcyxgI2peRwEBFwB0X1EbH1lcRLS5meovUFxjdm5aFAcEQlp3WFwaD2peVV3mhP-XuLbIbXBmK8C8jbRIf6fW6uFvZiE9XxJLLD5-Ny1FQV5AEkw8GERJUytDCypYEU4EISE-MD5F\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
     } ]
   },
   "response" : {
@@ -20,11 +32,11 @@
       "X-Content-Type-Options" : "nosniff",
       "Vary" : [ "Origin", "X-Origin", "Referer" ],
       "X-XSS-Protection" : "0",
-      "Date" : "Thu, 12 Mar 2026 00:48:18 GMT",
+      "Date" : "Wed, 18 Nov 2026 20:15:46 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "244a94c2-a39b-4304-bc1e-81ccb3a2a5f0",
+  "uuid" : "d2a3e396-073c-416b-9304-c65ca4391854",
   "persistent" : true,
-  "insertionIndex" : 31
+  "insertionIndex" : 24
 }
