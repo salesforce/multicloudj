@@ -17,6 +17,7 @@ import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.AckInfo;
 import com.salesforce.multicloudj.pubsub.driver.Message;
+import com.salesforce.multicloudj.pubsub.driver.Message.SystemMetadataKeys;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -185,6 +186,12 @@ public class AliSubscription extends AbstractSubscription<AliSubscription> {
     Map<String, String> metadata = decodeMetadata(userProperties);
     if (!metadata.isEmpty()) {
       builder.withMetadata(metadata);
+    }
+    // The SDK returns null when the response omits the DequeueCount element.
+    Integer dequeueCount = smqMessage.getDequeueCount();
+    if (dequeueCount != null && dequeueCount > 0) {
+      builder.withSystemMetadata(
+          Map.of(SystemMetadataKeys.DELIVERY_COUNTER, Integer.toString(dequeueCount)));
     }
     return builder.build();
   }

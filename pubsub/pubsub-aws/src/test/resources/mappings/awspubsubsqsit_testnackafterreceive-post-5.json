@@ -1,0 +1,30 @@
+{
+  "id" : "e348a194-1c9f-4b80-8713-8aae5e493b60",
+  "name" : "AwsPubsubSqsIT_testNackAfterReceive-POST-5",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.GetQueueAttributes"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-sqs-testNackAfterReceive\",\"AttributeNames\":[\"QueueArn\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Attributes\":{\"QueueArn\":\"arn:aws:sqs:us-west-2:654654370895:test-sqs-testNackAfterReceive\"}}",
+    "headers" : {
+      "x-amzn-RequestId" : "4186954b-3e49-5d72-93c1-f63cc5281e17",
+      "Date" : "Wed, 18 Nov 2026 19:14:41 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "e348a194-1c9f-4b80-8713-8aae5e493b60",
+  "persistent" : true,
+  "insertionIndex" : 44
+}
