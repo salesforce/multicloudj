@@ -27,11 +27,12 @@ public interface AwsSdkService extends SdkService {
         String errorCode = awsServiceException.awsErrorDetails().errorCode();
         exceptionClass = ErrorCodeMapping.getException(errorCode);
       }
-    } else if (t instanceof ApiCallAttemptTimeoutException
-        || t instanceof ApiCallTimeoutException) {
-      exceptionClass = DeadlineExceededException.class;
     } else if (t instanceof SdkClientException || t instanceof IllegalArgumentException) {
-      exceptionClass = InvalidArgumentException.class;
+      if (t instanceof ApiCallAttemptTimeoutException || t instanceof ApiCallTimeoutException) {
+        exceptionClass = DeadlineExceededException.class;
+      } else {
+        exceptionClass = InvalidArgumentException.class;
+      }
     } else {
       exceptionClass = UnknownException.class;
     }
