@@ -118,7 +118,15 @@ public class MultiCloudJLogger {
         long durationMs = (System.nanoTime() - startTime) / 1_000_000;
         span.recordException(e);
         span.setStatus(StatusCode.ERROR, e.getMessage());
-        log.error("{} failed [bucket={}, duration={}ms]", operationName, bucket, durationMs, e);
+        log.error(
+            "{} failed [bucket={}, duration={}ms, correlation_id={}, tenant_id={}, service_id={}]",
+            operationName,
+            bucket,
+            durationMs,
+            effectiveContext.getCorrelationId(),
+            effectiveContext.getTenantId(),
+            effectiveContext.getServiceId(),
+            e);
         throw e;
       } finally {
         restoreMdc(previousMdc);
@@ -196,7 +204,15 @@ public class MultiCloudJLogger {
         long durationMs = (System.nanoTime() - startTime) / 1_000_000;
         span.recordException(e);
         span.setStatus(StatusCode.ERROR, e.getMessage());
-        log.error("{} failed [bucket={}, duration={}ms]", operationName, bucket, durationMs, e);
+        log.error(
+            "{} failed [bucket={}, duration={}ms, correlation_id={}, tenant_id={}, service_id={}]",
+            operationName,
+            bucket,
+            durationMs,
+            effectiveContext.getCorrelationId(),
+            effectiveContext.getTenantId(),
+            effectiveContext.getServiceId(),
+            e);
         span.end();
         throw e;
       } finally {
@@ -225,8 +241,15 @@ public class MultiCloudJLogger {
                 span.recordException(cause);
                 span.setStatus(StatusCode.ERROR, cause.getMessage());
                 log.error(
-                    "{} failed [bucket={}, duration={}ms]",
-                    operationName, bucket, durationMs, cause);
+                    "{} failed [bucket={}, duration={}ms, correlation_id={},"
+                        + " tenant_id={}, service_id={}]",
+                    operationName,
+                    bucket,
+                    durationMs,
+                    effectiveContext.getCorrelationId(),
+                    effectiveContext.getTenantId(),
+                    effectiveContext.getServiceId(),
+                    cause);
               } else {
                 log.debug(
                     "{} completed [bucket={}, duration={}ms]",
@@ -287,7 +310,15 @@ public class MultiCloudJLogger {
       return result;
     } catch (RuntimeException e) {
       long durationMs = (System.nanoTime() - startTime) / 1_000_000;
-      log.error("{} failed [bucket={}, duration={}ms]", operationName, bucket, durationMs, e);
+      log.error(
+          "{} failed [bucket={}, duration={}ms, correlation_id={}, tenant_id={}, service_id={}]",
+          operationName,
+          bucket,
+          durationMs,
+          effectiveContext.getCorrelationId(),
+          effectiveContext.getTenantId(),
+          effectiveContext.getServiceId(),
+          e);
       throw e;
     } finally {
       restoreMdc(previousMdc);
@@ -309,7 +340,15 @@ public class MultiCloudJLogger {
       future = operation.apply(effectiveContext);
     } catch (RuntimeException e) {
       long durationMs = (System.nanoTime() - startTime) / 1_000_000;
-      log.error("{} failed [bucket={}, duration={}ms]", operationName, bucket, durationMs, e);
+      log.error(
+          "{} failed [bucket={}, duration={}ms, correlation_id={}, tenant_id={}, service_id={}]",
+          operationName,
+          bucket,
+          durationMs,
+          effectiveContext.getCorrelationId(),
+          effectiveContext.getTenantId(),
+          effectiveContext.getServiceId(),
+          e);
       throw e;
     } finally {
       restoreMdc(previousMdc);
@@ -328,8 +367,15 @@ public class MultiCloudJLogger {
             if (throwable != null) {
               Throwable cause = unwrap(throwable);
               log.error(
-                  "{} failed [bucket={}, duration={}ms]",
-                  operationName, bucket, durationMs, cause);
+                  "{} failed [bucket={}, duration={}ms, correlation_id={},"
+                      + " tenant_id={}, service_id={}]",
+                  operationName,
+                  bucket,
+                  durationMs,
+                  effectiveContext.getCorrelationId(),
+                  effectiveContext.getTenantId(),
+                  effectiveContext.getServiceId(),
+                  cause);
             } else {
               log.debug(
                   "{} completed [bucket={}, duration={}ms]",

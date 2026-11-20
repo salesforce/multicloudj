@@ -135,7 +135,9 @@ import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.http.HttpHost;
+import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 
@@ -1808,6 +1810,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     private static boolean shouldConfigureHttpClient(Builder builder) {
       return builder.getProxyEndpoint() != null
           || builder.getMaxConnections() != null
+          || builder.getConnectionAcquisitionTimeout() != null
           || builder.getSocketTimeout() != null
           || builder.getIdleConnectionTimeout() != null;
     }
@@ -1998,6 +2001,18 @@ public class GcpBlobStore extends AbstractBlobStore {
     private static CloseableHttpClient buildHttpClient(Builder builder) {
       HttpClientBuilder httpClientBuilder = ApacheHttpTransport.newDefaultHttpClientBuilder();
       httpClientBuilder.setDefaultRequestConfig(buildRequestConfig(builder));
+      if (builder.getConnectionAcquisitionTimeout() != null) {
+        int timeoutMillis = Math.toIntExact(builder.getConnectionAcquisitionTimeout().toMillis());
+        // Google supplies request-specific configs, so set the active request context.
+        httpClientBuilder.addInterceptorLast(
+            (HttpRequestInterceptor) (request, context) -> {
+              HttpClientContext clientContext = HttpClientContext.adapt(context);
+              clientContext.setRequestConfig(
+                  RequestConfig.copy(clientContext.getRequestConfig())
+                      .setConnectionRequestTimeout(timeoutMillis)
+                      .build());
+            });
+      }
       // Performance note (directory / many-small-object workloads): GCS traffic all targets a
       // single host, so it maps to one Apache HTTP route whose default per-route connection cap
       // is 20. The TransferManager used for directory operations spawns 2 x availableProcessors

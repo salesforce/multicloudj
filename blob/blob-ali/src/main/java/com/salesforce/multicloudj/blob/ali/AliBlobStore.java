@@ -1029,11 +1029,16 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
           builder,
           creds,
           retryer,
-          (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) ->
-              Apache5HttpClientBuilder.create()
+          (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) -> {
+            var httpClientBuilder = Apache5HttpClientBuilder.create()
                   .options(AliTransformer.toHttpClientOptions(
-                      proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout))
-                  .build());
+                      proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout));
+            if (builder.getConnectionAcquisitionTimeout() != null) {
+              httpClientBuilder.connectionRequestTimeout(
+                  Math.toIntExact(builder.getConnectionAcquisitionTimeout().toMillis()));
+            }
+            return httpClientBuilder.build();
+          });
       return clientBuilder.build();
     }
 

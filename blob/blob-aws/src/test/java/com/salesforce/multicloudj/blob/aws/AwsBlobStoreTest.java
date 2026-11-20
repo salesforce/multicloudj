@@ -49,6 +49,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
+import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ItemFailure;
@@ -97,6 +98,8 @@ import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+import software.amazon.awssdk.core.exception.ApiCallAttemptTimeoutException;
+import software.amazon.awssdk.core.exception.ApiCallTimeoutException;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
@@ -363,6 +366,28 @@ public class AwsBlobStoreTest {
     assertInstanceOf(
         ResourceConflictException.class,
         aws.mapException(buildS3Exception(409, "ConditionalRequestConflict")));
+  }
+
+  @Test
+  void testAttemptTimeoutMapsToDeadlineExceeded() {
+    ApiCallAttemptTimeoutException timeout = ApiCallAttemptTimeoutException.create(9000);
+
+    SubstrateSdkException mapped = aws.mapException(timeout);
+
+    assertInstanceOf(DeadlineExceededException.class, mapped);
+    assertSame(timeout, mapped.getCause());
+    assertTrue(mapped.isRetryable());
+  }
+
+  @Test
+  void testCallTimeoutMapsToDeadlineExceeded() {
+    ApiCallTimeoutException timeout = ApiCallTimeoutException.create(27000);
+
+    SubstrateSdkException mapped = aws.mapException(timeout);
+
+    assertInstanceOf(DeadlineExceededException.class, mapped);
+    assertSame(timeout, mapped.getCause());
+    assertTrue(mapped.isRetryable());
   }
 
   private UploadRequest buildTestUploadRequest() {

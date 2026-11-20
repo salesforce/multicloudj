@@ -22,6 +22,7 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   private URI proxyEndpoint;
   private Integer maxConnections;
   private Duration socketTimeout;
+  private Duration connectionAcquisitionTimeout;
   private Duration idleConnectionTimeout;
   private CredentialsOverrider credentialsOverrider;
   private ExecutorService executorService;
@@ -118,6 +119,23 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   public BlobStoreBuilder<T> withSocketTimeout(Duration socketTimeout) {
     validator.validateSocketTimeout(socketTimeout);
     this.socketTimeout = socketTimeout;
+    return this;
+  }
+
+  /**
+   * Sets how long a request waits to acquire a pooled connection from an SDK-created HTTP
+   * transport.
+   *
+   * <p>Omission preserves native transport defaults. Preconfigured clients and transports without
+   * connection-acquisition controls are not affected.
+   *
+   * @param timeout A duration from 1 to {@link Integer#MAX_VALUE} milliseconds, inclusive.
+   * @return An instance of self
+   * @throws IllegalArgumentException if the timeout is null or outside the supported range
+   */
+  public BlobStoreBuilder<T> withConnectionAcquisitionTimeout(Duration timeout) {
+    validator.validateConnectionAcquisitionTimeout(timeout);
+    this.connectionAcquisitionTimeout = timeout;
     return this;
   }
 
