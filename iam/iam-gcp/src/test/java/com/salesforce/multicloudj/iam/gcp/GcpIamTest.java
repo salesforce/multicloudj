@@ -1940,22 +1940,20 @@ public class GcpIamTest {
 
   @Test
   void testBuildIamSettingsAppliesRetryConfig() throws IOException {
-    RetrySettings retrySettings =
-        GcpIam.Builder.buildIamSettings(fixedRetryConfig())
-            .getServiceAccountSettings()
-            .getRetrySettings();
+    IAMSettings settings = GcpIam.Builder.buildIamSettings(fixedRetryConfig());
 
-    assertFixedRetrySettings(retrySettings);
+    assertFixedRetrySettings(settings.getServiceAccountSettings().getRetrySettings());
+    assertFixedRetrySettings(settings.setIamPolicySettings().getRetrySettings());
+    assertTrue(settings.setIamPolicySettings().getRetryableCodes().isEmpty());
   }
 
   @Test
   void testBuildProjectsSettingsAppliesRetryConfig() throws IOException {
-    RetrySettings retrySettings =
-        GcpIam.Builder.buildProjectsSettings(fixedRetryConfig())
-            .getIamPolicySettings()
-            .getRetrySettings();
+    ProjectsSettings settings = GcpIam.Builder.buildProjectsSettings(fixedRetryConfig());
 
-    assertFixedRetrySettings(retrySettings);
+    assertFixedRetrySettings(settings.getIamPolicySettings().getRetrySettings());
+    assertFixedRetrySettings(settings.setIamPolicySettings().getRetrySettings());
+    assertTrue(settings.setIamPolicySettings().getRetryableCodes().isEmpty());
   }
 
   @Test

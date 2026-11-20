@@ -249,9 +249,14 @@ public class IamClient implements AutoCloseable {
     }
 
     /**
-     * Sets the retry configuration for the IAM client.
+     * Sets the retry configuration applied to requests the IAM client makes.
      *
-     * @param retryConfig the retry configuration to use for retrying failed requests
+     * <p>Each provider maps the fields onto its native SDK's retry settings and keeps the SDK's
+     * classification of which errors are retryable. An operation for which the provider SDK
+     * defines no retryable errors is attempted once, and only the timeouts in {@code retryConfig}
+     * apply to it.
+     *
+     * @param retryConfig the retry configuration, or null to use the provider's defaults
      * @return this IamClientBuilder instance
      */
     public IamClientBuilder withRetryConfig(RetryConfig retryConfig) {
