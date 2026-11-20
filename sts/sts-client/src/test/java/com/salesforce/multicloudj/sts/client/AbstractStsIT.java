@@ -122,5 +122,6 @@ public abstract class AbstractStsIT {
     Assertions.assertNotNull(credentials.getAccessKeySecret());
     Assertions.assertNotNull(credentials.getAccessKeyId());
     Assertions.assertNotNull(credentials.getSecurityToken());
+    Assertions.assertNotNull(credentials.getExpiration());
   }
 }
