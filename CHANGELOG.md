@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.4.17](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.16...multicloudj-v0.4.17) (2026-11-20)
+
+
+### Bug Fixes
+
+* include operation context in failure logs ([#772](https://github.com/salesforce/multicloudj/issues/772)) ([ad6c26b](https://github.com/salesforce/multicloudj/commit/ad6c26b9cfa773755da461a06ea3b5980923e547))
+
+
+### Blob Store
+
+* enable object lock retention conformance tests for Ali ([#770](https://github.com/salesforce/multicloudj/issues/770)) ([c2aa041](https://github.com/salesforce/multicloudj/commit/c2aa041f75574c805950816db720cb7783aa6089))
+* Expose connection acquisition timeout ([#775](https://github.com/salesforce/multicloudj/issues/775)) ([3176946](https://github.com/salesforce/multicloudj/commit/31769466a41fd01eec95d21bf6d554629161d608))
+* honor prefixesToExclude in GCP directory downloads ([#727](https://github.com/salesforce/multicloudj/issues/727)) ([874ef37](https://github.com/salesforce/multicloudj/commit/874ef373df9b1774d7245fc5a0cde913a3fb94a5))
+* Map AWS API timeouts to deadline exceeded exception ([#773](https://github.com/salesforce/multicloudj/issues/773)) ([cbb66d4](https://github.com/salesforce/multicloudj/commit/cbb66d44bde9615123be20c794c389ab3a65f4a9))
+
+
+### STS
+
+* narrow GCP DeleteObject access boundary role to objectUser ([#757](https://github.com/salesforce/multicloudj/issues/757)) ([06224e4](https://github.com/salesforce/multicloudj/commit/06224e4738f25bc174c89774d185ada86bf87625))
+* preserve credential expiry in StsCredentials ([#766](https://github.com/salesforce/multicloudj/issues/766)) ([af2af87](https://github.com/salesforce/multicloudj/commit/af2af87e0f93c73fa5d970547dcbfcaabba0b40c))
+
+
+### PubSub
+
+* expose message delivery counter via system metadata ([#769](https://github.com/salesforce/multicloudj/issues/769)) ([dd2dadf](https://github.com/salesforce/multicloudj/commit/dd2dadf766e5795b85166cdb43da4849f8a9877f))
+* reuse receiveWithRetry in conformance tests ([#774](https://github.com/salesforce/multicloudj/issues/774)) ([b41fd79](https://github.com/salesforce/multicloudj/commit/b41fd7911887e1aa38340d0ca0d6422d0a814130))
+
 ## [0.4.16](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.4.15...multicloudj-v0.4.16) (2026-11-13)
 
 
