@@ -42,10 +42,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyPairGenerator;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -110,6 +112,9 @@ public class GcpStsTest {
         .thenReturn(Mockito.mock(AccessToken.class));
     Mockito.when(mockGoogleCredentials.getAccessToken().getTokenValue())
         .thenReturn("testAccessTokenValue");
+    Instant expiry = Instant.parse("2030-01-01T00:00:00Z");
+    Mockito.when(mockGoogleCredentials.getAccessToken().getExpirationTime())
+        .thenReturn(Date.from(expiry));
 
     GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
     // Test without role to avoid ImpersonatedCredentials (which can't be easily mocked)
@@ -119,6 +124,7 @@ public class GcpStsTest {
     Assertions.assertEquals(StringUtils.EMPTY, credentials.getAccessKeyId());
     Assertions.assertEquals(StringUtils.EMPTY, credentials.getAccessKeySecret());
     Assertions.assertEquals("testAccessTokenValue", credentials.getSecurityToken());
+    Assertions.assertEquals(expiry, credentials.getExpiration());
   }
 
   @Test
@@ -195,6 +201,8 @@ public class GcpStsTest {
       Assertions.assertEquals(StringUtils.EMPTY, credentials.getAccessKeyId());
       Assertions.assertEquals(StringUtils.EMPTY, credentials.getAccessKeySecret());
       Assertions.assertEquals("testAccessTokenValue", credentials.getSecurityToken());
+      // The access token carries no expiration time, so the expiry is reported as unknown.
+      Assertions.assertNull(credentials.getExpiration());
     }
   }
 
@@ -570,8 +578,64 @@ public class GcpStsTest {
         sts.assumeRole(AssumedRoleRequest.newBuilder().withCredentialScope(scope).build());
 
     Assertions.assertEquals("downscoped-token", credentials.getSecurityToken());
+    Assertions.assertNotNull(credentials.getExpiration());
     Assertions.assertEquals(1, requestedUrls.size());
     Assertions.assertTrue(requestedUrls.get(0).contains("sts.googleapis.com"));
+  }
+
+  @Test
+  public void testAssumeRoleWithWebIdentityWithNonNumericExpiresIn() {
+    MockHttpTransport mockHttpTransport =
+        new MockHttpTransport.Builder()
+            .setLowLevelHttpResponse(
+                new MockLowLevelHttpResponse()
+                    .setContentType("application/json")
+                    .setContent(
+                        "{\"access_token\":\"test-access-token\",\"expires_in\":\"not-a-number\"}"))
+            .build();
+    GcpSts sts = new GcpSts().builder().build(() -> mockHttpTransport);
+    AssumeRoleWebIdentityRequest request =
+        AssumeRoleWebIdentityRequest.builder()
+            .role(
+                "//iam.googleapis.com/projects/test-project/locations/global"
+                + "/workloadIdentityPools/test-pool/providers/test-provider")
+            .webIdentityToken("test-oidc-token")
+            .build();
+
+    StsCredentials credentials = sts.assumeRoleWithWebIdentity(request);
+
+    Assertions.assertEquals("test-access-token", credentials.getSecurityToken());
+    Assertions.assertNull(credentials.getExpiration());
+  }
+
+  @Test
+  public void testAssumeRoleWithWebIdentityWithOutOfRangeExpiresIn() {
+    // 1e30 does not fit in a long; Long.MAX_VALUE fits but overflows the Instant range.
+    for (String expiresIn : new String[] {"1e30", String.valueOf(Long.MAX_VALUE)}) {
+      MockHttpTransport mockHttpTransport =
+          new MockHttpTransport.Builder()
+              .setLowLevelHttpResponse(
+                  new MockLowLevelHttpResponse()
+                      .setContentType("application/json")
+                      .setContent(
+                          "{\"access_token\":\"test-access-token\",\"expires_in\":"
+                              + expiresIn
+                              + "}"))
+              .build();
+      GcpSts sts = new GcpSts().builder().build(() -> mockHttpTransport);
+      AssumeRoleWebIdentityRequest request =
+          AssumeRoleWebIdentityRequest.builder()
+              .role(
+                  "//iam.googleapis.com/projects/test-project/locations/global"
+                  + "/workloadIdentityPools/test-pool/providers/test-provider")
+              .webIdentityToken("test-oidc-token")
+              .build();
+
+      StsCredentials credentials = sts.assumeRoleWithWebIdentity(request);
+
+      Assertions.assertEquals("test-access-token", credentials.getSecurityToken(), expiresIn);
+      Assertions.assertNull(credentials.getExpiration(), expiresIn);
+    }
   }
 
   @Test
@@ -579,7 +643,9 @@ public class GcpStsTest {
     // Mock response content
     String responseJson = "{\"access_token\":\"test-access-token\",\"expires_in\":3600}";
 
-    // Create MockHttpTransport that returns the expected response
+    // Records when the request reaches the server, then delays the response so an expiry measured
+    // after the response arrives lands measurably past receivedAt + expires_in.
+    AtomicReference<Instant> receivedAt = new AtomicReference<>();
     MockHttpTransport mockHttpTransport =
         new MockHttpTransport() {
           @Override
@@ -588,6 +654,12 @@ public class GcpStsTest {
             return new MockLowLevelHttpRequest() {
               @Override
               public MockLowLevelHttpResponse execute() throws IOException {
+                receivedAt.set(Instant.now());
+                try {
+                  Thread.sleep(50);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
                 MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
                 response.setStatusCode(200);
                 response.setContentType("application/json");
@@ -615,6 +687,7 @@ public class GcpStsTest {
             .build();
 
     // Execute
+    Instant before = Instant.now();
     StsCredentials credentials = sts.assumeRoleWithWebIdentity(request);
 
     // Verify
@@ -622,6 +695,33 @@ public class GcpStsTest {
     Assertions.assertEquals(StringUtils.EMPTY, credentials.getAccessKeyId());
     Assertions.assertEquals(StringUtils.EMPTY, credentials.getAccessKeySecret());
     Assertions.assertEquals("test-access-token", credentials.getSecurityToken());
+    Assertions.assertFalse(credentials.getExpiration().isBefore(before.plusSeconds(3600)));
+    Assertions.assertFalse(
+        credentials.getExpiration().isAfter(receivedAt.get().plusSeconds(3600)));
+  }
+
+  @Test
+  public void testAssumeRoleWithWebIdentityWithoutExpiresIn() {
+    MockHttpTransport mockHttpTransport =
+        new MockHttpTransport.Builder()
+            .setLowLevelHttpResponse(
+                new MockLowLevelHttpResponse()
+                    .setContentType("application/json")
+                    .setContent("{\"access_token\":\"test-access-token\"}"))
+            .build();
+    GcpSts sts = new GcpSts().builder().build(() -> mockHttpTransport);
+    AssumeRoleWebIdentityRequest request =
+        AssumeRoleWebIdentityRequest.builder()
+            .role(
+                "//iam.googleapis.com/projects/test-project/locations/global"
+                + "/workloadIdentityPools/test-pool/providers/test-provider")
+            .webIdentityToken("test-oidc-token")
+            .build();
+
+    StsCredentials credentials = sts.assumeRoleWithWebIdentity(request);
+
+    Assertions.assertEquals("test-access-token", credentials.getSecurityToken());
+    Assertions.assertNull(credentials.getExpiration());
   }
 
   @Test

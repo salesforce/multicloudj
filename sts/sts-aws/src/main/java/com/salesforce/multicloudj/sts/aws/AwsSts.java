@@ -105,7 +105,10 @@ public class AwsSts extends AbstractSts {
     Credentials credentials = response.credentials();
 
     return new StsCredentials(
-        credentials.accessKeyId(), credentials.secretAccessKey(), credentials.sessionToken());
+        credentials.accessKeyId(),
+        credentials.secretAccessKey(),
+        credentials.sessionToken(),
+        credentials.expiration());
   }
 
   /** Converts cloud-agnostic CredentialScope to AWS IAM Policy JSON. */
@@ -218,7 +221,10 @@ public class AwsSts extends AbstractSts {
     GetSessionTokenResponse response = stsClient.getSessionToken(tokenRequest);
     Credentials credentials = response.credentials();
     return new StsCredentials(
-        credentials.accessKeyId(), credentials.secretAccessKey(), credentials.sessionToken());
+        credentials.accessKeyId(),
+        credentials.secretAccessKey(),
+        credentials.sessionToken(),
+        credentials.expiration());
   }
 
   @Override
@@ -239,7 +245,10 @@ public class AwsSts extends AbstractSts {
     Credentials credentials = response.credentials();
 
     return new StsCredentials(
-        credentials.accessKeyId(), credentials.secretAccessKey(), credentials.sessionToken());
+        credentials.accessKeyId(),
+        credentials.secretAccessKey(),
+        credentials.sessionToken(),
+        credentials.expiration());
   }
 
   @Override
