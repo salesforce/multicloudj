@@ -719,6 +719,12 @@ public class AsyncBucketClient implements AutoCloseable {
     }
 
     @Override
+    public Builder withConnectionAcquisitionTimeout(Duration timeout) {
+      super.withConnectionAcquisitionTimeout(timeout);
+      return this;
+    }
+
+    @Override
     public Builder withIdleConnectionTimeout(Duration idleConnectionTimeout) {
       super.withIdleConnectionTimeout(idleConnectionTimeout);
       return this;

@@ -103,6 +103,22 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
   }
 
   /**
+   * Sets how long a request waits to acquire a pooled connection from an SDK-created HTTP
+   * transport.
+   *
+   * <p>Omission preserves native transport defaults. Preconfigured clients and transports without
+   * connection-acquisition controls are not affected.
+   *
+   * @param timeout A duration from 1 to {@link Integer#MAX_VALUE} milliseconds, inclusive.
+   * @return An instance of self
+   * @throws IllegalArgumentException if the timeout is null or outside the supported range
+   */
+  public BlobClientBuilder<C, S> withConnectionAcquisitionTimeout(Duration timeout) {
+    this.storeBuilder.withConnectionAcquisitionTimeout(timeout);
+    return this;
+  }
+
+  /**
    * Method to supply an idle connection timeout
    *
    * @param idleConnectionTimeout The maximum amount of time that a connection should be allowed to

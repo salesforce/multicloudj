@@ -58,7 +58,6 @@ import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
-import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.regions.Region;
@@ -116,6 +115,7 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
     return builder.getProxyEndpoint() != null
         || builder.getMaxConnections() != null
         || builder.getSocketTimeout() != null
+        || builder.getConnectionAcquisitionTimeout() != null
         || builder.getIdleConnectionTimeout() != null
         || builder.getUseSystemPropertyProxyValues() != null
         || builder.getUseEnvironmentVariableProxyValues() != null;
@@ -766,7 +766,7 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
         b.endpointOverride(builder.getEndpoint());
       }
       if (shouldConfigureHttpClient(builder)) {
-        b.httpClient(generateHttpClient(builder));
+        b.httpClientBuilder(generateHttpClientBuilder(builder));
       }
       if (builder.getRetryConfig() != null) {
         b.overrideConfiguration(
@@ -776,8 +776,8 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
       return b.build();
     }
 
-    /** Helper function to generate the HttpClient */
-    private static SdkHttpClient generateHttpClient(Builder builder) {
+    /** Helper function to generate the HttpClient builder */
+    private static ApacheHttpClient.Builder generateHttpClientBuilder(Builder builder) {
       ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder();
       if (builder.getProxyEndpoint() != null
           || builder.getUseSystemPropertyProxyValues() != null
@@ -801,10 +801,13 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
       if (builder.getSocketTimeout() != null) {
         httpClientBuilder.socketTimeout(builder.getSocketTimeout());
       }
+      if (builder.getConnectionAcquisitionTimeout() != null) {
+        httpClientBuilder.connectionAcquisitionTimeout(builder.getConnectionAcquisitionTimeout());
+      }
       if (builder.getIdleConnectionTimeout() != null) {
         httpClientBuilder.connectionMaxIdleTime(builder.getIdleConnectionTimeout());
       }
-      return httpClientBuilder.build();
+      return httpClientBuilder;
     }
 
     public Builder withS3Client(S3Client s3Client) {

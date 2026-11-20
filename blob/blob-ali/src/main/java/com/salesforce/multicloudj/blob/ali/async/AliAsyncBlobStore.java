@@ -990,11 +990,16 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
             this,
             creds,
             retryer,
-            (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) ->
-                Apache5AsyncHttpClientBuilder.create()
+            (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) -> {
+              var httpClientBuilder = Apache5AsyncHttpClientBuilder.create()
                     .options(AliTransformer.toHttpClientOptions(
-                        proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout))
-                    .build());
+                        proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout));
+              if (getConnectionAcquisitionTimeout() != null) {
+                httpClientBuilder.connectionRequestTimeout(
+                    Math.toIntExact(getConnectionAcquisitionTimeout().toMillis()));
+              }
+              return httpClientBuilder.build();
+            });
         async = asyncBuilder.build();
       }
 
@@ -1006,11 +1011,16 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
             this,
             creds,
             retryer,
-            (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) ->
-                Apache5HttpClientBuilder.create()
+            (proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout) -> {
+              var httpClientBuilder = Apache5HttpClientBuilder.create()
                     .options(AliTransformer.toHttpClientOptions(
-                        proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout))
-                    .build());
+                        proxyHost, readWriteTimeout, maxConnections, idleConnectionTimeout));
+              if (getConnectionAcquisitionTimeout() != null) {
+                httpClientBuilder.connectionRequestTimeout(
+                    Math.toIntExact(getConnectionAcquisitionTimeout().toMillis()));
+              }
+              return httpClientBuilder.build();
+            });
         sync = syncBuilder.build();
       }
 

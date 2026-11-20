@@ -51,9 +51,9 @@ public final class OssClientFactory {
    * Applies the shared MultiCloudJ → OSS SDK configuration to {@code clientBuilder}: region,
    * credentials, optional endpoint/proxy/retryer, and the read-write timeout. Connection-pool size
    * and idle-connection timeout are only settable via {@code HttpClientOptions}, not on the client
-   * builder, so when the caller sets either we build an explicit transport client from those
+   * builder, so when pool settings are supplied we build an explicit transport client from those
    * options (carrying proxyHost + readWriteTimeout forward so nothing the builder would otherwise
-   * set is lost); when neither is set we leave the SDK to construct its own default client and set
+   * set is lost); otherwise we leave the SDK to construct its own default client and set
    * readWriteTimeout directly.
    *
    * @param clientBuilder the SDK sync or async client builder to configure
@@ -90,11 +90,12 @@ public final class OssClientFactory {
         resolveReadWriteTimeout(mcjBuilder.getRetryConfig(), mcjBuilder.getSocketTimeout());
 
     // Connection-pool size and idle-connection timeout are only settable via HttpClientOptions,
-    // not on the OSS client builder. When the caller sets either, build an explicit transport
+    // not on the OSS client builder. When pool settings are supplied, build an explicit transport
     // client from those options (carrying proxyHost + readWriteTimeout forward so nothing the
-    // builder would otherwise set is lost). When neither is set, leave the SDK to construct its
+    // builder would otherwise set is lost). Otherwise, leave the SDK to construct its
     // own default client and set readWriteTimeout directly, preserving the prior behavior.
-    if (mcjBuilder.getMaxConnections() != null || mcjBuilder.getIdleConnectionTimeout() != null) {
+    if (mcjBuilder.getMaxConnections() != null || mcjBuilder.getIdleConnectionTimeout() != null
+        || mcjBuilder.getConnectionAcquisitionTimeout() != null) {
       clientBuilder.httpClient(
           httpClientFactory.create(
               proxyHost,

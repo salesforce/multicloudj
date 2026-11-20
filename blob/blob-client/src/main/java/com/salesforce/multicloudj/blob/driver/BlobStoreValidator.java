@@ -37,6 +37,9 @@ public class BlobStoreValidator {
       "Maximum connections must be a positive value. value=%s";
   static final String INVALID_SOCKET_TIMEOUT_MSG =
       "Socket timeout must be a non-negative value if specified. Duration was '%s'";
+  static final String INVALID_CONNECTION_ACQUISITION_TIMEOUT_MSG =
+      "Connection acquisition timeout must be between 1 and 2147483647 milliseconds inclusive. "
+          + "Duration was '%s'";
   static final String INVALID_RANGED_READ_NEGATIVE_BOUNDARIES_MSG =
       "Ranged read boundaries cannot be negative. start=%s end=%s";
   static final String INVALID_RANGED_READ_BOUNDARIES_MSG =
@@ -365,6 +368,15 @@ public class BlobStoreValidator {
   public void validateSocketTimeout(Duration socketTimeout) {
     if (socketTimeout == null || socketTimeout.isNegative()) {
       throw new IllegalArgumentException(String.format(INVALID_SOCKET_TIMEOUT_MSG, socketTimeout));
+    }
+  }
+
+  public void validateConnectionAcquisitionTimeout(Duration timeout) {
+    if (timeout == null
+        || timeout.compareTo(Duration.ofMillis(1)) < 0
+        || timeout.compareTo(Duration.ofMillis(Integer.MAX_VALUE)) > 0) {
+      throw new IllegalArgumentException(
+          String.format(INVALID_CONNECTION_ACQUISITION_TIMEOUT_MSG, timeout));
     }
   }
 
