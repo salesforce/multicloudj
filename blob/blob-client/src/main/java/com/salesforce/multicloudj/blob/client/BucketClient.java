@@ -1162,10 +1162,15 @@ public class BucketClient implements AutoCloseable {
     }
 
     /**
-     * Sets the connection-acquisition timeout for supported HTTP transports.
+     * Sets how long a request waits to acquire a pooled connection from an SDK-created HTTP
+     * transport.
      *
-     * @param timeout A positive duration. Omission preserves native transport defaults.
+     * <p>Omission preserves native transport defaults. Preconfigured clients and transports without
+     * connection-acquisition controls are not affected.
+     *
+     * @param timeout A duration from 1 to {@link Integer#MAX_VALUE} milliseconds, inclusive.
      * @return An instance of self
+     * @throws IllegalArgumentException if the timeout is null or outside the supported range
      */
     public BlobBuilder withConnectionAcquisitionTimeout(Duration timeout) {
       this.blobStoreBuilder.withConnectionAcquisitionTimeout(timeout);
