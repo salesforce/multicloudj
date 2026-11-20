@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.iam.driver;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.provider.Provider;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.CreateIdentityRequest;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
@@ -70,6 +71,7 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
     @Getter protected String region;
     @Getter protected URI endpoint;
     @Getter protected CredentialsOverrider credentialsOverrider = null;
+    @Getter protected RetryConfig retryConfig;
     protected String providerId;
 
     /**
@@ -102,6 +104,21 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
      */
     public T withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
       this.credentialsOverrider = credentialsOverrider;
+      return self();
+    }
+
+    /**
+     * Sets the retry configuration.
+     *
+     * @param retryConfig The retry configuration to use for retrying failed requests.
+     * @return This Builder instance.
+     * @throws InvalidArgumentException if the retry configuration is invalid
+     */
+    public T withRetryConfig(RetryConfig retryConfig) {
+      if (retryConfig != null) {
+        retryConfig.validate();
+      }
+      this.retryConfig = retryConfig;
       return self();
     }
 

@@ -15,6 +15,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.Effect;
@@ -407,6 +408,34 @@ public class IamClientTest {
 
     assertNotNull(builtClient);
     assertNotNull(builtClient.iam);
+  }
+
+  @Test
+  void testBuilderWithRetryConfig() {
+    if (serviceLoaderStatic != null) {
+      serviceLoaderStatic.close();
+    }
+
+    AbstractIam testIam = mock(TestIam.class);
+    TestIam.Builder testBuilder = mock(TestIam.Builder.class);
+    when(testBuilder.withRetryConfig(any(RetryConfig.class))).thenReturn(testBuilder);
+    when(testBuilder.build()).thenReturn((TestIam) testIam);
+    when(testIam.builder()).thenReturn(testBuilder);
+    when(testIam.getProviderId()).thenReturn(TEST_PROVIDER_ID);
+
+    ServiceLoader<AbstractIam> testLoader = mock(ServiceLoader.class);
+    when(testLoader.iterator()).thenAnswer(invocation -> List.of(testIam).iterator());
+
+    serviceLoaderStatic = mockStatic(ServiceLoader.class);
+    serviceLoaderStatic.when(() -> ServiceLoader.load(AbstractIam.class)).thenReturn(testLoader);
+
+    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(3).build();
+
+    IamClient.IamClientBuilder builder = IamClient.builder(TEST_PROVIDER_ID);
+    assertEquals(builder, builder.withRetryConfig(retryConfig));
+    builder.build();
+
+    verify(testBuilder).withRetryConfig(retryConfig);
   }
 
   @Test

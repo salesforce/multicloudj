@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.ConditionOperator;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
@@ -26,6 +27,7 @@ import com.salesforce.multicloudj.iam.model.StorageActions;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -36,6 +38,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.pagination.sync.SdkIterable;
 import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.iam.model.CreateRoleRequest;
@@ -877,5 +880,38 @@ public class AwsIamTest {
     JsonNode policyJson = mapper.readTree(captor.getValue().policyDocument());
 
     assertEquals("2012-10-17", policyJson.get("Version").asText());
+  }
+
+  @Test
+  void testBuildIamClientAppliesRetryConfig() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(4)
+            .fixedDelayMillis(100)
+            .attemptTimeout(2000L)
+            .totalTimeout(10000L)
+            .build();
+    AwsIam.Builder builder = new AwsIam.Builder().withRetryConfig(retryConfig);
+
+    try (IamClient client = AwsIam.Builder.buildIamClient(builder)) {
+      ClientOverrideConfiguration config =
+          client.serviceClientConfiguration().overrideConfiguration();
+      assertEquals(4, config.retryStrategy().get().maxAttempts());
+      assertEquals(Duration.ofMillis(2000), config.apiCallAttemptTimeout().get());
+      assertEquals(Duration.ofMillis(10000), config.apiCallTimeout().get());
+    }
+  }
+
+  @Test
+  void testBuildIamClientWithoutRetryConfigKeepsSdkTimeouts() {
+    AwsIam.Builder builder = new AwsIam.Builder();
+
+    try (IamClient client = AwsIam.Builder.buildIamClient(builder)) {
+      ClientOverrideConfiguration config =
+          client.serviceClientConfiguration().overrideConfiguration();
+      assertTrue(config.apiCallAttemptTimeout().isEmpty());
+      assertTrue(config.apiCallTimeout().isEmpty());
+    }
   }
 }

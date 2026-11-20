@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.AwsRetryClassifier;
+import com.salesforce.multicloudj.common.aws.AwsRetryStrategies;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -96,7 +97,7 @@ public class AwsIam extends AbstractIam {
       return builder;
     }
 
-    private static IamClient buildIamClient(Builder builder) {
+    static IamClient buildIamClient(Builder builder) {
       // NOTE: AWS IAM is a global service per AWS Partition.
       String regionStr = builder.getRegion() != null ? builder.getRegion() : "us-east-1";
       Region regionObj = Region.of(regionStr);
@@ -109,6 +110,10 @@ public class AwsIam extends AbstractIam {
       }
       if (builder.getEndpoint() != null) {
         clientBuilder.endpointOverride(builder.getEndpoint());
+      }
+      if (builder.getRetryConfig() != null) {
+        clientBuilder.overrideConfiguration(
+            config -> AwsRetryStrategies.applyRetryConfig(config, builder.getRetryConfig()));
       }
       return clientBuilder.build();
     }
