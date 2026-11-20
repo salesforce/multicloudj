@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.aws;
 
 import com.salesforce.multicloudj.common.aws.AwsRetryClassifier;
+import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -8,6 +9,8 @@ import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.service.SdkService;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.exception.ApiCallAttemptTimeoutException;
+import software.amazon.awssdk.core.exception.ApiCallTimeoutException;
 import software.amazon.awssdk.core.exception.SdkClientException;
 
 public interface AwsSdkService extends SdkService {
@@ -25,7 +28,11 @@ public interface AwsSdkService extends SdkService {
         exceptionClass = ErrorCodeMapping.getException(errorCode);
       }
     } else if (t instanceof SdkClientException || t instanceof IllegalArgumentException) {
-      exceptionClass = InvalidArgumentException.class;
+      if (t instanceof ApiCallAttemptTimeoutException || t instanceof ApiCallTimeoutException) {
+        exceptionClass = DeadlineExceededException.class;
+      } else {
+        exceptionClass = InvalidArgumentException.class;
+      }
     } else {
       exceptionClass = UnknownException.class;
     }
