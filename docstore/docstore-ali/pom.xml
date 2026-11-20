@@ -70,7 +70,7 @@
         <dependency>
             <groupId>com.aliyun</groupId>
             <artifactId>aliyun-java-sdk-core</artifactId>
-            <version>4.7.2</version>
+            <version>4.7.10</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -81,7 +81,7 @@
         <dependency>
             <groupId>com.aliyun.openservices</groupId>
             <artifactId>tablestore</artifactId>
-            <version>5.17.6</version>
+            <version>5.17.14</version>
         </dependency>
         <dependency>
             <groupId>com.google.auto</groupId>
