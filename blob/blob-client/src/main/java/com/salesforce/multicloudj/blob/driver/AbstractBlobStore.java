@@ -221,6 +221,13 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   /** {@inheritDoc} */
   @Override
+  public void deleteTags(String key) {
+    validator.validateKey(key);
+    doDeleteTags(key);
+  }
+
+  /** {@inheritDoc} */
+  @Override
   public URL generatePresignedUrl(PresignedUrlRequest request) {
     validator.validate(request);
     PresignedUrlResponse response = doPresign(request);
@@ -370,6 +377,8 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   protected abstract Map<String, String> doGetTags(String key);
 
   protected abstract void doSetTags(String key, Map<String, String> tags);
+
+  protected abstract void doDeleteTags(String key);
 
   protected abstract PresignedUrlResponse doPresign(PresignedUrlRequest request);
 

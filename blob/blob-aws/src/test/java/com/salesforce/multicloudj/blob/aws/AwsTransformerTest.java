@@ -62,6 +62,7 @@ import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.DeleteObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.GetBucketVersioningRequest;
 import software.amazon.awssdk.services.s3.model.GetBucketVersioningResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
@@ -1167,6 +1168,15 @@ public class AwsTransformerTest {
     GetObjectTaggingRequest taggingRequest = transformer.toGetObjectTaggingRequest("object-1");
     assertEquals("object-1", taggingRequest.key());
     assertEquals(BUCKET, taggingRequest.bucket());
+  }
+
+  @Test
+  void testToDeleteObjectTaggingRequest() {
+    DeleteObjectTaggingRequest taggingRequest =
+        transformer.toDeleteObjectTaggingRequest("object-1");
+    assertEquals("object-1", taggingRequest.key());
+    assertEquals(BUCKET, taggingRequest.bucket());
+    assertNull(taggingRequest.versionId());
   }
 
   @Test

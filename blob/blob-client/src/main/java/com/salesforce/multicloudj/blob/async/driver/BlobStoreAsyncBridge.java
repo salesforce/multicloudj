@@ -230,6 +230,11 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
   }
 
   @Override
+  public CompletableFuture<Void> deleteTags(String key) {
+    return CompletableFuture.runAsync(() -> blobStore.deleteTags(key), executorService);
+  }
+
+  @Override
   public CompletableFuture<URL> generatePresignedUrl(PresignedUrlRequest request) {
     return CompletableFuture.supplyAsync(
         () -> blobStore.generatePresignedUrl(request), executorService);

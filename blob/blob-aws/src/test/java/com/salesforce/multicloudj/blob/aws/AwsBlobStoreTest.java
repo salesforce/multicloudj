@@ -122,6 +122,8 @@ import software.amazon.awssdk.services.s3.model.CopyObjectResult;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectTaggingRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectTaggingResponse;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.GetBucketVersioningRequest;
@@ -1634,6 +1636,30 @@ public class AwsBlobStoreTest {
     List<Tag> actualTags = actualPutObjectTaggingRequest.tagging().tagSet();
     assertTrue(actualTags.contains(Tag.builder().key("key1").value("value1").build()));
     assertTrue(actualTags.contains(Tag.builder().key("key2").value("value2").build()));
+  }
+
+  @Test
+  void testDoDeleteTags() {
+    doReturn(DeleteObjectTaggingResponse.builder().build())
+        .when(mockS3Client)
+        .deleteObjectTagging(any(DeleteObjectTaggingRequest.class));
+
+    aws.deleteTags("object-1");
+
+    ArgumentCaptor<DeleteObjectTaggingRequest> captor =
+        ArgumentCaptor.forClass(DeleteObjectTaggingRequest.class);
+    verify(mockS3Client, times(1)).deleteObjectTagging(captor.capture());
+    assertEquals("object-1", captor.getValue().key());
+    assertEquals("bucket-1", captor.getValue().bucket());
+  }
+
+  @Test
+  void testDoDeleteTagsPropagatesNoSuchKey() {
+    NoSuchKeyException exception = NoSuchKeyException.builder().message("Object not found").build();
+    when(mockS3Client.deleteObjectTagging(any(DeleteObjectTaggingRequest.class)))
+        .thenThrow(exception);
+
+    assertThrows(NoSuchKeyException.class, () -> aws.deleteTags("missing-object"));
   }
 
   @Test

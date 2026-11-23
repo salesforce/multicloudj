@@ -522,6 +522,16 @@ public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
     s3Client.putObjectTagging(transformer.toPutObjectTaggingRequest(key, tags));
   }
 
+  /**
+   * Removes all tags from a blob
+   *
+   * @param key Name of the blob whose tags are to be removed
+   */
+  @Override
+  protected void doDeleteTags(String key) {
+    s3Client.deleteObjectTagging(transformer.toDeleteObjectTaggingRequest(key));
+  }
+
   @Override
   protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
     try (S3Presigner presigner = getPresigner()) {

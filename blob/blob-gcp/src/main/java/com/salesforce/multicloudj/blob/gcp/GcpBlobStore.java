@@ -1015,6 +1015,19 @@ public class GcpBlobStore extends AbstractBlobStore {
     storage.update(toTagUpdate(blob, tags));
   }
 
+  @Override
+  protected void doDeleteTags(String key) {
+    Blob blob = getRequiredBlob(transformer.toBlobId(key, null));
+    Map<String, String> metadata = blob.getMetadata();
+    if (metadata == null || metadata.keySet().stream().noneMatch(k -> k.startsWith(TAG_PREFIX))) {
+      return;
+    }
+    // Only the tag-prefixed metadata keys are removed. The custom time stamped by the reserved
+    // lifecycle-expiration tag cannot be cleared without rewriting the object, so a scheduled
+    // expiration remains in effect.
+    storage.update(toTagUpdate(blob, Collections.emptyMap()));
+  }
+
   private BlobInfo toTagUpdate(Blob blob, Map<String, String> tags) {
     // Copy all existing metadata
     Map<String, String> metadata =

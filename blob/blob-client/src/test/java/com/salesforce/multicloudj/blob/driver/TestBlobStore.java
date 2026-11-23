@@ -133,6 +133,9 @@ public class TestBlobStore extends AbstractBlobStore {
   protected void doSetTags(String key, Map<String, String> tags) {}
 
   @Override
+  protected void doDeleteTags(String key) {}
+
+  @Override
   protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
     try {
       return PresignedUrlResponse.builder()

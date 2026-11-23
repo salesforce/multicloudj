@@ -24,6 +24,7 @@ public final class BlobSpanNames {
   public static final String LIST_BLOB_VERSIONS = "blob.listBlobVersions";
   public static final String GET_TAGS = "blob.getTags";
   public static final String SET_TAGS = "blob.setTags";
+  public static final String DELETE_TAGS = "blob.deleteTags";
   public static final String GENERATE_PRESIGNED_URL = "blob.generatePresignedUrl";
   public static final String DOES_OBJECT_EXIST = "blob.doesObjectExist";
   public static final String DOES_BUCKET_EXIST = "blob.doesBucketExist";

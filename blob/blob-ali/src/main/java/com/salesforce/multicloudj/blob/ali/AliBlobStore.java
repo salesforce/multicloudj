@@ -781,6 +781,17 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
         OperationOptions.defaults());
   }
 
+  /**
+   * Removes all tags from a blob
+   *
+   * @param key Name of the blob whose tags are to be removed
+   */
+  @Override
+  protected void doDeleteTags(String key) {
+    ossClient.deleteObjectTagging(transformer.toDeleteObjectTaggingRequest(key),
+        OperationOptions.defaults());
+  }
+
   @Override
   public ObjectLockInfo getObjectLock(String key, String versionId) {
     // OSS exposes retention and legal hold as two separate calls, and returns 404

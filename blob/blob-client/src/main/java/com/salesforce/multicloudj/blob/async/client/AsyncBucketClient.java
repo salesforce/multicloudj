@@ -473,6 +473,20 @@ public class AsyncBucketClient implements AutoCloseable {
   }
 
   /**
+   * Removes all tags from a blob. Succeeds if the blob has no tags.
+   *
+   * <p>Removing the reserved {@code expiration-days} tag does not retract a lifecycle expiration
+   * that was already scheduled for the object.
+   */
+  public CompletableFuture<Void> deleteTags(String key) {
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.DELETE_TAGS,
+        bucketAttrs(),
+        null,
+        ctx -> blobStore.deleteTags(key).exceptionally(this::handleException));
+  }
+
+  /**
    * Generates a presigned URL for uploading/downloading blobs
    *
    * <p>Only the URL is returned. If the request sets tags, a content type, or a checksum, the

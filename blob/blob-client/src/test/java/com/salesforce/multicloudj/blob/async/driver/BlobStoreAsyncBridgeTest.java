@@ -390,6 +390,19 @@ class BlobStoreAsyncBridgeTest {
   }
 
   @Test
+  void testDeleteTags() throws Exception {
+    // Given
+    doNothing().when(mockBlobStore).deleteTags(TEST_KEY);
+
+    // When
+    CompletableFuture<Void> result = asyncWrapper.deleteTags(TEST_KEY);
+
+    // Then
+    result.get(5, TimeUnit.SECONDS);
+    verify(mockBlobStore).deleteTags(TEST_KEY);
+  }
+
+  @Test
   void testMultipartUploadOperations() throws Exception {
     // Test initiate multipart upload
     MultipartUploadRequest mpuRequest =

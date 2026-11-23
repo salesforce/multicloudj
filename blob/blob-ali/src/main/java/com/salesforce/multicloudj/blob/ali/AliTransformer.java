@@ -11,6 +11,7 @@ import com.aliyun.sdk.service.oss2.models.Delete;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsResult;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.DeleteObjectTaggingRequest;
 import com.aliyun.sdk.service.oss2.models.DeletedInfo;
 import com.aliyun.sdk.service.oss2.models.GetBucketVersioningRequest;
 import com.aliyun.sdk.service.oss2.models.GetBucketVersioningResult;
@@ -630,6 +631,13 @@ public class AliTransformer {
         .bucket(bucket)
         .key(key)
         .tagging(tagging)
+        .build();
+  }
+
+  public DeleteObjectTaggingRequest toDeleteObjectTaggingRequest(String key) {
+    return DeleteObjectTaggingRequest.newBuilder()
+        .bucket(bucket)
+        .key(key)
         .build();
   }
 

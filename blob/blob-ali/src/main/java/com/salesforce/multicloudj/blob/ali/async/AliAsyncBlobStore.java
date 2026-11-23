@@ -581,6 +581,14 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   }
 
   @Override
+  protected CompletableFuture<Void> doDeleteTags(String key) {
+    return asyncClient
+        .deleteObjectTaggingAsync(
+            transformer.toDeleteObjectTaggingRequest(key), OperationOptions.defaults())
+        .thenAccept(result -> {});
+  }
+
+  @Override
   protected CompletableFuture<PresignedUrlResponse> doPresign(
       PresignedUrlRequest request) {
     return CompletableFuture.supplyAsync(() -> {

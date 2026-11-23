@@ -1,0 +1,36 @@
+{
+  "id" : "188cc16d-cf3b-451f-aaf2-76af84e125ac",
+  "name" : "AwsBlobStoreIT_testDeleteTags-GET-5",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/blob-for-delete-tags",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPFRhZ2dpbmcgeG1sbnM9Imh0dHA6Ly9zMy5hbWF6b25hd3MuY29tL2RvYy8yMDA2LTAzLTAxLyI+PFRhZ1NldC8+PC9UYWdnaW5nPg==",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "0RYPH2VSJCXY8TH5",
+      "x-amz-id-2" : "Py6O4jIumAboSow/P2E0Zx79Bh5Y6/BJwjlGbFjdn5ehIZlvke3T6JFnEkXQ/glGJzt1sYBS/QAkFQ8VQCIoO5NVjsIuXIQJ",
+      "Date" : "Mon, 23 Nov 2026 21:20:52 GMT"
+    }
+  },
+  "uuid" : "188cc16d-cf3b-451f-aaf2-76af84e125ac",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-delete-tags",
+  "requiredScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-delete-tags-2",
+  "newScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-delete-tags-3",
+  "insertionIndex" : 830
+}

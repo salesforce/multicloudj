@@ -177,6 +177,11 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
   }
 
   @Override
+  protected CompletableFuture<Void> doDeleteTags(String key) {
+    return null;
+  }
+
+  @Override
   protected CompletableFuture<PresignedUrlResponse> doPresign(PresignedUrlRequest request) {
     return CompletableFuture.completedFuture(
         PresignedUrlResponse.builder().url(null).signedHeaders(Map.of()).build());

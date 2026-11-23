@@ -81,6 +81,7 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.GetBucketVersioningRequest;
@@ -833,6 +834,10 @@ public class AwsTransformer {
         .key(key)
         .tagging(Tagging.builder().tagSet(listOfTags).build())
         .build();
+  }
+
+  public DeleteObjectTaggingRequest toDeleteObjectTaggingRequest(String key) {
+    return DeleteObjectTaggingRequest.builder().bucket(getBucket()).key(key).build();
   }
 
   public PutObjectPresignRequest toPutObjectPresignRequest(PresignedUrlRequest request) {

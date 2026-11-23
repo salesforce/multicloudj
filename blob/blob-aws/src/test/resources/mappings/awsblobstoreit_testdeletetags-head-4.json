@@ -1,0 +1,28 @@
+{
+  "id" : "7c9c48a8-e23d-4ca8-b3b9-4a3983858339",
+  "name" : "AwsBlobStoreIT_testDeleteTags-HEAD-4",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-delete-tags",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "Server" : "AmazonS3",
+      "ETag" : "\"47db0bc602df669bc44bb790a28a1d0b\"",
+      "x-amz-checksum-crc64nvme" : "aWHFYwGVaqQ=",
+      "x-amz-meta-owner" : "conformance",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "Last-Modified" : "Mon, 23 Nov 2026 21:20:51 GMT",
+      "x-amz-request-id" : "FZRTAE27DGD0DASA",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "TCMxZwaUbd7eh7Tu74YiFlkOQMQORSFT+9tj1pwugYeqRJ8MM9Uo1M2ncZTqS5lAPRm4f9zGMCPPFRMg4rHBHADgQylA6iRS",
+      "Date" : "Mon, 23 Nov 2026 21:20:53 GMT",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "7c9c48a8-e23d-4ca8-b3b9-4a3983858339",
+  "persistent" : true,
+  "insertionIndex" : 829
+}

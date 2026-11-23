@@ -397,6 +397,19 @@ public class AbstractAsyncBlobStoreTest {
   }
 
   @Test
+  void testDoDeleteTags() {
+    mockBlobStore.deleteTags("object-1");
+    verify(validator, times(1)).validateKey("object-1");
+    verify(mockBlobStore, times(1)).doDeleteTags("object-1");
+  }
+
+  @Test
+  void testDeleteTagsRejectsBlankKey() {
+    assertThrows(IllegalArgumentException.class, () -> mockBlobStore.deleteTags(" "));
+    verify(mockBlobStore, never()).doDeleteTags(any());
+  }
+
+  @Test
   void testGeneratePresignedUploadUrl() {
     PresignedUrlRequest presignedUrlRequest =
         PresignedUrlRequest.builder()
