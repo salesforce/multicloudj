@@ -118,12 +118,16 @@ import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStore;
 import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStoreProvider;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
+import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ItemFailure;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
+import com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.observability.OperationContext;
@@ -156,6 +160,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -2305,6 +2310,55 @@ class GcpBlobStoreTest {
 
     assertInstanceOf(UnAuthorizedException.class, mapped);
     assertEquals(unauthorized, mapped.getCause());
+  }
+
+  @Test
+  void testMapException_ResponseStatusDecidesTypeAndRetryability() {
+    Map<Integer, Class<? extends SubstrateSdkException>> types = new LinkedHashMap<>();
+    types.put(301, UnknownException.class);
+    types.put(400, InvalidArgumentException.class);
+    types.put(404, ResourceNotFoundException.class);
+    types.put(408, UnknownException.class);
+    types.put(409, ResourceConflictException.class);
+    types.put(412, FailedPreconditionException.class);
+    types.put(416, UnknownException.class);
+    types.put(429, ResourceExhaustedException.class);
+    types.put(500, UnknownException.class);
+    types.put(501, UnSupportedOperationException.class);
+    types.put(502, UnknownException.class);
+    types.put(503, UnknownException.class);
+    types.put(504, DeadlineExceededException.class);
+    types.put(505, UnknownException.class);
+    Set<Integer> retryable = Set.of(408, 429, 500, 502, 503, 504);
+
+    types.forEach(
+        (status, type) -> {
+          HttpResponseException response =
+              new HttpResponseException.Builder(status, "status " + status, new HttpHeaders())
+                  .build();
+          for (Throwable wrapped :
+              List.of(
+                  new StorageException(0, status + " from multipart upload", response),
+                  new SubstrateSdkException("failed", response))) {
+            SubstrateSdkException mapped = gcpBlobStore.mapException(wrapped);
+            String context = status + " wrapped in " + wrapped.getClass().getSimpleName();
+            assertInstanceOf(type, mapped, context);
+            assertEquals(retryable.contains(status), mapped.isRetryable(), context);
+            assertEquals(response, mapped.getCause(), context);
+          }
+        });
+  }
+
+  @Test
+  void testMapException_StorageExceptionWithStatusKeepsItsOwnCode() {
+    HttpResponseException unavailable =
+        new HttpResponseException.Builder(503, "Service Unavailable", new HttpHeaders()).build();
+    StorageException conflict = new StorageException(409, "Conflict", unavailable);
+
+    SubstrateSdkException mapped = gcpBlobStore.mapException(conflict);
+
+    assertInstanceOf(ResourceConflictException.class, mapped);
+    assertEquals(conflict, mapped.getCause());
   }
 
   @Test
