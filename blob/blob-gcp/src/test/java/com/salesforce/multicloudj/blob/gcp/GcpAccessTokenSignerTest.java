@@ -24,10 +24,16 @@ import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.StorageOptions;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.gcp.RefreshableSessionCredentials;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import com.salesforce.multicloudj.sts.model.CredentialsType;
+import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPairGenerator;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -38,6 +44,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -271,4 +278,74 @@ class GcpAccessTokenSignerTest {
         options(GoogleCredentials.newBuilder().build(), transport)).isPresent());
     assertTrue(transport.urls.isEmpty());
   }
+
+  private static RefreshableSessionCredentials refreshable(Supplier<StsCredentials> supplier) {
+    CredentialsOverrider overrider =
+        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+            .withSessionCredentialsSupplier(supplier)
+            .withRefreshInterval(Duration.ofHours(1))
+            .build();
+    return new RefreshableSessionCredentials(overrider.getCredentialsRefresher());
+  }
+
+  @Test
+  void signsWithTheCurrentTokenOfRefreshableCredentialsThatWereNeverRefreshed() {
+    RecordingTransport transport = tokenInfoReturning("{\"email\":\"" + EMAIL + "\"}");
+    RefreshableSessionCredentials credentials =
+        refreshable(() -> new StsCredentials("key", "secret", TOKEN));
+
+    Optional<ServiceAccountSigner> signer =
+        new GcpAccessTokenSigner().signerFor(options(credentials, transport));
+
+    assertTrue(signer.isPresent(), "the cached token is empty until the credentials refresh");
+    assertEquals(EMAIL, signer.get().getAccount());
+    assertEquals("access_token=" + TOKEN, transport.bodies.get(0));
+
+    signer.get().sign("string-to-sign".getBytes(StandardCharsets.UTF_8));
+
+    assertEquals(SIGN_BLOB_URL, transport.urls.get(1));
+    assertEquals("Bearer " + TOKEN, transport.authorizations.get(1));
+  }
+
+  @Test
+  void reusesTheSignerWhileRefreshableCredentialsKeepTheSameToken() {
+    RecordingTransport transport = tokenInfoReturning("{\"email\":\"" + EMAIL + "\"}");
+    RefreshableSessionCredentials credentials =
+        refreshable(() -> new StsCredentials("key", "secret", TOKEN));
+    GcpAccessTokenSigner tokenSigner = new GcpAccessTokenSigner();
+
+    ServiceAccountSigner first = tokenSigner.signerFor(options(credentials, transport)).get();
+    ServiceAccountSigner second = tokenSigner.signerFor(options(credentials, transport)).get();
+
+    assertSame(first, second);
+    assertEquals(1, transport.urls.size());
+  }
+
+  @Test
+  void failsWhenRefreshableCredentialsCannotObtainACurrentToken() {
+    RecordingTransport transport = tokenInfoReturning("{}");
+    RefreshableSessionCredentials credentials =
+        refreshable(
+            () -> {
+              throw new IllegalStateException("issuer unavailable");
+            });
+
+    assertThrows(
+        UnAuthorizedException.class,
+        () -> new GcpAccessTokenSigner().signerFor(options(credentials, transport)));
+    assertTrue(transport.urls.isEmpty());
+  }
+
+  @Test
+  void failsWhenRefreshableCredentialsSupplyNoSecurityToken() {
+    RecordingTransport transport = tokenInfoReturning("{}");
+    RefreshableSessionCredentials credentials =
+        refreshable(() -> new StsCredentials("key", "secret", ""));
+
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> new GcpAccessTokenSigner().signerFor(options(credentials, transport)));
+    assertTrue(transport.urls.isEmpty());
+  }
 }
+

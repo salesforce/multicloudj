@@ -6,7 +6,9 @@ import com.google.auth.oauth2.ExternalAccountCredentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdentityPoolCredentials;
 import com.google.auth.oauth2.ImpersonatedCredentials;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.IOException;
@@ -68,8 +70,15 @@ public class GcpCredentialsProvider {
             .setTokenUrl(STS_TOKEN_URL)
             .setScopes(List.of(CLOUD_PLATFORM_SCOPE))
             .build();
+      case REFRESHABLE_SESSION:
+        if (overrider.getCredentialsRefresher() == null) {
+          throw new InvalidArgumentException(
+              "credentialsRefresher must be provided for REFRESHABLE_SESSION");
+        }
+        return new RefreshableSessionCredentials(overrider.getCredentialsRefresher());
       default:
-        return null;
+        throw new UnSupportedOperationException(
+            "Unsupported credentials type: " + overrider.getType());
     }
   }
 

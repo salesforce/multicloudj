@@ -32,12 +32,14 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
+import com.salesforce.multicloudj.sts.model.StsCredentials;
 import com.salesforce.multicloudj.sts.model.ValidateOptions;
 import java.math.BigInteger;
 import java.net.URI;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPublicKey;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -145,6 +147,28 @@ class GcpStsUtilitiesTest {
           utilities.newCloudNativeAuthSignedRequest(null, SignOptions.builder().build());
       Assertions.assertEquals("signed.jwt.token", signed.getSignedIdentity());
     }
+  }
+
+  @Test
+  void rejectsRefreshableSessionCredentialsBecauseSigningUsesDefaultCredentials() {
+    CredentialsOverrider overrider =
+        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+            .withSessionCredentialsSupplier(() -> new StsCredentials("key", "secret", "token"))
+            .withRefreshInterval(Duration.ofHours(1))
+            .build();
+    GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+    builder.withCredentialsOverrider(overrider);
+
+    Assertions.assertThrows(UnSupportedOperationException.class, builder::build);
+  }
+
+  @Test
+  void acceptsTheOverriderTypesThatSigningHonors() {
+    GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+    builder.withCredentialsOverrider(
+        new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE).withRole("sa").build());
+
+    Assertions.assertEquals("gcp", builder.build().getProviderId());
   }
 
   @Test

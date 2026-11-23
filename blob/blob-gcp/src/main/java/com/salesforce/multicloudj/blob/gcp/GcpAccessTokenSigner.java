@@ -6,6 +6,7 @@ import com.google.api.client.http.UrlEncodedContent;
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.json.JsonObjectParser;
 import com.google.api.client.json.gson.GsonFactory;
+import com.google.auth.Credentials;
 import com.google.auth.ServiceAccountSigner;
 import com.google.auth.http.HttpTransportFactory;
 import com.google.auth.oauth2.AccessToken;
@@ -15,6 +16,7 @@ import com.google.cloud.ServiceOptions;
 import com.google.cloud.http.HttpTransportOptions;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.gcp.RefreshableSessionCredentials;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -37,16 +39,29 @@ final class GcpAccessTokenSigner {
   // Only the latest token's signer is kept so rotated tokens do not accumulate.
   private volatile CachedSigner cached;
 
-  /** Returns a signer when the credentials are a bare access token, otherwise empty. */
+  /**
+   * Returns a signer when the credentials are a bare access token or {@link
+   * RefreshableSessionCredentials}, otherwise empty.
+   */
   Optional<ServiceAccountSigner> signerFor(ServiceOptions<?, ?> options) {
     // Subclasses (service account, user, impersonated, external account) can sign or refresh
-    // themselves, so only the plain GoogleCredentials type is handled here.
+    // themselves, so only the plain GoogleCredentials type and the token-only refreshable type
+    // are handled here.
     if (options == null
         || options.getCredentials() == null
-        || options.getCredentials().getClass() != GoogleCredentials.class) {
+        || !isTokenOnly(options.getCredentials())) {
       return Optional.empty();
     }
     GoogleCredentials credentials = (GoogleCredentials) options.getCredentials();
+    if (credentials instanceof RefreshableSessionCredentials) {
+      // getAccessToken() returns the last cached token, which these credentials only replace on
+      // refresh.
+      try {
+        credentials.refreshIfExpired();
+      } catch (IOException e) {
+        throw new SubstrateSdkException("Failed to obtain the current access token", e);
+      }
+    }
     AccessToken accessToken = credentials.getAccessToken();
     if (accessToken == null || accessToken.getTokenValue() == null) {
       return Optional.empty();
@@ -58,6 +73,11 @@ final class GcpAccessTokenSigner {
       return Optional.of(current.signer());
     }
     return Optional.of(buildSigner(options, credentials, tokenValue));
+  }
+
+  private static boolean isTokenOnly(Credentials credentials) {
+    return credentials.getClass() == GoogleCredentials.class
+        || credentials instanceof RefreshableSessionCredentials;
   }
 
   // Synchronized so concurrent callers with a new token resolve the signer once and share it.
