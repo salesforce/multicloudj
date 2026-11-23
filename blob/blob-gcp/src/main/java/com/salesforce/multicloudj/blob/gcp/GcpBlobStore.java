@@ -128,6 +128,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -156,6 +157,8 @@ public class GcpBlobStore extends AbstractBlobStore {
   private final GcpAccessTokenSigner accessTokenSigner = new GcpAccessTokenSigner();
   private static final String TAG_PREFIX = "gcp-tag-";
   private static final String RESPONSE_CONTENT_DISPOSITION = "response-content-disposition";
+  private static final Set<Integer> RETRYABLE_HTTP_STATUS_CODES =
+      Set.of(408, 429, 500, 502, 503, 504);
 
   public GcpBlobStore() {
     this(new Builder(), null, null, null);
@@ -1633,17 +1636,23 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   public SubstrateSdkException mapException(Throwable t) {
-    // google-http-client reports non-2xx responses as the checked HttpResponseException, which
-    // arrives wrapped in a generic SubstrateSdkException. Only the generic type is classified by
-    // the response status; specific subtypes are already classified and pass through unchanged.
+    // google-http-client surfaces non-2xx responses as HttpResponseException, wrapped either in a
+    // generic SubstrateSdkException or, by the XML multipart upload API, in a StorageException with
+    // code 0 that loses the status. Those are classified by the response status, with the
+    // retryable statuses of google-cloud-storage; specific subtypes are already classified.
     HttpResponseException httpResponseException =
         ExceptionUtils.throwableOfType(t, HttpResponseException.class);
-    Throwable source = t;
+    if (httpResponseException != null
+        && (t.getClass() == SubstrateSdkException.class
+            || (t instanceof StorageException && ((StorageException) t).getCode() == 0))) {
+      int status = httpResponseException.getStatusCode();
+      return ExceptionHandler.build(
+          CommonErrorCodeMapping.getException(status),
+          httpResponseException,
+          RETRYABLE_HTTP_STATUS_CODES.contains(status));
+    }
     Class<? extends SubstrateSdkException> exceptionClass;
-    if (t.getClass() == SubstrateSdkException.class && httpResponseException != null) {
-      exceptionClass = CommonErrorCodeMapping.getException(httpResponseException.getStatusCode());
-      source = httpResponseException;
-    } else if (t instanceof ApiException) {
+    if (t instanceof ApiException) {
       exceptionClass = CommonErrorCodeMapping.getException((ApiException) t);
     } else if (t instanceof StorageException) {
       exceptionClass = CommonErrorCodeMapping.getException(((StorageException) t).getCode());
@@ -1652,7 +1661,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     } else {
       exceptionClass = UnknownException.class;
     }
-    return ExceptionHandler.build(exceptionClass, source, GcpRetryClassifier.classify(source));
+    return ExceptionHandler.build(exceptionClass, t, GcpRetryClassifier.classify(t));
   }
 
   /** Closes the underlying GCP Storage clients and releases any resources. */

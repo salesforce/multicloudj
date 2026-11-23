@@ -121,6 +121,7 @@ import com.salesforce.multicloudj.common.exceptions.BatchOperationException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ItemFailure;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
@@ -2305,6 +2306,56 @@ class GcpBlobStoreTest {
 
     assertInstanceOf(UnAuthorizedException.class, mapped);
     assertEquals(unauthorized, mapped.getCause());
+  }
+
+  @Test
+  void testMapException_StatuslessStorageExceptionWithTransientResponseIsRetryable() {
+    HttpResponseException unavailable =
+        new HttpResponseException.Builder(503, "Service Unavailable", new HttpHeaders()).build();
+
+    SubstrateSdkException mapped =
+        gcpBlobStore.mapException(new StorageException(0, "503 Service Unavailable", unavailable));
+
+    assertInstanceOf(UnknownException.class, mapped);
+    assertTrue(mapped.isRetryable());
+    assertEquals(unavailable, mapped.getCause());
+  }
+
+  @Test
+  void testMapException_StatuslessStorageExceptionUsesResponseStatus() {
+    HttpResponseException notFound =
+        new HttpResponseException.Builder(404, "Not Found", new HttpHeaders()).build();
+
+    SubstrateSdkException mapped =
+        gcpBlobStore.mapException(new StorageException(0, "404 Not Found", notFound));
+
+    assertInstanceOf(ResourceNotFoundException.class, mapped);
+    assertFalse(mapped.isRetryable());
+  }
+
+  @Test
+  void testMapException_StatuslessStorageExceptionWithUnmappedClientErrorIsNotRetryable() {
+    HttpResponseException rangeNotSatisfiable =
+        new HttpResponseException.Builder(416, "Range Not Satisfiable", new HttpHeaders()).build();
+
+    SubstrateSdkException mapped =
+        gcpBlobStore.mapException(
+            new StorageException(0, "416 Range Not Satisfiable", rangeNotSatisfiable));
+
+    assertInstanceOf(UnknownException.class, mapped);
+    assertFalse(mapped.isRetryable());
+  }
+
+  @Test
+  void testMapException_StorageExceptionWithStatusKeepsItsOwnCode() {
+    HttpResponseException unavailable =
+        new HttpResponseException.Builder(503, "Service Unavailable", new HttpHeaders()).build();
+    StorageException conflict = new StorageException(409, "Conflict", unavailable);
+
+    SubstrateSdkException mapped = gcpBlobStore.mapException(conflict);
+
+    assertInstanceOf(ResourceConflictException.class, mapped);
+    assertEquals(conflict, mapped.getCause());
   }
 
   @Test
