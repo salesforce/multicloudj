@@ -3,12 +3,17 @@ package com.salesforce.multicloudj.registry.driver;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.retries.RetryExecutor;
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.util.Date;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
+import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLPeerUnverifiedException;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -20,10 +25,10 @@ import org.apache.http.util.EntityUtils;
 /**
  * Executes registry HTTP requests with the retry behavior described by a {@link RetryConfig}.
  *
- * <p>I/O failures and HTTP 429, 500, 502, 503 and 504 responses are retried. When the retries run
- * out, the last response is returned (or the last {@link IOException} is thrown) so the caller
- * maps it the same way as a request that was never retried. Only obtaining the response is
- * retried; a failure while the caller reads a returned body stream is not.
+ * <p>Transient I/O failures and HTTP 429, 500, 502, 503 and 504 responses are retried. When the
+ * retries run out, the last response is returned (or the last {@link IOException} is thrown) so
+ * the caller maps it the same way as a request that was never retried. Only obtaining the
+ * response is retried; a failure while the caller reads a returned body stream is not.
  *
  * <p>Exponential delays get equal jitter (between half and all of the computed delay) so clients
  * throttled or failed together do not retry in lockstep; fixed delays are used as configured. For
@@ -109,9 +114,17 @@ class HttpRetryExecutor {
   private final class ResponseRetryPolicy
       implements RetryExecutor.RetryPolicy<CloseableHttpResponse> {
 
+    /**
+     * Rejects failures that another attempt cannot fix: an unresolvable host, a TLS handshake or
+     * certificate failure, and an HTTP protocol violation such as a redirect loop. Other I/O
+     * failures, including connection resets and timeouts, are treated as transient.
+     */
     @Override
     public boolean isRetryable(IOException error) {
-      return true;
+      return !(error instanceof UnknownHostException
+          || error instanceof SSLHandshakeException
+          || error instanceof SSLPeerUnverifiedException
+          || error instanceof ClientProtocolException);
     }
 
     @Override
@@ -145,7 +158,8 @@ class HttpRetryExecutor {
     }
     String value = header.getValue().trim();
     try {
-      return Math.max(0L, Long.parseLong(value) * 1000L);
+      // toMillis saturates instead of overflowing, so an oversized value still means "wait long".
+      return Math.max(0L, TimeUnit.SECONDS.toMillis(Long.parseLong(value)));
     } catch (NumberFormatException e) {
       Date date = DateUtils.parseDate(value);
       return date != null ? Math.max(0L, date.getTime() - wallClockMillis.getAsLong()) : null;

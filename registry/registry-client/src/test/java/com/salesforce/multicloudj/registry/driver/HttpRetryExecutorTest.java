@@ -13,14 +13,21 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.retries.RetryConfig;
+import com.salesforce.multicloudj.common.retries.RetryExecutor;
 import java.io.IOException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
+import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLPeerUnverifiedException;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
 import org.apache.http.StatusLine;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -32,6 +39,7 @@ import org.apache.http.message.BasicHeader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 
@@ -160,6 +168,50 @@ class HttpRetryExecutorTest {
 
     assertSame(ok, executor(FIXED_CONFIG).execute(httpClient, REQUEST));
     verify(httpClient, times(2)).execute(REQUEST);
+  }
+
+  static Stream<IOException> permanentIoFailures() {
+    return Stream.of(
+        new UnknownHostException("no.such.registry"),
+        new SSLHandshakeException("handshake failed"),
+        new SSLPeerUnverifiedException("peer not verified"),
+        new ClientProtocolException("circular redirect"));
+  }
+
+  @ParameterizedTest
+  @MethodSource("permanentIoFailures")
+  void testPermanentIoException_NotRetried(IOException failure) throws Exception {
+    when(httpClient.execute(any(HttpUriRequest.class))).thenThrow(failure);
+
+    IOException thrown =
+        assertThrows(IOException.class, () -> executor(FIXED_CONFIG).execute(httpClient, REQUEST));
+    assertSame(failure, thrown);
+    verify(httpClient, times(1)).execute(REQUEST);
+    assertTrue(sleeps.isEmpty());
+  }
+
+  @Test
+  void testSocketTimeout_Retried() throws Exception {
+    CloseableHttpResponse ok = response(HttpStatus.SC_OK);
+    when(httpClient.execute(any(HttpUriRequest.class)))
+        .thenThrow(new SocketTimeoutException("read timed out"))
+        .thenReturn(ok);
+
+    assertSame(ok, executor(FIXED_CONFIG).execute(httpClient, REQUEST));
+    verify(httpClient, times(2)).execute(REQUEST);
+  }
+
+  @Test
+  void testRetryAfterOversizedSeconds_WaitsMaxDelay() throws Exception {
+    CloseableHttpResponse throttled = response(HttpStatus.SC_TOO_MANY_REQUESTS);
+    when(throttled.getFirstHeader(HttpHeaders.RETRY_AFTER))
+        .thenReturn(new BasicHeader(HttpHeaders.RETRY_AFTER, "9999999999999999"));
+    CloseableHttpResponse ok = response(HttpStatus.SC_OK);
+    when(httpClient.execute(any(HttpUriRequest.class))).thenReturn(throttled, ok);
+
+    executor(FIXED_CONFIG).execute(httpClient, REQUEST);
+
+    assertEquals(List.of(RetryExecutor.DEFAULT_MAX_DELAY_MILLIS), sleeps);
   }
 
   @Test
