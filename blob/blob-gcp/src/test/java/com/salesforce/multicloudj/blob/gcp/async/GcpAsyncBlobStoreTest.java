@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -22,6 +23,7 @@ import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.MultipartUploadClient;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.transfermanager.TransferManager;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
@@ -67,6 +69,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -541,6 +544,47 @@ class GcpAsyncBlobStoreTest {
 
     assertEquals(expected, actual);
     verify(mockBlobStore).mapException(testException);
+  }
+
+  @Test
+  void testMapException_UnwrapsFailureOfAsyncOperation() {
+    MultipartUpload mpu =
+        MultipartUpload.builder().bucket(TEST_BUCKET).key(TEST_KEY).id("upload-id").build();
+    MultipartPart part = new MultipartPart(1, new byte[] {1});
+    StorageException failure = new StorageException(0, "503 Service Unavailable");
+    SubstrateSdkException expected = new UnknownException(failure);
+    doThrow(failure).when(mockBlobStore).uploadMultipartPart(mpu, part);
+    doReturn(expected).when(mockBlobStore).mapException(failure);
+
+    Throwable asyncFailure =
+        gcpAsyncBlobStore.uploadMultipartPart(mpu, part).handle((r, e) -> e).join();
+
+    assertInstanceOf(CompletionException.class, asyncFailure);
+    assertSame(expected, gcpAsyncBlobStore.mapException(asyncFailure));
+    verify(mockBlobStore).mapException(failure);
+  }
+
+  @Test
+  void testMapException_UnwrapsNestedCompletionException() {
+    StorageException failure = new StorageException(404, "Not Found");
+    SubstrateSdkException expected = new UnknownException(failure);
+    doReturn(expected).when(mockBlobStore).mapException(failure);
+
+    SubstrateSdkException actual =
+        gcpAsyncBlobStore.mapException(
+            new CompletionException(new CompletionException(failure)));
+
+    assertSame(expected, actual);
+    verify(mockBlobStore).mapException(failure);
+  }
+
+  @Test
+  void testMapException_CompletionExceptionWithoutCauseIsClassifiedAsIs() {
+    CompletionException failure = new CompletionException("no cause", null);
+    SubstrateSdkException expected = new UnknownException(failure);
+    doReturn(expected).when(mockBlobStore).mapException(failure);
+
+    assertSame(expected, gcpAsyncBlobStore.mapException(failure));
   }
 
   @Test

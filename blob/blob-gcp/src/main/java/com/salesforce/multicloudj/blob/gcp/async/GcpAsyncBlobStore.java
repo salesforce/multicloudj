@@ -9,6 +9,7 @@ import com.salesforce.multicloudj.blob.gcp.GcpBlobStore;
 import com.salesforce.multicloudj.blob.gcp.GcpTransformerSupplier;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import lombok.Getter;
 
@@ -46,6 +47,19 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
     this.storage = storage;
     this.transformerSupplier = transformerSupplier;
     this.useTransferListener = Boolean.TRUE.equals(useTransferListener);
+  }
+
+  /**
+   * Operations run the synchronous store on the executor, so failures arrive wrapped in {@link
+   * CompletionException}; the wrapped failure is classified exactly as the synchronous store does.
+   */
+  @Override
+  public SubstrateSdkException mapException(Throwable t) {
+    Throwable failure = t;
+    while (failure instanceof CompletionException && failure.getCause() != null) {
+      failure = failure.getCause();
+    }
+    return super.mapException(failure);
   }
 
   /**
