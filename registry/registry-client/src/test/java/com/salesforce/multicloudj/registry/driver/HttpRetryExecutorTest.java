@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -13,7 +14,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.retries.RetryConfig;
-import com.salesforce.multicloudj.common.retries.RetryExecutor;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
@@ -141,6 +141,17 @@ class HttpRetryExecutorTest {
   }
 
   @Test
+  void testRetryableStatus_CloseFailureDoesNotStopRetries() throws Exception {
+    CloseableHttpResponse failure = response(HttpStatus.SC_SERVICE_UNAVAILABLE);
+    doThrow(new IOException("close failed")).when(failure).close();
+    CloseableHttpResponse ok = response(HttpStatus.SC_OK);
+    when(httpClient.execute(any(HttpUriRequest.class))).thenReturn(failure, ok);
+
+    assertSame(ok, executor(FIXED_CONFIG).execute(httpClient, REQUEST));
+    verify(httpClient, times(2)).execute(REQUEST);
+  }
+
+  @Test
   void testExponentialBackoff_AppliesEqualJitter() throws Exception {
     RetryConfig config =
         RetryConfig.builder()
@@ -201,17 +212,20 @@ class HttpRetryExecutorTest {
     verify(httpClient, times(2)).execute(REQUEST);
   }
 
-  @Test
-  void testRetryAfterOversizedSeconds_WaitsMaxDelay() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"120", "9999999999999999"})
+  void testRetryAfterBeyondMaxDelay_ReturnsResponseWithoutRetry(String retryAfter)
+      throws Exception {
     CloseableHttpResponse throttled = response(HttpStatus.SC_TOO_MANY_REQUESTS);
     when(throttled.getFirstHeader(HttpHeaders.RETRY_AFTER))
-        .thenReturn(new BasicHeader(HttpHeaders.RETRY_AFTER, "9999999999999999"));
+        .thenReturn(new BasicHeader(HttpHeaders.RETRY_AFTER, retryAfter));
     CloseableHttpResponse ok = response(HttpStatus.SC_OK);
     when(httpClient.execute(any(HttpUriRequest.class))).thenReturn(throttled, ok);
 
-    executor(FIXED_CONFIG).execute(httpClient, REQUEST);
-
-    assertEquals(List.of(RetryExecutor.DEFAULT_MAX_DELAY_MILLIS), sleeps);
+    assertSame(throttled, executor(FIXED_CONFIG).execute(httpClient, REQUEST));
+    verify(httpClient, times(1)).execute(REQUEST);
+    verify(throttled, never()).close();
+    assertTrue(sleeps.isEmpty());
   }
 
   @Test

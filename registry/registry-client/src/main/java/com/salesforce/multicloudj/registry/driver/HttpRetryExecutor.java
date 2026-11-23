@@ -32,7 +32,8 @@ import org.apache.http.util.EntityUtils;
  *
  * <p>Exponential delays get equal jitter (between half and all of the computed delay) so clients
  * throttled or failed together do not retry in lockstep; fixed delays are used as configured. For
- * 429 and 503 responses, a {@code Retry-After} header lengthens the delay up to the maximum delay.
+ * 429 and 503 responses, a {@code Retry-After} header lengthens the delay; one longer than the
+ * maximum delay ends the retries and the response is returned to the caller.
  * Without a RetryConfig, each request is sent exactly once.
  */
 class HttpRetryExecutor {
@@ -144,10 +145,18 @@ class HttpRetryExecutor {
       return retryAfter != null ? retryAfter : 0L;
     }
 
+    /**
+     * Releases the connection quietly: a failure to close a response that is being thrown away
+     * must not hide the retryable status or cancel the remaining attempts.
+     */
     @Override
-    public void discard(CloseableHttpResponse response) throws IOException {
+    public void discard(CloseableHttpResponse response) {
       EntityUtils.consumeQuietly(response.getEntity());
-      response.close();
+      try {
+        response.close();
+      } catch (IOException ignored) {
+        // The next attempt opens its own connection.
+      }
     }
   }
 

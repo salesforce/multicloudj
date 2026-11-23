@@ -206,7 +206,24 @@ class RetryExecutorTest {
   }
 
   @Test
-  void testMinDelay_IsCappedAtMaxDelay() throws Exception {
+  void testMinDelayAboveMaxDelay_ReturnsResultWithoutRetry() throws Exception {
+    RetryConfig config =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.EXPONENTIAL)
+            .maxAttempts(2)
+            .initialDelayMillis(100L)
+            .maxDelayMillis(1_500L)
+            .build();
+    TestPolicy policy = new TestPolicy(true, 60_000L);
+
+    assertEquals("busy", executor(config).execute(attempt("busy", "ok"), policy));
+    assertEquals(1, attempts.get());
+    assertTrue(sleeps.isEmpty());
+    assertTrue(policy.discarded.isEmpty());
+  }
+
+  @Test
+  void testMinDelayEqualToMaxDelay_Retries() throws Exception {
     RetryConfig config =
         RetryConfig.builder()
             .mode(RetryConfig.Mode.EXPONENTIAL)
@@ -215,7 +232,7 @@ class RetryExecutorTest {
             .maxDelayMillis(1_500L)
             .build();
 
-    executor(config).execute(attempt("busy", "ok"), new TestPolicy(true, 60_000L));
+    executor(config).execute(attempt("busy", "ok"), new TestPolicy(true, 1_500L));
 
     assertEquals(List.of(1_500L), sleeps);
   }

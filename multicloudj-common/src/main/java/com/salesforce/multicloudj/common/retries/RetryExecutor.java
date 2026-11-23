@@ -48,8 +48,9 @@ public final class RetryExecutor {
 
     /**
      * Returns the minimum delay in milliseconds the result asks for before the next attempt, such
-     * as a server's Retry-After value. It lengthens the backoff delay up to the maximum delay and
-     * never shortens it.
+     * as a server's Retry-After value. It lengthens the backoff delay and never shortens it. When
+     * it exceeds the maximum delay, the result is returned without another attempt, since retrying
+     * sooner than asked is likely to fail the same way.
      */
     default long minDelayMillis(T result) {
       return 0L;
@@ -171,7 +172,10 @@ public final class RetryExecutor {
       if (!policy.isRetryable(result)) {
         return result;
       }
-      long minDelay = Math.min(policy.minDelayMillis(result), maxDelayMillis());
+      long minDelay = policy.minDelayMillis(result);
+      if (minDelay > maxDelayMillis()) {
+        return result;
+      }
       long delay = Math.max(backoffDelay(attemptNumber), minDelay);
       if (!canRetry(attemptNumber, maxAttempts, delay, deadline)) {
         return result;
@@ -187,7 +191,7 @@ public final class RetryExecutor {
    * @param failedAttempt the attempt that failed, starting at 1
    * @return the delay in milliseconds
    */
-  public long computeDelay(int failedAttempt) {
+  long computeDelay(int failedAttempt) {
     if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
       return retryConfig.getFixedDelayMillis();
     }
