@@ -128,7 +128,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -157,8 +156,6 @@ public class GcpBlobStore extends AbstractBlobStore {
   private final GcpAccessTokenSigner accessTokenSigner = new GcpAccessTokenSigner();
   private static final String TAG_PREFIX = "gcp-tag-";
   private static final String RESPONSE_CONTENT_DISPOSITION = "response-content-disposition";
-  private static final Set<Integer> RETRYABLE_HTTP_STATUS_CODES =
-      Set.of(408, 429, 500, 502, 503, 504);
 
   public GcpBlobStore() {
     this(new Builder(), null, null, null);
@@ -1638,18 +1635,18 @@ public class GcpBlobStore extends AbstractBlobStore {
   public SubstrateSdkException mapException(Throwable t) {
     // google-http-client surfaces non-2xx responses as HttpResponseException, wrapped either in a
     // generic SubstrateSdkException or, by the XML multipart upload API, in a StorageException with
-    // code 0 that loses the status. Those are classified by the response status, with the
-    // retryable statuses of google-cloud-storage; specific subtypes are already classified.
+    // code 0 that loses the status. Those are classified by the response status, with retryability
+    // decided by google-cloud-storage itself; specific subtypes are already classified.
     HttpResponseException httpResponseException =
         ExceptionUtils.throwableOfType(t, HttpResponseException.class);
     if (httpResponseException != null
         && (t.getClass() == SubstrateSdkException.class
             || (t instanceof StorageException && ((StorageException) t).getCode() == 0))) {
-      int status = httpResponseException.getStatusCode();
+      StorageException responseError = new StorageException(httpResponseException);
       return ExceptionHandler.build(
-          CommonErrorCodeMapping.getException(status),
+          CommonErrorCodeMapping.getException(responseError.getCode()),
           httpResponseException,
-          RETRYABLE_HTTP_STATUS_CODES.contains(status));
+          responseError.isRetryable());
     }
     Class<? extends SubstrateSdkException> exceptionClass;
     if (t instanceof ApiException) {
