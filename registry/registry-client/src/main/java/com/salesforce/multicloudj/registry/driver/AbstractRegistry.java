@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.provider.Provider;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.registry.model.Image;
 import com.salesforce.multicloudj.registry.model.Layer;
 import com.salesforce.multicloudj.registry.model.Manifest;
@@ -29,6 +30,7 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable {
   protected final String region;
   protected final URI proxyEndpoint;
   protected final CredentialsOverrider credentialsOverrider;
+  protected final RetryConfig retryConfig;
   @Getter protected final Platform targetPlatform;
 
   private final OciHttpTransport ociClient;
@@ -39,10 +41,11 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable {
     this.region = builder.getRegion();
     this.proxyEndpoint = builder.getProxyEndpoint();
     this.credentialsOverrider = builder.getCredentialsOverrider();
+    this.retryConfig = builder.getRetryConfig();
     this.targetPlatform = builder.getPlatform() != null ? builder.getPlatform() : Platform.DEFAULT;
     this.ociClient =
         registryEndpoint != null
-            ? new OciHttpTransport(registryEndpoint, this, builder.getHttpClient())
+            ? new OciHttpTransport(registryEndpoint, this, builder.getHttpClient(), retryConfig)
             : null;
   }
 
@@ -236,6 +239,7 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable {
     protected CredentialsOverrider credentialsOverrider;
     protected Platform platform;
     protected CloseableHttpClient httpClient;
+    protected RetryConfig retryConfig;
 
     public T withHttpClient(CloseableHttpClient httpClient) {
       this.httpClient = httpClient;
@@ -264,6 +268,21 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable {
 
     public T withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
       this.credentialsOverrider = credentialsOverrider;
+      return self();
+    }
+
+    /**
+     * Sets the retry configuration for registry requests.
+     *
+     * @param retryConfig the retry configuration, or null to send each request once
+     * @return this builder
+     * @throws InvalidArgumentException if the retry configuration is invalid
+     */
+    public T withRetryConfig(RetryConfig retryConfig) {
+      if (retryConfig != null) {
+        retryConfig.validate();
+      }
+      this.retryConfig = retryConfig;
       return self();
     }
 

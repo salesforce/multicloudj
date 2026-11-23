@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.registry.client;
 
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
 import com.salesforce.multicloudj.registry.model.Image;
 import com.salesforce.multicloudj.registry.model.Platform;
@@ -92,6 +93,17 @@ public class ContainerRegistryClient implements AutoCloseable {
     public ContainerRegistryClientBuilder withCredentialsOverrider(
         CredentialsOverrider credentialsOverrider) {
       this.registryBuilder.withCredentialsOverrider(credentialsOverrider);
+      return this;
+    }
+
+    /**
+     * Sets the retry configuration for registry requests. Without one, each request is sent once.
+     *
+     * @param retryConfig the retry configuration to use for retrying failed requests
+     * @return this ContainerRegistryClientBuilder instance
+     */
+    public ContainerRegistryClientBuilder withRetryConfig(RetryConfig retryConfig) {
+      this.registryBuilder.withRetryConfig(retryConfig);
       return this;
     }
 

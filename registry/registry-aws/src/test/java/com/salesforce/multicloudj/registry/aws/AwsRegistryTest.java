@@ -18,8 +18,10 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.registry.driver.AuthChallenge;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Collections;
@@ -34,6 +36,7 @@ import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.services.ecr.EcrClient;
 import software.amazon.awssdk.services.ecr.model.AuthorizationData;
 import software.amazon.awssdk.services.ecr.model.GetAuthorizationTokenRequest;
@@ -348,5 +351,27 @@ class AwsRegistryTest {
         registry ->
             assertInstanceOf(
                 expected, registry.mapException(input)));
+  }
+
+  @Test
+  void testBuildEcrClient_AppliesRetryConfig() {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(4)
+            .fixedDelayMillis(100L)
+            .attemptTimeout(2000L)
+            .totalTimeout(10000L)
+            .build();
+    AwsRegistry.Builder builder =
+        new AwsRegistry.Builder().withRegion(TEST_REGION).withRetryConfig(retryConfig);
+
+    try (EcrClient client = builder.buildEcrClient()) {
+      ClientOverrideConfiguration config =
+          client.serviceClientConfiguration().overrideConfiguration();
+      assertEquals(4, config.retryStrategy().get().maxAttempts());
+      assertEquals(Duration.ofMillis(2000), config.apiCallAttemptTimeout().get());
+      assertEquals(Duration.ofMillis(10000), config.apiCallTimeout().get());
+    }
   }
 }

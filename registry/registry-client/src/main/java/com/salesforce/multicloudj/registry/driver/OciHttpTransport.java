@@ -9,6 +9,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.registry.model.Manifest;
 import com.salesforce.multicloudj.registry.model.Platform;
 import java.io.FilterInputStream;
@@ -56,6 +57,7 @@ public class OciHttpTransport implements AutoCloseable {
   private final String registryEndpoint;
   private final CloseableHttpClient httpClient;
   private final AbstractRegistry registry;
+  private final HttpRetryExecutor retryExecutor;
 
   /** Lock for thread-safe lazy initialization of cachedChallenge. */
   private final Object challengeLock = new Object();
@@ -85,12 +87,34 @@ public class OciHttpTransport implements AutoCloseable {
    */
   public OciHttpTransport(
       String registryEndpoint, AbstractRegistry registry, CloseableHttpClient httpClient) {
+    this(registryEndpoint, registry, httpClient, null);
+  }
+
+  /**
+   * Creates OciHttpTransport with a specified HttpClient and retry configuration.
+   *
+   * <p>Retries apply to every registry request, including on a provided HttpClient. The attempt
+   * timeout is only applied to the default HttpClient; a provided HttpClient keeps its own
+   * timeouts.
+   *
+   * @param registryEndpoint the registry base URL
+   * @param registry the registry (also serves as AuthProvider)
+   * @param httpClient the HTTP client to use (null to create default)
+   * @param retryConfig the retry configuration (null to send each request once)
+   */
+  public OciHttpTransport(
+      String registryEndpoint,
+      AbstractRegistry registry,
+      CloseableHttpClient httpClient,
+      RetryConfig retryConfig) {
     this.registryEndpoint = registryEndpoint;
     this.registry = registry;
+    this.retryExecutor = new HttpRetryExecutor(retryConfig);
     if (httpClient != null) {
       this.httpClient = httpClient;
     } else {
-      HttpClientBuilder builder = HttpClients.custom();
+      HttpClientBuilder builder =
+          HttpRetryExecutor.configureClient(HttpClients.custom(), retryConfig);
       for (HttpRequestInterceptor interceptor : registry.getInterceptors()) {
         builder.addInterceptorLast(interceptor);
       }
@@ -111,7 +135,7 @@ public class OciHttpTransport implements AutoCloseable {
     if (cachedChallenge == null) {
       synchronized (challengeLock) {
         if (cachedChallenge == null) {
-          cachedChallenge = AuthChallenge.discover(httpClient, registryEndpoint);
+          cachedChallenge = AuthChallenge.discover(httpClient, registryEndpoint, retryExecutor);
         }
       }
     }
@@ -156,7 +180,7 @@ public class OciHttpTransport implements AutoCloseable {
 
   private Manifest executeFetchManifestRequest(
       HttpGet request, String repository, String reference) throws IOException {
-    try (CloseableHttpResponse response = httpClient.execute(request)) {
+    try (CloseableHttpResponse response = retryExecutor.execute(httpClient, request)) {
       int statusCode = response.getStatusLine().getStatusCode();
       if (statusCode != HttpStatus.SC_OK) {
         String errorBody =
@@ -403,7 +427,7 @@ public class OciHttpTransport implements AutoCloseable {
     }
 
     try {
-      CloseableHttpResponse response = httpClient.execute(request);
+      CloseableHttpResponse response = retryExecutor.execute(httpClient, request);
       int statusCode = response.getStatusLine().getStatusCode();
 
       if (statusCode != HttpStatus.SC_OK) {
