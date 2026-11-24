@@ -59,7 +59,11 @@ import com.salesforce.multicloudj.kms.model.PrincipalType;
 import com.salesforce.multicloudj.kms.model.ProtectionLevel;
 import com.salesforce.multicloudj.kms.model.WrappingAlgorithm;
 import com.salesforce.multicloudj.kms.model.WrappingKeySpec;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import com.salesforce.multicloudj.sts.model.CredentialsType;
+import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
@@ -617,6 +621,19 @@ class AliKmsTest {
   @Test
   void buildWithoutRegionOrEndpointFails() {
     assertThrows(InvalidArgumentException.class, () -> new AliKms.Builder().build());
+  }
+
+  @Test
+  void buildWithRefreshableSessionCredentialsIsRejected() {
+    CredentialsOverrider overrider =
+        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+            .withSessionCredentialsSupplier(() -> new StsCredentials("key", "secret", "token"))
+            .withRefreshInterval(Duration.ofMinutes(1))
+            .build();
+
+    assertThrows(
+        UnSupportedOperationException.class,
+        () -> new AliKms.Builder().withRegion(REGION).withCredentialsOverrider(overrider).build());
   }
 
   @Test

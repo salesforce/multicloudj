@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.blob.ali;
 import com.aliyun.sdk.service.oss2.credentials.Credentials;
 import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
 import com.aliyun.sdk.service.oss2.credentials.StaticCredentialsProvider;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.sts.client.StsClient;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -34,6 +35,9 @@ public class OssCredentialsProvider {
             overrider.getRole(),
             overrider.getSessionName(),
             duration);
+      case REFRESHABLE_SESSION:
+        throw new UnSupportedOperationException(
+            "REFRESHABLE_SESSION credentials are not supported yet for the blob store");
       default:
         return null;
     }
