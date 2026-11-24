@@ -25,12 +25,18 @@ import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.registry.driver.AuthChallenge;
 import com.salesforce.multicloudj.registry.driver.BearerTokenExchange;
 import com.salesforce.multicloudj.registry.model.Platform;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.IOException;
 import java.util.Date;
+import org.apache.http.HttpStatus;
+import org.apache.http.StatusLine;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.junit.jupiter.api.Test;
@@ -448,5 +454,46 @@ class GcpRegistryTest {
               .getMessage()
               .contains("Failed to refresh GCP credentials"));
     }
+  }
+
+  @Test
+  void testGetAuthorizationHeader_RetriesTokenExchange_WhenRetryConfigSet() throws Exception {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(3)
+            .fixedDelayMillis(1L)
+            .build();
+    GoogleCredentials credentials = mock(GoogleCredentials.class);
+    when(credentials.getAccessToken())
+        .thenReturn(
+            new AccessToken("identity-token", new Date(System.currentTimeMillis() + 3600000)));
+
+    CloseableHttpResponse unavailable = mockHttpResponse(HttpStatus.SC_SERVICE_UNAVAILABLE);
+    CloseableHttpResponse ok = mockHttpResponse(HttpStatus.SC_OK);
+    when(ok.getEntity()).thenReturn(new StringEntity("{\"access_token\": \"bearer-token\"}"));
+    CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
+    when(httpClient.execute(any(HttpGet.class))).thenReturn(unavailable, ok);
+
+    GcpRegistry registry =
+        new GcpRegistry(
+            new GcpRegistry.Builder()
+                .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT)
+                .withRetryConfig(retryConfig),
+            httpClient,
+            credentials);
+
+    assertEquals(
+        "Bearer bearer-token", registry.getAuthorizationHeader(BEARER_CHALLENGE, TEST_REPOSITORY));
+    verify(httpClient, times(2)).execute(any(HttpGet.class));
+    registry.close();
+  }
+
+  private static CloseableHttpResponse mockHttpResponse(int statusCode) {
+    CloseableHttpResponse response = mock(CloseableHttpResponse.class);
+    StatusLine statusLine = mock(StatusLine.class);
+    when(statusLine.getStatusCode()).thenReturn(statusCode);
+    when(response.getStatusLine()).thenReturn(statusLine);
+    return response;
   }
 }

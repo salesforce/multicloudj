@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -30,6 +31,7 @@ public class BearerTokenExchange {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final CloseableHttpClient httpClient;
+  private final HttpRetryExecutor retryExecutor;
 
   /**
    * Creates a new BearerTokenExchange instance.
@@ -37,7 +39,18 @@ public class BearerTokenExchange {
    * @param httpClient the HTTP client to use for requests
    */
   public BearerTokenExchange(CloseableHttpClient httpClient) {
+    this(httpClient, null);
+  }
+
+  /**
+   * Creates a new BearerTokenExchange instance that retries token requests.
+   *
+   * @param httpClient the HTTP client to use for requests
+   * @param retryConfig the retry configuration (null for the HTTP client's default retry behavior)
+   */
+  public BearerTokenExchange(CloseableHttpClient httpClient, RetryConfig retryConfig) {
     this.httpClient = httpClient;
+    this.retryExecutor = new HttpRetryExecutor(retryConfig);
   }
 
   /**
@@ -74,7 +87,7 @@ public class BearerTokenExchange {
   }
 
   private String executeTokenRequest(HttpGet request) throws IOException {
-    try (CloseableHttpResponse response = httpClient.execute(request)) {
+    try (CloseableHttpResponse response = retryExecutor.execute(httpClient, request)) {
       int statusCode = response.getStatusLine().getStatusCode();
       if (statusCode != HttpStatus.SC_OK) {
         String errorBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);

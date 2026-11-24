@@ -6,12 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.IOException;
 import org.apache.http.HttpStatus;
 import org.apache.http.StatusLine;
@@ -304,5 +306,32 @@ public class BearerTokenExchangeTest {
                 () -> tokenExchange.getBearerToken(challenge, IDENTITY_TOKEN, REPOSITORY, "pull"))
             .getMessage()
             .contains("Invalid token endpoint URL"));
+  }
+
+  @Test
+  void testGetBearerToken_RetriesServiceUnavailable_WhenRetryConfigSet() throws IOException {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(3)
+            .fixedDelayMillis(1L)
+            .build();
+    BearerTokenExchange retryingExchange = new BearerTokenExchange(mockHttpClient, retryConfig);
+    AuthChallenge challenge =
+        AuthChallenge.parse("Bearer realm=\"" + TOKEN_ENDPOINT + "\",service=\"" + SERVICE + "\"");
+    CloseableHttpResponse unavailable = mock(CloseableHttpResponse.class);
+    StatusLine unavailableStatus = mock(StatusLine.class);
+    when(unavailableStatus.getStatusCode()).thenReturn(HttpStatus.SC_SERVICE_UNAVAILABLE);
+    when(unavailable.getStatusLine()).thenReturn(unavailableStatus);
+
+    when(mockHttpClient.execute(any(HttpGet.class))).thenReturn(unavailable, mockResponse);
+    when(mockResponse.getStatusLine()).thenReturn(mockStatusLine);
+    when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_OK);
+    when(mockResponse.getEntity()).thenReturn(new StringEntity("{\"token\": \"retried-token\"}"));
+
+    String token = retryingExchange.getBearerToken(challenge, IDENTITY_TOKEN, REPOSITORY, "pull");
+
+    assertEquals("retried-token", token);
+    verify(mockHttpClient, times(2)).execute(any(HttpGet.class));
   }
 }

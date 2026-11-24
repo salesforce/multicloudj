@@ -36,7 +36,7 @@ import org.apache.http.impl.client.HttpClientBuilder;
  * Without a RetryConfig, this executor sends each request once and only the HTTP client's own
  * retry handling applies.
  */
-class HttpRetryExecutor {
+public class HttpRetryExecutor {
 
   private static final Set<Integer> RETRYABLE_STATUS_CODES =
       Set.of(
@@ -87,7 +87,8 @@ class HttpRetryExecutor {
    * @param retryConfig the retry configuration, or null to keep the client defaults
    * @return the same builder
    */
-  static HttpClientBuilder configureClient(HttpClientBuilder builder, RetryConfig retryConfig) {
+  public static HttpClientBuilder configureClient(
+      HttpClientBuilder builder, RetryConfig retryConfig) {
     if (retryConfig == null) {
       return builder;
     }
