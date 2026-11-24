@@ -192,6 +192,24 @@ class RetryExecutorTest {
   }
 
   @Test
+  void testMaximumTotalTimeout_StillRetries() throws Exception {
+    RetryConfig config =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(3)
+            .fixedDelayMillis(50L)
+            .totalTimeout(Long.MAX_VALUE)
+            .build();
+
+    String result =
+        executor(config).execute(attempt("busy", "busy", "ok"), new TestPolicy(true, 0L));
+
+    assertEquals("ok", result);
+    assertEquals(3, attempts.get());
+    assertEquals(List.of(50L, 50L), sleeps);
+  }
+
+  @Test
   void testMinDelay_LengthensBaseDelay() throws Exception {
     executor(FIXED_CONFIG).execute(attempt("busy", "ok"), new TestPolicy(true, 2_000L));
 
@@ -235,6 +253,38 @@ class RetryExecutorTest {
     executor(config).execute(attempt("busy", "ok"), new TestPolicy(true, 1_500L));
 
     assertEquals(List.of(1_500L), sleeps);
+  }
+
+  @Test
+  void testFixedMode_MinDelayWithinFixedDelayAboveDefaultCap_Retries() throws Exception {
+    RetryConfig config =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(2)
+            .fixedDelayMillis(30_000L)
+            .build();
+
+    String result =
+        executor(config).execute(attempt("busy", "ok"), new TestPolicy(true, 25_000L));
+
+    assertEquals("ok", result);
+    assertEquals(List.of(30_000L), sleeps);
+  }
+
+  @Test
+  void testFixedMode_MinDelayAboveFixedDelayAndDefaultCap_ReturnsResultWithoutRetry()
+      throws Exception {
+    RetryConfig config =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(2)
+            .fixedDelayMillis(30_000L)
+            .build();
+
+    assertEquals(
+        "busy", executor(config).execute(attempt("busy", "ok"), new TestPolicy(true, 30_001L)));
+    assertEquals(1, attempts.get());
+    assertTrue(sleeps.isEmpty());
   }
 
   @Test

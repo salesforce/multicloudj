@@ -100,7 +100,7 @@ public class OciHttpTransport implements AutoCloseable {
    * @param registryEndpoint the registry base URL
    * @param registry the registry (also serves as AuthProvider)
    * @param httpClient the HTTP client to use (null to create default)
-   * @param retryConfig the retry configuration (null to send each request once)
+   * @param retryConfig the retry configuration (null for the HTTP client's default retry behavior)
    */
   public OciHttpTransport(
       String registryEndpoint,

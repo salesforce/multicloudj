@@ -33,8 +33,9 @@ import org.apache.http.util.EntityUtils;
  * <p>Exponential delays get equal jitter (between half and all of the computed delay) so clients
  * throttled or failed together do not retry in lockstep; fixed delays are used as configured. For
  * 429 and 503 responses, a {@code Retry-After} header lengthens the delay; one longer than the
- * maximum delay ends the retries and the response is returned to the caller.
- * Without a RetryConfig, each request is sent exactly once.
+ * retry configuration allows ends the retries and the response is returned to the caller.
+ * Without a RetryConfig, this executor sends each request once and only the HTTP client's own
+ * retry handling applies.
  */
 class HttpRetryExecutor {
 

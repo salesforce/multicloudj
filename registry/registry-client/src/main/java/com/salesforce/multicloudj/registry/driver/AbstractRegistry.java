@@ -274,7 +274,7 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable {
     /**
      * Sets the retry configuration for registry requests.
      *
-     * @param retryConfig the retry configuration, or null to send each request once
+     * @param retryConfig the retry configuration, or null for the default retry behavior
      * @return this builder
      * @throws InvalidArgumentException if the retry configuration is invalid
      */

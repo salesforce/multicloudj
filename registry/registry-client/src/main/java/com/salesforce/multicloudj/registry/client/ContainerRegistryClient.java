@@ -97,7 +97,14 @@ public class ContainerRegistryClient implements AutoCloseable {
     }
 
     /**
-     * Sets the retry configuration for registry requests. Without one, each request is sent once.
+     * Sets the retry configuration for registry requests. Without one, the default retry behavior
+     * of the provider SDK and the HTTP client applies.
+     *
+     * <p>For manifest and blob requests, attemptTimeout bounds connecting and each wait for data
+     * rather than the whole response, so a large blob that keeps streaming is not cut off, and
+     * totalTimeout is checked only before a retry starts, so an attempt in flight is not
+     * interrupted. Calls the provider makes through its cloud SDK, such as obtaining registry
+     * credentials, apply both timeouts as that SDK defines them.
      *
      * @param retryConfig the retry configuration to use for retrying failed requests
      * @return this ContainerRegistryClientBuilder instance

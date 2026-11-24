@@ -49,8 +49,11 @@ public final class RetryExecutor {
     /**
      * Returns the minimum delay in milliseconds the result asks for before the next attempt, such
      * as a server's Retry-After value. It lengthens the backoff delay and never shortens it. When
-     * it exceeds the maximum delay, the result is returned without another attempt, since retrying
-     * sooner than asked is likely to fail the same way.
+     * it exceeds the longest delay the configuration allows, the result is returned without
+     * another attempt, since retrying sooner than asked is likely to fail the same way. That limit
+     * is maxDelayMillis in EXPONENTIAL mode, the larger of fixedDelayMillis and {@value
+     * RetryExecutor#DEFAULT_MAX_DELAY_MILLIS} ms in FIXED mode, and {@value
+     * RetryExecutor#DEFAULT_MAX_DELAY_MILLIS} ms when the mode is unset.
      */
     default long minDelayMillis(T result) {
       return 0L;
@@ -148,10 +151,7 @@ public final class RetryExecutor {
     }
     int maxAttempts =
         retryConfig.getMaxAttempts() != null ? retryConfig.getMaxAttempts() : DEFAULT_MAX_ATTEMPTS;
-    long deadline =
-        retryConfig.getTotalTimeout() != null
-            ? clockMillis.getAsLong() + retryConfig.getTotalTimeout()
-            : Long.MAX_VALUE;
+    long startMillis = clockMillis.getAsLong();
 
     for (int attemptNumber = 1; ; attemptNumber++) {
       T result;
@@ -162,7 +162,7 @@ public final class RetryExecutor {
           throw e;
         }
         long delay = backoffDelay(attemptNumber);
-        if (!canRetry(attemptNumber, maxAttempts, delay, deadline)) {
+        if (!canRetry(attemptNumber, maxAttempts, delay, startMillis)) {
           throw e;
         }
         pause(delay, e);
@@ -173,11 +173,11 @@ public final class RetryExecutor {
         return result;
       }
       long minDelay = policy.minDelayMillis(result);
-      if (minDelay > maxDelayMillis()) {
+      if (minDelay > minDelayLimitMillis()) {
         return result;
       }
       long delay = Math.max(backoffDelay(attemptNumber), minDelay);
-      if (!canRetry(attemptNumber, maxAttempts, delay, deadline)) {
+      if (!canRetry(attemptNumber, maxAttempts, delay, startMillis)) {
         return result;
       }
       policy.discard(result);
@@ -218,8 +218,30 @@ public final class RetryExecutor {
         : DEFAULT_MAX_DELAY_MILLIS;
   }
 
-  private boolean canRetry(int attemptNumber, int maxAttempts, long delay, long deadline) {
-    return attemptNumber < maxAttempts && clockMillis.getAsLong() + delay < deadline;
+  /**
+   * Returns the longest minimum delay a result may ask for and still be retried. A FIXED caller
+   * already waits fixedDelayMillis between attempts, so a requested delay up to that value is
+   * honored even when it exceeds the default cap.
+   */
+  private long minDelayLimitMillis() {
+    if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
+      return Math.max(retryConfig.getFixedDelayMillis(), DEFAULT_MAX_DELAY_MILLIS);
+    }
+    return maxDelayMillis();
+  }
+
+  private boolean canRetry(int attemptNumber, int maxAttempts, long delay, long startMillis) {
+    if (attemptNumber >= maxAttempts) {
+      return false;
+    }
+    Long totalTimeout = retryConfig.getTotalTimeout();
+    if (totalTimeout == null) {
+      return true;
+    }
+    // Compares remaining time instead of computing start + totalTimeout, which overflows for
+    // very large timeouts such as Long.MAX_VALUE and would disable retries entirely.
+    long elapsed = clockMillis.getAsLong() - startMillis;
+    return delay < totalTimeout - elapsed;
   }
 
   private void pause(long millis, IOException lastError) throws InterruptedIOException {
