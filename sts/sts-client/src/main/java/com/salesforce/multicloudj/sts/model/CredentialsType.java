@@ -3,5 +3,6 @@ package com.salesforce.multicloudj.sts.model;
 public enum CredentialsType {
   SESSION,
   ASSUME_ROLE,
-  ASSUME_ROLE_WEB_IDENTITY
+  ASSUME_ROLE_WEB_IDENTITY,
+  REFRESHABLE_SESSION
 }
