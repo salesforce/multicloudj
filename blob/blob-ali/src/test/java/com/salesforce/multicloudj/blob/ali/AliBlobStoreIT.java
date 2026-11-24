@@ -54,11 +54,6 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
   @Disabled("OSS fixtures are recorded on dedicated machines; enable once recorded")
   public void testPresignV2_tagsBinding() {}
 
-  @Override
-  @Test
-  @Disabled("OSS fixtures are recorded on dedicated machines; enable once recorded")
-  public void testDeleteTags() {}
-
   public static class HarnessImpl implements Harness {
     int port = ThreadLocalRandom.current().nextInt(2000, 20000);
 
