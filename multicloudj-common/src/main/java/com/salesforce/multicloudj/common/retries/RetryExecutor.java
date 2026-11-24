@@ -18,10 +18,13 @@ import java.util.function.LongUnaryOperator;
  * delays are used as configured.
  *
  * <p>totalTimeout is checked between attempts: no retry starts once the elapsed time plus the next
- * delay reaches it, but an attempt already in flight is not interrupted. When retries run out, the
- * last result is returned or the last {@link IOException} is thrown, so the caller handles it the
- * same way as an operation that was never retried. An interrupted thread stops retrying with an
- * {@link InterruptedIOException} whose cause is the last failure, if there was one.
+ * delay reaches it, counting time spent discarding a result and pausing, but an attempt already in
+ * flight is not interrupted. If the timeout is reached after a result was discarded, an {@link
+ * InterruptedIOException} is thrown since that result can no longer be returned. Otherwise, when
+ * retries run out, the last result is returned or the last {@link IOException} is thrown, so the
+ * caller handles it the same way as an operation that was never retried. An interrupted thread
+ * stops retrying with an {@link InterruptedIOException} whose cause is the last failure, if there
+ * was one.
  */
 public final class RetryExecutor {
 
@@ -59,7 +62,10 @@ public final class RetryExecutor {
       return 0L;
     }
 
-    /** Releases a retryable result that is discarded because another attempt follows. */
+    /**
+     * Releases a retryable result that is discarded because another attempt follows. Its duration
+     * counts against totalTimeout, so it should release resources without waiting on them.
+     */
     default void discard(T result) throws IOException {}
   }
 
@@ -166,6 +172,9 @@ public final class RetryExecutor {
           throw e;
         }
         pause(delay, e);
+        if (totalTimeoutReached(startMillis)) {
+          throw e;
+        }
         continue;
       }
 
@@ -181,7 +190,15 @@ public final class RetryExecutor {
         return result;
       }
       policy.discard(result);
+      // The result is already released, so a budget used up by discarding it or by the pause can
+      // only be reported as a timeout.
+      if (!canRetry(attemptNumber, maxAttempts, delay, startMillis)) {
+        throw totalTimeoutExceeded();
+      }
       pause(delay, null);
+      if (totalTimeoutReached(startMillis)) {
+        throw totalTimeoutExceeded();
+      }
     }
   }
 
@@ -242,6 +259,16 @@ public final class RetryExecutor {
     // very large timeouts such as Long.MAX_VALUE and would disable retries entirely.
     long elapsed = clockMillis.getAsLong() - startMillis;
     return delay < totalTimeout - elapsed;
+  }
+
+  private boolean totalTimeoutReached(long startMillis) {
+    Long totalTimeout = retryConfig.getTotalTimeout();
+    return totalTimeout != null && clockMillis.getAsLong() - startMillis >= totalTimeout;
+  }
+
+  private InterruptedIOException totalTimeoutExceeded() {
+    return new InterruptedIOException(
+        "Total timeout of " + retryConfig.getTotalTimeout() + " ms reached before retrying");
   }
 
   private void pause(long millis, IOException lastError) throws InterruptedIOException {

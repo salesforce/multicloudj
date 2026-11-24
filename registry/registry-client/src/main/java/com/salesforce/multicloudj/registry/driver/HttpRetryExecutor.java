@@ -20,7 +20,6 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.utils.DateUtils;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.util.EntityUtils;
 
 /**
  * Executes registry HTTP requests with the retry behavior described by a {@link RetryConfig}.
@@ -79,9 +78,10 @@ class HttpRetryExecutor {
    * Configures an HTTP client being built so that a {@link RetryConfig} is the only retry policy
    * applied to its requests. Automatic retries of the HTTP client are disabled, since they resend
    * failed requests immediately and would multiply the configured attempts.
-   * {@link RetryConfig#getAttemptTimeout()} is applied as the connect and socket timeouts. The
-   * socket timeout bounds inactivity between packets rather than the whole response, so long blob
-   * downloads that keep receiving data are not cut off.
+   * {@link RetryConfig#getAttemptTimeout()} is applied as the timeouts for leasing a connection
+   * from the pool, connecting, and waiting for data. The socket timeout bounds inactivity between
+   * packets rather than the whole response, so long blob downloads that keep receiving data are
+   * not cut off.
    *
    * @param builder the HTTP client builder to configure
    * @param retryConfig the retry configuration, or null to keep the client defaults
@@ -95,7 +95,11 @@ class HttpRetryExecutor {
     if (retryConfig.getAttemptTimeout() != null) {
       int timeout = (int) Math.min(Integer.MAX_VALUE, retryConfig.getAttemptTimeout());
       builder.setDefaultRequestConfig(
-          RequestConfig.custom().setConnectTimeout(timeout).setSocketTimeout(timeout).build());
+          RequestConfig.custom()
+              .setConnectionRequestTimeout(timeout)
+              .setConnectTimeout(timeout)
+              .setSocketTimeout(timeout)
+              .build());
     }
     return builder;
   }
@@ -147,12 +151,13 @@ class HttpRetryExecutor {
     }
 
     /**
-     * Releases the connection quietly: a failure to close a response that is being thrown away
-     * must not hide the retryable status or cancel the remaining attempts.
+     * Closes the response without reading the rest of its body, which drops the connection rather
+     * than returning it to the pool; draining could block on a slowly streamed body and use up
+     * the total timeout. A failure to close is ignored so it does not hide the retryable status or
+     * cancel the remaining attempts.
      */
     @Override
     public void discard(CloseableHttpResponse response) {
-      EntityUtils.consumeQuietly(response.getEntity());
       try {
         response.close();
       } catch (IOException ignored) {

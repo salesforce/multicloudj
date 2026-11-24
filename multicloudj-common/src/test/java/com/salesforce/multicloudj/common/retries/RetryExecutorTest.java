@@ -28,14 +28,21 @@ class RetryExecutorTest {
           .build();
 
   /** Retries every I/O failure and every result other than "ok". */
-  private static final class TestPolicy implements RetryExecutor.RetryPolicy<String> {
+  private final class TestPolicy implements RetryExecutor.RetryPolicy<String> {
     private final boolean retryErrors;
     private final long minDelayMillis;
+    private final long discardMillis;
     private final List<String> discarded = new ArrayList<>();
 
     TestPolicy(boolean retryErrors, long minDelayMillis) {
+      this(retryErrors, minDelayMillis, 0L);
+    }
+
+    /** Advances the clock by discardMillis on each discard, like a slow release. */
+    TestPolicy(boolean retryErrors, long minDelayMillis, long discardMillis) {
       this.retryErrors = retryErrors;
       this.minDelayMillis = minDelayMillis;
+      this.discardMillis = discardMillis;
     }
 
     @Override
@@ -56,6 +63,7 @@ class RetryExecutorTest {
     @Override
     public void discard(String result) {
       discarded.add(result);
+      now.addAndGet(discardMillis);
     }
   }
 
@@ -189,6 +197,71 @@ class RetryExecutorTest {
     // Retries at t=100 and t=200; a third retry at t=300 would pass the 250 ms deadline.
     assertEquals(3, attempts.get());
     assertEquals(List.of(100L, 100L), sleeps);
+  }
+
+  @Test
+  void testTotalTimeout_ReachedWhileDiscarding_ThrowsWithoutAnotherAttempt() {
+    RetryConfig config =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(3)
+            .fixedDelayMillis(50L)
+            .totalTimeout(200L)
+            .build();
+    TestPolicy policy = new TestPolicy(true, 0L, 500L);
+
+    assertThrows(
+        InterruptedIOException.class,
+        () -> executor(config).execute(attempt("busy", "ok"), policy));
+    assertEquals(1, attempts.get());
+    assertEquals(List.of("busy"), policy.discarded);
+    assertTrue(sleeps.isEmpty());
+  }
+
+  @Test
+  void testTotalTimeout_ReachedWhilePausing_ThrowsLastErrorWithoutAnotherAttempt() {
+    RetryConfig config =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(3)
+            .fixedDelayMillis(50L)
+            .totalTimeout(200L)
+            .build();
+    IOException error = new IOException("reset");
+    RetryExecutor oversleeping =
+        new RetryExecutor(
+            config,
+            millis -> {
+              sleeps.add(millis);
+              now.addAndGet(millis + 500L);
+            },
+            now::get);
+
+    IOException thrown =
+        assertThrows(
+            IOException.class,
+            () -> oversleeping.execute(attempt(error, "ok"), new TestPolicy(true, 0L)));
+    assertSame(error, thrown);
+    assertEquals(1, attempts.get());
+    assertEquals(List.of(50L), sleeps);
+  }
+
+  @Test
+  void testTotalTimeout_ReachedWhilePausingAfterDiscard_ThrowsWithoutAnotherAttempt() {
+    RetryConfig config =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(3)
+            .fixedDelayMillis(50L)
+            .totalTimeout(200L)
+            .build();
+    RetryExecutor oversleeping =
+        new RetryExecutor(config, millis -> now.addAndGet(millis + 500L), now::get);
+
+    assertThrows(
+        InterruptedIOException.class,
+        () -> oversleeping.execute(attempt("busy", "ok"), new TestPolicy(true, 0L)));
+    assertEquals(1, attempts.get());
   }
 
   @Test

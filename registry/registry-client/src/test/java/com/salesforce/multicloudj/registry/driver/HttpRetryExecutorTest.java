@@ -112,6 +112,7 @@ class HttpRetryExecutorTest {
     assertSame(ok, executor(FIXED_CONFIG).execute(httpClient, REQUEST));
     verify(httpClient, times(2)).execute(REQUEST);
     verify(failure).close();
+    verify(failure, never()).getEntity();
     assertEquals(List.of(50L), sleeps);
   }
 
@@ -313,6 +314,7 @@ class HttpRetryExecutorTest {
 
     ArgumentCaptor<RequestConfig> captor = ArgumentCaptor.forClass(RequestConfig.class);
     verify(builder).setDefaultRequestConfig(captor.capture());
+    assertEquals(1500, captor.getValue().getConnectionRequestTimeout());
     assertEquals(1500, captor.getValue().getConnectTimeout());
     assertEquals(1500, captor.getValue().getSocketTimeout());
   }
