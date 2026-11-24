@@ -3,6 +3,8 @@ package com.salesforce.multicloudj.common.aws;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -115,5 +117,58 @@ public class CredentialsProviderTest {
         CredentialsProvider.getCredentialsProvider(credentialsOverrider, Region.AF_SOUTH_1);
     Assertions.assertNotNull(awsCredsProvider);
     Assertions.assertInstanceOf(StaticCredentialsProvider.class, awsCredsProvider);
+  }
+
+  @Test
+  public void testRefreshableSessionCredentialsProvider() {
+    AtomicInteger supplierCalls = new AtomicInteger();
+    CredentialsOverrider credentialsOverrider =
+        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+            .withSessionCredentialsSupplier(
+                () -> {
+                  supplierCalls.incrementAndGet();
+                  return new StsCredentials("key", "secret", "token");
+                })
+            .withRefreshInterval(Duration.ofHours(1))
+            .build();
+
+    AwsCredentialsProvider awsCredsProvider =
+        CredentialsProvider.getCredentialsProvider(credentialsOverrider, Region.AF_SOUTH_1);
+
+    Assertions.assertInstanceOf(RefreshableSessionCredentialsProvider.class, awsCredsProvider);
+    Assertions.assertEquals(0, supplierCalls.get());
+    Assertions.assertEquals("key", awsCredsProvider.resolveCredentials().accessKeyId());
+    Assertions.assertEquals(1, supplierCalls.get());
+  }
+
+  @Test
+  public void testRefreshableSessionOverriderSharesOneRefresherAcrossProviders() {
+    AtomicInteger supplierCalls = new AtomicInteger();
+    CredentialsOverrider credentialsOverrider =
+        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+            .withSessionCredentialsSupplier(
+                () -> {
+                  supplierCalls.incrementAndGet();
+                  return new StsCredentials("key", "secret", "token");
+                })
+            .withRefreshInterval(Duration.ofHours(1))
+            .build();
+
+    AwsCredentialsProvider first =
+        CredentialsProvider.getCredentialsProvider(credentialsOverrider, Region.AF_SOUTH_1);
+    AwsCredentialsProvider second =
+        CredentialsProvider.getCredentialsProvider(credentialsOverrider, Region.US_EAST_1);
+    first.resolveCredentials();
+    second.resolveCredentials();
+
+    Assertions.assertEquals(1, supplierCalls.get());
+  }
+
+  @Test
+  public void testNullOverriderAndNullTypeStillReturnNull() {
+    Assertions.assertNull(CredentialsProvider.getCredentialsProvider(null, Region.AF_SOUTH_1));
+    Assertions.assertNull(
+        CredentialsProvider.getCredentialsProvider(
+            new CredentialsOverrider.Builder(null).build(), Region.AF_SOUTH_1));
   }
 }

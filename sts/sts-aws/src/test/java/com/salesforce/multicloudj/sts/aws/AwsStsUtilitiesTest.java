@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.sts.aws;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.sts.client.StsUtilities;
 import com.salesforce.multicloudj.sts.driver.FlowCollector;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -16,6 +17,7 @@ import java.net.http.HttpRequest;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -24,6 +26,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -404,6 +408,50 @@ class AwsStsUtilitiesTest {
     Assertions.assertTrue(
         signed.getSignedIdentity().startsWith("https://sts.us-west-2.amazonaws.com/?"),
         signed.getSignedIdentity());
+  }
+
+  @Test
+  void refreshableSessionOverriderSignsWithSuppliedCredentials() {
+    AtomicInteger supplierCalls = new AtomicInteger();
+    StsUtilities utilities =
+        refreshableStsUtil(
+            () -> {
+              supplierCalls.incrementAndGet();
+              return new StsCredentials("AKIDSUPPLIED", "suppliedSecret", "suppliedToken");
+            });
+
+    SignedAuthRequest first = utilities.newCloudNativeAuthSignedRequest(sampleRequest());
+    SignedAuthRequest second = utilities.newCloudNativeAuthSignedRequest(sampleRequest());
+
+    Assertions.assertEquals("AKIDSUPPLIED", first.getCredentials().getAccessKeyId());
+    Assertions.assertEquals("suppliedSecret", first.getCredentials().getAccessKeySecret());
+    Assertions.assertEquals("suppliedToken", first.getCredentials().getSecurityToken());
+    Assertions.assertEquals("AKIDSUPPLIED", second.getCredentials().getAccessKeyId());
+    Assertions.assertEquals(1, supplierCalls.get());
+  }
+
+  @Test
+  void refreshableSessionOverriderDoesNotFallBackToAmbientCredentialsOnFailure() {
+    StsUtilities utilities =
+        refreshableStsUtil(
+            () -> {
+              throw new IllegalStateException("issuer unavailable");
+            });
+
+    Assertions.assertThrows(
+        UnAuthorizedException.class,
+        () -> utilities.newCloudNativeAuthSignedRequest(sampleRequest()));
+  }
+
+  private static StsUtilities refreshableStsUtil(Supplier<StsCredentials> supplier) {
+    return StsUtilities.builder("aws")
+        .withRegion(region)
+        .withCredentialsOverrider(
+            new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+                .withSessionCredentialsSupplier(supplier)
+                .withRefreshInterval(Duration.ofHours(1))
+                .build())
+        .build();
   }
 
   private static AwsStsUtilities signer(Clock clock) {
