@@ -37,6 +37,7 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
   protected final URI proxyEndpoint;
   protected final CredentialsOverrider credentialsOverrider;
   protected final RetryConfig retryConfig;
+  protected final Boolean grpcEnabled;
   protected final Batcher<Message> batcher;
   protected final AtomicBoolean isShutdown = new AtomicBoolean(false);
 
@@ -54,6 +55,7 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
     this.proxyEndpoint = proxyEndpoint;
     this.credentialsOverrider = credentialsOverrider;
     this.retryConfig = null;
+    this.grpcEnabled = null;
     this.batcher = new Batcher<>(createBatcherOptions(), this::handleBatch);
   }
 
@@ -65,6 +67,7 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
     this.proxyEndpoint = builder.proxyEndpoint;
     this.credentialsOverrider = builder.credentialsOverrider;
     this.retryConfig = builder.retryConfig;
+    this.grpcEnabled = builder.grpcEnabled;
     this.batcher = new Batcher<>(createBatcherOptions(), this::handleBatch);
   }
 
@@ -187,6 +190,7 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
     protected URI proxyEndpoint;
     protected CredentialsOverrider credentialsOverrider;
     protected RetryConfig retryConfig;
+    protected Boolean grpcEnabled;
 
     @Override
     public Builder<T> providerId(String providerId) {
@@ -224,6 +228,19 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
         retryConfig.validate();
       }
       this.retryConfig = retryConfig;
+      return this;
+    }
+
+    /**
+     * Requests gRPC transport for the pubsub client. Providers whose underlying SDK supports gRPC
+     * will use it instead of the default HTTP/JSON transport; providers without gRPC support
+     * ignore this setting. When left unset (the default), the HTTP/JSON transport is used.
+     *
+     * @param grpcEnabled whether to request gRPC transport for the pubsub client
+     * @return An instance of self
+     */
+    public Builder<T> withGrpcEnabled(Boolean grpcEnabled) {
+      this.grpcEnabled = grpcEnabled;
       return this;
     }
 

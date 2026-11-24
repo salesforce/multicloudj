@@ -76,6 +76,7 @@ public class TopicClientTest {
       when(mockBuilder.withEndpoint(any())).thenReturn(mockBuilder);
       when(mockBuilder.withProxyEndpoint(any())).thenReturn(mockBuilder);
       when(mockBuilder.withCredentialsOverrider(any())).thenReturn(mockBuilder);
+      when(mockBuilder.withGrpcEnabled(any())).thenReturn(mockBuilder);
       when(mockBuilder.build()).thenReturn(mockTopic);
 
       // Act
@@ -86,6 +87,7 @@ public class TopicClientTest {
               .withEndpoint(URI.create("https://test.example.com"))
               .withProxyEndpoint(URI.create("https://proxy.example.com"))
               .withCredentialsOverrider(mock(CredentialsOverrider.class))
+              .withGrpcEnabled(true)
               .build();
 
       // Assert
@@ -95,6 +97,7 @@ public class TopicClientTest {
       verify(mockBuilder).withEndpoint(URI.create("https://test.example.com"));
       verify(mockBuilder).withProxyEndpoint(URI.create("https://proxy.example.com"));
       verify(mockBuilder).withCredentialsOverrider(any(CredentialsOverrider.class));
+      verify(mockBuilder).withGrpcEnabled(true);
       verify(mockBuilder).build();
     }
   }

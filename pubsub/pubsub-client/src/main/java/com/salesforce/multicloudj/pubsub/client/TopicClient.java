@@ -149,6 +149,19 @@ public class TopicClient implements AutoCloseable {
     }
 
     /**
+     * Requests gRPC transport for the pubsub client. Providers whose underlying SDK supports gRPC
+     * will use it instead of the default HTTP/JSON transport; providers without gRPC support
+     * ignore this setting. When left unset (the default), the HTTP/JSON transport is used.
+     *
+     * @param grpcEnabled whether to request gRPC transport for the pubsub client
+     * @return This builder instance
+     */
+    public TopicClientBuilder withGrpcEnabled(Boolean grpcEnabled) {
+      this.topicBuilder.withGrpcEnabled(grpcEnabled);
+      return this;
+    }
+
+    /**
      * Builds and returns a new TopicClient instance.
      *
      * @return A new TopicClient

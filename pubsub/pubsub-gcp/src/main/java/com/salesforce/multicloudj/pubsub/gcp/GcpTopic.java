@@ -22,6 +22,7 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
+import com.salesforce.multicloudj.common.gcp.GcpGrpcTransport;
 import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
 import com.salesforce.multicloudj.common.gcp.GcpRetrySettings;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
@@ -166,10 +167,13 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
     }
 
     try {
-      TopicAdminSettings.Builder settingsBuilder = TopicAdminSettings.newHttpJsonBuilder();
+      boolean useGrpc = Boolean.TRUE.equals(grpcEnabled);
+      TopicAdminSettings.Builder settingsBuilder =
+          useGrpc ? TopicAdminSettings.newBuilder() : TopicAdminSettings.newHttpJsonBuilder();
 
       if (this.endpoint != null) {
-        settingsBuilder.setEndpoint(this.endpoint.toString());
+        settingsBuilder.setEndpoint(
+            useGrpc ? GcpGrpcTransport.endpoint(this.endpoint) : this.endpoint.toString());
       }
 
       if (credentialsOverrider != null) {
@@ -179,21 +183,29 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
         }
       }
 
-      InstantiatingHttpJsonChannelProvider.Builder httpJson =
-          InstantiatingHttpJsonChannelProvider.newBuilder();
-      if (this.proxyEndpoint != null) {
-        HttpTransport httpTransport =
-            new NetHttpTransport.Builder()
-                .setProxy(
-                    new Proxy(
-                        Proxy.Type.HTTP,
-                        new InetSocketAddress(
-                            this.proxyEndpoint.getHost(), this.proxyEndpoint.getPort())))
-                .build();
-        httpJson.setHttpTransport(httpTransport);
+      if (useGrpc) {
+        if (this.proxyEndpoint != null) {
+          settingsBuilder.setTransportChannelProvider(
+              GcpGrpcTransport.withProxy(
+                  settingsBuilder.getTransportChannelProvider(), this.proxyEndpoint));
+        }
+      } else {
+        InstantiatingHttpJsonChannelProvider.Builder httpJson =
+            InstantiatingHttpJsonChannelProvider.newBuilder();
+        if (this.proxyEndpoint != null) {
+          HttpTransport httpTransport =
+              new NetHttpTransport.Builder()
+                  .setProxy(
+                      new Proxy(
+                          Proxy.Type.HTTP,
+                          new InetSocketAddress(
+                              this.proxyEndpoint.getHost(), this.proxyEndpoint.getPort())))
+                  .build();
+          httpJson.setHttpTransport(httpTransport);
+        }
+        TransportChannelProvider channelProvider = httpJson.build();
+        settingsBuilder.setTransportChannelProvider(channelProvider);
       }
-      TransportChannelProvider channelProvider = httpJson.build();
-      settingsBuilder.setTransportChannelProvider(channelProvider);
 
       applyRetryConfig(settingsBuilder);
 

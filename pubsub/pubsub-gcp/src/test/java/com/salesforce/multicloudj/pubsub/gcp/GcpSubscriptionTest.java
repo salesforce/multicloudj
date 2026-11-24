@@ -16,6 +16,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
@@ -42,6 +43,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
+import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.AckInfo;
 import com.salesforce.multicloudj.pubsub.driver.Message;
@@ -49,6 +51,8 @@ import com.salesforce.multicloudj.pubsub.driver.Message.SystemMetadataKeys;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.ProxyDetector;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -1037,6 +1041,88 @@ public class GcpSubscriptionTest {
         subscriptionRetrySettings(RetryConfig.builder().maxAttempts(7).build())) {
       assertEquals(7, retrySettings.getMaxAttempts());
       assertEquals(java.time.Duration.ZERO, retrySettings.getTotalTimeoutDuration());
+    }
+  }
+
+  @Test
+  void testGrpcUnsetUsesHttpJsonTransport() throws Exception {
+    SubscriptionAdminSettings settings =
+        subscriptionAdminSettings(
+            new GcpSubscription.Builder().withSubscriptionName(VALID_SUBSCRIPTION_NAME));
+
+    assertEquals("httpjson", settings.getTransportChannelProvider().getTransportName());
+  }
+
+  @Test
+  void testGrpcEnabledUsesGrpcTransport() throws Exception {
+    SubscriptionAdminSettings settings =
+        subscriptionAdminSettings(
+            new GcpSubscription.Builder()
+                .withSubscriptionName(VALID_SUBSCRIPTION_NAME)
+                .withGrpcEnabled(true));
+
+    assertEquals("grpc", settings.getTransportChannelProvider().getTransportName());
+    InstantiatingGrpcChannelProvider provider =
+        assertInstanceOf(
+            InstantiatingGrpcChannelProvider.class, settings.getTransportChannelProvider());
+    assertNull(provider.toBuilder().getChannelConfigurator());
+  }
+
+  @Test
+  void testGrpcEnabledConvertsEndpointUriToHostAndPort() throws Exception {
+    SubscriptionAdminSettings settings =
+        subscriptionAdminSettings(
+            new GcpSubscription.Builder()
+                .withSubscriptionName(VALID_SUBSCRIPTION_NAME)
+                .withEndpoint(URI.create("https://pubsub.example.com:8443"))
+                .withGrpcEnabled(true));
+
+    assertEquals("pubsub.example.com:8443", settings.getEndpoint());
+  }
+
+  @Test
+  void testGrpcEnabledWithProxyInstallsProxyDetectorAndKeepsSdkChannelDefaults()
+      throws Exception {
+    SubscriptionAdminSettings settings =
+        subscriptionAdminSettings(
+            new GcpSubscription.Builder()
+                .withSubscriptionName(VALID_SUBSCRIPTION_NAME)
+                .withProxyEndpoint(URI.create("http://proxy.example.com:8080"))
+                .withGrpcEnabled(true));
+
+    InstantiatingGrpcChannelProvider provider =
+        assertInstanceOf(
+            InstantiatingGrpcChannelProvider.class, settings.getTransportChannelProvider());
+    assertEquals(
+        SubscriptionAdminSettings.defaultGrpcTransportProviderBuilder().getMaxInboundMessageSize(),
+        provider.toBuilder().getMaxInboundMessageSize());
+    ManagedChannelBuilder channelBuilder = mock(ManagedChannelBuilder.class);
+    provider.toBuilder().getChannelConfigurator().apply(channelBuilder);
+    verify(channelBuilder).proxyDetector(any(ProxyDetector.class));
+  }
+
+  private SubscriptionAdminSettings subscriptionAdminSettings(
+      AbstractSubscription.Builder<GcpSubscription> builder) throws Exception {
+    @SuppressWarnings("unchecked")
+    UnaryCallable<com.google.pubsub.v1.AcknowledgeRequest, Empty> mockCallable =
+        mock(UnaryCallable.class);
+    when(mockSubscriptionAdminClient.acknowledgeCallable()).thenReturn(mockCallable);
+
+    GcpSubscription gcpSubscription = new GcpSubscription((GcpSubscription.Builder) builder);
+
+    try (MockedStatic<SubscriptionAdminClient> clientStatic =
+        mockStatic(SubscriptionAdminClient.class)) {
+      ArgumentCaptor<SubscriptionAdminSettings> captor =
+          ArgumentCaptor.forClass(SubscriptionAdminSettings.class);
+      clientStatic
+          .when(() -> SubscriptionAdminClient.create(captor.capture()))
+          .thenReturn(mockSubscriptionAdminClient);
+
+      gcpSubscription.doSendAcks(List.of(new GcpSubscription.GcpAckID("ack-id")));
+
+      return captor.getValue();
+    } finally {
+      gcpSubscription.close();
     }
   }
 
