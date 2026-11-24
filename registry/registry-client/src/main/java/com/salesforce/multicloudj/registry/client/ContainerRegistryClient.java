@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.registry.client;
 
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
 import com.salesforce.multicloudj.registry.model.Image;
 import com.salesforce.multicloudj.registry.model.Platform;
@@ -92,6 +93,25 @@ public class ContainerRegistryClient implements AutoCloseable {
     public ContainerRegistryClientBuilder withCredentialsOverrider(
         CredentialsOverrider credentialsOverrider) {
       this.registryBuilder.withCredentialsOverrider(credentialsOverrider);
+      return this;
+    }
+
+    /**
+     * Sets the retry configuration for registry requests. Without one, the default retry behavior
+     * of the provider SDK and the HTTP client applies.
+     *
+     * <p>For manifest and blob requests, attemptTimeout bounds waiting for a pooled connection,
+     * connecting, and each wait for data rather than the whole response, so a large blob that
+     * keeps streaming is not cut off, and totalTimeout is checked only before a retry starts, so
+     * an attempt in flight is not interrupted. Calls the provider makes through a cloud SDK or
+     * auth library, such as obtaining registry credentials, follow that library's retry and
+     * timeout semantics and may not use this configuration.
+     *
+     * @param retryConfig the retry configuration to use for retrying failed requests
+     * @return this ContainerRegistryClientBuilder instance
+     */
+    public ContainerRegistryClientBuilder withRetryConfig(RetryConfig retryConfig) {
+      this.registryBuilder.withRetryConfig(retryConfig);
       return this;
     }
 

@@ -3,134 +3,51 @@ package com.salesforce.multicloudj.sts.gcp;
 import com.google.api.client.http.HttpResponseException;
 import com.google.auth.Retryable;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
+import com.salesforce.multicloudj.common.retries.RetryExecutor;
 import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
-import java.util.function.LongUnaryOperator;
 import org.apache.http.NoHttpResponseException;
 
 /**
  * Re-runs a token operation according to a {@link RetryConfig}. The google-auth library retries
- * token refreshes a fixed number of times internally with no way to configure it, so this loop
- * applies the caller's attempts, backoff and total timeout around each operation.
+ * token refreshes a fixed number of times internally with no way to configure it, so this applies
+ * the caller's attempts, backoff and total timeout around each operation through a {@link
+ * RetryExecutor}.
  *
  * <p>Only transient failures are retried: errors the auth library marks retryable, HTTP 408, 429
- * and 5xx responses, and connection-level I/O failures. With no RetryConfig every operation runs
- * exactly once; a RetryConfig that leaves maxAttempts unset allows up to 3 attempts, and one that
- * leaves the mode unset backs off exponentially from 100 ms, doubling up to 20 s. Exponential
- * delays get equal jitter (between half and all of the computed delay) so clients that failed
- * together, such as every pod hitting the same token endpoint outage, do not retry in lockstep;
- * fixed delays are used as configured.
- *
- * <p>totalTimeout is checked between attempts: no retry starts once the elapsed time plus the next
- * delay reaches it, but an attempt already in flight is not interrupted (attemptTimeout bounds a
- * single attempt). An interrupted thread stops retrying with an {@link InterruptedIOException}
- * whose cause is the last failure.
+ * and 5xx responses, and connection-level I/O failures. Exponential delays get equal jitter so
+ * clients that failed together, such as every pod hitting the same token endpoint outage, do not
+ * retry in lockstep.
  */
 final class GcpStsRetrier {
-  private static final int DEFAULT_MAX_ATTEMPTS = 3;
-  private static final double DEFAULT_MULTIPLIER = 2.0;
-  private static final long DEFAULT_INITIAL_DELAY_MILLIS = 100;
-  private static final long DEFAULT_MAX_DELAY_MILLIS = 20_000;
   private static final int MAX_CAUSE_DEPTH = 5;
 
-  @FunctionalInterface
-  interface IoOperation<T> {
-    T run() throws IOException;
-  }
-
-  @FunctionalInterface
-  interface Sleeper {
-    void sleep(long millis) throws InterruptedException;
-  }
-
   private final RetryConfig retryConfig;
-  private final Sleeper sleeper;
-  private final LongSupplier nanoClock;
-  private final LongUnaryOperator jitter;
+  private final RetryExecutor retryExecutor;
 
   GcpStsRetrier(RetryConfig retryConfig) {
-    this(retryConfig, Thread::sleep, System::nanoTime);
+    this(retryConfig, new RetryExecutor(retryConfig, RetryExecutor::equalJitter));
   }
 
-  GcpStsRetrier(RetryConfig retryConfig, Sleeper sleeper, LongSupplier nanoClock) {
-    this(retryConfig, sleeper, nanoClock, GcpStsRetrier::equalJitter);
+  GcpStsRetrier(RetryConfig retryConfig, RetryExecutor.Sleeper sleeper, LongSupplier clockMillis) {
+    this(
+        retryConfig,
+        new RetryExecutor(retryConfig, sleeper, clockMillis, RetryExecutor::equalJitter));
   }
 
-  GcpStsRetrier(
-      RetryConfig retryConfig, Sleeper sleeper, LongSupplier nanoClock, LongUnaryOperator jitter) {
+  private GcpStsRetrier(RetryConfig retryConfig, RetryExecutor retryExecutor) {
     this.retryConfig = retryConfig;
-    this.sleeper = sleeper;
-    this.nanoClock = nanoClock;
-    this.jitter = jitter;
+    this.retryExecutor = retryExecutor;
   }
 
   boolean isEnabled() {
     return retryConfig != null;
   }
 
-  <T> T execute(IoOperation<T> operation) throws IOException {
-    if (retryConfig == null) {
-      return operation.run();
-    }
-    int maxAttempts =
-        retryConfig.getMaxAttempts() != null ? retryConfig.getMaxAttempts() : DEFAULT_MAX_ATTEMPTS;
-    long startNanos = nanoClock.getAsLong();
-    for (int attempt = 1; ; attempt++) {
-      try {
-        return operation.run();
-      } catch (IOException e) {
-        if (attempt >= maxAttempts || !isRetryable(e)) {
-          throw e;
-        }
-        throwIfInterrupted(e);
-        long delayMillis = delayBeforeRetryMillis(attempt);
-        if (exceedsTotalTimeout(startNanos, delayMillis)) {
-          throw e;
-        }
-        sleep(delayMillis, e);
-      }
-    }
-  }
-
-  /** Delay before the retry that follows the given failed attempt (1 for the first failure). */
-  private long delayBeforeRetryMillis(int failedAttempt) {
-    if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
-      return retryConfig.getFixedDelayMillis();
-    }
-    return jitter.applyAsLong(exponentialDelayMillis(failedAttempt));
-  }
-
-  private long exponentialDelayMillis(int failedAttempt) {
-    boolean exponential = retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL;
-    double multiplier =
-        exponential && retryConfig.getMultiplier() > 0
-            ? retryConfig.getMultiplier()
-            : DEFAULT_MULTIPLIER;
-    long initialDelay =
-        exponential ? retryConfig.getInitialDelayMillis() : DEFAULT_INITIAL_DELAY_MILLIS;
-    long maxDelay = exponential ? retryConfig.getMaxDelayMillis() : DEFAULT_MAX_DELAY_MILLIS;
-    double delay = initialDelay * Math.pow(multiplier, failedAttempt - 1);
-    return (long) Math.min(maxDelay, delay);
-  }
-
-  /** A uniformly random delay between half of the given delay and the full delay, inclusive. */
-  private static long equalJitter(long delayMillis) {
-    long half = delayMillis / 2;
-    return half + ThreadLocalRandom.current().nextLong(delayMillis - half + 1);
-  }
-
-  private static void throwIfInterrupted(IOException lastError) throws IOException {
-    if (Thread.currentThread().isInterrupted()) {
-      InterruptedIOException interrupted =
-          new InterruptedIOException("Interrupted before retrying");
-      interrupted.initCause(lastError);
-      throw interrupted;
-    }
+  <T> T execute(RetryExecutor.Attempt<T> operation) throws IOException {
+    return retryExecutor.execute(operation, GcpStsRetrier::isRetryable);
   }
 
   static boolean isRetryable(Throwable error) {
@@ -153,28 +70,5 @@ final class GcpStsRetrier {
       current = current.getCause();
     }
     return false;
-  }
-
-  private boolean exceedsTotalTimeout(long startNanos, long delayMillis) {
-    if (retryConfig.getTotalTimeout() == null) {
-      return false;
-    }
-    long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(nanoClock.getAsLong() - startNanos);
-    return elapsedMillis + delayMillis >= retryConfig.getTotalTimeout();
-  }
-
-  private void sleep(long millis, IOException lastError) throws IOException {
-    if (millis <= 0) {
-      return;
-    }
-    try {
-      sleeper.sleep(millis);
-    } catch (InterruptedException ie) {
-      Thread.currentThread().interrupt();
-      InterruptedIOException interrupted =
-          new InterruptedIOException("Interrupted while waiting to retry");
-      interrupted.initCause(lastError);
-      throw interrupted;
-    }
   }
 }

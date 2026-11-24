@@ -11,14 +11,17 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.registry.model.Manifest;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -77,7 +80,10 @@ public class OciHttpTransportTest {
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
       mockedAuthChallenge
-          .when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
+          .when(
+              () ->
+                  AuthChallenge.discover(
+                      any(CloseableHttpClient.class), anyString(), any(HttpRetryExecutor.class)))
           .thenReturn(basicChallenge);
       mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
       mockedAuthChallenge.when(AuthChallenge::anonymous).thenCallRealMethod();
@@ -105,7 +111,10 @@ public class OciHttpTransportTest {
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
       mockedAuthChallenge
-          .when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
+          .when(
+              () ->
+                  AuthChallenge.discover(
+                      any(CloseableHttpClient.class), anyString(), any(HttpRetryExecutor.class)))
           .thenReturn(bearerChallenge);
       mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
@@ -126,7 +135,10 @@ public class OciHttpTransportTest {
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
       mockedAuthChallenge
-          .when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
+          .when(
+              () ->
+                  AuthChallenge.discover(
+                      any(CloseableHttpClient.class), anyString(), any(HttpRetryExecutor.class)))
           .thenReturn(anonymousChallenge);
       mockedAuthChallenge.when(AuthChallenge::anonymous).thenCallRealMethod();
 
@@ -149,7 +161,10 @@ public class OciHttpTransportTest {
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
       mockedAuthChallenge
-          .when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
+          .when(
+              () ->
+                  AuthChallenge.discover(
+                      any(CloseableHttpClient.class), anyString(), any(HttpRetryExecutor.class)))
           .thenReturn(basicChallenge);
       mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
@@ -161,7 +176,10 @@ public class OciHttpTransportTest {
 
       // Verify discover was called only once (challenge is cached)
       mockedAuthChallenge.verify(
-          () -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()), times(1));
+          () ->
+              AuthChallenge.discover(
+                  any(CloseableHttpClient.class), anyString(), any(HttpRetryExecutor.class)),
+          times(1));
 
       transport.close();
     }
@@ -412,7 +430,10 @@ public class OciHttpTransportTest {
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
       mockedAuthChallenge
-          .when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
+          .when(
+              () ->
+                  AuthChallenge.discover(
+                      any(CloseableHttpClient.class), anyString(), any(HttpRetryExecutor.class)))
           .thenReturn(basicChallenge);
       mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
@@ -546,7 +567,10 @@ public class OciHttpTransportTest {
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
       mockedAuthChallenge
-          .when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
+          .when(
+              () ->
+                  AuthChallenge.discover(
+                      any(CloseableHttpClient.class), anyString(), any(HttpRetryExecutor.class)))
           .thenReturn(basicChallenge);
       mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
@@ -591,7 +615,10 @@ public class OciHttpTransportTest {
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
       mockedAuthChallenge
-          .when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
+          .when(
+              () ->
+                  AuthChallenge.discover(
+                      any(CloseableHttpClient.class), anyString(), any(HttpRetryExecutor.class)))
           .thenReturn(basicChallenge);
       mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
@@ -633,7 +660,10 @@ public class OciHttpTransportTest {
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
       mockedAuthChallenge
-          .when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
+          .when(
+              () ->
+                  AuthChallenge.discover(
+                      any(CloseableHttpClient.class), anyString(), any(HttpRetryExecutor.class)))
           .thenReturn(basicChallenge);
       mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
@@ -834,7 +864,10 @@ public class OciHttpTransportTest {
     AuthChallenge anonymousChallenge = AuthChallenge.anonymous();
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
       mockedAuthChallenge
-          .when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
+          .when(
+              () ->
+                  AuthChallenge.discover(
+                      any(CloseableHttpClient.class), anyString(), any(HttpRetryExecutor.class)))
           .thenReturn(anonymousChallenge);
       mockedAuthChallenge.when(AuthChallenge::anonymous).thenCallRealMethod();
 
@@ -845,6 +878,81 @@ public class OciHttpTransportTest {
       }
       transport.close();
     }
+  }
+
+  @Test
+  void testFetchManifest_RetriesServiceUnavailable_WhenRetryConfigSet() throws Exception {
+    String manifestJson =
+        "{\"schemaVersion\":2,\"config\":{\"digest\":\"sha256:cfg\"},"
+            + "\"layers\":[{\"digest\":\"sha256:lyr\"}]}";
+    CloseableHttpClient mockHttpClient =
+        createMockHttpClientForManifest(manifestJson, null, HttpStatus.SC_OK, 100L);
+    CloseableHttpResponse okResponse = mockHttpClient.execute(new HttpGet(REGISTRY_ENDPOINT));
+    CloseableHttpResponse unavailable = createMockResponse(HttpStatus.SC_SERVICE_UNAVAILABLE);
+    when(mockHttpClient.execute(any(HttpGet.class))).thenReturn(unavailable, okResponse);
+
+    try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
+      OciHttpTransport transport =
+          new OciHttpTransport(
+              REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient, fastRetryConfig());
+
+      Manifest manifest = transport.fetchManifest(REPOSITORY, "latest");
+
+      assertEquals("sha256:cfg", manifest.getConfigDigest());
+      verify(unavailable).close();
+      transport.close();
+    }
+  }
+
+  @Test
+  void testDownloadBlob_RetriesIoException_WhenRetryConfigSet() throws Exception {
+    CloseableHttpClient mockHttpClient = createMockHttpClientForBlob("blob-data", 200, true);
+    CloseableHttpResponse okResponse = mockHttpClient.execute(new HttpGet(REGISTRY_ENDPOINT));
+    when(mockHttpClient.execute(any(HttpGet.class)))
+        .thenThrow(new IOException("Connection reset"))
+        .thenReturn(okResponse);
+
+    try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
+      OciHttpTransport transport =
+          new OciHttpTransport(
+              REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient, fastRetryConfig());
+
+      try (InputStream blob = transport.downloadBlob(REPOSITORY, "sha256:abc")) {
+        assertEquals("blob-data", new String(blob.readAllBytes(), StandardCharsets.UTF_8));
+      }
+      transport.close();
+    }
+  }
+
+  @Test
+  void testFetchManifest_DoesNotRetry_WithoutRetryConfig() throws Exception {
+    CloseableHttpClient mockHttpClient =
+        createMockHttpClientForManifest("unavailable", null, 503, 100L);
+
+    try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
+      OciHttpTransport transport =
+          new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+
+      assertThrows(UnknownException.class, () -> transport.fetchManifest(REPOSITORY, "latest"));
+      verify(mockHttpClient, times(1)).execute(any(HttpGet.class));
+      transport.close();
+    }
+  }
+
+  private static RetryConfig fastRetryConfig() {
+    return RetryConfig.builder()
+        .mode(RetryConfig.Mode.FIXED)
+        .maxAttempts(3)
+        .fixedDelayMillis(1L)
+        .build();
+  }
+
+  private static CloseableHttpResponse createMockResponse(int statusCode) {
+    CloseableHttpResponse response = mock(CloseableHttpResponse.class);
+    StatusLine statusLine = mock(StatusLine.class);
+    when(statusLine.getStatusCode()).thenReturn(statusCode);
+    when(response.getStatusLine()).thenReturn(statusLine);
+    return response;
   }
 
   private void testFetchManifestWithResponse(
@@ -952,7 +1060,10 @@ public class OciHttpTransportTest {
 
     MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class);
     mockedAuthChallenge
-        .when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
+        .when(
+            () ->
+                AuthChallenge.discover(
+                    any(CloseableHttpClient.class), anyString(), any(HttpRetryExecutor.class)))
         .thenReturn(basicChallenge);
     mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
     return mockedAuthChallenge;

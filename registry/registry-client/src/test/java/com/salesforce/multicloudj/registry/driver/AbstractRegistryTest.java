@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.registry.driver;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -14,6 +15,7 @@ import static org.mockito.Mockito.when;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.registry.model.Image;
 import com.salesforce.multicloudj.registry.model.Layer;
 import com.salesforce.multicloudj.registry.model.Manifest;
@@ -320,6 +322,44 @@ class AbstractRegistryTest {
               .withHttpClient(null);
 
       assertNull(builder.getHttpClient());
+    }
+
+    @Test
+    void builder_withRetryConfig_passesConfigToRegistry() {
+      RetryConfig retryConfig =
+          RetryConfig.builder()
+              .mode(RetryConfig.Mode.FIXED)
+              .maxAttempts(3)
+              .fixedDelayMillis(100L)
+              .build();
+
+      TestRegistry reg =
+          new TestRegistry.TestBuilder()
+              .withRegistryEndpoint(REGISTRY_ENDPOINT)
+              .withRetryConfig(retryConfig)
+              .build();
+
+      assertSame(retryConfig, reg.retryConfig);
+    }
+
+    @Test
+    void builder_withNullRetryConfig_leavesRetryConfigUnset() {
+      TestRegistry reg =
+          new TestRegistry.TestBuilder()
+              .withRegistryEndpoint(REGISTRY_ENDPOINT)
+              .withRetryConfig(null)
+              .build();
+
+      assertNull(reg.retryConfig);
+    }
+
+    @Test
+    void builder_withInvalidRetryConfig_throwsInvalidArgumentException() {
+      RetryConfig invalid = RetryConfig.builder().maxAttempts(0).build();
+
+      assertThrows(
+          InvalidArgumentException.class,
+          () -> new TestRegistry.TestBuilder().withRetryConfig(invalid));
     }
 
     @Test

@@ -8,12 +8,15 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.IOException;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
@@ -240,5 +243,27 @@ public class AuthChallengeTest {
     assertNull(challenge.getRealm());
     assertNull(challenge.getService());
     assertNull(challenge.getScope());
+  }
+
+  @Test
+  void testDiscover_RetriesIoException_WithRetryExecutor() throws Exception {
+    RetryConfig retryConfig =
+        RetryConfig.builder()
+            .mode(RetryConfig.Mode.FIXED)
+            .maxAttempts(3)
+            .fixedDelayMillis(1L)
+            .build();
+    when(mockHttpClient.execute(any(HttpGet.class)))
+        .thenThrow(new IOException("Connection reset"))
+        .thenReturn(mockResponse);
+    when(mockResponse.getStatusLine()).thenReturn(mockStatusLine);
+    when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_OK);
+
+    AuthChallenge challenge =
+        AuthChallenge.discover(
+            mockHttpClient, REGISTRY_ENDPOINT, new HttpRetryExecutor(retryConfig));
+
+    assertEquals(AuthScheme.ANONYMOUS, challenge.getScheme());
+    verify(mockHttpClient, times(2)).execute(any(HttpGet.class));
   }
 }
