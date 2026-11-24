@@ -103,8 +103,9 @@ public class ContainerRegistryClient implements AutoCloseable {
      * <p>For manifest and blob requests, attemptTimeout bounds waiting for a pooled connection,
      * connecting, and each wait for data rather than the whole response, so a large blob that
      * keeps streaming is not cut off, and totalTimeout is checked only before a retry starts, so
-     * an attempt in flight is not interrupted. Calls the provider makes through its cloud SDK,
-     * such as obtaining registry credentials, apply both timeouts as that SDK defines them.
+     * an attempt in flight is not interrupted. Calls the provider makes through a cloud SDK or
+     * auth library, such as obtaining registry credentials, follow that library's retry and
+     * timeout semantics and may not use this configuration.
      *
      * @param retryConfig the retry configuration to use for retrying failed requests
      * @return this ContainerRegistryClientBuilder instance
