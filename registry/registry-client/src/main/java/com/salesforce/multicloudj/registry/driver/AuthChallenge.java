@@ -67,10 +67,25 @@ public final class AuthChallenge {
    * @throws UnknownException if the request fails or registry returns an unexpected status
    */
   public static AuthChallenge discover(CloseableHttpClient httpClient, String registryEndpoint) {
+    return discover(httpClient, registryEndpoint, new HttpRetryExecutor(null));
+  }
+
+  /**
+   * Discovers authentication requirements, retrying the registry ping with the given executor.
+   *
+   * @param httpClient the HTTP client to use for the request
+   * @param registryEndpoint the registry base URL
+   * @param retryExecutor the executor that applies the retry configuration
+   * @return AuthChallenge describing the authentication requirements (including anonymous)
+   * @throws UnAuthorizedException if registry returns 401 without WWW-Authenticate header
+   * @throws UnknownException if the request fails or registry returns an unexpected status
+   */
+  static AuthChallenge discover(
+      CloseableHttpClient httpClient, String registryEndpoint, HttpRetryExecutor retryExecutor) {
     String url = registryEndpoint + "/v2/";
     HttpGet request = new HttpGet(url);
 
-    try (CloseableHttpResponse response = httpClient.execute(request)) {
+    try (CloseableHttpResponse response = retryExecutor.execute(httpClient, request)) {
       int statusCode = response.getStatusLine().getStatusCode();
 
       if (statusCode == HttpStatus.SC_OK) {

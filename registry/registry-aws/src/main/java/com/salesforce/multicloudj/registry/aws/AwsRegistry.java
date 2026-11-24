@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.registry.aws;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.AwsRetryClassifier;
+import com.salesforce.multicloudj.common.aws.AwsRetryStrategies;
 import com.salesforce.multicloudj.common.aws.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
@@ -21,6 +22,7 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ecr.EcrClient;
+import software.amazon.awssdk.services.ecr.EcrClientBuilder;
 import software.amazon.awssdk.services.ecr.model.GetAuthorizationTokenRequest;
 import software.amazon.awssdk.services.ecr.model.GetAuthorizationTokenResponse;
 
@@ -184,7 +186,7 @@ public class AwsRegistry extends AbstractRegistry {
       return new AwsRegistry(this);
     }
 
-    private EcrClient buildEcrClient() {
+    EcrClient buildEcrClient() {
       Region awsRegion = Region.of(region);
       AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
       if (credentialsOverrider != null) {
@@ -194,10 +196,13 @@ public class AwsRegistry extends AbstractRegistry {
           credentialsProvider = overrideProvider;
         }
       }
-      return EcrClient.builder()
-          .region(awsRegion)
-          .credentialsProvider(credentialsProvider)
-          .build();
+      EcrClientBuilder clientBuilder =
+          EcrClient.builder().region(awsRegion).credentialsProvider(credentialsProvider);
+      if (retryConfig != null) {
+        clientBuilder.overrideConfiguration(
+            config -> AwsRetryStrategies.applyRetryConfig(config, retryConfig));
+      }
+      return clientBuilder.build();
     }
   }
 }

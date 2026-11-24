@@ -13,9 +13,11 @@ import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
 import com.salesforce.multicloudj.registry.driver.AuthChallenge;
 import com.salesforce.multicloudj.registry.driver.BearerTokenExchange;
+import com.salesforce.multicloudj.registry.driver.HttpRetryExecutor;
 import java.io.IOException;
 import java.util.Collections;
 import org.apache.commons.lang3.StringUtils;
@@ -27,6 +29,10 @@ import org.apache.http.impl.client.HttpClients;
  *
  * <p>Authentication uses OAuth2 access tokens obtained from Google credentials. The token is
  * automatically refreshed when expired.
+ *
+ * <p>A configured RetryConfig applies to the registry and bearer token exchange requests. The
+ * OAuth2 access token refresh is performed by the Google auth library over its own HTTP transport
+ * and is not covered by the RetryConfig.
  *
  * <p>Registry endpoint format: https://{location}-docker.pkg.dev Example: <a
  * href="https://us-central1-docker.pkg.dev">...</a>
@@ -82,14 +88,21 @@ public class GcpRegistry extends AbstractRegistry {
     // In production (no injected client or exchange), create a dedicated client for token exchange
     CloseableHttpClient tokenClient =
         (registryEndpoint != null && tokenExchange == null && ociHttpClient == null)
-            ? HttpClients.createDefault()
+            ? createTokenHttpClient(retryConfig)
             : null;
     this.tokenHttpClient = tokenClient;
     this.tokenExchange =
         registryEndpoint == null ? null
         : tokenExchange != null  ? tokenExchange
-        : ociHttpClient != null  ? new BearerTokenExchange(ociHttpClient)
-                                 : new BearerTokenExchange(tokenClient);
+        : ociHttpClient != null  ? new BearerTokenExchange(ociHttpClient, retryConfig)
+                                 : new BearerTokenExchange(tokenClient, retryConfig);
+  }
+
+  private static CloseableHttpClient createTokenHttpClient(RetryConfig retryConfig) {
+    if (retryConfig == null) {
+      return HttpClients.createDefault();
+    }
+    return HttpRetryExecutor.configureClient(HttpClients.custom(), retryConfig).build();
   }
 
   @Override
