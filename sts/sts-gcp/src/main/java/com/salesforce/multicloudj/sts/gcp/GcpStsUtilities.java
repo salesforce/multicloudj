@@ -98,6 +98,7 @@ public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
     super(builder);
     this.jwtSigner = null;
     this.serviceAccountEmailOverride = null;
+    rejectSessionCredentialsSupplier();
   }
 
   public GcpStsUtilities() {
@@ -109,6 +110,19 @@ public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
     super(builder);
     this.jwtSigner = jwtSigner;
     this.serviceAccountEmailOverride = serviceAccountEmail;
+    rejectSessionCredentialsSupplier();
+  }
+
+  /**
+   * Signing uses Application Default Credentials and only reads the {@code role} from the
+   * overrider, so a session credentials supplier would be ignored.
+   */
+  private void rejectSessionCredentialsSupplier() {
+    if (credentialsOverrider != null
+        && credentialsOverrider.getSessionCredentialsSupplier() != null) {
+      throw new UnSupportedOperationException(
+          "A session credentials supplier is not supported for signing requests");
+    }
   }
 
   @Override

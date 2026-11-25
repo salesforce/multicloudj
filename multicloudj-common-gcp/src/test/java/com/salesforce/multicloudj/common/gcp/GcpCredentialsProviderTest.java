@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.common.gcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -12,6 +13,8 @@ import com.google.auth.oauth2.IdentityPoolCredentials;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
@@ -207,5 +210,64 @@ public class GcpCredentialsProviderTest {
             () -> GcpCredentialsProvider.getCredentials(overrider),
             "IllegalArgumentException expected when webIdentityTokenSupplier is null");
     assertTrue(ex.getMessage().contains("webIdentityTokenSupplier"));
+  }
+
+  @Test
+  void testGetCredentialsWithSessionTypeAndASupplier() throws Exception {
+    AtomicInteger supplierCalls = new AtomicInteger();
+    CredentialsOverrider overrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentialsSupplier(
+                () -> {
+                  supplierCalls.incrementAndGet();
+                  return new StsCredentials("access-key-id", "access-key-secret", "bearer-token");
+                })
+            .withRefreshInterval(Duration.ofHours(1))
+            .build();
+
+    Credentials credentials = GcpCredentialsProvider.getCredentials(overrider);
+
+    assertInstanceOf(RefreshableSessionCredentials.class, credentials);
+    assertInstanceOf(GoogleCredentials.class, credentials);
+    assertEquals(0, supplierCalls.get(), "the supplier is not called when credentials are built");
+    assertEquals(
+        List.of("Bearer bearer-token"),
+        credentials.getRequestMetadata(null).get("Authorization"));
+  }
+
+  @Test
+  void testSupplierCredentialsForOneOverriderShareOneSupplier() throws Exception {
+    AtomicInteger supplierCalls = new AtomicInteger();
+    CredentialsOverrider overrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentialsSupplier(
+                () -> {
+                  supplierCalls.incrementAndGet();
+                  return new StsCredentials("access-key-id", "access-key-secret", "bearer-token");
+                })
+            .withRefreshInterval(Duration.ofHours(1))
+            .build();
+
+    Credentials first = GcpCredentialsProvider.getCredentials(overrider);
+    Credentials second = GcpCredentialsProvider.getCredentials(overrider);
+    first.getRequestMetadata(null);
+    second.getRequestMetadata(null);
+
+    assertEquals(first, second);
+    assertEquals(1, supplierCalls.get(), "every credentials object uses the overrider's refresher");
+  }
+
+  @Test
+  void testFixedSessionCredentialsStayAPlainBearerToken() {
+    CredentialsOverrider overrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(new StsCredentials("key-id", "key-secret", "fixed-token"))
+            .build();
+
+    Credentials credentials = GcpCredentialsProvider.getCredentials(overrider);
+
+    assertEquals(GoogleCredentials.class, credentials.getClass());
+    assertEquals(
+        "fixed-token", ((GoogleCredentials) credentials).getAccessToken().getTokenValue());
   }
 }

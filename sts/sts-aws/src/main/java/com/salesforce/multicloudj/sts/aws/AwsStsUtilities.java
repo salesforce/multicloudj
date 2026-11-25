@@ -370,8 +370,13 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
   }
 
   private StsCredentials getSigningCredentials() {
-    StsCredentials signingCredentials =
-        credentialsOverrider == null ? null : credentialsOverrider.getSessionCredentials();
+    StsCredentials signingCredentials = null;
+    if (credentialsOverrider != null) {
+      signingCredentials =
+          credentialsOverrider.getCredentialsRefresher() != null
+              ? credentialsOverrider.getCredentialsRefresher().getCredentials()
+              : credentialsOverrider.getSessionCredentials();
+    }
     if (signingCredentials == null) {
       AwsCredentials resolved = defaultCredentialsProvider().resolveCredentials();
       signingCredentials =

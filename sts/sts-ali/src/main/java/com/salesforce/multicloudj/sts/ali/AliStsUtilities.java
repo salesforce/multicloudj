@@ -14,6 +14,7 @@ import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.driver.AbstractStsUtilities;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -41,6 +42,13 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
     if (endpoint != null && !AliStsVerifier.isStsHost(endpoint.getHost())) {
       throw new InvalidArgumentException(
           "endpoint is not an Alibaba Cloud STS endpoint: " + endpoint);
+    }
+    // Signing reads the fixed session credentials, or else uses the default credential chain, so a
+    // supplier must fail here instead of silently signing with other credentials.
+    if (credentialsOverrider != null
+        && credentialsOverrider.getSessionCredentialsSupplier() != null) {
+      throw new UnSupportedOperationException(
+          "A session credentials supplier is not supported yet for the STS utilities");
     }
   }
 

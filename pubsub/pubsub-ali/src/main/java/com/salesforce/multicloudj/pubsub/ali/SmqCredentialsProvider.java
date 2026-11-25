@@ -21,6 +21,8 @@ import com.salesforce.multicloudj.sts.model.StsCredentials;
  *   <li>{@code SESSION} with session credentials → a static session-credentials provider (the
  *       credential values are passed to the SDK, which evaluates them);
  *   <li>{@code SESSION} without session credentials → {@link InvalidArgumentException};
+ *   <li>{@code SESSION} with a credentials supplier → {@link UnSupportedOperationException} (not
+ *       yet implemented for SMQ);
  *   <li>{@code ASSUME_ROLE} / {@code ASSUME_ROLE_WEB_IDENTITY} →
  *       {@link UnSupportedOperationException} (TODO: not yet implemented for SMQ).
  * </ul>
@@ -37,7 +39,8 @@ public final class SmqCredentialsProvider {
    * @return a static session provider for a {@code SESSION} override with session credentials, or
    *     {@code null} when the override is absent
    * @throws InvalidArgumentException if a {@code SESSION} override carries no session credentials
-   * @throws UnSupportedOperationException if the override type is not yet supported for SMQ
+   * @throws UnSupportedOperationException if the override type, or a credentials supplier on a
+   *     {@code SESSION} override, is not yet supported for SMQ
    */
   public static AlibabaCloudCredentialsProvider getCredentialsProvider(
       CredentialsOverrider overrider) {
@@ -47,6 +50,10 @@ public final class SmqCredentialsProvider {
 
     switch (overrider.getType()) {
       case SESSION:
+        if (overrider.getSessionCredentialsSupplier() != null) {
+          throw new UnSupportedOperationException(
+              "A session credentials supplier is not supported yet for SMQ");
+        }
         StsCredentials sessionCredentials = overrider.getSessionCredentials();
         if (sessionCredentials == null) {
           throw new InvalidArgumentException(

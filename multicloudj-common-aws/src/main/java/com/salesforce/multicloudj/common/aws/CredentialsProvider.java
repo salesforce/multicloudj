@@ -23,6 +23,9 @@ public class CredentialsProvider {
     switch (overrider.getType()) {
       case SESSION:
         {
+          if (overrider.getCredentialsRefresher() != null) {
+            return new RefreshableSessionCredentialsProvider(overrider.getCredentialsRefresher());
+          }
           StsCredentials stsCredentials = overrider.getSessionCredentials();
           if (StringUtils.isBlank(stsCredentials.getSecurityToken())) {
             return StaticCredentialsProvider.create(

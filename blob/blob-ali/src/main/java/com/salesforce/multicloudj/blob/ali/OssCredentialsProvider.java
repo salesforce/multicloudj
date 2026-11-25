@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.blob.ali;
 import com.aliyun.sdk.service.oss2.credentials.Credentials;
 import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
 import com.aliyun.sdk.service.oss2.credentials.StaticCredentialsProvider;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.sts.client.StsClient;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -21,6 +22,10 @@ public class OssCredentialsProvider {
 
     switch (overrider.getType()) {
       case SESSION:
+        if (overrider.getSessionCredentialsSupplier() != null) {
+          throw new UnSupportedOperationException(
+              "A session credentials supplier is not supported yet for the blob store");
+        }
         StsCredentials stsCredentials = overrider.getSessionCredentials();
         return new StaticCredentialsProvider(
             stsCredentials.getAccessKeyId(),

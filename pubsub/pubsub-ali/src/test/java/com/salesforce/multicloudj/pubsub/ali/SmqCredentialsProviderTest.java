@@ -14,6 +14,7 @@ import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationExceptio
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
 public class SmqCredentialsProviderTest {
@@ -84,6 +85,18 @@ public class SmqCredentialsProviderTest {
   void assumeRoleWebIdentityThrows() {
     CredentialsOverrider overrider =
         new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE_WEB_IDENTITY).build();
+    assertThrows(
+        UnSupportedOperationException.class,
+        () -> SmqCredentialsProvider.getCredentialsProvider(overrider));
+  }
+
+  @Test
+  void sessionWithASupplierThrows() {
+    CredentialsOverrider overrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentialsSupplier(() -> new StsCredentials("key", "secret", "token"))
+            .withRefreshInterval(Duration.ofMinutes(1))
+            .build();
     assertThrows(
         UnSupportedOperationException.class,
         () -> SmqCredentialsProvider.getCredentialsProvider(overrider));

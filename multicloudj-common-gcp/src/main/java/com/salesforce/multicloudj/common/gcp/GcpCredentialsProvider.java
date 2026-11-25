@@ -28,6 +28,9 @@ public class GcpCredentialsProvider {
     }
     switch (overrider.getType()) {
       case SESSION:
+        if (overrider.getCredentialsRefresher() != null) {
+          return new RefreshableSessionCredentials(overrider.getCredentialsRefresher());
+        }
         StsCredentials stsCredentials = overrider.getSessionCredentials();
         return GoogleCredentials.newBuilder()
             .setAccessToken(

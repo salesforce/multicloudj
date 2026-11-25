@@ -29,8 +29,12 @@ import com.salesforce.multicloudj.registry.driver.AuthChallenge;
 import com.salesforce.multicloudj.registry.driver.BearerTokenExchange;
 import com.salesforce.multicloudj.registry.model.Platform;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import com.salesforce.multicloudj.sts.model.CredentialsType;
+import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Date;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.junit.jupiter.api.Test;
@@ -397,6 +401,42 @@ class GcpRegistryTest {
       verify(mockTokenExchange)
           .getBearerToken(any(), eq("overrider-token"), anyString(), anyString());
     }
+  }
+
+  @Test
+  void testGetAuthorizationHeader_RefreshableSessionCredentials_UsesTheSuppliedToken()
+      throws Exception {
+    AtomicInteger supplierCalls = new AtomicInteger();
+    CredentialsOverrider overrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentialsSupplier(
+                () -> {
+                  supplierCalls.incrementAndGet();
+                  return new StsCredentials("access-key-id", "access-key-secret", "supplied-token");
+                })
+            .withRefreshInterval(Duration.ofHours(1))
+            .build();
+    BearerTokenExchange mockTokenExchange = mock(BearerTokenExchange.class);
+    when(mockTokenExchange.getBearerToken(any(), eq("supplied-token"), anyString(), anyString()))
+        .thenReturn("bearer-token");
+
+    GcpRegistry registry =
+        new GcpRegistry(
+            new GcpRegistry.Builder()
+                .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT)
+                .withCredentialsOverrider(overrider),
+            null,
+            null,
+            mockTokenExchange);
+
+    assertEquals(
+        "Bearer bearer-token", registry.getAuthorizationHeader(BEARER_CHALLENGE, TEST_REPOSITORY));
+    assertEquals(
+        "Bearer bearer-token", registry.getAuthorizationHeader(BEARER_CHALLENGE, TEST_REPOSITORY));
+    verify(mockTokenExchange, times(2))
+        .getBearerToken(any(), eq("supplied-token"), anyString(), anyString());
+    assertEquals(1, supplierCalls.get());
+    registry.close();
   }
 
   @Test

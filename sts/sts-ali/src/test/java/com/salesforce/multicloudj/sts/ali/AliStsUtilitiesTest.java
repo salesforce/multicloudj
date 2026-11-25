@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.sts.ali;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.sts.client.StsUtilities;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -9,6 +10,7 @@ import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
 import java.net.http.HttpRequest;
+import java.time.Duration;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -159,6 +161,20 @@ class AliStsUtilitiesTest {
           () -> builder.withEndpoint(URI.create(endpoint)),
           endpoint);
     }
+  }
+
+  @Test
+  void aSessionCredentialsSupplierIsRejectedInsteadOfUsingDefaultCredentials() {
+    StsUtilities.StsUtilityBuilder builder =
+        StsUtilities.builder("ali")
+            .withRegion("cn-shanghai")
+            .withCredentialsOverrider(
+                new CredentialsOverrider.Builder(CredentialsType.SESSION)
+                    .withSessionCredentialsSupplier(() -> credentials)
+                    .withRefreshInterval(Duration.ofMinutes(1))
+                    .build());
+
+    Assertions.assertThrows(UnSupportedOperationException.class, builder::build);
   }
 
   private static StsUtilities endpointSigner(String endpoint) {

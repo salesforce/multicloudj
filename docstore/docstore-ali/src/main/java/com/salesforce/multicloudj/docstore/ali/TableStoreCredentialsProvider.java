@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.docstore.ali;
 
 import com.alicloud.openservices.tablestore.core.auth.CredentialsProvider;
 import com.alicloud.openservices.tablestore.core.auth.CredentialsProviderFactory;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 
@@ -14,6 +15,10 @@ public class TableStoreCredentialsProvider {
 
     switch (overrider.getType()) {
       case SESSION:
+        if (overrider.getSessionCredentialsSupplier() != null) {
+          throw new UnSupportedOperationException(
+              "A session credentials supplier is not supported yet for the document store");
+        }
         StsCredentials stsCredentials = overrider.getSessionCredentials();
         return CredentialsProviderFactory.newDefaultCredentialProvider(
             stsCredentials.getAccessKeyId(),

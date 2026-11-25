@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.kms.ali;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -59,7 +60,11 @@ import com.salesforce.multicloudj.kms.model.PrincipalType;
 import com.salesforce.multicloudj.kms.model.ProtectionLevel;
 import com.salesforce.multicloudj.kms.model.WrappingAlgorithm;
 import com.salesforce.multicloudj.kms.model.WrappingKeySpec;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import com.salesforce.multicloudj.sts.model.CredentialsType;
+import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
@@ -617,6 +622,33 @@ class AliKmsTest {
   @Test
   void buildWithoutRegionOrEndpointFails() {
     assertThrows(InvalidArgumentException.class, () -> new AliKms.Builder().build());
+  }
+
+  @Test
+  void buildWithASessionCredentialsSupplierIsRejected() {
+    CredentialsOverrider overrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentialsSupplier(() -> new StsCredentials("key", "secret", "token"))
+            .withRefreshInterval(Duration.ofMinutes(1))
+            .build();
+
+    assertThrows(
+        UnSupportedOperationException.class,
+        () -> new AliKms.Builder().withRegion(REGION).withCredentialsOverrider(overrider).build());
+  }
+
+  @Test
+  void buildWithFixedSessionCredentialsStillWorks() {
+    CredentialsOverrider overrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(new StsCredentials("key", "secret", "token"))
+            .build();
+
+    AliKms built =
+        new AliKms.Builder().withRegion(REGION).withCredentialsOverrider(overrider).build();
+
+    assertNotNull(built);
+    built.close();
   }
 
   @Test
