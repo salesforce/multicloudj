@@ -246,6 +246,13 @@ public interface AsyncBlobStore extends SdkService, AutoCloseable {
   CompletableFuture<Void> setTags(String key, Map<String, String> tags);
 
   /**
+   * Removes all tags from a blob. Succeeds if the blob has no tags.
+   *
+   * @param key Name of the blob whose tags are to be removed
+   */
+  CompletableFuture<Void> deleteTags(String key);
+
+  /**
    * Generates a presigned URL for uploading/downloading blobs
    *
    * @param request The presigned request

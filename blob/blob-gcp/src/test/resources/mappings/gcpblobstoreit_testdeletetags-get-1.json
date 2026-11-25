@@ -1,0 +1,48 @@
+{
+  "id" : "d3c7b475-c021-414a-87d3-ab843bfd09eb",
+  "name" : "GcpBlobStoreIT_testDeleteTags-GET-1",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "maxResults" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/blob-for-delete-tags"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-delete-tags/1795452027416163\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-delete-tags\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-delete-tags?generation=1795452027416163&alt=media\",\n      \"name\": \"conformance-tests/blob-for-delete-tags\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n      \"generation\": \"1795452027416163\",\n      \"metageneration\": \"3\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"21\",\n      \"md5Hash\": \"R9sLxgLfZpvES7eQooodCw==\",\n      \"crc32c\": \"rOM6Xw==\",\n      \"etag\": \"COPcuILEnpgDEAM=\",\n      \"timeCreated\": \"2026-11-23T16:40:27.501Z\",\n      \"updated\": \"2026-11-23T16:40:28.737Z\",\n      \"timeStorageClassUpdated\": \"2026-11-23T16:40:27.501Z\",\n      \"customTime\": \"2026-12-23T16:40:27.501Z\",\n      \"timeFinalized\": \"2026-11-23T16:40:27.501Z\",\n      \"metadata\": {\n        \"owner\": \"conformance\"\n      }\n    }\n  ]\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AFy3sg0xzWfMu6m3n5Y4qmW-SGk0bz5RsaAVTRitjwMeCRgRMaqYHUvixzX7PzFmw5-UVHJI",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 23 Nov 2026 16:40:29 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a20947cbdc",
+      "Date" : "Mon, 23 Nov 2026 16:40:29 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "d3c7b475-c021-414a-87d3-ab843bfd09eb",
+  "persistent" : true,
+  "insertionIndex" : 1564
+}

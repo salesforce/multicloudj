@@ -759,6 +759,30 @@ public class BucketClient implements AutoCloseable {
   }
 
   /**
+   * Removes all tags from a blob. Succeeds if the blob has no tags.
+   *
+   * <p>Removing the reserved {@code expiration-days} tag does not retract a lifecycle expiration
+   * that was already scheduled for the object.
+   *
+   * @param key Name of the blob whose tags are to be removed
+   * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the blob
+   *     does not exist.
+   */
+  public void deleteTags(String key) {
+    multiCloudJLogger.traceVoidOperation(
+        BlobSpanNames.DELETE_TAGS,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            blobStore.deleteTags(key);
+          } catch (Throwable t) {
+            propagate(t);
+          }
+        });
+  }
+
+  /**
    * Generates a presigned URL for uploading/downloading blobs
    *
    * <p>Only the URL is returned. If the request sets tags, a content type, or a checksum, the

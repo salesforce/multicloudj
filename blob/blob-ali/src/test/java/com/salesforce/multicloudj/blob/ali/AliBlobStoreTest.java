@@ -32,6 +32,7 @@ import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsResult;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.DeleteObjectTaggingRequest;
 import com.aliyun.sdk.service.oss2.models.DeletedInfo;
 import com.aliyun.sdk.service.oss2.models.GetBucketVersioningRequest;
 import com.aliyun.sdk.service.oss2.models.GetBucketVersioningResult;
@@ -1449,6 +1450,17 @@ public class AliBlobStoreTest {
             Tag::key,
             Tag::value));
     assertEquals(tags, actualTagMap);
+  }
+
+  @Test
+  void testDoDeleteTags() {
+    ali.deleteTags("object-1");
+
+    ArgumentCaptor<DeleteObjectTaggingRequest> requestCaptor =
+        ArgumentCaptor.forClass(DeleteObjectTaggingRequest.class);
+    verify(mockOssClient, times(1)).deleteObjectTagging(requestCaptor.capture(), any());
+    assertEquals("bucket-1", requestCaptor.getValue().bucket());
+    assertEquals("object-1", requestCaptor.getValue().key());
   }
 
   @Test

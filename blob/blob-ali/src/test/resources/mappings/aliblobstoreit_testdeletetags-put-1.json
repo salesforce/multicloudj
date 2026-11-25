@@ -1,0 +1,31 @@
+{
+  "id" : "d89f466d-0a97-4558-aee3-fcebd43d05a7",
+  "name" : "AliBlobStoreIT_testDeleteTags-PUT-1",
+  "request" : {
+    "url" : "/conformance-tests/blob-for-delete-tags",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "ZGVsZXRlIHRhZ3MgdGVzdCBkYXRh"
+    } ]
+  },
+  "response" : {
+    "status" : 403,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>AccessDenied</Code>\n  <Message>You have no right to access this object.</Message>\n  <RequestId>6B0625885C5E1133390BC069</RequestId>\n  <HostId>chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com</HostId>\n  <EC>0003-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0003-00000001</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6B0625885C5E1133390BC069",
+      "x-oss-server-time" : "42",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0003-00000001",
+      "Date" : "Wed, 25 Nov 2026 00:02:16 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "d89f466d-0a97-4558-aee3-fcebd43d05a7",
+  "persistent" : true,
+  "insertionIndex" : 807
+}

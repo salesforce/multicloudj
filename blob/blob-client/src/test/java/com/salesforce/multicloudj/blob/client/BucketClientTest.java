@@ -1090,6 +1090,18 @@ public class BucketClientTest {
   }
 
   @Test
+  void testDeleteTags() {
+    client.deleteTags("object-1");
+    verify(mockBlobStore, times(1)).deleteTags("object-1");
+  }
+
+  @Test
+  void testDeleteTagsException() {
+    doThrow(RuntimeException.class).when(mockBlobStore).deleteTags("object-1");
+    assertThrows(UnAuthorizedException.class, () -> client.deleteTags("object-1"));
+  }
+
+  @Test
   void testGeneratePresignedUrl() {
     PresignedUrlRequest presignedUrlRequest =
         PresignedUrlRequest.builder()

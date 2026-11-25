@@ -73,6 +73,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
@@ -4308,6 +4309,62 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertFalse(
           tagResults.containsKey(reservedKey),
           "testTagging_lifecycleExpiration: reserved tag was not cleared by setTags");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  /**
+   * Conformance test for deleteTags. Verifies that every tag (including the reserved
+   * lifecycle-expiration tag) is removed while user metadata is preserved, that deleting tags from
+   * an untagged blob succeeds, and that deleting tags from a non-existent blob fails with {@link
+   * ResourceNotFoundException}.
+   */
+  @Test
+  public void testDeleteTags() throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    String key = "conformance-tests/blob-for-delete-tags";
+    try {
+      byte[] utf8BlobBytes = "delete tags test data".getBytes(StandardCharsets.UTF_8);
+      Map<String, String> metadata = Map.of("owner", "conformance");
+
+      try (InputStream inputStream = new ByteArrayInputStream(utf8BlobBytes)) {
+        UploadRequest request =
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(utf8BlobBytes.length)
+                .withMetadata(metadata)
+                .withTags(Map.of("tag1", "value1"))
+                .build();
+        bucketClient.upload(request, inputStream);
+      }
+
+      // The reserved tag is applied via setTags, so any expiration it schedules is anchored to the
+      // object's creation time rather than the wall clock at upload. A sorted map keeps the
+      // serialized tag order stable across runs so recorded request bodies replay.
+      Map<String, String> tags = new TreeMap<>(Map.of("tag1", "value1", "expiration-days", "30"));
+      bucketClient.setTags(key, tags);
+      Assertions.assertEquals(
+          tags, bucketClient.getTags(key), "testDeleteTags: tags were not applied by setTags");
+
+      // Positive: all tags are removed and user metadata is untouched
+      bucketClient.deleteTags(key);
+      Assertions.assertTrue(
+          bucketClient.getTags(key).isEmpty(), "testDeleteTags: tags remained after deleteTags");
+      Assertions.assertEquals(
+          "conformance",
+          bucketClient.getMetadata(key, null).getMetadata().get("owner"),
+          "testDeleteTags: user metadata was not preserved by deleteTags");
+
+      // Deleting tags from a blob that has none succeeds
+      bucketClient.deleteTags(key);
+      Assertions.assertTrue(bucketClient.getTags(key).isEmpty());
+
+      // Negative: deleting tags from a blob that doesn't exist fails
+      Assertions.assertThrows(
+          ResourceNotFoundException.class, () -> bucketClient.deleteTags(key + "-fake"));
     } finally {
       safeDeleteBlobs(bucketClient, key);
     }

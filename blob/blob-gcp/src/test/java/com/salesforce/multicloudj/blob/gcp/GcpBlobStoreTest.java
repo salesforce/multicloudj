@@ -2181,6 +2181,67 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoDeleteTags_RemovesPrefixedKeepsOthers() {
+    when(mockTransformer.toBlobId(TEST_KEY, null)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+    Map<String, String> existing = new HashMap<>();
+    existing.put("gcp-tag-a", "1");
+    existing.put("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY, "30");
+    existing.put("owner", "alice");
+    when(mockBlob.getMetadata()).thenReturn(existing);
+
+    Blob.Builder mockBuilder = mock(Blob.Builder.class);
+    Blob updatedBlob = mock(Blob.class);
+    ArgumentCaptor<Map<String, String>> mdCaptor = ArgumentCaptor.forClass(Map.class);
+    when(mockBlob.toBuilder()).thenReturn(mockBuilder);
+    when(mockBuilder.setMetadata(mdCaptor.capture())).thenReturn(mockBuilder);
+    when(mockBuilder.build()).thenReturn(updatedBlob);
+
+    gcpBlobStore.doDeleteTags(TEST_KEY);
+
+    verify(mockStorage).update(updatedBlob);
+    Map<String, String> finalMd = mdCaptor.getValue();
+    assertEquals("alice", finalMd.get("owner"));
+    assertTrue(finalMd.containsKey("gcp-tag-a"));
+    assertNull(finalMd.get("gcp-tag-a"));
+    assertNull(finalMd.get("gcp-tag-" + GcpConstants.LIFECYCLE_EXPIRATION_TAG_KEY));
+    // An already-scheduled expiration stays in place: the custom time is never touched
+    verify(mockBuilder, never()).setCustomTimeOffsetDateTime(any());
+  }
+
+  @Test
+  void testDoDeleteTags_NoTagsSkipsUpdate() {
+    when(mockTransformer.toBlobId(TEST_KEY, null)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+    when(mockBlob.getMetadata()).thenReturn(Map.of("owner", "alice"));
+
+    gcpBlobStore.doDeleteTags(TEST_KEY);
+
+    verify(mockStorage, never()).update(any(BlobInfo.class));
+  }
+
+  @Test
+  void testDoDeleteTags_NoMetadataSkipsUpdate() {
+    when(mockTransformer.toBlobId(TEST_KEY, null)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+    when(mockBlob.getMetadata()).thenReturn(null);
+
+    gcpBlobStore.doDeleteTags(TEST_KEY);
+
+    verify(mockStorage, never()).update(any(BlobInfo.class));
+  }
+
+  @Test
+  void testDoDeleteTags_MissingBlobThrowsResourceNotFound() {
+    when(mockTransformer.toBlobId(TEST_KEY, null)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(null);
+
+    assertThrows(ResourceNotFoundException.class, () -> gcpBlobStore.doDeleteTags(TEST_KEY));
+    verify(mockStorage, never()).update(any(BlobInfo.class));
+  }
+
+  @Test
   void testDoDoesObjectExist_WithVersionId() {
     // Given
     when(mockTransformer.toBlobId(TEST_KEY, TEST_VERSION_ID)).thenReturn(mockBlobId);

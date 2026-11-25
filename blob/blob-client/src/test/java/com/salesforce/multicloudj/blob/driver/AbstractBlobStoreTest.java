@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -398,6 +399,19 @@ public class AbstractBlobStoreTest {
     Map<String, String> tags = Map.of("tag-1", "tag-value-1");
     mockBlobStore.setTags("object-1", tags);
     verify(mockBlobStore, times(1)).doSetTags("object-1", tags);
+  }
+
+  @Test
+  void testDoDeleteTags() {
+    mockBlobStore.deleteTags("object-1");
+    verify(validator, times(1)).validateKey("object-1");
+    verify(mockBlobStore, times(1)).doDeleteTags("object-1");
+  }
+
+  @Test
+  void testDeleteTagsRejectsBlankKey() {
+    assertThrows(IllegalArgumentException.class, () -> mockBlobStore.deleteTags(" "));
+    verify(mockBlobStore, never()).doDeleteTags(any());
   }
 
   @Test

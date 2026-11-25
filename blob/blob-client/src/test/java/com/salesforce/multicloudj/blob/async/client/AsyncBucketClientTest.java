@@ -1237,6 +1237,20 @@ public class AsyncBucketClientTest {
   }
 
   @Test
+  void testDeleteTags() throws Exception {
+    doReturn(futureVoid()).when(mockBlobStore).deleteTags(any());
+    client.deleteTags("object-1").get();
+    verify(mockBlobStore, times(1)).deleteTags("object-1");
+  }
+
+  @Test
+  void testDeleteTagsException() {
+    CompletableFuture<Void> failure = CompletableFuture.failedFuture(new RuntimeException());
+    doReturn(failure).when(mockBlobStore).deleteTags("object-1");
+    assertFailed(client.deleteTags("object-1"), UnAuthorizedException.class);
+  }
+
+  @Test
   void testGeneratePresignedUrl() {
     PresignedUrlRequest presignedUrlRequest =
         PresignedUrlRequest.builder()

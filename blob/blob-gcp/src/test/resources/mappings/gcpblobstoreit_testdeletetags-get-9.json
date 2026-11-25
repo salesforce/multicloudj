@@ -1,0 +1,42 @@
+{
+  "id" : "b3c9d128-191c-49ce-a681-96f6dad59677",
+  "name" : "GcpBlobStoreIT_testDeleteTags-GET-9",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-delete-tags",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-delete-tags/1795452027416163\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-delete-tags\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-delete-tags?generation=1795452027416163&alt=media\",\n  \"name\": \"conformance-tests/blob-for-delete-tags\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1795452027416163\",\n  \"metageneration\": \"2\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"21\",\n  \"md5Hash\": \"R9sLxgLfZpvES7eQooodCw==\",\n  \"crc32c\": \"rOM6Xw==\",\n  \"etag\": \"COPcuILEnpgDEAI=\",\n  \"timeCreated\": \"2026-11-23T16:40:27.501Z\",\n  \"updated\": \"2026-11-23T16:40:28.064Z\",\n  \"timeStorageClassUpdated\": \"2026-11-23T16:40:27.501Z\",\n  \"customTime\": \"2026-12-23T16:40:27.501Z\",\n  \"timeFinalized\": \"2026-11-23T16:40:27.501Z\",\n  \"metadata\": {\n    \"gcp-tag-expiration-days\": \"30\",\n    \"owner\": \"conformance\",\n    \"gcp-tag-tag1\": \"value1\"\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "COPcuILEnpgDEAI=",
+      "X-GUploader-UploadID" : "AFy3sg0jPkSsj8Dhqm3ioz6LDBtkQPXXvqKeV3yRbzf3PCVxEnU_dZIK21TElqn9ORblFhj7",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 23 Nov 2026 16:40:28 GMT",
+      "X-Goog-Gcs-Base-Ts" : "1a20947c532",
+      "Date" : "Mon, 23 Nov 2026 16:40:28 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "b3c9d128-191c-49ce-a681-96f6dad59677",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-delete-tags",
+  "requiredScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-delete-tags-2",
+  "newScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-delete-tags-3",
+  "insertionIndex" : 1572
+}

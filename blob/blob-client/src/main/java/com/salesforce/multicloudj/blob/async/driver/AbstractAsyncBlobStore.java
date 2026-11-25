@@ -224,6 +224,13 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
 
   /** {@inheritDoc} */
   @Override
+  public CompletableFuture<Void> deleteTags(String key) {
+    validator.validateKey(key);
+    return doDeleteTags(key);
+  }
+
+  /** {@inheritDoc} */
+  @Override
   public CompletableFuture<URL> generatePresignedUrl(PresignedUrlRequest request) {
     validator.validate(request);
     return doPresign(request).thenApply(PresignedUrlResponse::getUrl);
@@ -327,6 +334,8 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   protected abstract CompletableFuture<Map<String, String>> doGetTags(String key);
 
   protected abstract CompletableFuture<Void> doSetTags(String key, Map<String, String> tags);
+
+  protected abstract CompletableFuture<Void> doDeleteTags(String key);
 
   protected abstract CompletableFuture<PresignedUrlResponse> doPresign(PresignedUrlRequest request);
 

@@ -1,0 +1,34 @@
+{
+  "id" : "e97e7e40-9ffa-4ceb-966d-4faac449db84",
+  "name" : "AwsBlobStoreIT_testDeleteTags-DELETE-3",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/blob-for-delete-tags",
+    "method" : "DELETE",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "FZRH205VFSBAJ8HK",
+      "x-amz-id-2" : "bZr4Hxfg3g7jky4ommDQdI3AC8QcBi4ltL4/j+jxDPFthDNmPgcvrjXxT+z1OQgV+T313lavqEkR0VGKCtgXI7PYOY3kdH+C",
+      "Date" : "Mon, 23 Nov 2026 21:20:53 GMT"
+    }
+  },
+  "uuid" : "e97e7e40-9ffa-4ceb-966d-4faac449db84",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-chameleon-jcloud-conformance-tests-blob-for-delete-tags",
+  "requiredScenarioState" : "scenario-2-chameleon-jcloud-conformance-tests-blob-for-delete-tags-2",
+  "insertionIndex" : 828
+}

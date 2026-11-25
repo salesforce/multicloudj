@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -33,6 +34,8 @@ import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsResult;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectResult;
+import com.aliyun.sdk.service.oss2.models.DeleteObjectTaggingRequest;
+import com.aliyun.sdk.service.oss2.models.DeleteObjectTaggingResult;
 import com.aliyun.sdk.service.oss2.models.DeletedInfo;
 import com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
@@ -1204,6 +1207,35 @@ public class AliAsyncBlobStoreTest {
     ExecutionException ex = assertThrows(ExecutionException.class,
         () -> store.setTags("forbidden-key", Map.of("k", "v")).get());
     assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testDeleteTags() throws Exception {
+    when(mockAsyncClient.deleteObjectTaggingAsync(
+        any(DeleteObjectTaggingRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mock(DeleteObjectTaggingResult.class)));
+
+    store.deleteTags("tag-key").get();
+
+    ArgumentCaptor<DeleteObjectTaggingRequest> captor =
+        ArgumentCaptor.forClass(DeleteObjectTaggingRequest.class);
+    verify(mockAsyncClient, times(1))
+        .deleteObjectTaggingAsync(captor.capture(), any(OperationOptions.class));
+    assertEquals("tag-key", captor.getValue().key());
+  }
+
+  @Test
+  void testDeleteTagsFailed() {
+    RuntimeException cause = new RuntimeException("object not found");
+    when(mockAsyncClient.deleteObjectTaggingAsync(
+        any(DeleteObjectTaggingRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.deleteTags("missing-key").get());
+    assertSame(cause, ex.getCause());
   }
 
   @Test

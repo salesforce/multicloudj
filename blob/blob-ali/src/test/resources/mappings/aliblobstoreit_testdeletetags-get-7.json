@@ -1,0 +1,40 @@
+{
+  "id" : "c001b5fc-c8c3-433b-8b6a-3a5b809ea9ca",
+  "name" : "AliBlobStoreIT_testDeleteTags-GET-7",
+  "request" : {
+    "urlPath" : "/conformance-tests/blob-for-delete-tags",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Tagging>\n  <TagSet>\n    <Tag>\n      <Key>expiration-days</Key>\n      <Value>30</Value>\n    </Tag>\n    <Tag>\n      <Key>tag1</Key>\n      <Value>value1</Value>\n    </Tag>\n  </TagSet>\n</Tagging>\n",
+    "headers" : {
+      "x-oss-request-id" : "6B062D8FFFEA0730309A3E50",
+      "x-oss-server-time" : "50",
+      "Server" : "AliyunOSS",
+      "Date" : "Wed, 25 Nov 2026 00:36:31 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "c001b5fc-c8c3-433b-8b6a-3a5b809ea9ca",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-conformance-tests-blob-for-delete-tags",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-conformance-tests-blob-for-delete-tags-2",
+  "insertionIndex" : 813
+}

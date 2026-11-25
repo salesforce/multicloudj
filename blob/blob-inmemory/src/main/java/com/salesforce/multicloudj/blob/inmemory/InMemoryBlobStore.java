@@ -1094,6 +1094,19 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   @Override
+  protected void doDeleteTags(String key) {
+    validateBucketExists();
+    String baseKey = getStorageKey(key);
+    String versionId = LATEST_VERSIONS.get(baseKey);
+
+    if (versionId == null) {
+      throw new ResourceNotFoundException("Blob not found: " + key);
+    }
+
+    TAGS.remove(baseKey + ":" + versionId);
+  }
+
+  @Override
   protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
     try {
       URL url = new URL("http://localhost:8080/" + bucket + "/" + request.getKey());

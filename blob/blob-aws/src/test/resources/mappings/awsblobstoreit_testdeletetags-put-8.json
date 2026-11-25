@@ -1,0 +1,35 @@
+{
+  "id" : "4a71832e-345e-4830-878b-ed3666988654",
+  "name" : "AwsBlobStoreIT_testDeleteTags-PUT-8",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/blob-for-delete-tags",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Tagging xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><TagSet><Tag><Key>expiration-days</Key><Value>30</Value></Tag><Tag><Key>tag1</Key><Value>value1</Value></Tag></TagSet></Tagging>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "3Q4QMZ3WJ5VFPD8J",
+      "x-amz-id-2" : "HfO0reWlind33qmUp2PHnBFUC415qcHgSX4hADJNpXYEUYCLCn2r4lmL5UtJuZSGYEL6zhKsMyJJy/3UfraQy+ekKkHFSGD1",
+      "Date" : "Mon, 23 Nov 2026 21:20:51 GMT"
+    }
+  },
+  "uuid" : "4a71832e-345e-4830-878b-ed3666988654",
+  "persistent" : true,
+  "insertionIndex" : 833
+}

@@ -474,6 +474,13 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   }
 
   @Override
+  protected CompletableFuture<Void> doDeleteTags(String key) {
+    return client
+        .deleteObjectTagging(transformer.toDeleteObjectTaggingRequest(key))
+        .thenAccept(response -> {});
+  }
+
+  @Override
   protected CompletableFuture<PresignedUrlResponse> doPresign(PresignedUrlRequest request) {
     return CompletableFuture.supplyAsync(
         () -> {
