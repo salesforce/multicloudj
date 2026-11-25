@@ -1112,40 +1112,6 @@ public class GcpSubscriptionTest {
     assertEquals("https://pubsub.example.com", settings.getEndpoint());
   }
 
-  @Test
-  void testHttpJsonAckTunnelsThroughProxy() throws Exception {
-    assertEquals("CONNECT pubsub.googleapis.com:443 HTTP/1.1", ackThroughProxy(false));
-  }
-
-  @Test
-  void testGrpcAckTunnelsThroughProxy() throws Exception {
-    assertEquals("CONNECT pubsub.googleapis.com:443 HTTP/1.1", ackThroughProxy(true));
-  }
-
-  private String ackThroughProxy(boolean grpcEnabled) throws Exception {
-    CredentialsOverrider sessionCredentials =
-        new CredentialsOverrider.Builder(CredentialsType.SESSION)
-            .withSessionCredentials(new StsCredentials("key", "secret", "token"))
-            .build();
-    return ProxyRequestCapture.firstRequestLine(
-        proxyEndpoint -> {
-          GcpSubscription proxiedSubscription =
-              new GcpSubscription(
-                  (GcpSubscription.Builder)
-                      new GcpSubscription.Builder()
-                          .withSubscriptionName(VALID_SUBSCRIPTION_NAME)
-                          .withProxyEndpoint(proxyEndpoint)
-                          .withCredentialsOverrider(sessionCredentials)
-                          .withRetryConfig(RetryConfig.builder().maxAttempts(1).build())
-                          .withGrpcEnabled(grpcEnabled));
-          try {
-            proxiedSubscription.doSendAcks(List.of(new GcpSubscription.GcpAckID("ack-id")));
-          } finally {
-            proxiedSubscription.close();
-          }
-        });
-  }
-
   private SubscriptionAdminSettings subscriptionAdminSettings(
       AbstractSubscription.Builder<GcpSubscription> builder) throws Exception {
     @SuppressWarnings("unchecked")

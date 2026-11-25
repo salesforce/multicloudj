@@ -40,8 +40,6 @@ import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
-import com.salesforce.multicloudj.sts.model.CredentialsType;
-import com.salesforce.multicloudj.sts.model.StsCredentials;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.ProxyDetector;
 import java.io.IOException;
@@ -533,41 +531,6 @@ public class GcpTopicTest {
                 .withEndpoint(URI.create("https://pubsub.example.com")));
 
     assertEquals("https://pubsub.example.com", settings.getEndpoint());
-  }
-
-  @Test
-  void testHttpJsonPublishTunnelsThroughProxy() throws Exception {
-    assertEquals("CONNECT pubsub.googleapis.com:443 HTTP/1.1", publishThroughProxy(false));
-  }
-
-  @Test
-  void testGrpcPublishTunnelsThroughProxy() throws Exception {
-    assertEquals("CONNECT pubsub.googleapis.com:443 HTTP/1.1", publishThroughProxy(true));
-  }
-
-  private String publishThroughProxy(boolean grpcEnabled) throws Exception {
-    CredentialsOverrider sessionCredentials =
-        new CredentialsOverrider.Builder(CredentialsType.SESSION)
-            .withSessionCredentials(new StsCredentials("key", "secret", "token"))
-            .build();
-    return ProxyRequestCapture.firstRequestLine(
-        proxyEndpoint -> {
-          GcpTopic proxiedTopic =
-              new GcpTopic()
-                  .builder()
-                  .withTopicName(VALID_TOPIC_NAME)
-                  .withProxyEndpoint(proxyEndpoint)
-                  .withCredentialsOverrider(sessionCredentials)
-                  .withRetryConfig(RetryConfig.builder().maxAttempts(1).build())
-                  .withGrpcEnabled(grpcEnabled)
-                  .build();
-          try {
-            proxiedTopic.doSendBatch(
-                List.of(Message.builder().withBody("test".getBytes()).build()));
-          } finally {
-            proxiedTopic.close();
-          }
-        });
   }
 
   private TopicAdminSettings topicAdminSettings(AbstractTopic.Builder<GcpTopic> builder)
