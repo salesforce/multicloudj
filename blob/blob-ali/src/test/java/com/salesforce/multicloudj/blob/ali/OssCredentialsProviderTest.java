@@ -45,10 +45,10 @@ public class OssCredentialsProviderTest {
   }
 
   @Test
-  public void testRefreshableSessionIsRejectedExplicitly() {
+  public void testSessionCredentialsSupplierIsRejectedExplicitly() {
     AtomicInteger supplierCalls = new AtomicInteger();
     CredentialsOverrider credentialsOverrider =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(
                 () -> {
                   supplierCalls.incrementAndGet();

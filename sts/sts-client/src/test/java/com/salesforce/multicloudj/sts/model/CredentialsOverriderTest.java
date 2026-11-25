@@ -77,16 +77,16 @@ public class CredentialsOverriderTest {
   }
 
   @Test
-  public void testRefreshableSessionWithSupplierAndInterval() {
+  public void testSessionWithSupplierAndInterval() {
     Instant expiration = Instant.parse("2030-01-01T00:00:00Z");
     StsCredentials credentials = new StsCredentials("key", "secret", "token", expiration);
     Supplier<StsCredentials> supplier = () -> credentials;
     CredentialsOverrider credentialsOverrider =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(supplier)
             .withRefreshInterval(Duration.ofMinutes(30))
             .build();
-    Assertions.assertEquals(CredentialsType.REFRESHABLE_SESSION, credentialsOverrider.getType());
+    Assertions.assertEquals(CredentialsType.SESSION, credentialsOverrider.getType());
     Assertions.assertSame(supplier, credentialsOverrider.getSessionCredentialsSupplier());
     Assertions.assertSame(credentials, credentialsOverrider.getSessionCredentialsSupplier().get());
     Assertions.assertEquals(Duration.ofMinutes(30), credentialsOverrider.getRefreshInterval());
@@ -94,43 +94,43 @@ public class CredentialsOverriderTest {
   }
 
   @Test
-  public void testRefreshableSessionWithoutSupplierIsRejected() {
+  public void testSessionIntervalWithoutSupplierIsRejected() {
     CredentialsOverrider.Builder builder =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withRefreshInterval(Duration.ofMinutes(30));
     Assertions.assertThrows(InvalidArgumentException.class, builder::build);
   }
 
   @Test
-  public void testRefreshableSessionWithoutIntervalIsRejected() {
+  public void testSessionSupplierWithoutIntervalIsRejected() {
     CredentialsOverrider.Builder builder =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(() -> new StsCredentials("key", "secret", "token"));
     Assertions.assertThrows(InvalidArgumentException.class, builder::build);
   }
 
   @Test
-  public void testRefreshableSessionWithZeroIntervalIsRejected() {
+  public void testSessionSupplierWithZeroIntervalIsRejected() {
     CredentialsOverrider.Builder builder =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(() -> new StsCredentials("key", "secret", "token"))
             .withRefreshInterval(Duration.ZERO);
     Assertions.assertThrows(InvalidArgumentException.class, builder::build);
   }
 
   @Test
-  public void testRefreshableSessionWithNegativeIntervalIsRejected() {
+  public void testSessionSupplierWithNegativeIntervalIsRejected() {
     CredentialsOverrider.Builder builder =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(() -> new StsCredentials("key", "secret", "token"))
             .withRefreshInterval(Duration.ofSeconds(-1));
     Assertions.assertThrows(InvalidArgumentException.class, builder::build);
   }
 
   @Test
-  public void testRefreshableSessionWithStaticSessionCredentialsIsRejected() {
+  public void testSessionSupplierWithFixedCredentialsIsRejected() {
     CredentialsOverrider.Builder builder =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentials(new StsCredentials("key", "secret", "token"))
             .withSessionCredentialsSupplier(() -> new StsCredentials("key", "secret", "token"))
             .withRefreshInterval(Duration.ofMinutes(30));
@@ -138,27 +138,63 @@ public class CredentialsOverriderTest {
   }
 
   @Test
-  public void testSupplierOnNonRefreshableTypeIsRejected() {
+  public void testSupplierOnANonSessionTypeIsRejected() {
     for (CredentialsType type :
         new CredentialsType[] {
-          CredentialsType.SESSION,
-          CredentialsType.ASSUME_ROLE,
-          CredentialsType.ASSUME_ROLE_WEB_IDENTITY
+          CredentialsType.ASSUME_ROLE, CredentialsType.ASSUME_ROLE_WEB_IDENTITY
         }) {
       CredentialsOverrider.Builder builder =
           new CredentialsOverrider.Builder(type)
-              .withSessionCredentialsSupplier(() -> new StsCredentials("key", "secret", "token"));
+              .withSessionCredentialsSupplier(() -> new StsCredentials("key", "secret", "token"))
+              .withRefreshInterval(Duration.ofMinutes(30));
       Assertions.assertThrows(InvalidArgumentException.class, builder::build, type.name());
     }
   }
 
   @Test
-  public void testRefreshIntervalOnNonRefreshableTypeIsRejected() {
+  public void testRefreshIntervalOnANonSessionTypeIsRejected() {
+    for (CredentialsType type :
+        new CredentialsType[] {
+          CredentialsType.ASSUME_ROLE, CredentialsType.ASSUME_ROLE_WEB_IDENTITY
+        }) {
+      CredentialsOverrider.Builder builder =
+          new CredentialsOverrider.Builder(type).withRefreshInterval(Duration.ofMinutes(30));
+      Assertions.assertThrows(InvalidArgumentException.class, builder::build, type.name());
+    }
+  }
+
+  @Test
+  public void testSessionWithFixedCredentialsAndAnIntervalIsRejected() {
     CredentialsOverrider.Builder builder =
         new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentials(new StsCredentials("key", "secret", "token"))
             .withRefreshInterval(Duration.ofMinutes(30));
     Assertions.assertThrows(InvalidArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void testSessionWithNeitherFixedCredentialsNorSupplierIsStillAccepted() {
+    CredentialsOverrider overrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION).build();
+
+    Assertions.assertEquals(CredentialsType.SESSION, overrider.getType());
+    Assertions.assertNull(overrider.getSessionCredentials());
+    Assertions.assertNull(overrider.getSessionCredentialsSupplier());
+    Assertions.assertNull(overrider.getCredentialsRefresher());
+  }
+
+  @Test
+  public void testSessionWithOnlyFixedCredentialsHasNoRefresher() {
+    StsCredentials fixed = new StsCredentials("key", "secret", "token");
+    CredentialsOverrider overrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(fixed)
+            .build();
+
+    Assertions.assertSame(fixed, overrider.getSessionCredentials());
+    Assertions.assertNull(overrider.getSessionCredentialsSupplier());
+    Assertions.assertNull(overrider.getRefreshInterval());
+    Assertions.assertNull(overrider.getCredentialsRefresher());
   }
 
   @Test
@@ -183,10 +219,10 @@ public class CredentialsOverriderTest {
   }
 
   @Test
-  public void testRefreshableSessionOverriderOwnsOneRefresherBackedByItsSupplier() {
+  public void testSessionOverriderWithASupplierOwnsOneRefresherBackedByIt() {
     StsCredentials supplied = new StsCredentials("key", "secret", "token");
     CredentialsOverrider overrider =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(() -> supplied)
             .withRefreshInterval(Duration.ofMinutes(30))
             .build();
@@ -201,7 +237,7 @@ public class CredentialsOverriderTest {
   @Test
   public void testSeparateOverridersDoNotShareARefresher() {
     CredentialsOverrider.Builder builder =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(() -> new StsCredentials("key", "secret", "token"))
             .withRefreshInterval(Duration.ofMinutes(30));
 
@@ -214,7 +250,7 @@ public class CredentialsOverriderTest {
   @Test
   void buildRejectsARefreshIntervalThatOverflowsTheCutoffArithmetic() {
     CredentialsOverrider.Builder builder =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(() -> new StsCredentials("id", "secret", "token"))
             .withRefreshInterval(Duration.ofSeconds(Long.MAX_VALUE));
 

@@ -15,6 +15,10 @@ public class TableStoreCredentialsProvider {
 
     switch (overrider.getType()) {
       case SESSION:
+        if (overrider.getSessionCredentialsSupplier() != null) {
+          throw new UnSupportedOperationException(
+              "A session credentials supplier is not supported yet for the document store");
+        }
         StsCredentials stsCredentials = overrider.getSessionCredentials();
         return CredentialsProviderFactory.newDefaultCredentialProvider(
             stsCredentials.getAccessKeyId(),
@@ -23,9 +27,6 @@ public class TableStoreCredentialsProvider {
       case ASSUME_ROLE:
         // TODD: We need to make changes in the upstream to support assume role credentials provider
         break;
-      case REFRESHABLE_SESSION:
-        throw new UnSupportedOperationException(
-            "REFRESHABLE_SESSION credentials are not supported yet for the document store");
       default:
         return null;
     }

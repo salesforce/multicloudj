@@ -43,12 +43,12 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
       throw new InvalidArgumentException(
           "endpoint is not an Alibaba Cloud STS endpoint: " + endpoint);
     }
-    // Signing only honors SESSION overrides and otherwise uses the default credential chain, so
-    // an unsupported override must fail here instead of silently signing with other credentials.
+    // Signing reads the fixed session credentials, or else uses the default credential chain, so a
+    // supplier must fail here instead of silently signing with other credentials.
     if (credentialsOverrider != null
-        && credentialsOverrider.getType() == CredentialsType.REFRESHABLE_SESSION) {
+        && credentialsOverrider.getSessionCredentialsSupplier() != null) {
       throw new UnSupportedOperationException(
-          "REFRESHABLE_SESSION credentials are not supported yet for the STS utilities");
+          "A session credentials supplier is not supported yet for the STS utilities");
     }
   }
 

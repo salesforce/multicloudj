@@ -150,9 +150,9 @@ class GcpStsUtilitiesTest {
   }
 
   @Test
-  void rejectsRefreshableSessionCredentialsBecauseSigningUsesDefaultCredentials() {
+  void rejectsASessionCredentialsSupplierBecauseSigningUsesDefaultCredentials() {
     CredentialsOverrider overrider =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(() -> new StsCredentials("key", "secret", "token"))
             .withRefreshInterval(Duration.ofHours(1))
             .build();
@@ -167,6 +167,17 @@ class GcpStsUtilitiesTest {
     GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
     builder.withCredentialsOverrider(
         new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE).withRole("sa").build());
+
+    Assertions.assertEquals("gcp", builder.build().getProviderId());
+  }
+
+  @Test
+  void stillAcceptsFixedSessionCredentials() {
+    GcpStsUtilities.Builder builder = new GcpStsUtilities.Builder();
+    builder.withCredentialsOverrider(
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(new StsCredentials("key", "secret", "token"))
+            .build());
 
     Assertions.assertEquals("gcp", builder.build().getProviderId());
   }

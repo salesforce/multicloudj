@@ -91,9 +91,9 @@ public class SmqCredentialsProviderTest {
   }
 
   @Test
-  void refreshableSessionThrows() {
+  void sessionWithASupplierThrows() {
     CredentialsOverrider overrider =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(() -> new StsCredentials("key", "secret", "token"))
             .withRefreshInterval(Duration.ofMinutes(1))
             .build();

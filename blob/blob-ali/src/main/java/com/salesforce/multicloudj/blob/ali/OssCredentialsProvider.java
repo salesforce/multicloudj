@@ -22,6 +22,10 @@ public class OssCredentialsProvider {
 
     switch (overrider.getType()) {
       case SESSION:
+        if (overrider.getSessionCredentialsSupplier() != null) {
+          throw new UnSupportedOperationException(
+              "A session credentials supplier is not supported yet for the blob store");
+        }
         StsCredentials stsCredentials = overrider.getSessionCredentials();
         return new StaticCredentialsProvider(
             stsCredentials.getAccessKeyId(),
@@ -35,9 +39,6 @@ public class OssCredentialsProvider {
             overrider.getRole(),
             overrider.getSessionName(),
             duration);
-      case REFRESHABLE_SESSION:
-        throw new UnSupportedOperationException(
-            "REFRESHABLE_SESSION credentials are not supported yet for the blob store");
       default:
         return null;
     }

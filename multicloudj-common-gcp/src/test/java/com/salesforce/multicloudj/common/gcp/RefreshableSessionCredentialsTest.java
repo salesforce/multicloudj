@@ -73,7 +73,7 @@ class RefreshableSessionCredentialsTest {
   }
 
   private static CredentialsRefresher refresherFor(Supplier<StsCredentials> supplier) {
-    return new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+    return new CredentialsOverrider.Builder(CredentialsType.SESSION)
         .withSessionCredentialsSupplier(supplier)
         .withRefreshInterval(Duration.ofHours(1))
         .build()

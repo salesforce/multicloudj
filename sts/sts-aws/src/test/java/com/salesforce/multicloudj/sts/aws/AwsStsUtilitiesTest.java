@@ -447,7 +447,7 @@ class AwsStsUtilitiesTest {
     return StsUtilities.builder("aws")
         .withRegion(region)
         .withCredentialsOverrider(
-            new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+            new CredentialsOverrider.Builder(CredentialsType.SESSION)
                 .withSessionCredentialsSupplier(supplier)
                 .withRefreshInterval(Duration.ofHours(1))
                 .build())

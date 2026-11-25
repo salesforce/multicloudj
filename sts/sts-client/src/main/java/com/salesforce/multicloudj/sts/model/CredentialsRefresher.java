@@ -10,7 +10,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 /**
- * Keeps caller-supplied session credentials fresh for {@link CredentialsType#REFRESHABLE_SESSION}.
+ * Keeps caller-supplied session credentials fresh for a supplier set on a {@link
+ * CredentialsType#SESSION} override.
  *
  * <p>Credentials are fetched lazily: the supplier is not called until the first {@link
  * #getCredentials()}. Each fetch produces an immutable snapshot holding the credentials, the time

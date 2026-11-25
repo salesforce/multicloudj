@@ -164,12 +164,12 @@ class AliStsUtilitiesTest {
   }
 
   @Test
-  void refreshableSessionCredentialsAreRejectedInsteadOfUsingDefaultCredentials() {
+  void aSessionCredentialsSupplierIsRejectedInsteadOfUsingDefaultCredentials() {
     StsUtilities.StsUtilityBuilder builder =
         StsUtilities.builder("ali")
             .withRegion("cn-shanghai")
             .withCredentialsOverrider(
-                new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+                new CredentialsOverrider.Builder(CredentialsType.SESSION)
                     .withSessionCredentialsSupplier(() -> credentials)
                     .withRefreshInterval(Duration.ofMinutes(1))
                     .build());

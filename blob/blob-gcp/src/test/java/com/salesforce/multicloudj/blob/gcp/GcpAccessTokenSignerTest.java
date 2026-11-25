@@ -281,7 +281,7 @@ class GcpAccessTokenSignerTest {
 
   private static RefreshableSessionCredentials refreshable(Supplier<StsCredentials> supplier) {
     CredentialsOverrider overrider =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(supplier)
             .withRefreshInterval(Duration.ofHours(1))
             .build();

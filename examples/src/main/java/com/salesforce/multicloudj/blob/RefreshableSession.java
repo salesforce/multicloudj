@@ -27,9 +27,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Session credentials are short lived. A client built from a fixed set of them stops working
  * when they expire, so the application would have to rebuild the client before every expiry.
- * {@link CredentialsType#REFRESHABLE_SESSION} removes that burden: the application supplies a
- * function that obtains fresh credentials from wherever they are issued, and the SDK calls it on
- * a schedule. The client is built once and lives for the whole application lifetime.
+ * A {@link CredentialsType#SESSION} override with a supplier removes that burden: the application
+ * supplies a function that obtains fresh credentials from wherever they are issued, and the SDK
+ * calls it on a schedule. The client is built once and lives for the whole application lifetime.
  *
  * <p>The provider, region and bucket come from configuration like the other blob examples (see
  * {@code examples.properties}). This example adds these keys, each also settable as a system
@@ -72,7 +72,7 @@ public class RefreshableSession {
     // expires. When the supplier returns credentials that carry an expiration, the SDK refreshes
     // after the smaller of this interval and 80% of the lifetime that remains.
     CredentialsOverrider overrider =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(credentialsSupplier)
             .withRefreshInterval(refreshInterval)
             .build();

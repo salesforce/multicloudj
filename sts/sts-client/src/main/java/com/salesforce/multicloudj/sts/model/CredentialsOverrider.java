@@ -15,13 +15,15 @@ import lombok.Getter;
  * the details for assume role, the session credentialsOverrider takes precedence over the assume
  * role.
  *
- * <p>{@link CredentialsType#REFRESHABLE_SESSION} is for credentials that only the caller can
- * obtain. The caller supplies a {@link Supplier} that returns session credentials, and the SDK
- * calls it again when the credentials it last returned need refreshing, so long-lived clients keep
- * working after those credentials expire. Refreshing is lazy and driven by use: a client that is
- * idle does not call the supplier. Credentials that carry an expiration ({@link
- * StsCredentials#getExpiration()}) are refreshed after the smaller of the refresh interval and 80%
- * of their remaining lifetime. Credentials without one are refreshed after the refresh interval.
+ * <p>{@link CredentialsType#SESSION} takes the session credentials either as a fixed value or as
+ * a {@link Supplier}, not both. Fixed credentials are used as they are for the lifetime of the
+ * client. With a supplier, the caller obtains the credentials from a source only it can reach, and
+ * the SDK calls the supplier again when the credentials it last returned need refreshing, so
+ * long-lived clients keep working after those credentials expire. The supplier requires a refresh
+ * interval. Refreshing is lazy and driven by use: a client that is idle does not call the
+ * supplier. Credentials that carry an expiration ({@link StsCredentials#getExpiration()}) are
+ * refreshed after the smaller of the refresh interval and 80% of their remaining lifetime.
+ * Credentials without one are refreshed after the refresh interval.
  */
 @Getter
 public class CredentialsOverrider {
@@ -44,7 +46,7 @@ public class CredentialsOverrider {
     this.sessionName = builder.sessionName;
     this.sessionCredentialsSupplier = builder.sessionCredentialsSupplier;
     this.refreshInterval = builder.refreshInterval;
-    if (builder.type == CredentialsType.REFRESHABLE_SESSION) {
+    if (builder.sessionCredentialsSupplier != null) {
       this.credentialsRefresher =
           new CredentialsRefresher(builder.sessionCredentialsSupplier, builder.refreshInterval);
     }
@@ -90,8 +92,10 @@ public class CredentialsOverrider {
     }
 
     /**
-     * Sets the supplier that returns fresh session credentials. Only valid for {@link
-     * CredentialsType#REFRESHABLE_SESSION}.
+     * Sets the supplier that returns fresh session credentials, as an alternative to fixed
+     * credentials. Only valid for {@link CredentialsType#SESSION}, it cannot be combined with
+     * {@link #withSessionCredentials(StsCredentials)}, and it requires {@link
+     * #withRefreshInterval(Duration)}.
      *
      * <p>The returned credentials must carry a non-blank access key id and access key secret, even
      * for clouds that authenticate with the security token alone. A result without them counts as
@@ -108,8 +112,9 @@ public class CredentialsOverrider {
      * Sets the longest time the SDK keeps using the credentials the supplier returned before it
      * calls the supplier again. The call happens on the first use after that time, and sooner when
      * the credentials carry an expiration: they are refreshed after 80% of their remaining
-     * lifetime if that is shorter. Only valid for {@link CredentialsType#REFRESHABLE_SESSION}.
-     * {@link #build()} rejects an interval too large for the SDK's time arithmetic.
+     * lifetime if that is shorter. Required with, and only valid together with, {@link
+     * #withSessionCredentialsSupplier(Supplier)}. {@link #build()} rejects an interval too large
+     * for the SDK's time arithmetic.
      */
     public Builder withRefreshInterval(Duration refreshInterval) {
       this.refreshInterval = refreshInterval;
@@ -122,23 +127,27 @@ public class CredentialsOverrider {
     }
 
     private void validate() {
-      if (type == CredentialsType.REFRESHABLE_SESSION) {
-        if (sessionCredentialsSupplier == null) {
+      if (type != CredentialsType.SESSION) {
+        if (sessionCredentialsSupplier != null || refreshInterval != null) {
           throw new InvalidArgumentException(
-              "sessionCredentialsSupplier must be provided for REFRESHABLE_SESSION");
+              "sessionCredentialsSupplier and refreshInterval are only valid for SESSION");
         }
-        if (refreshInterval == null || refreshInterval.isZero() || refreshInterval.isNegative()) {
+        return;
+      }
+      if (sessionCredentialsSupplier == null) {
+        if (refreshInterval != null) {
           throw new InvalidArgumentException(
-              "refreshInterval must be provided and positive for REFRESHABLE_SESSION");
+              "refreshInterval is only valid together with sessionCredentialsSupplier");
         }
-        if (sessionCredentials != null) {
-          throw new InvalidArgumentException(
-              "static session credentials cannot be combined with REFRESHABLE_SESSION");
-        }
-      } else if (sessionCredentialsSupplier != null || refreshInterval != null) {
+        return;
+      }
+      if (sessionCredentials != null) {
         throw new InvalidArgumentException(
-            "sessionCredentialsSupplier and refreshInterval are only valid for"
-                + " REFRESHABLE_SESSION");
+            "fixed session credentials cannot be combined with sessionCredentialsSupplier");
+      }
+      if (refreshInterval == null || refreshInterval.isZero() || refreshInterval.isNegative()) {
+        throw new InvalidArgumentException(
+            "refreshInterval must be provided and positive with sessionCredentialsSupplier");
       }
     }
   }

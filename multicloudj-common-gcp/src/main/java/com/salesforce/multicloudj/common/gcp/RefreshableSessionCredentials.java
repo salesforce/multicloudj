@@ -141,8 +141,8 @@ public class RefreshableSessionCredentials extends GoogleCredentials {
 
   private static UnSupportedOperationException copyNotSupported() {
     return new UnSupportedOperationException(
-        "REFRESHABLE_SESSION credentials cannot be copied because a copy would not keep asking"
-            + " the credentials refresher");
+        "Credentials from a session credentials supplier cannot be copied because a copy would not"
+            + " keep asking the credentials refresher");
   }
 
   private void deliver(RequestMetadataCallback callback) {
@@ -168,7 +168,7 @@ public class RefreshableSessionCredentials extends GoogleCredentials {
     String token = credentials.getSecurityToken();
     if (token == null || token.isBlank()) {
       throw new InvalidArgumentException(
-          "Credentials supplied for REFRESHABLE_SESSION must carry a security token");
+          "Credentials supplied by a session credentials supplier must carry a security token");
     }
     return token;
   }

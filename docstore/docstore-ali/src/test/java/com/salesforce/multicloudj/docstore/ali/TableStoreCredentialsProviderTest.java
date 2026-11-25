@@ -17,9 +17,9 @@ class TableStoreCredentialsProviderTest {
   private static final String REGION = "cn-shanghai";
 
   @Test
-  void refreshableSessionIsRejectedInsteadOfFallingBackToDefaultCredentials() {
+  void aSessionCredentialsSupplierIsRejectedInsteadOfFallingBackToDefaultCredentials() {
     CredentialsOverrider overrider =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(() -> new StsCredentials("key", "secret", "token"))
             .withRefreshInterval(Duration.ofMinutes(1))
             .build();
@@ -29,7 +29,7 @@ class TableStoreCredentialsProviderTest {
             UnSupportedOperationException.class,
             () -> TableStoreCredentialsProvider.getCredentialsProvider(overrider, REGION));
 
-    assertTrue(failure.getMessage().contains("REFRESHABLE_SESSION"));
+    assertTrue(failure.getMessage().contains("supplier"));
   }
 
   @Test

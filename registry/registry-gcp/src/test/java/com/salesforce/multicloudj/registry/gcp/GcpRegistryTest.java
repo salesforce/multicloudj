@@ -408,7 +408,7 @@ class GcpRegistryTest {
       throws Exception {
     AtomicInteger supplierCalls = new AtomicInteger();
     CredentialsOverrider overrider =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(
                 () -> {
                   supplierCalls.incrementAndGet();

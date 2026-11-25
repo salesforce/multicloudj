@@ -391,6 +391,10 @@ public class AliKms extends AbstractKms {
       throw new UnSupportedOperationException(
           "credentials type " + overrider.getType() + " is not supported");
     }
+    if (overrider.getSessionCredentialsSupplier() != null) {
+      throw new UnSupportedOperationException(
+          "A session credentials supplier is not supported yet for KMS");
+    }
     StsCredentials credentials = overrider.getSessionCredentials();
     config.setAccessKeyId(credentials.getAccessKeyId());
     config.setAccessKeySecret(credentials.getAccessKeySecret());

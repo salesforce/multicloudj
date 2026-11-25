@@ -12,7 +12,6 @@ import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.driver.AbstractStsUtilities;
 import com.salesforce.multicloudj.sts.driver.FlowCollector;
-import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -374,7 +373,7 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
     StsCredentials signingCredentials = null;
     if (credentialsOverrider != null) {
       signingCredentials =
-          credentialsOverrider.getType() == CredentialsType.REFRESHABLE_SESSION
+          credentialsOverrider.getCredentialsRefresher() != null
               ? credentialsOverrider.getCredentialsRefresher().getCredentials()
               : credentialsOverrider.getSessionCredentials();
     }

@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.kms.ali;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -624,9 +625,9 @@ class AliKmsTest {
   }
 
   @Test
-  void buildWithRefreshableSessionCredentialsIsRejected() {
+  void buildWithASessionCredentialsSupplierIsRejected() {
     CredentialsOverrider overrider =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(() -> new StsCredentials("key", "secret", "token"))
             .withRefreshInterval(Duration.ofMinutes(1))
             .build();
@@ -634,6 +635,20 @@ class AliKmsTest {
     assertThrows(
         UnSupportedOperationException.class,
         () -> new AliKms.Builder().withRegion(REGION).withCredentialsOverrider(overrider).build());
+  }
+
+  @Test
+  void buildWithFixedSessionCredentialsStillWorks() {
+    CredentialsOverrider overrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(new StsCredentials("key", "secret", "token"))
+            .build();
+
+    AliKms built =
+        new AliKms.Builder().withRegion(REGION).withCredentialsOverrider(overrider).build();
+
+    assertNotNull(built);
+    built.close();
   }
 
   @Test

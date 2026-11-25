@@ -31,7 +31,7 @@ public class RefreshableSessionCredentialsProviderTest {
 
   private static AwsCredentialsProvider providerFor(Supplier<StsCredentials> supplier) {
     CredentialsOverrider overrider =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(supplier)
             .withRefreshInterval(INTERVAL)
             .build();

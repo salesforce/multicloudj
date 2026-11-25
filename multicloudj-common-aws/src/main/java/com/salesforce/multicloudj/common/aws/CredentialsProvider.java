@@ -1,7 +1,5 @@
 package com.salesforce.multicloudj.common.aws;
 
-import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.apache.commons.lang3.StringUtils;
@@ -25,6 +23,9 @@ public class CredentialsProvider {
     switch (overrider.getType()) {
       case SESSION:
         {
+          if (overrider.getCredentialsRefresher() != null) {
+            return new RefreshableSessionCredentialsProvider(overrider.getCredentialsRefresher());
+          }
           StsCredentials stsCredentials = overrider.getSessionCredentials();
           if (StringUtils.isBlank(stsCredentials.getSecurityToken())) {
             return StaticCredentialsProvider.create(
@@ -103,17 +104,8 @@ public class CredentialsProvider {
                     .build();
               });
         }
-      case REFRESHABLE_SESSION:
-        {
-          if (overrider.getCredentialsRefresher() == null) {
-            throw new InvalidArgumentException(
-                "credentialsRefresher must be provided for REFRESHABLE_SESSION");
-          }
-          return new RefreshableSessionCredentialsProvider(overrider.getCredentialsRefresher());
-        }
       default:
-        throw new UnSupportedOperationException(
-            "Unsupported credentials type: " + overrider.getType());
+        return null;
     }
   }
 }

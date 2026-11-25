@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
@@ -120,10 +121,29 @@ public class CredentialsProviderTest {
   }
 
   @Test
-  public void testRefreshableSessionCredentialsProvider() {
+  public void testFixedSessionCredentialsWithATokenStayStatic() {
+    CredentialsOverrider credentialsOverrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(new StsCredentials("key", "secret", "token"))
+            .build();
+
+    AwsCredentialsProvider awsCredsProvider =
+        CredentialsProvider.getCredentialsProvider(credentialsOverrider, Region.AF_SOUTH_1);
+
+    Assertions.assertInstanceOf(StaticCredentialsProvider.class, awsCredsProvider);
+    AwsSessionCredentials resolved =
+        Assertions.assertInstanceOf(
+            AwsSessionCredentials.class, awsCredsProvider.resolveCredentials());
+    Assertions.assertEquals("key", resolved.accessKeyId());
+    Assertions.assertEquals("secret", resolved.secretAccessKey());
+    Assertions.assertEquals("token", resolved.sessionToken());
+  }
+
+  @Test
+  public void testSessionWithASupplierUsesTheRefreshableProvider() {
     AtomicInteger supplierCalls = new AtomicInteger();
     CredentialsOverrider credentialsOverrider =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(
                 () -> {
                   supplierCalls.incrementAndGet();
@@ -142,10 +162,10 @@ public class CredentialsProviderTest {
   }
 
   @Test
-  public void testRefreshableSessionOverriderSharesOneRefresherAcrossProviders() {
+  public void testSessionOverriderWithASupplierSharesOneRefresherAcrossProviders() {
     AtomicInteger supplierCalls = new AtomicInteger();
     CredentialsOverrider credentialsOverrider =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(
                 () -> {
                   supplierCalls.incrementAndGet();

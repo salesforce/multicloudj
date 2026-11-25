@@ -31,7 +31,6 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
 import com.salesforce.multicloudj.sts.driver.AbstractStsUtilities;
-import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.SignOptions;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -99,7 +98,7 @@ public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
     super(builder);
     this.jwtSigner = null;
     this.serviceAccountEmailOverride = null;
-    rejectRefreshableSession();
+    rejectSessionCredentialsSupplier();
   }
 
   public GcpStsUtilities() {
@@ -111,18 +110,18 @@ public class GcpStsUtilities extends AbstractStsUtilities<GcpStsUtilities> {
     super(builder);
     this.jwtSigner = jwtSigner;
     this.serviceAccountEmailOverride = serviceAccountEmail;
-    rejectRefreshableSession();
+    rejectSessionCredentialsSupplier();
   }
 
   /**
    * Signing uses Application Default Credentials and only reads the {@code role} from the
-   * overrider, so credentials supplied for {@code REFRESHABLE_SESSION} would be ignored.
+   * overrider, so a session credentials supplier would be ignored.
    */
-  private void rejectRefreshableSession() {
+  private void rejectSessionCredentialsSupplier() {
     if (credentialsOverrider != null
-        && credentialsOverrider.getType() == CredentialsType.REFRESHABLE_SESSION) {
+        && credentialsOverrider.getSessionCredentialsSupplier() != null) {
       throw new UnSupportedOperationException(
-          "REFRESHABLE_SESSION credentials are not supported for signing requests");
+          "A session credentials supplier is not supported for signing requests");
     }
   }
 

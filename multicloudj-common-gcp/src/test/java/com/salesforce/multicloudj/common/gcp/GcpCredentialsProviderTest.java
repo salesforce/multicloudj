@@ -10,9 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdentityPoolCredentials;
-import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
-import com.salesforce.multicloudj.sts.model.CredentialsRefresher;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.time.Duration;
@@ -215,10 +213,10 @@ public class GcpCredentialsProviderTest {
   }
 
   @Test
-  void testGetCredentialsWithRefreshableSessionType() throws Exception {
+  void testGetCredentialsWithSessionTypeAndASupplier() throws Exception {
     AtomicInteger supplierCalls = new AtomicInteger();
     CredentialsOverrider overrider =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(
                 () -> {
                   supplierCalls.incrementAndGet();
@@ -238,10 +236,10 @@ public class GcpCredentialsProviderTest {
   }
 
   @Test
-  void testRefreshableSessionCredentialsForOneOverriderShareOneSupplier() throws Exception {
+  void testSupplierCredentialsForOneOverriderShareOneSupplier() throws Exception {
     AtomicInteger supplierCalls = new AtomicInteger();
     CredentialsOverrider overrider =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentialsSupplier(
                 () -> {
                   supplierCalls.incrementAndGet();
@@ -260,20 +258,16 @@ public class GcpCredentialsProviderTest {
   }
 
   @Test
-  void testRefreshableSessionWithoutARefresherFailsClosed() {
-    CredentialsOverrider.Builder builder =
-        new CredentialsOverrider.Builder(CredentialsType.REFRESHABLE_SESSION)
-            .withSessionCredentialsSupplier(() -> new StsCredentials("k", "s", "t"))
-            .withRefreshInterval(Duration.ofHours(1));
+  void testFixedSessionCredentialsStayAPlainBearerToken() {
     CredentialsOverrider overrider =
-        new CredentialsOverrider(builder) {
-          @Override
-          public CredentialsRefresher getCredentialsRefresher() {
-            return null;
-          }
-        };
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(new StsCredentials("key-id", "key-secret", "fixed-token"))
+            .build();
 
-    assertThrows(
-        InvalidArgumentException.class, () -> GcpCredentialsProvider.getCredentials(overrider));
+    Credentials credentials = GcpCredentialsProvider.getCredentials(overrider);
+
+    assertEquals(GoogleCredentials.class, credentials.getClass());
+    assertEquals(
+        "fixed-token", ((GoogleCredentials) credentials).getAccessToken().getTokenValue());
   }
 }
