@@ -1,0 +1,38 @@
+{
+  "id" : "bf2b3b0e-1f33-45cd-983f-9bf224f05955",
+  "name" : "AliBlobStoreIT_testDeleteTags-DELETE-6",
+  "request" : {
+    "urlPath" : "/conformance-tests/blob-for-delete-tags",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6B062D90D89153373405C133",
+      "x-oss-server-time" : "49",
+      "Server" : "AliyunOSS",
+      "Date" : "Wed, 25 Nov 2026 00:36:32 GMT"
+    }
+  },
+  "uuid" : "bf2b3b0e-1f33-45cd-983f-9bf224f05955",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-conformance-tests-blob-for-delete-tags",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-2-conformance-tests-blob-for-delete-tags-2",
+  "insertionIndex" : 812
+}

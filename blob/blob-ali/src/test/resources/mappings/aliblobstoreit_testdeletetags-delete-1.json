@@ -1,0 +1,38 @@
+{
+  "id" : "587dcf8b-cc72-4194-8225-b1899883f776",
+  "name" : "AliBlobStoreIT_testDeleteTags-DELETE-1",
+  "request" : {
+    "urlPath" : "/conformance-tests/blob-for-delete-tags-fake",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6B062D95792EBC3531BA8BAD</RequestId>\n  <HostId>chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>conformance-tests/blob-for-delete-tags-fake</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6B062D95792EBC3531BA8BAD",
+      "x-oss-server-time" : "36",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0026-00000001",
+      "Date" : "Wed, 25 Nov 2026 00:36:37 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "587dcf8b-cc72-4194-8225-b1899883f776",
+  "persistent" : true,
+  "insertionIndex" : 807
+}
