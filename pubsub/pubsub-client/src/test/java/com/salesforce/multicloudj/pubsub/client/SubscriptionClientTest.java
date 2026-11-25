@@ -178,6 +178,7 @@ public class SubscriptionClientTest {
       when(mockBuilder.withProxyEndpoint(any())).thenReturn(mockBuilder);
       when(mockBuilder.withCredentialsOverrider(any())).thenReturn(mockBuilder);
       when(mockBuilder.withNackVisibilityTimeout(any())).thenReturn(mockBuilder);
+      when(mockBuilder.withGrpcEnabled(any())).thenReturn(mockBuilder);
       when(mockBuilder.build()).thenReturn(mockSubscription);
 
       // Act
@@ -189,6 +190,7 @@ public class SubscriptionClientTest {
               .withProxyEndpoint(URI.create("https://proxy.example.com"))
               .withCredentialsOverrider(mock(CredentialsOverrider.class))
               .withNackVisibilityTimeout(Duration.ofSeconds(30))
+              .withGrpcEnabled(true)
               .build();
 
       // Assert
@@ -199,6 +201,7 @@ public class SubscriptionClientTest {
       verify(mockBuilder).withProxyEndpoint(URI.create("https://proxy.example.com"));
       verify(mockBuilder).withCredentialsOverrider(any(CredentialsOverrider.class));
       verify(mockBuilder).withNackVisibilityTimeout(Duration.ofSeconds(30));
+      verify(mockBuilder).withGrpcEnabled(true);
       verify(mockBuilder).build();
     }
   }

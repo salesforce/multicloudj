@@ -41,6 +41,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
   protected final URI proxyEndpoint;
   protected final Duration nackVisibilityTimeout;
   protected final RetryConfig retryConfig;
+  protected final Boolean grpcEnabled;
 
   /**
    * Constants class for queue batching and sizing parameters. Contains immutable configuration
@@ -181,6 +182,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     this.proxyEndpoint = null;
     this.nackVisibilityTimeout = Duration.ZERO;
     this.retryConfig = null;
+    this.grpcEnabled = null;
 
     this.lock = lock;
     this.batchArrived = lock.newCondition();
@@ -210,6 +212,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     this.nackVisibilityTimeout =
         builder.nackVisibilityTimeout == null ? Duration.ZERO : builder.nackVisibilityTimeout;
     this.retryConfig = builder.retryConfig;
+    this.grpcEnabled = builder.grpcEnabled;
 
     this.lock = new ReentrantLock(true);
     this.batchArrived = this.lock.newCondition();
@@ -771,6 +774,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     protected CredentialsOverrider credentialsOverrider;
     protected Duration nackVisibilityTimeout;
     protected RetryConfig retryConfig;
+    protected Boolean grpcEnabled;
 
     @Override
     public Builder<T> providerId(String providerId) {
@@ -817,6 +821,19 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
         retryConfig.validate();
       }
       this.retryConfig = retryConfig;
+      return this;
+    }
+
+    /**
+     * Requests gRPC transport for the pubsub client. Providers whose underlying SDK supports gRPC
+     * will use it instead of the default HTTP/JSON transport; providers without gRPC support
+     * ignore this setting. When left unset (the default), the HTTP/JSON transport is used.
+     *
+     * @param grpcEnabled whether to request gRPC transport for the pubsub client
+     * @return An instance of self
+     */
+    public Builder<T> withGrpcEnabled(Boolean grpcEnabled) {
+      this.grpcEnabled = grpcEnabled;
       return this;
     }
 

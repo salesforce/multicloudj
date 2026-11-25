@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
@@ -15,6 +16,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
+import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
@@ -35,8 +37,11 @@ import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationExceptio
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
+import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.ProxyDetector;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
@@ -448,6 +453,107 @@ public class GcpTopicTest {
       return captor.getValue().publishSettings().getRetrySettings();
     } finally {
       topicWithRetry.close();
+    }
+  }
+
+  @Test
+  void testGrpcUnsetUsesHttpJsonTransport() throws Exception {
+    TopicAdminSettings settings =
+        topicAdminSettings(new GcpTopic().builder().withTopicName(VALID_TOPIC_NAME));
+
+    assertEquals("httpjson", settings.getTransportChannelProvider().getTransportName());
+  }
+
+  @Test
+  void testGrpcDisabledUsesHttpJsonTransport() throws Exception {
+    TopicAdminSettings settings =
+        topicAdminSettings(
+            new GcpTopic().builder().withTopicName(VALID_TOPIC_NAME).withGrpcEnabled(false));
+
+    assertEquals("httpjson", settings.getTransportChannelProvider().getTransportName());
+  }
+
+  @Test
+  void testGrpcEnabledUsesGrpcTransport() throws Exception {
+    TopicAdminSettings settings =
+        topicAdminSettings(
+            new GcpTopic().builder().withTopicName(VALID_TOPIC_NAME).withGrpcEnabled(true));
+
+    assertEquals("grpc", settings.getTransportChannelProvider().getTransportName());
+    InstantiatingGrpcChannelProvider provider =
+        assertInstanceOf(
+            InstantiatingGrpcChannelProvider.class, settings.getTransportChannelProvider());
+    assertNull(provider.toBuilder().getChannelConfigurator());
+  }
+
+  @Test
+  void testGrpcEnabledConvertsEndpointUriToHostAndPort() throws Exception {
+    TopicAdminSettings settings =
+        topicAdminSettings(
+            new GcpTopic()
+                .builder()
+                .withTopicName(VALID_TOPIC_NAME)
+                .withEndpoint(URI.create("https://pubsub.example.com"))
+                .withGrpcEnabled(true));
+
+    assertEquals("pubsub.example.com:443", settings.getEndpoint());
+  }
+
+  @Test
+  void testGrpcEnabledWithProxyInstallsProxyDetectorAndKeepsSdkChannelDefaults()
+      throws Exception {
+    TopicAdminSettings settings =
+        topicAdminSettings(
+            new GcpTopic()
+                .builder()
+                .withTopicName(VALID_TOPIC_NAME)
+                .withProxyEndpoint(URI.create("http://proxy.example.com:8080"))
+                .withGrpcEnabled(true));
+
+    InstantiatingGrpcChannelProvider provider =
+        assertInstanceOf(
+            InstantiatingGrpcChannelProvider.class, settings.getTransportChannelProvider());
+    assertEquals(
+        TopicAdminSettings.defaultGrpcTransportProviderBuilder().getMaxInboundMessageSize(),
+        provider.toBuilder().getMaxInboundMessageSize());
+    ManagedChannelBuilder channelBuilder = mock(ManagedChannelBuilder.class);
+    provider.toBuilder().getChannelConfigurator().apply(channelBuilder);
+    verify(channelBuilder).proxyDetector(org.mockito.ArgumentMatchers.any(ProxyDetector.class));
+  }
+
+  @Test
+  void testHttpJsonKeepsEndpointUri() throws Exception {
+    TopicAdminSettings settings =
+        topicAdminSettings(
+            new GcpTopic()
+                .builder()
+                .withTopicName(VALID_TOPIC_NAME)
+                .withEndpoint(URI.create("https://pubsub.example.com")));
+
+    assertEquals("https://pubsub.example.com", settings.getEndpoint());
+  }
+
+  private TopicAdminSettings topicAdminSettings(AbstractTopic.Builder<GcpTopic> builder)
+      throws Exception {
+    TopicAdminClient mockClient = mock(TopicAdminClient.class);
+    @SuppressWarnings("unchecked")
+    UnaryCallable<PublishRequest, PublishResponse> mockCallable = mock(UnaryCallable.class);
+    when(mockClient.publishCallable()).thenReturn(mockCallable);
+    when(mockCallable.futureCall(org.mockito.ArgumentMatchers.any(PublishRequest.class)))
+        .thenReturn(ApiFutures.immediateFuture(PublishResponse.getDefaultInstance()));
+
+    GcpTopic gcpTopic = builder.build();
+    List<Message> messages = List.of(Message.builder().withBody("test".getBytes()).build());
+
+    try (MockedStatic<TopicAdminClient> clientStatic = mockStatic(TopicAdminClient.class)) {
+      ArgumentCaptor<TopicAdminSettings> captor = ArgumentCaptor.forClass(TopicAdminSettings.class);
+      clientStatic.when(() -> TopicAdminClient.create(captor.capture())).thenReturn(mockClient);
+
+      gcpTopic.doSendBatch(messages);
+
+      return captor.getValue();
+    } finally {
+      gcpTopic.close();
     }
   }
 

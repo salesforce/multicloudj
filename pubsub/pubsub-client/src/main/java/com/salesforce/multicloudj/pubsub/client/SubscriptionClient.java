@@ -317,6 +317,19 @@ public class SubscriptionClient implements AutoCloseable {
     }
 
     /**
+     * Requests gRPC transport for the pubsub client. Providers whose underlying SDK supports gRPC
+     * will use it instead of the default HTTP/JSON transport; providers without gRPC support
+     * ignore this setting. When left unset (the default), the HTTP/JSON transport is used.
+     *
+     * @param grpcEnabled whether to request gRPC transport for the pubsub client
+     * @return This builder instance
+     */
+    public SubscriptionClientBuilder withGrpcEnabled(Boolean grpcEnabled) {
+      this.subscriptionBuilder.withGrpcEnabled(grpcEnabled);
+      return this;
+    }
+
+    /**
      * Builds and returns a new SubscriptionClient instance.
      *
      * @return A new SubscriptionClient
