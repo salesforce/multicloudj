@@ -18,7 +18,7 @@ import java.util.function.Supplier;
  * after which they should be refreshed, and the time at which they must no longer be served. The
  * snapshot is replaced as a whole, so readers never observe a partly updated state.
  *
- * <p>Timing is derived from what the supplier returns:
+ * <p>Timing is derived from what the supplier returns and is measured from the moment it returns:
  *
  * <ul>
  *   <li>Credentials that carry an expiration ({@link StsCredentials#getExpiration()}): refresh
@@ -141,7 +141,7 @@ public final class CredentialsRefresher {
       throwIfBackingOff(now);
     }
     try {
-      Snapshot fresh = fetch(now);
+      Snapshot fresh = fetch();
       snapshot = fresh;
       lastFailure = null;
       return fresh.credentials;
@@ -169,7 +169,7 @@ public final class CredentialsRefresher {
     }
   }
 
-  private Snapshot fetch(Instant fetchedAt) {
+  private Snapshot fetch() {
     StsCredentials credentials;
     try {
       credentials = supplier.get();
@@ -184,27 +184,28 @@ public final class CredentialsRefresher {
     requireNotBlank(credentials.getAccessKeyId(), "access key id");
     requireNotBlank(credentials.getAccessKeySecret(), "access key secret");
     requireNotBlank(credentials.getSecurityToken(), "security token");
+    // All timing is measured from the end of the supplier call: a slow supplier must not publish
+    // credentials that are already past their own refresh time or cutoff.
+    Instant after = clock.instant();
     Instant expiration = credentials.getExpiration();
     if (expiration != null) {
-      // Checked against the clock after the supplier returned: a slow supplier may hand back
-      // credentials that expired while it was running.
-      if (!expiration.isAfter(clock.instant())) {
+      if (!expiration.isAfter(after)) {
         throw new UnAuthorizedException(
             "The refreshable session credentials supplier returned credentials that expired at "
                 + expiration);
       }
-      Duration lifetime = Duration.between(fetchedAt, expiration);
+      Duration lifetime = Duration.between(after, expiration);
       Duration untilRefresh =
           lifetime.multipliedBy(REFRESH_LIFETIME_PERCENT).dividedBy(100);
       if (refreshInterval.compareTo(untilRefresh) < 0) {
         untilRefresh = refreshInterval;
       }
-      return new Snapshot(credentials, fetchedAt.plus(untilRefresh), expiration);
+      return new Snapshot(credentials, after.plus(untilRefresh), expiration);
     }
     return new Snapshot(
         credentials,
-        fetchedAt.plus(refreshInterval),
-        fetchedAt.plus(refreshInterval.multipliedBy(CUTOFF_INTERVAL_MULTIPLE)));
+        after.plus(refreshInterval),
+        after.plus(refreshInterval.multipliedBy(CUTOFF_INTERVAL_MULTIPLE)));
   }
 
   private static void requireNotBlank(String value, String field) {

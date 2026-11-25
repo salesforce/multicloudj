@@ -748,6 +748,81 @@ class CredentialsRefresherTest {
   }
 
   @Test
+  void slowSupplierResultWithoutAnExpirationIsCachedFromTheEndOfTheCall() {
+    Duration interval = Duration.ofSeconds(10);
+    ScriptedSupplier supplier =
+        new ScriptedSupplier()
+            .then(
+                () -> {
+                  clock.advance(Duration.ofSeconds(21));
+                  return plain("slow");
+                })
+            .thenReturn(plain("v2"));
+    CredentialsRefresher refresher = new CredentialsRefresher(supplier, interval, clock);
+
+    Assertions.assertEquals("slow", refresher.getCredentials().getAccessKeyId());
+    Assertions.assertEquals("slow", refresher.getCredentials().getAccessKeyId());
+    Assertions.assertEquals(1, supplier.calls());
+
+    clock.advance(Duration.ofSeconds(9));
+    Assertions.assertEquals("slow", refresher.getCredentials().getAccessKeyId());
+    Assertions.assertEquals(1, supplier.calls());
+
+    clock.advance(Duration.ofSeconds(1));
+    Assertions.assertEquals("v2", refresher.getCredentials().getAccessKeyId());
+    Assertions.assertEquals(2, supplier.calls());
+  }
+
+  @Test
+  void slowSupplierResultWithoutAnExpirationIsServableForTwoIntervalsFromTheEndOfTheCall() {
+    Duration interval = Duration.ofSeconds(10);
+    ScriptedSupplier supplier =
+        new ScriptedSupplier()
+            .then(
+                () -> {
+                  clock.advance(Duration.ofSeconds(21));
+                  return plain("slow");
+                })
+            .thenFail(new IllegalStateException("down"));
+    CredentialsRefresher refresher = new CredentialsRefresher(supplier, interval, clock);
+    refresher.getCredentials();
+
+    clock.advance(interval);
+    Assertions.assertEquals("slow", refresher.getCredentials().getAccessKeyId());
+    Assertions.assertEquals(2, supplier.calls());
+
+    clock.advance(Duration.ofSeconds(9));
+    Assertions.assertEquals("slow", refresher.getCredentials().getAccessKeyId());
+
+    clock.advance(Duration.ofSeconds(1));
+    Assertions.assertThrows(UnAuthorizedException.class, refresher::getCredentials);
+  }
+
+  @Test
+  void slowSupplierResultWithAnExpirationRefreshesFromTheEndOfTheCall() {
+    Instant expiration = clock.instant().plusSeconds(60);
+    ScriptedSupplier supplier =
+        new ScriptedSupplier()
+            .then(
+                () -> {
+                  clock.advance(Duration.ofSeconds(20));
+                  return new StsCredentials("slow", "secret", "token", expiration);
+                })
+            .thenReturn(plain("v2"));
+    CredentialsRefresher refresher = refresherFor(supplier);
+    refresher.getCredentials();
+
+    // 40 s of lifetime remain when the call returns, so the refresh is due 80% of that later.
+    clock.advance(Duration.ofSeconds(31));
+    Assertions.assertEquals("slow", refresher.getCredentials().getAccessKeyId());
+    Assertions.assertEquals(1, supplier.calls());
+
+    clock.advance(Duration.ofSeconds(1));
+    Assertions.assertEquals("v2", refresher.getCredentials().getAccessKeyId());
+    Assertions.assertEquals(2, supplier.calls());
+  }
+
+  @Test
   void aCheckedExceptionThrownSneakilyBySupplierIsAFailedFetch() {
     IOException failure = new IOException("issuer unreachable");
     ScriptedSupplier supplier =
