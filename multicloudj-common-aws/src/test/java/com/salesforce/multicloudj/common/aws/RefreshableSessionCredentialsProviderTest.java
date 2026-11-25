@@ -12,7 +12,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
@@ -52,15 +51,15 @@ public class RefreshableSessionCredentialsProviderTest {
   }
 
   @Test
-  public void testBlankTokenProducesBasicCredentials() {
+  public void testMissingTokenIsAFailedFetchAndNotBasicCredentials() {
     for (String token : new String[] {null, "", "  "}) {
-      AwsCredentials credentials =
-          providerFor(() -> new StsCredentials("key", "secret", token)).resolveCredentials();
+      AwsCredentialsProvider provider =
+          providerFor(() -> new StsCredentials("key", "secret", token));
 
-      AwsBasicCredentials basic =
-          Assertions.assertInstanceOf(AwsBasicCredentials.class, credentials);
-      Assertions.assertEquals("key", basic.accessKeyId());
-      Assertions.assertEquals("secret", basic.secretAccessKey());
+      UnAuthorizedException thrown =
+          Assertions.assertThrows(UnAuthorizedException.class, provider::resolveCredentials);
+
+      Assertions.assertTrue(thrown.getMessage().contains("security token"));
     }
   }
 

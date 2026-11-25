@@ -696,6 +696,58 @@ class CredentialsRefresherTest {
   }
 
   @Test
+  void credentialsWithoutASecurityTokenAreAFailedFetch() {
+    StsCredentials[] unusable = {
+      new StsCredentials("key-id-value", "secret-value", null),
+      new StsCredentials("key-id-value", "secret-value", ""),
+      new StsCredentials("key-id-value", "secret-value", "   ")
+    };
+    for (StsCredentials credentials : unusable) {
+      ScriptedSupplier supplier =
+          new ScriptedSupplier().thenReturn(credentials).thenReturn(plain("v1"));
+      CredentialsRefresher refresher = refresherFor(supplier);
+
+      UnAuthorizedException thrown =
+          Assertions.assertThrows(UnAuthorizedException.class, refresher::getCredentials);
+
+      Assertions.assertTrue(
+          thrown.getMessage().contains("security token"),
+          "unexpected message: " + thrown.getMessage());
+      Assertions.assertFalse(thrown.getMessage().contains("secret-value"));
+      Assertions.assertFalse(thrown.getMessage().contains("key-id-value"));
+      Assertions.assertThrows(UnAuthorizedException.class, refresher::getCredentials);
+      Assertions.assertEquals(1, supplier.calls());
+      clock.advance(CredentialsRefresher.MAX_RETRY_SPACING);
+      Assertions.assertEquals("v1", refresher.getCredentials().getAccessKeyId());
+    }
+  }
+
+  @Test
+  void credentialsWithoutASecurityTokenDoNotReplaceTheLastGoodCredentials() {
+    Duration interval = Duration.ofSeconds(300);
+    Instant expiration = clock.instant().plusSeconds(1800);
+    ScriptedSupplier supplier =
+        new ScriptedSupplier()
+            .thenReturn(new StsCredentials("v1", "secret", "token", expiration))
+            .thenReturn(new StsCredentials("v2", "secret", "", expiration))
+            .thenReturn(new StsCredentials("v3", "secret", "token", expiration));
+    CredentialsRefresher refresher = new CredentialsRefresher(supplier, interval, clock);
+    refresher.getCredentials();
+
+    clock.advance(Duration.ofSeconds(301));
+    Assertions.assertEquals("v1", refresher.getCredentials().getAccessKeyId());
+    Assertions.assertEquals(2, supplier.calls());
+
+    clock.advance(Duration.ofSeconds(1));
+    Assertions.assertEquals("v1", refresher.getCredentials().getAccessKeyId());
+    Assertions.assertEquals(2, supplier.calls());
+
+    clock.advance(Duration.ofSeconds(10));
+    Assertions.assertEquals("v3", refresher.getCredentials().getAccessKeyId());
+    Assertions.assertEquals(3, supplier.calls());
+  }
+
+  @Test
   void aCheckedExceptionThrownSneakilyBySupplierIsAFailedFetch() {
     IOException failure = new IOException("issuer unreachable");
     ScriptedSupplier supplier =

@@ -120,8 +120,8 @@ class RefreshableSessionCredentialsTest {
     RefreshableSessionCredentials blank = credentialsFor(new ControlledSupplier(plain("  ")));
     RefreshableSessionCredentials missing = credentialsFor(new ControlledSupplier(plain(null)));
 
-    assertThrows(InvalidArgumentException.class, () -> blank.getRequestMetadata(URI_UNDER_TEST));
-    assertThrows(InvalidArgumentException.class, () -> missing.getRequestMetadata(URI_UNDER_TEST));
+    assertThrows(UnAuthorizedException.class, () -> blank.getRequestMetadata(URI_UNDER_TEST));
+    assertThrows(UnAuthorizedException.class, () -> missing.getRequestMetadata(URI_UNDER_TEST));
   }
 
   @Test

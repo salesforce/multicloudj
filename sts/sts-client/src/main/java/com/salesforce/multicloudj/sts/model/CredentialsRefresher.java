@@ -44,14 +44,13 @@ import java.util.function.Supplier;
  * failing supplier is not called once per caller. A transient failure of the first fetch is
  * therefore visible for up to that period. The first call after the period calls the supplier
  * again, and a success clears the remembered failure. A supplier result that is {@code null},
- * already expired, or lacks a non-blank access key id or access key secret counts as a failed
- * fetch and is never cached. The security token is not checked here because whether it is required
- * depends on the cloud.
+ * already expired, or lacks a non-blank access key id, access key secret or security token counts
+ * as a failed fetch and is never cached.
  *
  * <p>Supplier contract: the supplier may be called from any thread, may perform blocking I/O, and
  * should be safe to call repeatedly. At most one call is in flight at a time. It must return a
- * non-blank access key id and access key secret, even for clouds that authenticate with the
- * security token alone.
+ * non-blank access key id, access key secret and security token, even for clouds that authenticate
+ * with the security token alone.
  *
  * <p>The supplier has no timeout. A supplier that blocks indefinitely stalls every caller once no
  * servable credentials remain. It must not call back into a client built from the same overrider:
@@ -184,6 +183,7 @@ public final class CredentialsRefresher {
     }
     requireNotBlank(credentials.getAccessKeyId(), "access key id");
     requireNotBlank(credentials.getAccessKeySecret(), "access key secret");
+    requireNotBlank(credentials.getSecurityToken(), "security token");
     Instant expiration = credentials.getExpiration();
     if (expiration != null) {
       // Checked against the clock after the supplier returned: a slow supplier may hand back

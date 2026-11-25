@@ -343,7 +343,7 @@ class GcpAccessTokenSignerTest {
         refreshable(() -> new StsCredentials("key", "secret", ""));
 
     assertThrows(
-        InvalidArgumentException.class,
+        UnAuthorizedException.class,
         () -> new GcpAccessTokenSigner().signerFor(options(credentials, transport)));
     assertTrue(transport.urls.isEmpty());
   }

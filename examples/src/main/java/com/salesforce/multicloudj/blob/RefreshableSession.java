@@ -140,8 +140,8 @@ public class RefreshableSession {
     }
 
     // The access key id and secret are not used by every provider; some authenticate with the
-    // session token alone. The SDK still rejects credentials without them, so they are required
-    // here and the same file works for all providers.
+    // session token alone. The SDK rejects credentials that lack any of the three, so all are
+    // required here and the same file works for all providers.
     String accessKeyId = required(properties, "accessKeyId");
     String secretAccessKey = required(properties, "secretAccessKey");
     String sessionToken = required(properties, "sessionToken");

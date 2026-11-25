@@ -97,10 +97,10 @@ public class CredentialsOverrider {
      * {@link #withSessionCredentials(StsCredentials)}, and it requires {@link
      * #withRefreshInterval(Duration)}.
      *
-     * <p>The returned credentials must carry a non-blank access key id and access key secret, even
-     * for clouds that authenticate with the security token alone. A result without them counts as
-     * a failed fetch, and the previous credentials stay in use. A supplier that knows when the
-     * credentials expire should set {@link StsCredentials#getExpiration()}.
+     * <p>The returned credentials must carry a non-blank access key id, access key secret and
+     * security token, even for clouds that authenticate with the security token alone. A result
+     * without them counts as a failed fetch, and the previous credentials stay in use. A supplier
+     * that knows when the credentials expire should set {@link StsCredentials#getExpiration()}.
      */
     public Builder withSessionCredentialsSupplier(
         Supplier<StsCredentials> sessionCredentialsSupplier) {

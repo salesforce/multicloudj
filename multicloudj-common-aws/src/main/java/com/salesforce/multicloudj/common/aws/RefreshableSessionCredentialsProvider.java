@@ -3,8 +3,6 @@ package com.salesforce.multicloudj.common.aws;
 import com.salesforce.multicloudj.sts.model.CredentialsRefresher;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.time.Instant;
-import org.apache.commons.lang3.StringUtils;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
@@ -26,10 +24,6 @@ public class RefreshableSessionCredentialsProvider implements AwsCredentialsProv
   @Override
   public AwsCredentials resolveCredentials() {
     StsCredentials credentials = refresher.getCredentials();
-    if (StringUtils.isBlank(credentials.getSecurityToken())) {
-      return AwsBasicCredentials.create(
-          credentials.getAccessKeyId(), credentials.getAccessKeySecret());
-    }
     AwsSessionCredentials.Builder session =
         AwsSessionCredentials.builder()
             .accessKeyId(credentials.getAccessKeyId())
